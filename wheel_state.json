@@ -2,7 +2,7 @@
   "stage": 1,
   "current_contract": "TSLA260522P00340000",
   "contract_order_id": "71f794b3-f352-4c7f-9f46-b39191662449",
-  "contract_entry_price": null,
+  "contract_entry_price": 4.1,
   "contract_entry_date": "2026-04-28T11:49:02.032475Z",
   "contract_expiration": "2026-05-22",
   "contract_type": "put",
@@ -27,6 +27,6 @@
       "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
     }
   ],
-  "last_checked": "2026-04-28T11:49:02.648595Z",
-  "last_action": "ALERT: Wheel put TSLA260522P00340000 was closed by congress-copy monitor bug (mis-fired stop-loss on short option). Realized +$85 net premium. Wheel is back to no open contract \u2014 next run should consider whether to sell another put. Bug fix needed in congress-copy/src/monitor.py before this can recur."
+  "last_checked": "2026-04-28T13:44:36.799257Z",
+  "last_action": "Monitoring TSLA260522P00340000: $4.10 vs entry $4.10"
 }
