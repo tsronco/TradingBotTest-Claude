@@ -27,3 +27,5 @@
 {"timestamp": "2026-04-28T19:07:37.804409+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"stage": 1, "contract": "TSLA260522P00340000", "tsla_price": 378.095}}
 {"timestamp": "2026-04-28T19:37:19.175174+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 376.99, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
 {"timestamp": "2026-04-28T19:37:21.597197+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"stage": 1, "contract": "TSLA260522P00340000", "tsla_price": 376.99}}
+{"timestamp": "2026-04-28T20:07:25.444899+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 375.37, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
+{"timestamp": "2026-04-28T20:07:25.711217+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"stage": 1, "contract": "TSLA260522P00340000"}}
