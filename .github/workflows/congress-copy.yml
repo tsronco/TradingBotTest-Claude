@@ -5,10 +5,11 @@ name: Congress Copy
 #
 # Schedule: 8 AM, 10 AM, 12 PM, 2 PM CT, Mon–Fri.
 # Cron is in UTC for CDT (UTC-5). When DST ends, shift hour values +1.
+# Using :07 instead of :00 to avoid GitHub Actions peak-load throttling.
 
 on:
   schedule:
-    - cron: '0 13,15,17,19 * * 1-5'
+    - cron: '7 13,15,17,19 * * 1-5'
   workflow_dispatch: {}
 
 concurrency:

@@ -6,10 +6,14 @@ name: TSLA Monitor
 # Cron is in UTC — values below are correct for CDT (UTC-5, March–November).
 # When DST ends in early November, shift each hour value +1 (becomes 14-21
 # UTC for CST). TODO: replace with a proper TZ-aware guard.
+#
+# IMPORTANT: avoid :00 and :30 — those are GitHub Actions peak load times,
+# scheduled workflows get throttled. Using :07 and :37 (still every 30 min,
+# just offset 7 min) gives much more reliable cron execution.
 
 on:
   schedule:
-    - cron: '*/30 13-20 * * 1-5'
+    - cron: '7,37 13-20 * * 1-5'
   workflow_dispatch: {}  # allow manual trigger from Actions tab
 
 # Serialize ALL bot workflow runs to avoid push conflicts when committing

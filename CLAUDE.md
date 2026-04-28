@@ -47,9 +47,11 @@ All cron expressions are in **UTC**. Times below are translated for clarity.
 
 | Workflow | Cron (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
-| `tsla-monitor.yml` | `*/30 13-20 * * 1-5` | 8 AM–3:30 PM | 9 AM–4:30 PM | Strategy + wheel |
-| `congress-copy.yml` | `0 13,15,17,19 * * 1-5` | 8/10/12/2 PM | 9/11/1/3 PM | Scrape + monitor |
-| `daily-summary.yml` | `5 20 * * 1-5` | 3:05 PM | 4:05 PM | Combined P&L report |
+| `tsla-monitor.yml` | `7,37 13-20 * * 1-5` | 8:07/:37 AM–3:37 PM | 9:07/:37 AM–4:37 PM | Strategy + wheel |
+| `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Scrape + monitor |
+| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | Combined P&L report |
+
+**Note**: cron times are intentionally OFF the :00/:30 marks. GitHub Actions scheduled workflows get throttled at peak load times (every :00 and :30 of the hour), so we use :07/:37/:12 to stay reliable.
 
 NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fall outside market hours are handled correctly:
 - **Wheel** has an `is_market_open()` guard that skips the cycle when market is closed (logs a JSONL heartbeat, doesn't touch state).
