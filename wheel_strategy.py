@@ -103,6 +103,25 @@ def get_positions():
     return api_get("/positions")
 
 
+def is_market_open():
+    """Returns True when NYSE regular session is open (9:30 AM–4:00 PM ET)."""
+    try:
+        return bool(api_get("/clock").get("is_open", False))
+    except Exception as e:
+        log(f"is_market_open check failed: {e} — assuming closed")
+        return False
+
+
+def get_order(order_id):
+    """Fetch order details by ID. Returns None on 404."""
+    try:
+        return api_get(f"/orders/{order_id}")
+    except requests.HTTPError as e:
+        if e.response.status_code == 404:
+            return None
+        raise
+
+
 def get_option_position(contract_symbol):
     """Returns position dict or None if not found."""
     try:
@@ -196,6 +215,38 @@ def check_early_close(state, current_option_price):
     return current_option_price <= entry * EARLY_CLOSE_PCT
 
 
+def _resolve_pending_contract(state):
+    """When the contract symbol is set but no position exists yet, this disambiguates
+    'order still pending fill' from 'contract truly gone (expired/assigned/cancelled)'.
+
+    Returns one of:
+      "pending"  — order placed, not yet filled. Skip this cycle.
+      "just_filled" — order just filled; contract_entry_price was set as a side effect.
+                       Caller should re-fetch position and continue normal flow.
+      "gone"     — order is cancelled/rejected/expired, OR no order_id recorded.
+                       Caller should treat the contract as gone (assigned/worthless flow).
+    """
+    order_id = state.get("contract_order_id")
+    if not order_id:
+        return "gone"
+    order = get_order(order_id)
+    if order is None:
+        return "gone"
+    status = order.get("status", "")
+    if status in ("new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding"):
+        return "pending"
+    if status == "filled":
+        # Record the entry price so 50%-profit rule can fire on future cycles
+        if state.get("contract_entry_price") is None:
+            filled_avg = order.get("filled_avg_price")
+            if filled_avg:
+                state["contract_entry_price"] = float(filled_avg)
+                log(f"Wheel order {order_id} filled — recorded entry price ${state['contract_entry_price']:.2f}")
+        return "just_filled"
+    # canceled, expired, rejected, replaced, etc. — contract is genuinely gone.
+    return "gone"
+
+
 def get_option_last_price(contract_symbol):
     """Get last traded price for an options contract."""
     try:
@@ -227,7 +278,17 @@ def handle_stage1(state, tsla_price, account):
         pos = get_option_position(contract)
 
         if pos is None:
-            # Contract is gone — either expired or assigned
+            # No position exists. Disambiguate: order still pending vs truly gone?
+            status = _resolve_pending_contract(state)
+            if status == "pending":
+                log(f"Wheel Stage 1 — order for {contract} still pending fill. Skipping cycle.")
+                state["last_action"] = f"Awaiting fill on {contract}."
+                return
+            if status == "just_filled":
+                log(f"Wheel Stage 1 — order for {contract} just filled. Will track on next cycle.")
+                state["last_action"] = f"Order filled on {contract} @ ${state.get('contract_entry_price'):.2f}. Now tracking."
+                return
+            # status == "gone" → fall through to assigned/expired logic below
             stock_pos = get_stock_position(SYMBOL)
             if stock_pos and int(float(stock_pos["qty"])) >= 100:
                 # Assigned — we own shares now
@@ -376,6 +437,7 @@ def _sell_new_put(state, tsla_price, account):
         ],
         footer="wheel_strategy.py",
     )
+    state["last_action"] = f"Sold-to-open {symbol} @ ${limit_price:.2f}. Awaiting fill."
     log_event("tsla", "wheel_strategy.py", "sold_put",
               symbol=symbol,
               details={"strike": float(contract["strike_price"]), "expiry": contract["expiration_date"], "limit_price": limit_price, "tsla_price": tsla_price},
@@ -391,7 +453,17 @@ def handle_stage2(state, tsla_price, account):
         pos = get_option_position(contract)
 
         if pos is None:
-            # Contract is gone — expired or assigned (shares called away)
+            # No position exists. Disambiguate: order still pending vs truly gone?
+            status = _resolve_pending_contract(state)
+            if status == "pending":
+                log(f"Wheel Stage 2 — order for {contract} still pending fill. Skipping cycle.")
+                state["last_action"] = f"Awaiting fill on {contract}."
+                return
+            if status == "just_filled":
+                log(f"Wheel Stage 2 — order for {contract} just filled. Will track on next cycle.")
+                state["last_action"] = f"Order filled on {contract} @ ${state.get('contract_entry_price'):.2f}. Now tracking."
+                return
+            # status == "gone" → fall through to assigned/expired logic below
             stock_pos = get_stock_position(SYMBOL)
             if not stock_pos or int(float(stock_pos.get("qty", 0))) < 100:
                 # Shares were called away — go back to Stage 1
@@ -535,6 +607,7 @@ def _sell_new_call(state, tsla_price, cost_basis):
         ],
         footer="wheel_strategy.py",
     )
+    state["last_action"] = f"Sold-to-open {symbol} @ ${limit_price:.2f}. Awaiting fill."
     log_event("tsla", "wheel_strategy.py", "sold_call",
               symbol=symbol,
               details={"strike": float(contract["strike_price"]), "expiry": contract["expiration_date"], "limit_price": limit_price, "cost_basis": cost_basis},
@@ -543,7 +616,19 @@ def _sell_new_call(state, tsla_price, cost_basis):
 
 def run_wheel():
     try:
-        state   = load_state()
+        state = load_state()
+
+        # ── Skip cycle if market is closed ────────────────────────────────
+        # Pre-market and after-hours runs would mishandle pending option orders
+        # (no position exists yet → bot would interpret as "contract gone").
+        # Save the heartbeat to JSONL but exit cleanly without touching state.
+        if not is_market_open():
+            log(f"Market closed — skipping wheel cycle. Stage {state['stage']}, contract {state.get('current_contract') or 'none'}.")
+            log_event("tsla", "wheel_strategy.py", "cycle_skipped_market_closed",
+                      result="skipped",
+                      details={"stage": state["stage"], "contract": state.get("current_contract")})
+            return
+
         account = get_account()
         price   = get_latest_price(SYMBOL)
 
