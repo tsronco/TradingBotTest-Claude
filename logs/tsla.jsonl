@@ -39,3 +39,5 @@
 {"timestamp": "2026-04-28T23:15:45.619639+00:00", "script": "wheel_strategy.py", "action": "early_close_call_50pct", "result": "success", "symbol": "TSLA260522C00375000", "details": {"underlying": "TSLA", "entry": 2.5, "exit": 1.2, "premium": 130.0}}
 {"timestamp": "2026-04-28T23:22:16.388606+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 376.68, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
 {"timestamp": "2026-04-28T23:22:17.057307+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI"]}}
+{"timestamp": "2026-04-28T23:37:51.143072+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 376.68, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
+{"timestamp": "2026-04-28T23:37:51.511568+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI"]}}
