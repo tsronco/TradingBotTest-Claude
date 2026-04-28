@@ -2,19 +2,14 @@ name: TSLA Monitor
 
 # Runs strategy.py (trailing stop / ladder) + wheel_strategy.py (puts/calls).
 #
-# Schedule: every 30 min, 8 AM–3 PM CT, Mon–Fri.
-# Cron is in UTC — values below are correct for CDT (UTC-5, March–November).
-# When DST ends in early November, shift each hour value +1 (becomes 14-21
-# UTC for CST). TODO: replace with a proper TZ-aware guard.
-#
-# IMPORTANT: avoid :00 and :30 — those are GitHub Actions peak load times,
-# scheduled workflows get throttled. Using :07 and :37 (still every 30 min,
-# just offset 7 min) gives much more reliable cron execution.
+# Triggered exclusively by cron-job.org via workflow_dispatch.
+# We removed the GitHub-native `schedule:` trigger after a duplicate-scheduler
+# race condition caused merge conflicts on state file commits when both
+# schedulers fired simultaneously. cron-job.org is fully reliable; GitHub's
+# native cron has been unreliable on this repo and isn't needed.
 
 on:
-  schedule:
-    - cron: '7,37 13-20 * * 1-5'
-  workflow_dispatch: {}  # allow manual trigger from Actions tab
+  workflow_dispatch: {}  # cron-job.org calls this; also allows manual trigger from Actions tab
 
 # Serialize ALL bot workflow runs to avoid push conflicts when committing
 # state/log files back to the repo.

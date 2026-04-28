@@ -3,13 +3,11 @@ name: Daily Summary
 # Posts a combined end-of-day summary to #daily-summary covering TSLA stock,
 # wheel, and congress-copy bot.
 #
-# Schedule: ~3:12 PM CT, Mon–Fri.
-# Cron is in UTC for CDT (UTC-5). When DST ends, shift hour value +1.
-# Using :12 (away from :00 / :30 / :05) for reliable scheduling.
+# Triggered exclusively by cron-job.org via workflow_dispatch.
+# See tsla-monitor.yml for context on why we dropped the GitHub-native
+# `schedule:` trigger.
 
 on:
-  schedule:
-    - cron: '12 20 * * 1-5'
   workflow_dispatch: {}
 
 concurrency:

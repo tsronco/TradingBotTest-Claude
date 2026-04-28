@@ -45,13 +45,19 @@ DISCORD_ACTIONS_WEBHOOK=...
 
 All cron expressions are in **UTC**. Times below are translated for clarity.
 
-| Workflow | Cron (UTC) | CT | ET | Covers |
+All three workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
+
+| Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
 | `tsla-monitor.yml` | `7,37 13-20 * * 1-5` | 8:07/:37 AM–3:37 PM | 9:07/:37 AM–4:37 PM | Strategy + wheel |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Scrape + monitor |
 | `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | Combined P&L report |
 
-**Note**: cron times are intentionally OFF the :00/:30 marks. GitHub Actions scheduled workflows get throttled at peak load times (every :00 and :30 of the hour), so we use :07/:37/:12 to stay reliable.
+**Why not GitHub's native `schedule:` trigger?** Two reasons:
+1. **Reliability**: GitHub's cron didn't fire reliably on this repo's first day (multiple missed fires, even after going public and shifting off `:00`/`:30`).
+2. **Race conditions**: when GitHub cron eventually started firing, it created a duplicate-scheduler race against cron-job.org. Both runs would update the same state files; the second would fail with merge conflicts. So we removed the native `schedule:` trigger entirely.
+
+To change a schedule, update `tools/setup_cronjobs.py` and re-run it (it's idempotent — drops and recreates the 3 jobs cleanly).
 
 NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fall outside market hours are handled correctly:
 - **Wheel** has an `is_market_open()` guard that skips the cycle when market is closed (logs a JSONL heartbeat, doesn't touch state).
