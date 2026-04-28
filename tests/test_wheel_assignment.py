@@ -376,6 +376,56 @@ def test_empty_symbol_state_has_required_fields():
     assert s["total_premium_collected"] == 0.0
 
 
+# ── Strike rounding & quote pricing ──────────────────────────────────────
+
+def test_strike_increment_under_25_is_one_dollar():
+    assert ws.strike_increment(10) == 1.0
+    assert ws.strike_increment(12.50) == 1.0
+    assert ws.strike_increment(24.99) == 1.0
+
+
+def test_strike_increment_25_and_above_is_five_dollars():
+    assert ws.strike_increment(25) == 5.0
+    assert ws.strike_increment(40) == 5.0
+    assert ws.strike_increment(376) == 5.0
+
+
+def test_round_strike_low_priced_uses_one_dollar():
+    """SOFI at ~$12 → 10% OTM = $10.80 → round to $11 (NOT $10 like the old $5 logic)."""
+    assert ws.round_strike(10.80, 12) == 11
+    assert ws.round_strike(9.30, 10.33) == 9
+    assert ws.round_strike(8.55, 9.50) == 9
+
+
+def test_round_strike_high_priced_still_uses_five_dollars():
+    """TSLA at $376 → 10% OTM = $338.40 → round to $340 (same as before)."""
+    assert ws.round_strike(338.40, 376) == 340
+    assert ws.round_strike(54.00, 60.00) == 55  # KO-like
+    assert ws.round_strike(36.00, 40.00) == 35  # BAC-like
+
+
+def test_compute_limit_price_uses_quote_midpoint(monkeypatch):
+    """When live quote is available, limit = midpoint of bid/ask."""
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda c: {"bid": 0.40, "ask": 0.50})
+    contract = {"close_price": "0.45"}  # would give $0.44 under old logic
+    assert ws.compute_limit_price("BAC260522P00040000", contract) == 0.45  # midpoint
+
+
+def test_compute_limit_price_falls_back_to_close_98pct(monkeypatch):
+    """When no quote available, fall back to close_price × 0.98."""
+    monkeypatch.setattr(ws, "get_option_quote", lambda c: None)
+    contract = {"close_price": "1.00"}
+    assert ws.compute_limit_price("XYZ", contract) == 0.98
+
+
+def test_compute_limit_price_last_resort_dollar(monkeypatch):
+    """No quote AND no close_price → $1.00 last resort."""
+    monkeypatch.setattr(ws, "get_option_quote", lambda c: None)
+    contract = {}
+    assert ws.compute_limit_price("XYZ", contract) == 1.00
+
+
 # ── Insufficient cash ────────────────────────────────────────────────────
 
 def test_stage1_insufficient_cash_does_not_place_order(monkeypatch, fresh_symbol_state):

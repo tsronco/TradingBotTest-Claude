@@ -275,8 +275,71 @@ def place_buy_to_close(option_symbol, limit_price):
     return order
 
 
+def strike_increment(reference_price: float) -> float:
+    """Standard option-chain strike spacing for a given stock price level.
+
+    Stocks under $25 typically have $1 strike spacing in the chain.
+    Stocks $25 and above typically have $5 strike spacing.
+    (Some high-volume names also have $2.50 or $0.50 strikes — we don't
+    target those; a $1 or $5 round always lands on a real strike.)
+    """
+    return 1.0 if reference_price < 25 else 5.0
+
+
+def round_strike(target_strike: float, reference_price: float) -> float:
+    """Round target_strike to the standard strike increment for this price level."""
+    inc = strike_increment(reference_price)
+    return round(target_strike / inc) * inc
+
+
+# Kept as alias for any external callers; new code should use round_strike.
 def round_to_nearest_5(price):
     return round(price / 5) * 5
+
+
+def get_option_quote(contract_symbol):
+    """Fetch the current bid/ask for an option contract.
+
+    Returns dict {"bid": float, "ask": float} or None if unavailable.
+    The Alpaca options-data feed `indicative` is used, matching get_option_last_price.
+    """
+    try:
+        resp = requests.get(
+            f"{DATA_URL}/options/quotes/latest",
+            headers=HEADERS,
+            params={"symbols": contract_symbol, "feed": "indicative"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        quotes = data.get("quotes", {})
+        if contract_symbol in quotes:
+            q = quotes[contract_symbol]
+            bid = float(q.get("bp") or 0)
+            ask = float(q.get("ap") or 0)
+            if bid > 0 and ask > 0:
+                return {"bid": bid, "ask": ask}
+    except Exception as e:
+        log(f"get_option_quote({contract_symbol}) failed: {e}")
+    return None
+
+
+def compute_limit_price(option_symbol: str, contract: dict) -> float:
+    """Pick a limit price for a sell-to-open order.
+
+    Preferred: midpoint of the live bid-ask spread (current "fair value").
+    Fallback: 98% of yesterday's closing price (legacy behavior, used when
+    the live quote endpoint is unavailable or returns no quote).
+    Last resort: $1.00 (when neither live quote nor close_price is available).
+    """
+    quote = get_option_quote(option_symbol)
+    if quote:
+        mid = (quote["bid"] + quote["ask"]) / 2
+        return round(mid, 2)
+    close_price = float(contract.get("close_price") or 0)
+    if close_price > 0:
+        return round(close_price * 0.98, 2)
+    return 1.00
 
 
 def check_early_close(sym_state, current_option_price):
@@ -467,7 +530,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
 
 def _sell_new_put(symbol, sym_state, stock_price, account):
     """Find and sell the best cash-secured put for `symbol`."""
-    target_strike = round_to_nearest_5(stock_price * (1 - PUT_STRIKE_PCT))
+    target_strike = round_strike(stock_price * (1 - PUT_STRIKE_PCT), stock_price)
     cash = float(account["cash"])
     cash_required = target_strike * 100
 
@@ -496,8 +559,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
         return
 
     option_symbol = contract["symbol"]
-    close_price   = float(contract.get("close_price") or 0)
-    limit_price   = round(close_price * 0.98, 2) if close_price > 0 else 1.00
+    limit_price   = compute_limit_price(option_symbol, contract)
 
     order = place_sell_to_open(option_symbol, limit_price)
     sym_state["current_contract"]      = option_symbol
@@ -663,9 +725,9 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
         log(f"[{symbol}] No cost basis recorded — cannot sell call.")
         return
 
-    target_strike = round_to_nearest_5(cost_basis * (1 + CALL_STRIKE_PCT))
+    target_strike = round_strike(cost_basis * (1 + CALL_STRIKE_PCT), cost_basis)
     if target_strike < cost_basis:
-        target_strike = round_to_nearest_5(cost_basis) + 5
+        target_strike = round_strike(cost_basis, cost_basis) + strike_increment(cost_basis)
         log(f"[{symbol}] Adjusted call strike to ${target_strike} (cost basis protection)")
 
     contract = find_best_contract(symbol, "call", target_strike,
@@ -679,8 +741,7 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
         return
 
     option_symbol = contract["symbol"]
-    close_price   = float(contract.get("close_price") or 0)
-    limit_price   = round(close_price * 0.98, 2) if close_price > 0 else 1.00
+    limit_price   = compute_limit_price(option_symbol, contract)
 
     order = place_sell_to_open(option_symbol, limit_price)
     sym_state["current_contract"]      = option_symbol
