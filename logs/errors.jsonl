@@ -1,1 +1,0 @@
-{"timestamp": "2026-04-28T23:15:45.623219+00:00", "script": "wheel_strategy.py", "action": "insufficient_cash", "result": "failure", "details": {"underlying": "TSLA", "need": 34000, "have": 10000.0}}

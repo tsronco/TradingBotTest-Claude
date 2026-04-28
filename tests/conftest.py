@@ -15,11 +15,14 @@ sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture(autouse=True)
-def _silence_discord_and_alpaca(monkeypatch):
-    """Strip out webhook + Alpaca env vars for the duration of every test.
+def _silence_discord_and_alpaca(monkeypatch, tmp_path):
+    """Strip out webhook + Alpaca env vars and redirect JSONL logs to tmp.
 
-    notifications.discord no-ops when its webhook env is unset, and the
-    wheel API helpers should always be mocked, never hit real Alpaca.
+    - notifications.discord no-ops when its webhook env is unset.
+    - notifications.jsonl_log writes to BOT_LOG_DIR (default "logs") — we
+      point it at a tmp dir so test runs don't pollute the real logs/.
+    - Alpaca env vars are set to fake values so any code path that reads
+      them gets safe placeholders instead of real secrets.
     """
     for var in (
         "DISCORD_TSLA_WEBHOOK",
@@ -32,6 +35,11 @@ def _silence_discord_and_alpaca(monkeypatch):
     monkeypatch.setenv("ALPACA_API_KEY", "fake-test-key")
     monkeypatch.setenv("ALPACA_API_SECRET", "fake-test-secret")
     monkeypatch.setenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
+    monkeypatch.setenv("BOT_LOG_DIR", str(tmp_path / "logs"))
+    # The jsonl_log module reads BOT_LOG_DIR at import time. Force a re-read
+    # so this monkeypatch actually affects new log_event calls in tests.
+    import notifications.jsonl_log as jsonl_mod
+    monkeypatch.setattr(jsonl_mod, "LOG_DIR", tmp_path / "logs")
 
 
 @pytest.fixture
