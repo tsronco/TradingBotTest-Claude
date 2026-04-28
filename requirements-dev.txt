@@ -1,0 +1,5 @@
+# Dev dependencies — only needed for running tests locally.
+# The GitHub Actions workflows use the bare requirements.txt; tests
+# don't run in CI yet (would need pytest there too).
+-r requirements.txt
+pytest>=7.0

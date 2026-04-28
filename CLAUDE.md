@@ -89,11 +89,13 @@ NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fa
 - **Ladder 3**: −40% from entry → buy 20 more shares
 - After each ladder: stop recalculates to `new_avg_cost × 0.90`
 
-### TSLA wheel — `wheel_strategy.py`
+### Multi-stock wheel — `wheel_strategy.py`
+Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state per symbol. Currently configured for: **TSLA, BAC, XOM, KO, PLTR, SOFI**.
+
 - **Stage 1 — Cash-secured puts**:
-  - Strike: ~10% below current TSLA price, rounded to nearest $5
+  - Strike: ~10% below current stock price, rounded to nearest $5
   - Expiration: 2–4 weeks out (target ~3 weeks)
-  - Cash check: only sell if `strike × 100 ≤ cash`
+  - Cash check: only sell if `strike × 100 ≤ cash` (per stock, against shared account cash)
   - 50% profit rule: buy-to-close if option drops to half its entry premium
   - If assigned → 100 shares acquired → move to Stage 2
 - **Stage 2 — Covered calls**:
@@ -101,6 +103,12 @@ NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fa
   - Expiration: 1–3 weeks out
   - 50% profit rule applies
   - If called away → back to Stage 1
+
+**State file format** (`wheel_state.json`): top-level dict keyed by symbol, plus a `_meta` block. Legacy single-stock state (top-level `stage` key) is auto-migrated under the `TSLA` key on first load.
+
+**Per-symbol error isolation**: if `BAC` errors out, `XOM`/`KO`/etc. still process normally. Failed symbols ping `#errors` with the symbol name in the title.
+
+**To add/remove symbols**: edit the `SYMBOLS` list at the top of `wheel_strategy.py`. The empty-state initializer handles new entries automatically on next cycle.
 
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
@@ -162,6 +170,19 @@ For evaluating new stocks before adding to the wheel:
 3. Liquid options market — tight bid-ask spreads
 4. Price that fits buying power (strike × 100 = cash needed)
 5. No earnings in the next 2–4 weeks before selling a contract
+
+## Running tests
+
+Project root tests live in `tests/`. They mock all Alpaca API calls and clear Discord webhooks via `conftest.py`, so they never touch real services.
+
+```bash
+pip install -r requirements-dev.txt   # one-time
+python -m pytest tests/ -v
+```
+
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal).
+
+The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
 ## Future work (revisit week of May 5–12, 2026)
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-TSLA Wheel Strategy
+Multi-Stock Wheel Strategy
+
+Runs the wheel on every symbol in SYMBOLS independently, with isolated state
+per symbol. Each symbol's lifecycle:
 
 Stage 1 — Sell Cash-Secured Put:
   - Strike: ~10% below current price, rounded to nearest $5
@@ -16,6 +19,16 @@ Stage 2 — Sell Covered Call:
   - If assigned (shares called away): go back to Stage 1
 
 Early exit: if any open contract hits 50% profit (worth ≤ 50% of entry price), buy to close
+
+State file layout (multi-stock):
+  {
+    "_meta": {"last_checked": "..."},
+    "TSLA": {stage, current_contract, ...},
+    "BAC":  {...},
+    ...
+  }
+
+Legacy single-stock state files are auto-migrated under the "TSLA" key.
 """
 
 import os
@@ -41,7 +54,13 @@ HEADERS = {
 }
 
 STATE_FILE  = os.path.join(os.path.dirname(__file__), "wheel_state.json")
-SYMBOL      = "TSLA"
+
+# ── Stocks the wheel runs on ──────────────────────────────────────────────
+# Each gets its own isolated state. Adding/removing here is the entire
+# config — `_empty_symbol_state` initializes any missing entry on next load.
+SYMBOLS = ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI"]
+
+# ── Strategy parameters (apply uniformly to all symbols for now) ──────────
 PUT_STRIKE_PCT       = 0.10   # sell put 10% below current price
 CALL_STRIKE_PCT      = 0.10   # sell call 10% above cost basis
 PUT_EXPIRY_DAYS_MIN  = 14
@@ -49,23 +68,76 @@ PUT_EXPIRY_DAYS_MAX  = 35
 CALL_EXPIRY_DAYS_MIN = 7
 CALL_EXPIRY_DAYS_MAX = 21
 EARLY_CLOSE_PCT      = 0.50   # buy to close when contract loses 50% of its value
-POLL_INTERVAL        = 60     # seconds
+POLL_INTERVAL        = 60     # seconds — only used in legacy loop mode
 
 
 def log(msg):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}", flush=True)
 
 
-def load_state():
-    with open(STATE_FILE) as f:
-        return json.load(f)
+# ── State management ──────────────────────────────────────────────────────
+
+def _empty_symbol_state() -> dict:
+    """Fresh state for a symbol that has never had a wheel run."""
+    return {
+        "stage": 1,
+        "current_contract": None,
+        "contract_order_id": None,
+        "contract_entry_price": None,
+        "contract_entry_date": None,
+        "contract_expiration": None,
+        "contract_type": None,
+        "contract_strike": None,
+        "cost_basis_per_share": None,
+        "shares_qty": 0,
+        "total_cost": None,
+        "total_premium_collected": 0.0,
+        "total_premium_today": 0.0,
+        "cycle_count": 0,
+        "cycle_history": [],
+        "last_action": "",
+    }
 
 
-def save_state(state):
-    state["last_checked"] = datetime.utcnow().isoformat() + "Z"
+def _migrate_state(state: dict) -> dict:
+    """Migrate legacy single-stock state to multi-stock format.
+
+    Legacy format had `stage` at top level. New format has every symbol's
+    state nested under its ticker key, plus a `_meta` key for cross-symbol
+    metadata.
+    """
+    if "stage" in state:
+        # Old single-stock format → wrap under TSLA, preserve last_checked
+        old_last_checked = state.pop("last_checked", "")
+        return {
+            "_meta": {"last_checked": old_last_checked},
+            "TSLA": state,
+        }
+    return state
+
+
+def load_state() -> dict:
+    """Load state, migrate if needed, ensure all SYMBOLS have entries."""
+    if not os.path.exists(STATE_FILE):
+        state = {"_meta": {}}
+    else:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+        state = _migrate_state(state)
+    state.setdefault("_meta", {})
+    for sym in SYMBOLS:
+        if sym not in state:
+            state[sym] = _empty_symbol_state()
+    return state
+
+
+def save_state(state: dict) -> None:
+    state.setdefault("_meta", {})["last_checked"] = datetime.utcnow().isoformat() + "Z"
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
+
+# ── Alpaca API wrappers ───────────────────────────────────────────────────
 
 def api_get(path, params=None):
     resp = requests.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
@@ -142,7 +214,8 @@ def get_stock_position(symbol):
         raise
 
 
-def find_best_contract(option_type, target_strike, exp_min_days, exp_max_days):
+def find_best_contract(underlying_symbol, option_type, target_strike,
+                        exp_min_days, exp_max_days):
     """Find the contract closest to target_strike within the expiry window."""
     today = date.today()
     exp_min = (today + timedelta(days=exp_min_days)).isoformat()
@@ -151,7 +224,7 @@ def find_best_contract(option_type, target_strike, exp_min_days, exp_max_days):
     strike_high = target_strike + 15
 
     data = api_get("/options/contracts", params={
-        "underlying_symbols": SYMBOL,
+        "underlying_symbols": underlying_symbol,
         "type":               option_type,
         "expiration_date_gte": exp_min,
         "expiration_date_lte": exp_max,
@@ -163,7 +236,6 @@ def find_best_contract(option_type, target_strike, exp_min_days, exp_max_days):
     if not contracts:
         return None
 
-    # Pick contract closest to target strike; prefer mid-range expiry (~3 weeks out)
     target_exp = today + timedelta(days=(exp_min_days + exp_max_days) // 2)
 
     def score(c):
@@ -175,9 +247,9 @@ def find_best_contract(option_type, target_strike, exp_min_days, exp_max_days):
     return min(contracts, key=score)
 
 
-def place_sell_to_open(symbol, limit_price):
+def place_sell_to_open(option_symbol, limit_price):
     order = api_post("/orders", {
-        "symbol":          symbol,
+        "symbol":          option_symbol,
         "qty":             "1",
         "side":            "sell",
         "type":            "limit",
@@ -185,13 +257,13 @@ def place_sell_to_open(symbol, limit_price):
         "time_in_force":   "gtc",
         "position_intent": "sell_to_open",
     })
-    log(f"Sell-to-open placed: {symbol} @ ${limit_price:.2f} — order {order['id']}")
+    log(f"Sell-to-open placed: {option_symbol} @ ${limit_price:.2f} — order {order['id']}")
     return order
 
 
-def place_buy_to_close(symbol, limit_price):
+def place_buy_to_close(option_symbol, limit_price):
     order = api_post("/orders", {
-        "symbol":          symbol,
+        "symbol":          option_symbol,
         "qty":             "1",
         "side":            "buy",
         "type":            "limit",
@@ -199,7 +271,7 @@ def place_buy_to_close(symbol, limit_price):
         "time_in_force":   "day",
         "position_intent": "buy_to_close",
     })
-    log(f"Buy-to-close placed: {symbol} @ ${limit_price:.2f} — order {order['id']}")
+    log(f"Buy-to-close placed: {option_symbol} @ ${limit_price:.2f} — order {order['id']}")
     return order
 
 
@@ -207,26 +279,23 @@ def round_to_nearest_5(price):
     return round(price / 5) * 5
 
 
-def check_early_close(state, current_option_price):
+def check_early_close(sym_state, current_option_price):
     """Returns True if we should close early (50% profit rule)."""
-    entry = state.get("contract_entry_price")
+    entry = sym_state.get("contract_entry_price")
     if entry is None:
         return False
     return current_option_price <= entry * EARLY_CLOSE_PCT
 
 
-def _resolve_pending_contract(state):
-    """When the contract symbol is set but no position exists yet, this disambiguates
-    'order still pending fill' from 'contract truly gone (expired/assigned/cancelled)'.
+def _resolve_pending_contract(sym_state):
+    """Disambiguate when contract is set but no position exists yet.
 
-    Returns one of:
-      "pending"  — order placed, not yet filled. Skip this cycle.
-      "just_filled" — order just filled; contract_entry_price was set as a side effect.
-                       Caller should re-fetch position and continue normal flow.
-      "gone"     — order is cancelled/rejected/expired, OR no order_id recorded.
-                       Caller should treat the contract as gone (assigned/worthless flow).
+    Returns:
+      "pending"     — order placed, not yet filled. Skip this cycle.
+      "just_filled" — order just filled; entry_price was set as a side effect.
+      "gone"        — order is cancelled/rejected/expired or no order_id.
     """
-    order_id = state.get("contract_order_id")
+    order_id = sym_state.get("contract_order_id")
     if not order_id:
         return "gone"
     order = get_order(order_id)
@@ -236,14 +305,12 @@ def _resolve_pending_contract(state):
     if status in ("new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding"):
         return "pending"
     if status == "filled":
-        # Record the entry price so 50%-profit rule can fire on future cycles
-        if state.get("contract_entry_price") is None:
+        if sym_state.get("contract_entry_price") is None:
             filled_avg = order.get("filled_avg_price")
             if filled_avg:
-                state["contract_entry_price"] = float(filled_avg)
-                log(f"Wheel order {order_id} filled — recorded entry price ${state['contract_entry_price']:.2f}")
+                sym_state["contract_entry_price"] = float(filled_avg)
+                log(f"Wheel order {order_id} filled — recorded entry price ${sym_state['contract_entry_price']:.2f}")
         return "just_filled"
-    # canceled, expired, rejected, replaced, etc. — contract is genuinely gone.
     return "gone"
 
 
@@ -262,57 +329,56 @@ def get_option_last_price(contract_symbol):
             return float(trades[contract_symbol]["p"])
     except Exception:
         pass
-    # Fallback: use position market value / (100 * qty)
     pos = get_option_position(contract_symbol)
     if pos:
         return abs(float(pos.get("market_value", 0))) / 100
     return None
 
 
-def handle_stage1(state, tsla_price, account):
-    """Stage 1: manage the open short put or sell a new one."""
-    contract = state.get("current_contract")
+# ── Stage handlers ────────────────────────────────────────────────────────
 
-    # ── Check if we already have an open put position ─────────────────────
+def handle_stage1(symbol, sym_state, stock_price, account):
+    """Stage 1: manage the open short put or sell a new one for `symbol`."""
+    contract = sym_state.get("current_contract")
+
     if contract:
         pos = get_option_position(contract)
 
         if pos is None:
-            # No position exists. Disambiguate: order still pending vs truly gone?
-            status = _resolve_pending_contract(state)
+            # No position. Pending fill, just filled, or contract gone?
+            status = _resolve_pending_contract(sym_state)
             if status == "pending":
-                log(f"Wheel Stage 1 — order for {contract} still pending fill. Skipping cycle.")
-                state["last_action"] = f"Awaiting fill on {contract}."
+                log(f"[{symbol}] Stage 1 — order for {contract} still pending fill.")
+                sym_state["last_action"] = f"Awaiting fill on {contract}."
                 return
             if status == "just_filled":
-                log(f"Wheel Stage 1 — order for {contract} just filled. Will track on next cycle.")
-                state["last_action"] = f"Order filled on {contract} @ ${state.get('contract_entry_price'):.2f}. Now tracking."
+                log(f"[{symbol}] Stage 1 — order for {contract} just filled. Tracking next cycle.")
+                sym_state["last_action"] = f"Order filled on {contract} @ ${sym_state.get('contract_entry_price'):.2f}. Now tracking."
                 return
-            # status == "gone" → fall through to assigned/expired logic below
-            stock_pos = get_stock_position(SYMBOL)
+
+            # status == "gone" → assignment or expired
+            stock_pos = get_stock_position(symbol)
             if stock_pos and int(float(stock_pos["qty"])) >= 100:
-                # Assigned — we own shares now
                 cost = abs(float(stock_pos["avg_entry_price"]))
-                log(f"PUT ASSIGNED — acquired 100 TSLA shares @ ${cost:.2f}")
+                log(f"[{symbol}] PUT ASSIGNED — acquired 100 shares @ ${cost:.2f}")
                 send_embed(
-                    "tsla", f"Wheel: PUT ASSIGNED — now hold 100 TSLA @ ${cost:.2f}",
+                    "tsla", f"Wheel: PUT ASSIGNED — now hold 100 {symbol} @ ${cost:.2f}",
                     color=Color.YELLOW,
                     description=f"Contract: {contract}\nMoving to Stage 2 (covered calls).",
                     footer="wheel_strategy.py",
                 )
                 log_event("tsla", "wheel_strategy.py", "put_assigned",
                           symbol=contract,
-                          details={"cost_basis": cost, "qty": 100})
-                state["stage"]                = 2
-                state["cost_basis_per_share"]  = cost
-                state["total_cost"]            = cost * 100
-                state["shares_qty"]            = 100
-                state["current_contract"]      = None
-                state["contract_entry_price"]  = None
-                state["last_action"] = f"Assigned on {contract}. Cost basis: ${cost:.2f}"
-                # Add to cycle history
-                state["cycle_history"].append({
-                    "cycle": state["cycle_count"] + 1,
+                          details={"underlying": symbol, "cost_basis": cost, "qty": 100})
+                sym_state["stage"]                = 2
+                sym_state["cost_basis_per_share"] = cost
+                sym_state["total_cost"]           = cost * 100
+                sym_state["shares_qty"]           = 100
+                sym_state["current_contract"]     = None
+                sym_state["contract_entry_price"] = None
+                sym_state["last_action"] = f"Assigned on {contract}. Cost basis: ${cost:.2f}"
+                sym_state["cycle_history"].append({
+                    "cycle": sym_state["cycle_count"] + 1,
                     "type": "put",
                     "symbol": contract,
                     "outcome": "assigned",
@@ -320,355 +386,381 @@ def handle_stage1(state, tsla_price, account):
                 })
             else:
                 # Expired worthless — collect premium, sell another put
-                premium = state.get("contract_entry_price", 0) or 0
+                premium = sym_state.get("contract_entry_price", 0) or 0
                 premium_dollars = premium * 100
-                state["total_premium_collected"] = round(
-                    state["total_premium_collected"] + premium_dollars, 2
+                sym_state["total_premium_collected"] = round(
+                    sym_state["total_premium_collected"] + premium_dollars, 2
                 )
-                state["total_premium_today"] = round(
-                    state.get("total_premium_today", 0) + premium_dollars, 2
+                sym_state["total_premium_today"] = round(
+                    sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"PUT EXPIRED WORTHLESS — collected ${premium_dollars:.2f}. Total: ${state['total_premium_collected']:.2f}")
+                log(f"[{symbol}] PUT EXPIRED WORTHLESS — collected ${premium_dollars:.2f}.")
                 send_embed(
-                    "tsla", f"Wheel: Put Expired Worthless — kept ${premium_dollars:.2f}",
+                    "tsla", f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f}",
                     color=Color.GREEN,
-                    description=f"{contract}\nTotal premium collected: ${state['total_premium_collected']:.2f}",
+                    description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
                 )
                 log_event("tsla", "wheel_strategy.py", "put_expired_worthless",
                           symbol=contract,
-                          details={"premium": premium_dollars, "total_premium": state["total_premium_collected"]})
-                state["cycle_count"] += 1
-                state["cycle_history"].append({
-                    "cycle": state["cycle_count"],
+                          details={"underlying": symbol, "premium": premium_dollars,
+                                   "total_premium": sym_state["total_premium_collected"]})
+                sym_state["cycle_count"] += 1
+                sym_state["cycle_history"].append({
+                    "cycle": sym_state["cycle_count"],
                     "type": "put",
                     "symbol": contract,
                     "outcome": "expired_worthless",
                     "premium": premium_dollars,
                 })
-                state["current_contract"]     = None
-                state["contract_entry_price"] = None
-                state["last_action"] = f"Put expired worthless. +${premium_dollars:.2f}. Selling new put."
-                _sell_new_put(state, tsla_price, account)
+                sym_state["current_contract"]     = None
+                sym_state["contract_entry_price"] = None
+                sym_state["last_action"] = f"Put expired worthless. +${premium_dollars:.2f}. Selling new put."
+                _sell_new_put(symbol, sym_state, stock_price, account)
         else:
-            # Position still open. Recover entry_price from the order if we
-            # never recorded it (e.g., order was placed pre-market and only
-            # filled later, between wheel cycles).
-            if state.get("contract_entry_price") is None:
-                order_id = state.get("contract_order_id")
+            # Position exists. Recover entry_price if missing (e.g., order filled
+            # between cycles), then check 50% profit rule.
+            if sym_state.get("contract_entry_price") is None:
+                order_id = sym_state.get("contract_order_id")
                 if order_id:
                     order = get_order(order_id)
                     filled_avg = order.get("filled_avg_price") if order else None
                     if filled_avg:
-                        state["contract_entry_price"] = float(filled_avg)
-                        log(f"Recovered entry price ${state['contract_entry_price']:.2f} from filled order {order_id}")
+                        sym_state["contract_entry_price"] = float(filled_avg)
+                        log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f} from filled order {order_id}")
 
-            # Check 50% profit rule
             current_price = get_option_last_price(contract)
             if current_price is not None:
-                entry = state.get("contract_entry_price")
-                if entry and check_early_close(state, current_price):
-                    log(f"50% PROFIT RULE: {contract} now ${current_price:.2f} vs entry ${entry:.2f}. Closing early.")
+                entry = sym_state.get("contract_entry_price")
+                if entry and check_early_close(sym_state, current_price):
+                    log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing.")
                     place_buy_to_close(contract, current_price)
                     premium_dollars = (entry - current_price) * 100
-                    state["total_premium_collected"] = round(
-                        state["total_premium_collected"] + premium_dollars, 2
+                    sym_state["total_premium_collected"] = round(
+                        sym_state["total_premium_collected"] + premium_dollars, 2
                     )
-                    state["total_premium_today"] = round(
-                        state.get("total_premium_today", 0) + premium_dollars, 2
+                    sym_state["total_premium_today"] = round(
+                        sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        "tsla", f"Wheel: Early Close at 50% Profit — +${premium_dollars:.2f}",
+                        "tsla", f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f}",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
                     )
                     log_event("tsla", "wheel_strategy.py", "early_close_50pct",
                               symbol=contract,
-                              details={"entry": float(entry), "exit": current_price, "premium": premium_dollars})
-                    state["current_contract"]     = None
-                    state["contract_entry_price"] = None
-                    state["last_action"] = f"Closed early at 50% profit: +${premium_dollars:.2f}. Selling new put."
-                    _sell_new_put(state, tsla_price, account)
+                              details={"underlying": symbol, "entry": float(entry),
+                                       "exit": current_price, "premium": premium_dollars})
+                    sym_state["current_contract"]     = None
+                    sym_state["contract_entry_price"] = None
+                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f}. Selling new put."
+                    _sell_new_put(symbol, sym_state, stock_price, account)
                 else:
                     entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
                     pnl = (entry - current_price) * 100 if entry is not None else 0
-                    log(f"Stage 1 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
-                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
+                    log(f"[{symbol}] Stage 1 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
+                    sym_state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
     else:
-        # No contract at all — sell a new put
-        _sell_new_put(state, tsla_price, account)
+        _sell_new_put(symbol, sym_state, stock_price, account)
 
 
-def _sell_new_put(state, tsla_price, account):
-    """Find and sell the best cash-secured put."""
-    target_strike = round_to_nearest_5(tsla_price * (1 - PUT_STRIKE_PCT))
+def _sell_new_put(symbol, sym_state, stock_price, account):
+    """Find and sell the best cash-secured put for `symbol`."""
+    target_strike = round_to_nearest_5(stock_price * (1 - PUT_STRIKE_PCT))
     cash = float(account["cash"])
     cash_required = target_strike * 100
 
     if cash < cash_required:
-        log(f"INSUFFICIENT CASH: need ${cash_required:,.0f}, have ${cash:,.0f}. Cannot sell put.")
-        state["last_action"] = "Insufficient cash to sell put."
+        log(f"[{symbol}] INSUFFICIENT CASH: need ${cash_required:,.0f}, have ${cash:,.0f}.")
+        sym_state["last_action"] = "Insufficient cash to sell put."
         send_embed(
-            "errors", "Wheel: Insufficient Cash for New Put",
+            "errors", f"Wheel: Insufficient Cash for {symbol} Put",
             color=Color.RED,
             description=f"Need ${cash_required:,.0f}, have ${cash:,.0f}",
             footer="wheel_strategy.py",
         )
         log_event("errors", "wheel_strategy.py", "insufficient_cash",
-                  result="failure", details={"need": cash_required, "have": cash})
+                  result="failure",
+                  details={"underlying": symbol, "need": cash_required, "have": cash})
         return
 
-    contract = find_best_contract("put", target_strike, PUT_EXPIRY_DAYS_MIN, PUT_EXPIRY_DAYS_MAX)
+    contract = find_best_contract(symbol, "put", target_strike,
+                                   PUT_EXPIRY_DAYS_MIN, PUT_EXPIRY_DAYS_MAX)
     if not contract:
-        log("No suitable put contract found.")
+        log(f"[{symbol}] No suitable put contract found.")
+        sym_state["last_action"] = "No suitable put contract found."
         log_event("errors", "wheel_strategy.py", "no_put_contract_found",
-                  result="failure", details={"target_strike": target_strike})
+                  result="failure",
+                  details={"underlying": symbol, "target_strike": target_strike})
         return
 
-    symbol      = contract["symbol"]
-    close_price = float(contract.get("close_price") or 0)
-    limit_price = round(close_price * 0.98, 2) if close_price > 0 else 1.00
+    option_symbol = contract["symbol"]
+    close_price   = float(contract.get("close_price") or 0)
+    limit_price   = round(close_price * 0.98, 2) if close_price > 0 else 1.00
 
-    order = place_sell_to_open(symbol, limit_price)
-    state["current_contract"]      = symbol
-    state["contract_order_id"]     = order["id"]
-    state["contract_entry_price"]  = None  # will update once filled
-    state["contract_entry_date"]   = datetime.utcnow().isoformat() + "Z"
-    state["contract_expiration"]   = contract["expiration_date"]
-    state["contract_type"]         = "put"
-    state["contract_strike"]       = float(contract["strike_price"])
-    log(f"New put sold: {symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
+    order = place_sell_to_open(option_symbol, limit_price)
+    sym_state["current_contract"]      = option_symbol
+    sym_state["contract_order_id"]     = order["id"]
+    sym_state["contract_entry_price"]  = None  # will update once filled
+    sym_state["contract_entry_date"]   = datetime.utcnow().isoformat() + "Z"
+    sym_state["contract_expiration"]   = contract["expiration_date"]
+    sym_state["contract_type"]         = "put"
+    sym_state["contract_strike"]       = float(contract["strike_price"])
+    log(f"[{symbol}] New put sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
     send_embed(
-        "tsla", f"Wheel: Sold-to-Open Put @ ${contract['strike_price']}",
+        "tsla", f"Wheel: Sold-to-Open {symbol} Put @ ${contract['strike_price']}",
         color=Color.YELLOW,
-        description=f"Contract: {symbol}\nLimit: ${limit_price:.2f}",
+        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f}",
         fields=[
+            {"name": "Underlying", "value": symbol, "inline": True},
             {"name": "Strike", "value": f"${contract['strike_price']}", "inline": True},
             {"name": "Expiry", "value": contract["expiration_date"], "inline": True},
-            {"name": "TSLA price", "value": f"${tsla_price:.2f}", "inline": True},
+            {"name": f"{symbol} price", "value": f"${stock_price:.2f}", "inline": True},
         ],
         footer="wheel_strategy.py",
     )
-    state["last_action"] = f"Sold-to-open {symbol} @ ${limit_price:.2f}. Awaiting fill."
+    sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
     log_event("tsla", "wheel_strategy.py", "sold_put",
-              symbol=symbol,
-              details={"strike": float(contract["strike_price"]), "expiry": contract["expiration_date"], "limit_price": limit_price, "tsla_price": tsla_price},
+              symbol=option_symbol,
+              details={"underlying": symbol, "strike": float(contract["strike_price"]),
+                       "expiry": contract["expiration_date"], "limit_price": limit_price,
+                       "stock_price": stock_price},
               alpaca_order_id=order["id"])
 
 
-def handle_stage2(state, tsla_price, account):
-    """Stage 2: manage the open short call or sell a new one."""
-    contract  = state.get("current_contract")
-    cost_basis = state.get("cost_basis_per_share")
+def handle_stage2(symbol, sym_state, stock_price, account):
+    """Stage 2: manage the open short call or sell a new one for `symbol`."""
+    contract   = sym_state.get("current_contract")
+    cost_basis = sym_state.get("cost_basis_per_share")
 
     if contract:
         pos = get_option_position(contract)
 
         if pos is None:
-            # No position exists. Disambiguate: order still pending vs truly gone?
-            status = _resolve_pending_contract(state)
+            status = _resolve_pending_contract(sym_state)
             if status == "pending":
-                log(f"Wheel Stage 2 — order for {contract} still pending fill. Skipping cycle.")
-                state["last_action"] = f"Awaiting fill on {contract}."
+                log(f"[{symbol}] Stage 2 — order for {contract} still pending fill.")
+                sym_state["last_action"] = f"Awaiting fill on {contract}."
                 return
             if status == "just_filled":
-                log(f"Wheel Stage 2 — order for {contract} just filled. Will track on next cycle.")
-                state["last_action"] = f"Order filled on {contract} @ ${state.get('contract_entry_price'):.2f}. Now tracking."
+                log(f"[{symbol}] Stage 2 — order for {contract} just filled.")
+                sym_state["last_action"] = f"Order filled on {contract} @ ${sym_state.get('contract_entry_price'):.2f}. Now tracking."
                 return
-            # status == "gone" → fall through to assigned/expired logic below
-            stock_pos = get_stock_position(SYMBOL)
+
+            stock_pos = get_stock_position(symbol)
             if not stock_pos or int(float(stock_pos.get("qty", 0))) < 100:
-                # Shares were called away — go back to Stage 1
-                premium = state.get("contract_entry_price", 0) or 0
+                # Shares called away — back to Stage 1
+                premium = sym_state.get("contract_entry_price", 0) or 0
                 premium_dollars = premium * 100
-                state["total_premium_collected"] = round(
-                    state["total_premium_collected"] + premium_dollars, 2
+                sym_state["total_premium_collected"] = round(
+                    sym_state["total_premium_collected"] + premium_dollars, 2
                 )
-                state["total_premium_today"] = round(
-                    state.get("total_premium_today", 0) + premium_dollars, 2
+                sym_state["total_premium_today"] = round(
+                    sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"CALL ASSIGNED — shares sold at strike ${state['contract_strike']:.0f}. +${premium_dollars:.2f} premium. Back to Stage 1.")
+                log(f"[{symbol}] CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}. +${premium_dollars:.2f}")
                 send_embed(
-                    "tsla", f"Wheel: CALL ASSIGNED — shares sold @ strike ${state['contract_strike']:.0f}",
+                    "tsla", f"Wheel: {symbol} CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}",
                     color=Color.GREEN,
                     description=f"+${premium_dollars:.2f} premium kept. Returning to Stage 1.",
                     footer="wheel_strategy.py",
                 )
                 log_event("tsla", "wheel_strategy.py", "call_assigned",
                           symbol=contract,
-                          details={"strike": state["contract_strike"], "premium": premium_dollars})
-                state["stage"]                = 1
-                state["shares_qty"]           = 0
-                state["cost_basis_per_share"] = None
-                state["total_cost"]           = None
-                state["current_contract"]     = None
-                state["contract_entry_price"] = None
-                state["cycle_count"]          += 1
-                state["cycle_history"].append({
-                    "cycle": state["cycle_count"],
+                          details={"underlying": symbol, "strike": sym_state["contract_strike"],
+                                   "premium": premium_dollars})
+                sym_state["stage"]                = 1
+                sym_state["shares_qty"]           = 0
+                sym_state["cost_basis_per_share"] = None
+                sym_state["total_cost"]           = None
+                sym_state["current_contract"]     = None
+                sym_state["contract_entry_price"] = None
+                sym_state["cycle_count"]          += 1
+                sym_state["cycle_history"].append({
+                    "cycle": sym_state["cycle_count"],
                     "type": "call",
                     "symbol": contract,
                     "outcome": "assigned",
                     "premium": premium_dollars,
                 })
-                state["last_action"] = f"Call assigned, shares sold. +${premium_dollars:.2f}. Restarting Stage 1."
-                _sell_new_put(state, tsla_price, account)
+                sym_state["last_action"] = f"Call assigned. +${premium_dollars:.2f}. Restarting Stage 1."
+                _sell_new_put(symbol, sym_state, stock_price, account)
             else:
-                # Expired worthless — sell another call
-                premium = state.get("contract_entry_price", 0) or 0
+                # Call expired worthless — sell another call
+                premium = sym_state.get("contract_entry_price", 0) or 0
                 premium_dollars = premium * 100
-                state["total_premium_collected"] = round(
-                    state["total_premium_collected"] + premium_dollars, 2
+                sym_state["total_premium_collected"] = round(
+                    sym_state["total_premium_collected"] + premium_dollars, 2
                 )
-                state["total_premium_today"] = round(
-                    state.get("total_premium_today", 0) + premium_dollars, 2
+                sym_state["total_premium_today"] = round(
+                    sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"CALL EXPIRED WORTHLESS — +${premium_dollars:.2f}. Total: ${state['total_premium_collected']:.2f}. Selling new call.")
+                log(f"[{symbol}] CALL EXPIRED WORTHLESS — +${premium_dollars:.2f}.")
                 send_embed(
-                    "tsla", f"Wheel: Call Expired Worthless — kept ${premium_dollars:.2f}",
+                    "tsla", f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f}",
                     color=Color.GREEN,
-                    description=f"{contract}\nTotal premium collected: ${state['total_premium_collected']:.2f}",
+                    description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
                 )
                 log_event("tsla", "wheel_strategy.py", "call_expired_worthless",
                           symbol=contract,
-                          details={"premium": premium_dollars, "total_premium": state["total_premium_collected"]})
-                state["current_contract"]     = None
-                state["contract_entry_price"] = None
-                state["last_action"] = f"Call expired worthless. +${premium_dollars:.2f}. Selling new call."
-                _sell_new_call(state, tsla_price, cost_basis)
+                          details={"underlying": symbol, "premium": premium_dollars,
+                                   "total_premium": sym_state["total_premium_collected"]})
+                sym_state["current_contract"]     = None
+                sym_state["contract_entry_price"] = None
+                sym_state["last_action"] = f"Call expired worthless. +${premium_dollars:.2f}. Selling new call."
+                _sell_new_call(symbol, sym_state, stock_price, cost_basis)
         else:
-            # Position still open. Recover entry_price from the order if we
-            # never recorded it (same gap as Stage 1).
-            if state.get("contract_entry_price") is None:
-                order_id = state.get("contract_order_id")
+            if sym_state.get("contract_entry_price") is None:
+                order_id = sym_state.get("contract_order_id")
                 if order_id:
                     order = get_order(order_id)
                     filled_avg = order.get("filled_avg_price") if order else None
                     if filled_avg:
-                        state["contract_entry_price"] = float(filled_avg)
-                        log(f"Recovered entry price ${state['contract_entry_price']:.2f} from filled order {order_id}")
+                        sym_state["contract_entry_price"] = float(filled_avg)
+                        log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f}")
 
-            # Check 50% profit rule
             current_price = get_option_last_price(contract)
             if current_price is not None:
-                entry = state.get("contract_entry_price")
-                if entry and check_early_close(state, current_price):
-                    log(f"50% PROFIT RULE: {contract} now ${current_price:.2f} vs entry ${entry:.2f}. Closing early.")
+                entry = sym_state.get("contract_entry_price")
+                if entry and check_early_close(sym_state, current_price):
+                    log(f"[{symbol}] 50% PROFIT RULE on call: closing.")
                     place_buy_to_close(contract, current_price)
                     premium_dollars = (entry - current_price) * 100
-                    state["total_premium_collected"] = round(
-                        state["total_premium_collected"] + premium_dollars, 2
+                    sym_state["total_premium_collected"] = round(
+                        sym_state["total_premium_collected"] + premium_dollars, 2
                     )
-                    state["total_premium_today"] = round(
-                        state.get("total_premium_today", 0) + premium_dollars, 2
+                    sym_state["total_premium_today"] = round(
+                        sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        "tsla", f"Wheel: Early Close Call at 50% Profit — +${premium_dollars:.2f}",
+                        "tsla", f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f}",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
                     )
                     log_event("tsla", "wheel_strategy.py", "early_close_call_50pct",
                               symbol=contract,
-                              details={"entry": float(entry), "exit": current_price, "premium": premium_dollars})
-                    state["current_contract"]     = None
-                    state["contract_entry_price"] = None
-                    state["last_action"] = f"Closed early at 50% profit: +${premium_dollars:.2f}. Selling new call."
-                    _sell_new_call(state, tsla_price, cost_basis)
+                              details={"underlying": symbol, "entry": float(entry),
+                                       "exit": current_price, "premium": premium_dollars})
+                    sym_state["current_contract"]     = None
+                    sym_state["contract_entry_price"] = None
+                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f}. Selling new call."
+                    _sell_new_call(symbol, sym_state, stock_price, cost_basis)
                 else:
                     entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
                     pnl = (entry - current_price) * 100 if entry is not None else 0
-                    log(f"Stage 2 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
-                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
+                    log(f"[{symbol}] Stage 2 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
+                    sym_state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
     else:
-        _sell_new_call(state, tsla_price, cost_basis)
+        _sell_new_call(symbol, sym_state, stock_price, cost_basis)
 
 
-def _sell_new_call(state, tsla_price, cost_basis):
-    """Find and sell the best covered call above cost basis."""
+def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
+    """Find and sell the best covered call (above cost basis) for `symbol`."""
     if cost_basis is None:
-        log("No cost basis recorded — cannot sell call.")
+        log(f"[{symbol}] No cost basis recorded — cannot sell call.")
         return
 
     target_strike = round_to_nearest_5(cost_basis * (1 + CALL_STRIKE_PCT))
-    # Hard rule: never sell below cost basis
     if target_strike < cost_basis:
         target_strike = round_to_nearest_5(cost_basis) + 5
-        log(f"Adjusted call strike to ${target_strike} (cost basis protection)")
+        log(f"[{symbol}] Adjusted call strike to ${target_strike} (cost basis protection)")
 
-    contract = find_best_contract("call", target_strike, CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX)
+    contract = find_best_contract(symbol, "call", target_strike,
+                                   CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX)
     if not contract:
-        log("No suitable call contract found.")
+        log(f"[{symbol}] No suitable call contract found.")
         return
 
-    # Enforce: strike must be >= cost basis
     if float(contract["strike_price"]) < cost_basis:
-        log(f"Refusing to sell call at ${contract['strike_price']} — below cost basis ${cost_basis:.2f}")
+        log(f"[{symbol}] Refusing call at ${contract['strike_price']} — below cost basis ${cost_basis:.2f}")
         return
 
-    symbol      = contract["symbol"]
-    close_price = float(contract.get("close_price") or 0)
-    limit_price = round(close_price * 0.98, 2) if close_price > 0 else 1.00
+    option_symbol = contract["symbol"]
+    close_price   = float(contract.get("close_price") or 0)
+    limit_price   = round(close_price * 0.98, 2) if close_price > 0 else 1.00
 
-    order = place_sell_to_open(symbol, limit_price)
-    state["current_contract"]      = symbol
-    state["contract_order_id"]     = order["id"]
-    state["contract_entry_price"]  = None
-    state["contract_entry_date"]   = datetime.utcnow().isoformat() + "Z"
-    state["contract_expiration"]   = contract["expiration_date"]
-    state["contract_type"]         = "call"
-    state["contract_strike"]       = float(contract["strike_price"])
-    log(f"New call sold: {symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
+    order = place_sell_to_open(option_symbol, limit_price)
+    sym_state["current_contract"]      = option_symbol
+    sym_state["contract_order_id"]     = order["id"]
+    sym_state["contract_entry_price"]  = None
+    sym_state["contract_entry_date"]   = datetime.utcnow().isoformat() + "Z"
+    sym_state["contract_expiration"]   = contract["expiration_date"]
+    sym_state["contract_type"]         = "call"
+    sym_state["contract_strike"]       = float(contract["strike_price"])
+    log(f"[{symbol}] New call sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
     send_embed(
-        "tsla", f"Wheel: Sold-to-Open Call @ ${contract['strike_price']}",
+        "tsla", f"Wheel: Sold-to-Open {symbol} Call @ ${contract['strike_price']}",
         color=Color.YELLOW,
-        description=f"Contract: {symbol}\nLimit: ${limit_price:.2f}",
+        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f}",
         fields=[
+            {"name": "Underlying", "value": symbol, "inline": True},
             {"name": "Strike", "value": f"${contract['strike_price']}", "inline": True},
             {"name": "Expiry", "value": contract["expiration_date"], "inline": True},
             {"name": "Cost basis", "value": f"${cost_basis:.2f}", "inline": True},
         ],
         footer="wheel_strategy.py",
     )
-    state["last_action"] = f"Sold-to-open {symbol} @ ${limit_price:.2f}. Awaiting fill."
+    sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
     log_event("tsla", "wheel_strategy.py", "sold_call",
-              symbol=symbol,
-              details={"strike": float(contract["strike_price"]), "expiry": contract["expiration_date"], "limit_price": limit_price, "cost_basis": cost_basis},
+              symbol=option_symbol,
+              details={"underlying": symbol, "strike": float(contract["strike_price"]),
+                       "expiry": contract["expiration_date"], "limit_price": limit_price,
+                       "cost_basis": cost_basis},
               alpaca_order_id=order["id"])
 
 
+# ── Top-level orchestration ───────────────────────────────────────────────
+
 def run_wheel():
+    """One cycle: iterate every symbol in SYMBOLS, handle independently."""
     try:
         state = load_state()
 
-        # ── Skip cycle if market is closed ────────────────────────────────
-        # Pre-market and after-hours runs would mishandle pending option orders
-        # (no position exists yet → bot would interpret as "contract gone").
-        # Save the heartbeat to JSONL but exit cleanly without touching state.
         if not is_market_open():
-            log(f"Market closed — skipping wheel cycle. Stage {state['stage']}, contract {state.get('current_contract') or 'none'}.")
+            log(f"Market closed — skipping wheel cycle for all {len(SYMBOLS)} symbols.")
             log_event("tsla", "wheel_strategy.py", "cycle_skipped_market_closed",
                       result="skipped",
-                      details={"stage": state["stage"], "contract": state.get("current_contract")})
+                      details={"symbols": SYMBOLS})
             return
 
         account = get_account()
-        price   = get_latest_price(SYMBOL)
 
-        log(f"TSLA ${price:.2f} | Stage {state['stage']} | Total premium: ${state['total_premium_collected']:.2f} | Contract: {state.get('current_contract') or 'none'}")
+        for symbol in SYMBOLS:
+            sym_state = state.setdefault(symbol, _empty_symbol_state())
+            try:
+                stock_price = get_latest_price(symbol)
+                log(f"[{symbol}] ${stock_price:.2f} | Stage {sym_state['stage']} | premium ${sym_state['total_premium_collected']:.2f} | contract {sym_state.get('current_contract') or 'none'}")
 
-        if state["stage"] == 1:
-            handle_stage1(state, price, account)
-        elif state["stage"] == 2:
-            handle_stage2(state, price, account)
+                if sym_state["stage"] == 1:
+                    handle_stage1(symbol, sym_state, stock_price, account)
+                elif sym_state["stage"] == 2:
+                    handle_stage2(symbol, sym_state, stock_price, account)
 
-        log_event("tsla", "wheel_strategy.py", "cycle_complete",
-                  result="success",
-                  details={"stage": state["stage"], "contract": state.get("current_contract"), "tsla_price": price})
+                log_event("tsla", "wheel_strategy.py", "symbol_cycle_complete",
+                          result="success",
+                          details={"underlying": symbol, "stage": sym_state["stage"],
+                                   "contract": sym_state.get("current_contract"),
+                                   "stock_price": stock_price})
+            except Exception as e:
+                # Per-symbol error isolation: one bad symbol doesn't kill others.
+                log(f"[{symbol}] error in wheel cycle: {type(e).__name__}: {e}")
+                send_embed(
+                    "errors", f"wheel_strategy.py — {symbol} cycle crashed",
+                    color=Color.RED,
+                    description=f"`{type(e).__name__}: {str(e)[:500]}`",
+                    footer="wheel_strategy.py",
+                )
+                log_event("errors", "wheel_strategy.py", "symbol_exception",
+                          result="failure",
+                          notes=f"{symbol}: {type(e).__name__}: {str(e)[:500]}")
 
         save_state(state)
+        log_event("tsla", "wheel_strategy.py", "cycle_complete",
+                  result="success",
+                  details={"symbols": SYMBOLS})
     except Exception as e:
         send_embed(
             "errors", "wheel_strategy.py — run_wheel crashed",
@@ -682,54 +774,66 @@ def run_wheel():
 
 
 def run_daily_summary():
+    """Aggregate summary across every symbol, post one combined embed."""
     try:
         state   = load_state()
         account = get_account()
 
-        tsla_price = get_latest_price(SYMBOL)
         log("=" * 65)
-        log("DAILY WHEEL SUMMARY")
-        log(f"  TSLA price       : ${tsla_price:.2f}")
-        log(f"  Stage            : {state['stage']} ({'Selling Puts' if state['stage']==1 else 'Selling Calls'})")
-        log(f"  Open contract    : {state.get('current_contract') or 'None'}")
-        log(f"  Premium today    : ${state.get('total_premium_today', 0):.2f}")
-        log(f"  Total premium    : ${state['total_premium_collected']:.2f}")
-        log(f"  Cycles completed : {state['cycle_count']}")
-        log(f"  Account cash     : ${float(account['cash']):,.2f}")
-        log(f"  Portfolio value  : ${float(account['portfolio_value']):,.2f}")
-        if state.get("cost_basis_per_share"):
-            log(f"  Cost basis       : ${state['cost_basis_per_share']:.2f}/share")
+        log("DAILY WHEEL SUMMARY (multi-stock)")
+
+        # Aggregate metrics across symbols
+        total_premium = sum(state[s].get("total_premium_collected", 0) for s in SYMBOLS)
+        total_today   = sum(state[s].get("total_premium_today", 0) for s in SYMBOLS)
+        total_cycles  = sum(state[s].get("cycle_count", 0) for s in SYMBOLS)
+
+        per_symbol_lines = []
+        for s in SYMBOLS:
+            ss = state[s]
+            try:
+                price = get_latest_price(s)
+                price_str = f"${price:.2f}"
+            except Exception:
+                price_str = "—"
+            stage = ss.get("stage", 1)
+            contract = ss.get("current_contract") or "—"
+            line = f"  {s:5} ${ss.get('total_premium_collected', 0):>7.2f}  stage {stage}  {contract}  ({price_str})"
+            log(line)
+            per_symbol_lines.append(line.strip())
+
+        log(f"  Total premium  : ${total_premium:.2f} (today ${total_today:.2f})")
+        log(f"  Total cycles   : {total_cycles}")
+        log(f"  Account cash   : ${float(account['cash']):,.2f}")
+        log(f"  Portfolio val  : ${float(account['portfolio_value']):,.2f}")
         log("=" * 65)
 
         send_embed(
             "summary", f"Daily Wheel Summary — {datetime.now().strftime('%Y-%m-%d')}",
             color=Color.BLUE,
             fields=[
-                {"name": "TSLA price", "value": f"${tsla_price:.2f}", "inline": True},
-                {"name": "Stage", "value": str(state["stage"]), "inline": True},
-                {"name": "Open contract", "value": state.get("current_contract") or "None", "inline": False},
-                {"name": "Premium today", "value": f"${state.get('total_premium_today', 0):.2f}", "inline": True},
-                {"name": "Total premium", "value": f"${state['total_premium_collected']:.2f}", "inline": True},
-                {"name": "Cycles", "value": str(state["cycle_count"]), "inline": True},
+                {"name": "Premium today (all symbols)", "value": f"${total_today:.2f}", "inline": True},
+                {"name": "Total premium", "value": f"${total_premium:.2f}", "inline": True},
+                {"name": "Total cycles", "value": str(total_cycles), "inline": True},
                 {"name": "Account cash", "value": f"${float(account['cash']):,.2f}", "inline": True},
                 {"name": "Portfolio value", "value": f"${float(account['portfolio_value']):,.2f}", "inline": True},
+                {"name": "By symbol", "value": "```\n" + "\n".join(per_symbol_lines) + "\n```", "inline": False},
             ],
             footer="wheel_strategy.py — daily summary",
         )
         log_event("daily-summary", "wheel_strategy.py", "daily_summary",
                   result="success",
                   details={
-                      "tsla_price": tsla_price,
-                      "stage": state["stage"],
-                      "premium_today": state.get("total_premium_today", 0),
-                      "total_premium": state["total_premium_collected"],
-                      "cycles": state["cycle_count"],
+                      "total_premium": total_premium,
+                      "total_today": total_today,
+                      "total_cycles": total_cycles,
                       "cash": float(account["cash"]),
                       "portfolio_value": float(account["portfolio_value"]),
+                      "per_symbol": {s: state[s] for s in SYMBOLS},
                   })
 
-        # Reset daily premium counter
-        state["total_premium_today"] = 0.0
+        # Reset daily counters across all symbols
+        for s in SYMBOLS:
+            state[s]["total_premium_today"] = 0.0
         save_state(state)
     except Exception as e:
         send_embed(

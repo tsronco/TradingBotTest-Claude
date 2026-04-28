@@ -85,17 +85,62 @@ def _summarize_strategy():
 
 
 def _summarize_wheel():
+    """Aggregate wheel state across all symbols.
+
+    Handles both legacy single-stock format (top-level `stage` key) and
+    current multi-stock format (top-level dict keyed by symbol).
+    """
     state = _load_json(WHEEL_STATE)
     if not state:
         return {"available": False}
+
+    # Detect format: legacy single-stock has `stage` at top level.
+    if "stage" in state:
+        return {
+            "available": True,
+            "format": "legacy_single_stock",
+            "TSLA": {
+                "stage": state.get("stage", 1),
+                "current_contract": state.get("current_contract"),
+                "premium_today": state.get("total_premium_today", 0),
+                "total_premium": state.get("total_premium_collected", 0),
+                "cycle_count": state.get("cycle_count", 0),
+                "cost_basis": state.get("cost_basis_per_share"),
+            },
+            "total_premium": state.get("total_premium_collected", 0),
+            "total_today": state.get("total_premium_today", 0),
+            "total_cycles": state.get("cycle_count", 0),
+        }
+
+    # Multi-stock format: aggregate across symbols.
+    per_symbol = {}
+    total_premium = 0.0
+    total_today   = 0.0
+    total_cycles  = 0
+    for sym, sym_state in state.items():
+        if sym.startswith("_"):  # skip _meta etc.
+            continue
+        if not isinstance(sym_state, dict):
+            continue
+        per_symbol[sym] = {
+            "stage": sym_state.get("stage", 1),
+            "current_contract": sym_state.get("current_contract"),
+            "premium_today": sym_state.get("total_premium_today", 0),
+            "total_premium": sym_state.get("total_premium_collected", 0),
+            "cycle_count": sym_state.get("cycle_count", 0),
+            "cost_basis": sym_state.get("cost_basis_per_share"),
+        }
+        total_premium += sym_state.get("total_premium_collected", 0) or 0
+        total_today   += sym_state.get("total_premium_today", 0) or 0
+        total_cycles  += sym_state.get("cycle_count", 0) or 0
+
     return {
         "available": True,
-        "stage": state.get("stage", 1),
-        "current_contract": state.get("current_contract"),
-        "premium_today": state.get("total_premium_today", 0),
-        "total_premium": state.get("total_premium_collected", 0),
-        "cycle_count": state.get("cycle_count", 0),
-        "cost_basis": state.get("cost_basis_per_share"),
+        "format": "multi_stock",
+        "symbols": per_symbol,
+        "total_premium": round(total_premium, 2),
+        "total_today": round(total_today, 2),
+        "total_cycles": total_cycles,
     }
 
 
@@ -158,17 +203,44 @@ def run_daily_summary():
             })
 
         if wheel["available"]:
+            # Top-line aggregate
             fields.append({
-                "name": "TSLA Wheel (wheel_strategy.py)",
+                "name": "Wheel — All Symbols (totals)",
                 "value": (
-                    f"Stage {wheel['stage']} | "
-                    f"Contract: {wheel['current_contract'] or 'none'} | "
-                    f"Premium today: ${wheel['premium_today']:.2f} | "
+                    f"Premium today: ${wheel['total_today']:.2f} | "
                     f"Total premium: ${wheel['total_premium']:.2f} | "
-                    f"Cycles: {wheel['cycle_count']}"
+                    f"Cycles: {wheel['total_cycles']}"
                 ),
                 "inline": False,
             })
+            # Per-symbol breakdown
+            if wheel.get("format") == "multi_stock":
+                lines = []
+                for sym, info in wheel.get("symbols", {}).items():
+                    contract = info.get("current_contract") or "none"
+                    lines.append(
+                        f"  {sym:<5} stage {info['stage']}  ${info['total_premium']:>7.2f}  "
+                        f"today ${info['premium_today']:>5.2f}  {contract}"
+                    )
+                if lines:
+                    fields.append({
+                        "name": "Wheel — Per Symbol",
+                        "value": "```\n" + "\n".join(lines) + "\n```",
+                        "inline": False,
+                    })
+            elif wheel.get("format") == "legacy_single_stock":
+                tsla = wheel.get("TSLA", {})
+                fields.append({
+                    "name": "TSLA Wheel (legacy state)",
+                    "value": (
+                        f"Stage {tsla.get('stage')} | "
+                        f"Contract: {tsla.get('current_contract') or 'none'} | "
+                        f"Premium today: ${tsla.get('premium_today', 0):.2f} | "
+                        f"Total: ${tsla.get('total_premium', 0):.2f} | "
+                        f"Cycles: {tsla.get('cycle_count', 0)}"
+                    ),
+                    "inline": False,
+                })
 
         if congress["available"]:
             events_str = ", ".join(f"{k}={v}" for k, v in congress.get("events_today", {}).items()) or "none"
