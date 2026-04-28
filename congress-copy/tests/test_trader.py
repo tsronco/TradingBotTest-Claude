@@ -128,6 +128,10 @@ def test_trader_increments_errors_on_alpaca_exception(tmp_db, paper_env):
 
 
 def test_trader_increments_errors_on_scraper_failure(tmp_db, paper_env):
+    """When every politician's scrape fails, errors should equal the number of
+    politicians configured (each failure is logged separately) and no
+    disclosures should be processed."""
+    import config
     from src.state import State
     state = State(tmp_db)
     alpaca = MagicMock()
@@ -137,7 +141,9 @@ def test_trader_increments_errors_on_scraper_failure(tmp_db, paper_env):
     trader = Trader(state=state, alpaca=alpaca, scraper=scraper)
     summary = trader.run_disclosure_cycle()
 
-    assert summary["errors"] == 1
+    expected_errors = len(config.POLITICIANS)
+    assert summary["errors"] == expected_errors
     assert summary["new"] == 0
     events = state.recent_events()
-    assert any(e["event_type"] == "SCRAPER_ERROR" for e in events)
+    scraper_errors = [e for e in events if e["event_type"] == "SCRAPER_ERROR"]
+    assert len(scraper_errors) == expected_errors

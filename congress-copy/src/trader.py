@@ -32,13 +32,46 @@ class Trader:
         # For now this is acceptable because Task Scheduler runs disclosures only
         # 4× daily and the budget (MAX_DAILY_TRADES=20) is well above per-cycle volume.
 
-        try:
-            all_disclosures = self.scraper.fetch_recent_disclosures(config.POLITICIAN_SLUG)
-        except Exception as e:
-            summary["errors"] += 1
-            self.state.log_event("SCRAPER_ERROR", trade_id=None, reason=str(e)[:500])
-            log.exception("scraper failed")
-            return summary
+        # Iterate over every politician in config.POLITICIANS; partial-failure
+        # tolerant — one bad slug doesn't abort the whole cycle.
+        all_disclosures = []
+        for pol in config.POLITICIANS:
+            slug = pol["slug"]
+            name = pol["name"]
+            try:
+                fetched = self.scraper.fetch_recent_disclosures(slug)
+                log.info("scraper fetched %d disclosures for %s (%s)", len(fetched), name, slug)
+                all_disclosures.extend(fetched)
+            except Exception as e:
+                summary["errors"] += 1
+                self.state.log_event(
+                    "SCRAPER_ERROR",
+                    trade_id=None,
+                    reason=f"{slug} ({name}): {str(e)[:400]}",
+                )
+                send_embed(
+                    "errors", f"Congress Copy: scraper failed for {name}",
+                    color=Color.RED,
+                    description=f"Slug `{slug}` may be stale.\n`{type(e).__name__}: {str(e)[:300]}`",
+                    footer="trader.py",
+                )
+                log_event("errors", "trader.py", "scraper_error",
+                          result="failure",
+                          notes=f"{slug} ({name}): {type(e).__name__}: {str(e)[:300]}")
+                log.exception("scraper failed for %s (%s)", name, slug)
+                # Continue to next politician instead of aborting the whole cycle
+
+        # Dedupe by trade_id — defensive against the same disclosure appearing
+        # in multiple politicians' feeds (rare but possible) or duplicate scraper
+        # results from a single politician.
+        seen_in_batch: set[str] = set()
+        deduped: list[Disclosure] = []
+        for d in all_disclosures:
+            if d.trade_id in seen_in_batch:
+                continue
+            seen_in_batch.add(d.trade_id)
+            deduped.append(d)
+        all_disclosures = deduped
 
         try:
             new = self.state.filter_unseen(all_disclosures)
