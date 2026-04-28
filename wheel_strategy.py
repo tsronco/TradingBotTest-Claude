@@ -351,7 +351,19 @@ def handle_stage1(state, tsla_price, account):
                 state["last_action"] = f"Put expired worthless. +${premium_dollars:.2f}. Selling new put."
                 _sell_new_put(state, tsla_price, account)
         else:
-            # Position still open — check 50% profit rule
+            # Position still open. Recover entry_price from the order if we
+            # never recorded it (e.g., order was placed pre-market and only
+            # filled later, between wheel cycles).
+            if state.get("contract_entry_price") is None:
+                order_id = state.get("contract_order_id")
+                if order_id:
+                    order = get_order(order_id)
+                    filled_avg = order.get("filled_avg_price") if order else None
+                    if filled_avg:
+                        state["contract_entry_price"] = float(filled_avg)
+                        log(f"Recovered entry price ${state['contract_entry_price']:.2f} from filled order {order_id}")
+
+            # Check 50% profit rule
             current_price = get_option_last_price(contract)
             if current_price is not None:
                 entry = state.get("contract_entry_price")
@@ -379,9 +391,10 @@ def handle_stage1(state, tsla_price, account):
                     state["last_action"] = f"Closed early at 50% profit: +${premium_dollars:.2f}. Selling new put."
                     _sell_new_put(state, tsla_price, account)
                 else:
-                    pnl = ((entry or 0) - current_price) * 100 if entry else 0
-                    log(f"Stage 1 — monitoring {contract} @ ${current_price:.2f} (entry ${entry:.2f}, unrealized +${pnl:.2f})")
-                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry ${entry:.2f}"
+                    entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
+                    pnl = (entry - current_price) * 100 if entry is not None else 0
+                    log(f"Stage 1 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
+                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
     else:
         # No contract at all — sell a new put
         _sell_new_put(state, tsla_price, account)
@@ -526,7 +539,18 @@ def handle_stage2(state, tsla_price, account):
                 state["last_action"] = f"Call expired worthless. +${premium_dollars:.2f}. Selling new call."
                 _sell_new_call(state, tsla_price, cost_basis)
         else:
-            # Position still open — check 50% profit rule
+            # Position still open. Recover entry_price from the order if we
+            # never recorded it (same gap as Stage 1).
+            if state.get("contract_entry_price") is None:
+                order_id = state.get("contract_order_id")
+                if order_id:
+                    order = get_order(order_id)
+                    filled_avg = order.get("filled_avg_price") if order else None
+                    if filled_avg:
+                        state["contract_entry_price"] = float(filled_avg)
+                        log(f"Recovered entry price ${state['contract_entry_price']:.2f} from filled order {order_id}")
+
+            # Check 50% profit rule
             current_price = get_option_last_price(contract)
             if current_price is not None:
                 entry = state.get("contract_entry_price")
@@ -554,9 +578,10 @@ def handle_stage2(state, tsla_price, account):
                     state["last_action"] = f"Closed early at 50% profit: +${premium_dollars:.2f}. Selling new call."
                     _sell_new_call(state, tsla_price, cost_basis)
                 else:
-                    pnl = ((entry or 0) - current_price) * 100 if entry else 0
-                    log(f"Stage 2 — monitoring {contract} @ ${current_price:.2f} (entry ${entry:.2f}, unrealized +${pnl:.2f})")
-                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry ${entry:.2f}"
+                    entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
+                    pnl = (entry - current_price) * 100 if entry is not None else 0
+                    log(f"Stage 2 — monitoring {contract} @ ${current_price:.2f} (entry {entry_str}, unrealized +${pnl:.2f})")
+                    state["last_action"] = f"Monitoring {contract}: ${current_price:.2f} vs entry {entry_str}"
     else:
         _sell_new_call(state, tsla_price, cost_basis)
 
