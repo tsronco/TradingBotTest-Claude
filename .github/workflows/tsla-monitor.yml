@@ -1,0 +1,78 @@
+name: TSLA Monitor
+
+# Runs strategy.py (trailing stop / ladder) + wheel_strategy.py (puts/calls).
+#
+# Schedule: every 30 min, 8 AM–3 PM CT, Mon–Fri.
+# Cron is in UTC — values below are correct for CDT (UTC-5, March–November).
+# When DST ends in early November, shift each hour value +1 (becomes 14-21
+# UTC for CST). TODO: replace with a proper TZ-aware guard.
+
+on:
+  schedule:
+    - cron: '*/30 13-20 * * 1-5'
+  workflow_dispatch: {}  # allow manual trigger from Actions tab
+
+# Serialize ALL bot workflow runs to avoid push conflicts when committing
+# state/log files back to the repo.
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run TSLA strategy (trailing stop / ladder)
+        env:
+          ALPACA_API_KEY:           ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:        ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:          ${{ secrets.ALPACA_BASE_URL }}
+          DISCORD_TSLA_WEBHOOK:     ${{ secrets.DISCORD_TSLA_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+        run: python strategy.py once
+
+      - name: Run TSLA wheel strategy
+        env:
+          ALPACA_API_KEY:           ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:        ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:          ${{ secrets.ALPACA_BASE_URL }}
+          DISCORD_TSLA_WEBHOOK:     ${{ secrets.DISCORD_TSLA_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+        run: python wheel_strategy.py once
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add strategy_state.json wheel_state.json logs/ || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "tsla-monitor: $(date -u +%Y-%m-%dT%H:%MZ)"
+            # Retry push up to 3 times in case another workflow pushed first.
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi

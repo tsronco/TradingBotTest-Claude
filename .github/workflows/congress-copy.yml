@@ -1,0 +1,77 @@
+name: Congress Copy
+
+# Runs the congress-copy bot: scrapes new Gottheimer disclosures, places
+# copy trades, and runs the stop-loss monitor on existing copy positions.
+#
+# Schedule: 8 AM, 10 AM, 12 PM, 2 PM CT, Mon–Fri.
+# Cron is in UTC for CDT (UTC-5). When DST ends, shift hour values +1.
+
+on:
+  schedule:
+    - cron: '0 13,15,17,19 * * 1-5'
+  workflow_dispatch: {}
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: congress-copy
+        run: pip install -r requirements.txt
+
+      - name: Run disclosures cycle (new trades + copy)
+        working-directory: congress-copy
+        env:
+          ALPACA_API_KEY:             ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:          ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:            ${{ secrets.ALPACA_BASE_URL }}
+          DISCORD_CONGRESS_WEBHOOK:   ${{ secrets.DISCORD_CONGRESS_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:     ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:    ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+        run: python -m src.runner disclosures
+
+      - name: Run monitor cycle (stop-loss check on open positions)
+        working-directory: congress-copy
+        env:
+          ALPACA_API_KEY:             ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:          ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:            ${{ secrets.ALPACA_BASE_URL }}
+          DISCORD_CONGRESS_WEBHOOK:   ${{ secrets.DISCORD_CONGRESS_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:     ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:    ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+        run: python -m src.runner monitor
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add congress-copy/data/ congress-copy/logs/ logs/ || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "congress-copy: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi

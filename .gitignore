@@ -1,0 +1,29 @@
+# Secrets — NEVER commit
+.env
+
+# Claude Code per-machine local settings (contains API keys in command allowlists)
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node (in case any subdir adds it)
+node_modules/
+
+# Browser automation cache
+.playwright/
