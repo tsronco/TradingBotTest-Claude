@@ -27,6 +27,6 @@
       "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
     }
   ],
-  "last_checked": "2026-04-28T17:37:20.473694Z",
+  "last_checked": "2026-04-28T18:07:18.137351Z",
   "last_action": "Monitoring TSLA260522P00340000: $3.90 vs entry $4.10"
 }
