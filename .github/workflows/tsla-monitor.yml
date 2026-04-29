@@ -54,6 +54,16 @@ jobs:
           DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
         run: python wheel_strategy.py once
 
+      - name: Run long-options manager (any long calls/puts in account)
+        env:
+          ALPACA_API_KEY:           ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:        ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:          ${{ secrets.ALPACA_BASE_URL }}
+          DISCORD_TSLA_WEBHOOK:     ${{ secrets.DISCORD_TSLA_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+        run: python long_options_strategy.py once
+
       - name: Commit state and logs
         run: |
           git config user.name "github-actions[bot]"

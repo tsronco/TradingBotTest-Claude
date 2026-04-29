@@ -144,6 +144,52 @@ def _summarize_wheel():
     }
 
 
+def _summarize_long_options():
+    """Pull all LONG option positions (qty > 0) from Alpaca and compute P&L."""
+    try:
+        resp = requests.get(f"{BASE_URL}/positions", headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        positions = resp.json()
+    except Exception as e:
+        return {"available": False, "error": str(e)[:200]}
+
+    longs = []
+    total_pnl = 0.0
+    for p in positions:
+        if p.get("asset_class") != "us_option":
+            continue
+        try:
+            qty = float(p.get("qty", 0))
+        except (TypeError, ValueError):
+            continue
+        if qty <= 0:
+            continue
+        try:
+            entry  = float(p.get("avg_entry_price", 0))
+            current = float(p.get("current_price", 0))
+            mv     = float(p.get("market_value", 0))
+            pnl    = (current - entry) * 100 * qty
+        except (TypeError, ValueError):
+            continue
+        longs.append({
+            "symbol": p.get("symbol"),
+            "qty": int(qty),
+            "entry": entry,
+            "current": current,
+            "market_value": mv,
+            "pnl_dollars": round(pnl, 2),
+            "pnl_pct": round((current - entry) / entry, 4) if entry > 0 else 0,
+        })
+        total_pnl += pnl
+
+    return {
+        "available": True,
+        "count": len(longs),
+        "positions": longs,
+        "total_pnl": round(total_pnl, 2),
+    }
+
+
 def _summarize_congress():
     if not CONGRESS_STATE.exists():
         return {"available": False}
@@ -179,6 +225,7 @@ def run_daily_summary():
         tsla_price  = _get_latest_price("TSLA")
         strategy    = _summarize_strategy()
         wheel       = _summarize_wheel()
+        long_opts   = _summarize_long_options()
         congress    = _summarize_congress()
 
         cash      = float(account["cash"])
@@ -241,6 +288,24 @@ def run_daily_summary():
                     ),
                     "inline": False,
                 })
+
+        if long_opts.get("available") and long_opts.get("count", 0) > 0:
+            lines = []
+            for p in long_opts["positions"]:
+                lines.append(
+                    f"  {p['symbol']:<22} qty={p['qty']}  entry ${p['entry']:>5.2f}  "
+                    f"now ${p['current']:>5.2f}  P&L {p['pnl_pct']:+.1%} (${p['pnl_dollars']:+.2f})"
+                )
+            fields.append({
+                "name": f"Long Options ({long_opts['count']} open)",
+                "value": "```\n" + "\n".join(lines) + "\n```",
+                "inline": False,
+            })
+            fields.append({
+                "name": "Long Options — total unrealized P&L",
+                "value": f"${long_opts['total_pnl']:+.2f}",
+                "inline": True,
+            })
 
         if congress["available"]:
             events_str = ", ".join(f"{k}={v}" for k, v in congress.get("events_today", {}).items()) or "none"
