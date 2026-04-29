@@ -27,6 +27,7 @@ import requests
 from dotenv import load_dotenv
 
 from notifications import Color, log_event, send_embed
+from wheel_strategy import SYMBOLS as WHEELED_SYMBOLS
 
 load_dotenv()
 
@@ -42,9 +43,10 @@ HEADERS = {
     "accept":              "application/json",
 }
 
-# Already-wheeled — kept here so the screener never recommends a symbol the
-# wheel is already cycling on.
-ALREADY_WHEELED = {"TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI"}
+# Already-wheeled — derived from wheel_strategy.SYMBOLS so the screener
+# automatically stops recommending whatever the wheel is actively cycling on.
+# Add/remove symbols in wheel_strategy.py and the screener stays in sync.
+ALREADY_WHEELED = set(WHEELED_SYMBOLS)
 
 # Curated wheel-candidate universe. Filters applied:
 #   - Large-cap, S&P 500 / mega-cap names with deep options chains
