@@ -44,8 +44,9 @@ load_dotenv()
 
 API_KEY    = os.getenv("ALPACA_API_KEY")
 API_SECRET = os.getenv("ALPACA_API_SECRET")
-BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
-DATA_URL   = "https://data.alpaca.markets/v2"
+BASE_URL          = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
+DATA_URL          = "https://data.alpaca.markets/v2"          # stock data
+OPTIONS_DATA_URL  = "https://data.alpaca.markets/v1beta1"     # options data (different version!)
 
 HEADERS = {
     "APCA-API-KEY-ID":     API_KEY,
@@ -301,11 +302,11 @@ def get_option_quote(contract_symbol):
     """Fetch the current bid/ask for an option contract.
 
     Returns dict {"bid": float, "ask": float} or None if unavailable.
-    The Alpaca options-data feed `indicative` is used, matching get_option_last_price.
+    Note: Alpaca options data lives under v1beta1, NOT v2 (stock data uses v2).
     """
     try:
         resp = requests.get(
-            f"{DATA_URL}/options/quotes/latest",
+            f"{OPTIONS_DATA_URL}/options/quotes/latest",
             headers=HEADERS,
             params={"symbols": contract_symbol, "feed": "indicative"},
             timeout=10,
@@ -378,10 +379,13 @@ def _resolve_pending_contract(sym_state):
 
 
 def get_option_last_price(contract_symbol):
-    """Get last traded price for an options contract."""
+    """Get last traded price for an options contract.
+
+    Same v1beta1 path as get_option_quote (options data is NOT under v2).
+    """
     try:
         resp = requests.get(
-            f"{DATA_URL}/options/trades/latest",
+            f"{OPTIONS_DATA_URL}/options/trades/latest",
             headers=HEADERS,
             params={"symbols": contract_symbol, "feed": "indicative"},
         )
