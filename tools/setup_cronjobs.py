@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Configure cron-job.org jobs that trigger our 3 GitHub Actions workflows.
+Configure cron-job.org jobs that trigger our 4 GitHub Actions workflows.
 
 Reads GITHUB_ACCESS_TOKEN and CRONJOB_API_KEY from .env at the project root,
-then PUTs 3 job definitions to cron-job.org's REST API.
+then PATCHes/PUTs 4 job definitions to cron-job.org's REST API.
 
-Idempotent: lists existing jobs first, deletes any with a matching title
-before creating the new ones. Safe to re-run.
+Idempotent: lists existing jobs first. Updates any with a matching title
+in place via PATCH; creates new ones via PUT. Safe to re-run.
+
+Note: cron-job.org's REST API rejects DELETE /jobs/{id} with HTTP 400
+(empty body) — likely an undocumented quirk. We update via PATCH instead.
 
 Usage:
     python tools/setup_cronjobs.py
@@ -41,14 +44,14 @@ CRONJOB_HEADERS = {
     "Content-Type": "application/json",
 }
 
-# 4 job definitions. The first three run Mon-Fri; "Wheel Screener" overrides
+# 4 job definitions. The first three run Mon–Fri; "Wheel Screener" overrides
 # wdays for Sunday-evening firing.
 JOBS = [
     {
         "title": "TSLA Monitor",
         "workflow": "tsla-monitor.yml",
         "hours": list(range(13, 21)),  # 13–20 UTC inclusive
-        "minutes": [7, 37],
+        "minutes": [7, 17, 27, 37, 47, 57],  # every 10 min, :7 offset
         "wdays": [1, 2, 3, 4, 5],
     },
     {
@@ -103,8 +106,10 @@ def list_existing_jobs() -> list[dict]:
     return cronjob_request("GET", "/jobs").get("jobs", [])
 
 
-def delete_job(job_id: int) -> None:
-    cronjob_request("DELETE", f"/jobs/{job_id}")
+def patch_job(job_id: int, spec: dict) -> None:
+    """Update an existing job's schedule + URL in place."""
+    body = build_job_body(spec)
+    cronjob_request("PATCH", f"/jobs/{job_id}", body)
 
 
 def build_job_body(spec: dict) -> dict:
@@ -136,25 +141,23 @@ def main() -> None:
     print(f"Configuring cron-job.org for repo {REPO}")
     print()
 
-    # Step 1: clean up any pre-existing jobs with matching titles (idempotent)
+    # Step 1: index existing jobs by title so we can PATCH or PUT
     existing = list_existing_jobs()
+    by_title = {j.get("title"): j for j in existing if j.get("title")}
     titles = {spec["title"] for spec in JOBS}
-    for job in existing:
-        if job.get("title") in titles:
-            jid = job["jobId"]
-            print(f"  Deleting existing '{job['title']}' (jobId={jid})")
-            delete_job(jid)
-    if not any(j.get("title") in titles for j in existing):
-        print("  No existing matching jobs; clean slate.")
-    print()
 
-    # Step 2: create the 3 jobs (sleep between to avoid 429)
+    # Step 2: PATCH where job exists, PUT where it doesn't (sleep between calls)
     for i, spec in enumerate(JOBS):
-        body = build_job_body(spec)
-        result = cronjob_request("PUT", "/jobs", body)
-        jid = result.get("jobId")
-        sched = f"hours={spec['hours']} minutes={spec['minutes']}"
-        print(f"  [OK] Created '{spec['title']}' (jobId={jid}) -- {sched}")
+        sched = f"hours={spec['hours']} minutes={spec['minutes']} wdays={spec['wdays']}"
+        if spec["title"] in by_title:
+            jid = by_title[spec["title"]]["jobId"]
+            patch_job(jid, spec)
+            print(f"  [OK] Updated '{spec['title']}' (jobId={jid}) -- {sched}")
+        else:
+            body = build_job_body(spec)
+            result = cronjob_request("PUT", "/jobs", body)
+            jid = result.get("jobId")
+            print(f"  [OK] Created '{spec['title']}' (jobId={jid}) -- {sched}")
         if i < len(JOBS) - 1:
             time.sleep(2)  # be polite to the API
     print()

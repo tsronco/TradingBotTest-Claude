@@ -6,7 +6,7 @@ Alpaca paper trading sandbox running four scheduled bots on **GitHub Actions cro
 
 ```
 ┌─ GitHub Actions cron ────────────────────────────────────────────┐
-│  tsla-monitor.yml      (every 30 min, 9 AM–4 PM ET, Mon–Fri)     │
+│  tsla-monitor.yml      (every 10 min, 9 AM–5 PM ET, Mon–Fri)     │
 │    ├─ strategy.py once          (TSLA stock: trail stop + ladder)│
 │    ├─ wheel_strategy.py once    (multi-stock wheel)              │
 │    └─ long_options_strategy.py  (manage open long options)       │
@@ -53,7 +53,7 @@ All four workflows are triggered **exclusively by cron-job.org** via `workflow_d
 
 | Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
-| `tsla-monitor.yml` | `7,37 13-20 * * 1-5` | 8:07/:37 AM–3:37 PM | 9:07/:37 AM–4:37 PM | Strategy + wheel + long-options |
+| `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Strategy + wheel + long-options |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Scrape + monitor |
 | `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | Combined P&L report |
 | `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Weekly wheel-candidate digest |
