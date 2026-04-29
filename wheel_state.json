@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-29T13:38:17.315779Z"
+    "last_checked": "2026-04-29T14:07:59.674485Z"
   },
   "TSLA": {
     "stage": 1,
@@ -31,13 +31,13 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Monitoring TSLA260522P00340000: $3.66 vs entry $4.10"
+    "last_action": "Monitoring TSLA260522P00340000: $3.92 vs entry $4.10"
   },
   "BAC": {
     "stage": 1,
     "current_contract": "BAC260522P00045000",
     "contract_order_id": "b0d1a544-0e3e-455b-8573-5797462920b6",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.1,
     "contract_entry_date": "2026-04-29T13:37:58.146876Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
@@ -49,7 +49,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260522P00045000 @ $0.10. Awaiting fill."
+    "last_action": "Monitoring BAC260522P00045000: $0.11 vs entry $0.10"
   },
   "XOM": {
     "stage": 1,
@@ -67,7 +67,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open XOM260522P00135000 @ $0.75. Awaiting fill."
+    "last_action": "Awaiting fill on XOM260522P00135000."
   },
   "KO": {
     "stage": 1,
@@ -85,13 +85,13 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open KO260522P00070000 @ $0.09. Awaiting fill."
+    "last_action": "Awaiting fill on KO260522P00070000."
   },
   "PLTR": {
     "stage": 1,
     "current_contract": "PLTR260522P00125000",
     "contract_order_id": "d4b824bb-d27a-40d9-ad14-334427ab82d9",
-    "contract_entry_price": null,
+    "contract_entry_price": 4.0,
     "contract_entry_date": "2026-04-29T13:38:08.980654Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
@@ -103,13 +103,13 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open PLTR260522P00125000 @ $3.99. Awaiting fill."
+    "last_action": "Monitoring PLTR260522P00125000: $4.37 vs entry $4.00"
   },
   "SOFI": {
     "stage": 1,
     "current_contract": "SOFI260515P00015000",
     "contract_order_id": "f5f526f2-e707-4a1d-b11e-6098e70db723",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.31,
     "contract_entry_date": "2026-04-29T13:38:16.979761Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
@@ -121,6 +121,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open SOFI260515P00015000 @ $0.31. Awaiting fill."
+    "last_action": "Monitoring SOFI260515P00015000: $0.48 vs entry $0.31"
   }
 }
