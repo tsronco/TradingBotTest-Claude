@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-29T17:37:55.038733Z"
+    "last_checked": "2026-04-29T17:48:03.926485Z"
   },
   "TSLA": {
     "stage": 1,
@@ -121,7 +121,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.43 vs entry $0.31"
+    "last_action": "Monitoring SOFI260515P00015000: $0.40 vs entry $0.31"
   },
   "PFE": {
     "stage": 1,
@@ -139,6 +139,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.31 vs entry $0.30"
+    "last_action": "Monitoring PFE260522P00025000: $0.33 vs entry $0.30"
   }
 }
