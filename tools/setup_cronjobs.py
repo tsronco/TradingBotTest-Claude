@@ -41,25 +41,39 @@ CRONJOB_HEADERS = {
     "Content-Type": "application/json",
 }
 
-# 3 job definitions
+# 4 job definitions. The first three run Mon-Fri; "Wheel Screener" overrides
+# wdays for Sunday-evening firing.
 JOBS = [
     {
         "title": "TSLA Monitor",
         "workflow": "tsla-monitor.yml",
         "hours": list(range(13, 21)),  # 13–20 UTC inclusive
         "minutes": [7, 37],
+        "wdays": [1, 2, 3, 4, 5],
     },
     {
         "title": "Congress Copy",
         "workflow": "congress-copy.yml",
         "hours": [13, 15, 17, 19],
         "minutes": [7],
+        "wdays": [1, 2, 3, 4, 5],
     },
     {
         "title": "Daily Summary",
         "workflow": "daily-summary.yml",
         "hours": [20],
         "minutes": [12],
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    {
+        # Sundays at 22:00 UTC (5pm CT / 6pm ET). Posts the upcoming week's
+        # wheel candidate digest to #daily-summary so Tim sees it on Sunday
+        # evening, a few hours before Monday's open.
+        "title": "Wheel Screener",
+        "workflow": "wheel-screener.yml",
+        "hours": [22],
+        "minutes": [0],
+        "wdays": [0],  # Sunday only
     },
 ]
 
@@ -107,7 +121,7 @@ def build_job_body(spec: dict) -> dict:
                 "mdays": [-1],
                 "minutes": spec["minutes"],
                 "months": [-1],
-                "wdays": [1, 2, 3, 4, 5],
+                "wdays": spec["wdays"],
             },
             "requestMethod": 1,  # POST
             "extendedData": {

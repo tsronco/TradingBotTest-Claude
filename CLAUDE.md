@@ -1,14 +1,15 @@
 # TradingBotTest-Claude
 
-Alpaca paper trading sandbox running three bots on **GitHub Actions cron** (migrated from local Claude routines on 2026-04-28). Notifications flow to a private Discord server; structured logs are committed back to this repo as JSONL.
+Alpaca paper trading sandbox running four scheduled bots on **GitHub Actions cron** (migrated from local Claude routines on 2026-04-28). Notifications flow to a private Discord server; structured logs are committed back to this repo as JSONL.
 
 ## Architecture at a glance
 
 ```
 ┌─ GitHub Actions cron ────────────────────────────────────────────┐
 │  tsla-monitor.yml      (every 30 min, 9 AM–4 PM ET, Mon–Fri)     │
-│    ├─ strategy.py once       (TSLA stock: trail stop + ladder)   │
-│    └─ wheel_strategy.py once (TSLA wheel: puts → calls → repeat) │
+│    ├─ strategy.py once          (TSLA stock: trail stop + ladder)│
+│    ├─ wheel_strategy.py once    (multi-stock wheel)              │
+│    └─ long_options_strategy.py  (manage open long options)       │
 │                                                                   │
 │  congress-copy.yml     (9 / 11 / 1 / 3 PM ET, Mon–Fri)           │
 │    ├─ disclosures cycle  (scrape 4 politicians + copy trades)    │
@@ -16,6 +17,9 @@ Alpaca paper trading sandbox running three bots on **GitHub Actions cron** (migr
 │                                                                   │
 │  daily-summary.yml     (4:05 PM ET, Mon–Fri)                     │
 │    └─ daily_summary.py   (combined P&L report)                   │
+│                                                                   │
+│  wheel-screener.yml    (5 PM CT / 6 PM ET, Sundays)              │
+│    └─ wheel_screener.py  (weekly digest of wheel candidates)     │
 └──────────────────────────────────────────────────────────────────┘
         │                                 │
         ▼                                 ▼
@@ -45,19 +49,20 @@ DISCORD_ACTIONS_WEBHOOK=...
 
 All cron expressions are in **UTC**. Times below are translated for clarity.
 
-All three workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
+All four workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
 
 | Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
-| `tsla-monitor.yml` | `7,37 13-20 * * 1-5` | 8:07/:37 AM–3:37 PM | 9:07/:37 AM–4:37 PM | Strategy + wheel |
+| `tsla-monitor.yml` | `7,37 13-20 * * 1-5` | 8:07/:37 AM–3:37 PM | 9:07/:37 AM–4:37 PM | Strategy + wheel + long-options |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Scrape + monitor |
 | `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | Combined P&L report |
+| `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Weekly wheel-candidate digest |
 
 **Why not GitHub's native `schedule:` trigger?** Two reasons:
 1. **Reliability**: GitHub's cron didn't fire reliably on this repo's first day (multiple missed fires, even after going public and shifting off `:00`/`:30`).
 2. **Race conditions**: when GitHub cron eventually started firing, it created a duplicate-scheduler race against cron-job.org. Both runs would update the same state files; the second would fail with merge conflicts. So we removed the native `schedule:` trigger entirely.
 
-To change a schedule, update `tools/setup_cronjobs.py` and re-run it (it's idempotent — drops and recreates the 3 jobs cleanly).
+To change a schedule, update `tools/setup_cronjobs.py` and re-run it (it's idempotent — drops and recreates the 4 jobs cleanly).
 
 NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fall outside market hours are handled correctly:
 - **Wheel** has an `is_market_open()` guard that skips the cycle when market is closed (logs a JSONL heartbeat, doesn't touch state).
@@ -186,8 +191,8 @@ The congress-copy package has its own pytest setup under `congress-copy/tests/` 
 
 ## Future work (revisit week of May 5–12, 2026)
 
-- **Wheel stock screener** — automate the criteria above into a "wheel score" tool. Don't build until TSLA wheel has 1–2 weeks of clean hosted operation.
-- **Multi-stock strategy expansion** — generalize `strategy.py` and `wheel_strategy.py` past TSLA-only. Trail stop/ladder is the easier piece (just iterate open positions). Wheel needs a curated "wheelable" list before it can be generalized.
+- **Wheel stock screener v1 shipped 2026-04-29** — `wheel_screener.py` posts a Sunday-evening digest to `#daily-summary`. **Open improvements:** add earnings-date filter (currently a manual-check footer note), expand universe beyond ~40 tickers, add IV-rank component to the score (would need historical IV data — yfinance dep or manual cache).
+- **Multi-stock strategy expansion** — generalize `strategy.py` past TSLA-only. Trail stop/ladder is the easier piece (just iterate open positions). Wheel is already multi-stock as of 2026-04-28.
 - **Politician roster review** — after a few weeks, evaluate which of the 4 politicians actually produced fillable copy trades. Drop dead weight, add active newcomers.
 - **Bump GitHub Actions versions** — `actions/checkout@v4` and `actions/setup-python@v5` use Node 20 which gets phased out 2026-09-16. Bump before then.
 
