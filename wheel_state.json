@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-29T17:07:58.749184Z"
+    "last_checked": "2026-04-29T17:18:11.013982Z"
   },
   "TSLA": {
     "stage": 1,
@@ -31,7 +31,7 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Monitoring TSLA260522P00340000: $3.92 vs entry $4.10"
+    "last_action": "Monitoring TSLA260522P00340000: $4.00 vs entry $4.10"
   },
   "BAC": {
     "stage": 1,
@@ -103,7 +103,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00125000: $3.90 vs entry $4.00"
+    "last_action": "Monitoring PLTR260522P00125000: $3.92 vs entry $4.00"
   },
   "SOFI": {
     "stage": 1,
@@ -127,7 +127,7 @@
     "stage": 1,
     "current_contract": "PFE260522P00025000",
     "contract_order_id": "6a8b2b2d-ee26-4a97-b5fd-a6f04c3c459b",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.3,
     "contract_entry_date": "2026-04-29T15:58:13.465906Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
@@ -139,6 +139,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on PFE260522P00025000."
+    "last_action": "Monitoring PFE260522P00025000: $0.31 vs entry $0.30"
   }
 }
