@@ -577,12 +577,14 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     send_embed(
         "tsla", f"Wheel: Sold-to-Open {symbol} Put @ ${contract['strike_price']}",
         color=Color.YELLOW,
-        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f}",
+        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} (premium ≥ ${limit_price*100:.2f} if filled)",
         fields=[
             {"name": "Underlying", "value": symbol, "inline": True},
             {"name": "Strike", "value": f"${contract['strike_price']}", "inline": True},
             {"name": "Expiry", "value": contract["expiration_date"], "inline": True},
             {"name": f"{symbol} price", "value": f"${stock_price:.2f}", "inline": True},
+            {"name": "Premium (if filled)", "value": f"${limit_price*100:.2f}", "inline": True},
+            {"name": "Collateral held", "value": f"${float(contract['strike_price'])*100:,.0f}", "inline": True},
         ],
         footer="wheel_strategy.py",
     )
@@ -759,12 +761,13 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
     send_embed(
         "tsla", f"Wheel: Sold-to-Open {symbol} Call @ ${contract['strike_price']}",
         color=Color.YELLOW,
-        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f}",
+        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} (premium ≥ ${limit_price*100:.2f} if filled)",
         fields=[
             {"name": "Underlying", "value": symbol, "inline": True},
             {"name": "Strike", "value": f"${contract['strike_price']}", "inline": True},
             {"name": "Expiry", "value": contract["expiration_date"], "inline": True},
             {"name": "Cost basis", "value": f"${cost_basis:.2f}", "inline": True},
+            {"name": "Premium (if filled)", "value": f"${limit_price*100:.2f}", "inline": True},
         ],
         footer="wheel_strategy.py",
     )
