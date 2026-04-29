@@ -404,3 +404,6 @@
 {"timestamp": "2026-04-29T19:58:05.083295+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "PFE", "stage": 1, "contract": "PFE260522P00025000", "stock_price": 26.285}}
 {"timestamp": "2026-04-29T19:58:05.084572+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
 {"timestamp": "2026-04-29T19:58:07.575367+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 1, "skipped": 0}}
+{"timestamp": "2026-04-29T20:07:58.432360+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 372.795, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
+{"timestamp": "2026-04-29T20:07:59.210699+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
+{"timestamp": "2026-04-29T20:07:59.424043+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
