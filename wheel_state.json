@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-28T23:12:38.629280Z"
+    "last_checked": "2026-04-29T13:38:17.315779Z"
   },
   "TSLA": {
     "stage": 1,
@@ -31,17 +31,17 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Monitoring TSLA260522P00340000: $3.65 vs entry $4.10"
+    "last_action": "Monitoring TSLA260522P00340000: $3.66 vs entry $4.10"
   },
   "BAC": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "BAC260522P00045000",
+    "contract_order_id": "b0d1a544-0e3e-455b-8573-5797462920b6",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-29T13:37:58.146876Z",
+    "contract_expiration": "2026-05-22",
+    "contract_type": "put",
+    "contract_strike": 45.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -49,17 +49,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Sold-to-open BAC260522P00045000 @ $0.10. Awaiting fill."
   },
   "XOM": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "XOM260522P00135000",
+    "contract_order_id": "409fed59-6c09-4f5e-bd8a-7b041d751c55",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-29T13:38:06.042417Z",
+    "contract_expiration": "2026-05-22",
+    "contract_type": "put",
+    "contract_strike": 135.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -67,17 +67,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Sold-to-open XOM260522P00135000 @ $0.75. Awaiting fill."
   },
   "KO": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "KO260522P00070000",
+    "contract_order_id": "7f5dd4d9-5e82-4389-b6cc-c94182513404",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-29T13:38:07.369620Z",
+    "contract_expiration": "2026-05-22",
+    "contract_type": "put",
+    "contract_strike": 70.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -85,17 +85,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Sold-to-open KO260522P00070000 @ $0.09. Awaiting fill."
   },
   "PLTR": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "PLTR260522P00125000",
+    "contract_order_id": "d4b824bb-d27a-40d9-ad14-334427ab82d9",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-29T13:38:08.980654Z",
+    "contract_expiration": "2026-05-22",
+    "contract_type": "put",
+    "contract_strike": 125.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -103,17 +103,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Sold-to-open PLTR260522P00125000 @ $3.99. Awaiting fill."
   },
   "SOFI": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "SOFI260515P00015000",
+    "contract_order_id": "f5f526f2-e707-4a1d-b11e-6098e70db723",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-29T13:38:16.979761Z",
+    "contract_expiration": "2026-05-15",
+    "contract_type": "put",
+    "contract_strike": 15.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -121,6 +121,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Sold-to-open SOFI260515P00015000 @ $0.31. Awaiting fill."
   }
 }
