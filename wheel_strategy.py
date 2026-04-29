@@ -59,7 +59,7 @@ STATE_FILE  = os.path.join(os.path.dirname(__file__), "wheel_state.json")
 # ── Stocks the wheel runs on ──────────────────────────────────────────────
 # Each gets its own isolated state. Adding/removing here is the entire
 # config — `_empty_symbol_state` initializes any missing entry on next load.
-SYMBOLS = ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI"]
+SYMBOLS = ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]
 
 # ── Strategy parameters (apply uniformly to all symbols for now) ──────────
 PUT_STRIKE_PCT       = 0.10   # sell put 10% below current price
