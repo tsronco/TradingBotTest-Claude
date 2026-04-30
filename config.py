@@ -23,8 +23,24 @@ and that's the entire config change.
 """
 
 # ── Wheel symbol lists ────────────────────────────────────────────────────
+#
+# IMPORTANT: list order = fill priority.
+#
+# The wheel (wheel_strategy.run_wheel) iterates SYMBOLS sequentially and
+# consumes buying power as it places put orders. Symbols earlier in the
+# list get first claim on cash; symbols later in the list only fill if BP
+# remains. When adding/removing symbols, place them where you want them in
+# the fill order.
+#
+# Symbols that hit insufficient cash (i.e., the wheel tried but BP was
+# exhausted by earlier symbols) silently skip and route the event to the
+# muted #all-actions / #aggressive-actions firehose — NOT the errors
+# channel. That's intentional: running out of cash on the fallback tier
+# is expected behavior, not a bug.
 
-# Conservative: large-caps + cheap names that fit a small account
+# Conservative: large-caps + cheap names. $100k account easily fits all 10
+# puts so order doesn't really matter here — just keep them in a sensible
+# arrangement. Adjust freely.
 CONSERVATIVE_SYMBOLS = [
     "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
     "F", "T", "INTC",

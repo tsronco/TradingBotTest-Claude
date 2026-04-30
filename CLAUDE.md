@@ -136,7 +136,18 @@ Aggressive side:
 Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state per symbol. The symbol list and strategy parameters come from `config.MODES[mode]["wheel_symbols"]`:
 
 - **Conservative**: TSLA, BAC, XOM, KO, PLTR, SOFI, PFE, F, T, INTC (10 large-caps + cheap names). 10% OTM puts, 14-28 DTE, 50% close.
-- **Aggressive**: conservative core + COIN, MARA, RIOT, SMCI, NVDA, AMD, MU (14 symbols). 5% OTM puts, 7-14 DTE, 60% close.
+- **Aggressive**: priority tier (COIN, MARA, RIOT, SMCI, NVDA, AMD, MU) + fallback tier (TSLA, BAC, XOM, KO, PLTR, SOFI, PFE) = 14 symbols. 5% OTM puts, 7-14 DTE, 60% close.
+
+> 📌 **Heads-up: symbol order = fill priority.**
+> The wheel iterates `SYMBOLS` sequentially and consumes buying power as it places put orders. Symbols listed *earlier* in the list get first claim on cash; later symbols only fill if BP remains.
+>
+> - **Conservative** has plenty of headroom for 10 puts on a $100k account — order doesn't matter much. Adjust freely.
+> - **Aggressive** is BP-constrained on $100k with 14 symbols. The intentional order is **priority tier first, fallback tier second** — the high-IV names (COIN/MARA/RIOT/SMCI/NVDA/AMD/MU) take BP before the boring core (TSLA/BAC/XOM/etc.) gets a turn.
+>
+> **When adding or removing symbols:** put new ones where you want them in the fill order.
+> For aggressive, that usually means *front of list = "I really want this filled"*, *end of list = "fill if you can, otherwise no big deal"*. The comments in `config.py` mark the priority/fallback tier boundary explicitly so you can drop new symbols into the right group.
+>
+> Symbols that hit insufficient cash (i.e., the wheel tried but ran out of BP) silently skip and log to `#aggressive-actions` (muted firehose) rather than `#aggressive-errors`. That's intentional — running out of cash for the fallback tier in aggressive mode is *expected behavior*, not an error.
 
 - **Stage 1 — Cash-secured puts**:
   - Strike: ~10% below current stock price, rounded to nearest $5
@@ -152,9 +163,9 @@ Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state 
 
 **State file format** (`wheel_state.json` for conservative, `wheel_state_aggressive.json` for aggressive): top-level dict keyed by symbol, plus a `_meta` block. Legacy single-stock state (top-level `stage` key) is auto-migrated under the `TSLA` key on first load.
 
-**Per-symbol error isolation**: if `BAC` errors out, `XOM`/`KO`/etc. still process normally. Failed symbols ping `#errors` with the symbol name in the title.
+**Per-symbol error isolation**: if `BAC` errors out, `XOM`/`KO`/etc. still process normally. Failed symbols ping the mode's errors channel (`#errors` or `#aggressive-errors`) with the symbol name in the title.
 
-**To add/remove symbols**: edit the `SYMBOLS` list at the top of `wheel_strategy.py`. The empty-state initializer handles new entries automatically on next cycle.
+**To add/remove symbols**: edit `CONSERVATIVE_SYMBOLS` or `AGGRESSIVE_SYMBOLS` in `config.py` (NOT in `wheel_strategy.py` — that file consumes the lists from config). The empty-state initializer handles new entries automatically on next cycle. **Where you place the symbol in the list controls fill priority** — see the heads-up box above.
 
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
@@ -167,16 +178,24 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 ## Daily summary
 
-`daily_summary.py` aggregates state from all three bots (strategy_state.json + wheel_state.json + congress-copy/data/state.db) and posts one combined embed to `#daily-summary` at 4:05 PM ET.
+`daily_summary.py` runs three steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
+
+1. **Conservative summary** (`--mode conservative`) — aggregates `strategy_state.json` + `wheel_state.json` + congress-copy SQLite + long-options positions. Posts an embed to `#daily-summary`.
+2. **Aggressive summary** (`--mode aggressive`) — aggregates `strategy_state_aggressive.json` + `wheel_state_aggressive.json` + long-options positions. Posts to `#aggressive-summary`. (Congress-copy is conservative-only, so it's omitted here.)
+3. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from both Alpaca accounts, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
+
+End result: 4 embed cards per day across the two summary channels — one per-mode summary in each, plus the head-to-head in each.
 
 ## Runbook — when something breaks
 
-### `#errors` is pinging — what do I do?
+### `#errors` or `#aggressive-errors` is pinging — what do I do?
 
-1. Open the most recent message. The embed includes the script name, exception type, and a snippet of the traceback.
-2. If the error is in the **scraper** for one politician (e.g., "Pelosi" failed), the slug may be stale. Check `https://www.capitoltrades.com/politicians/<slug>` in a browser. If 404, find the correct slug and update `congress-copy/config.py → POLITICIANS`.
-3. If the error is **`order_rejected`**, check the reason text. Common causes: insufficient buying power, market closed, position not tradeable.
+1. Open the most recent message. The embed includes the script name, exception type, and a snippet of the traceback. Note which side fired: conservative errors live in `#errors`, aggressive in `#aggressive-errors`.
+2. If the error is in the **scraper** for one politician (e.g., "Pelosi" failed), the slug may be stale. Check `https://www.capitoltrades.com/politicians/<slug>` in a browser. If 404, find the correct slug and update `congress-copy/config.py → POLITICIANS`. (Congress-copy is conservative-only.)
+3. If the error is **`order_rejected`**, check the reason text. Common causes: market closed, position not tradeable, weird strike that doesn't exist.
 4. If a **workflow itself** failed (run shows red ✓ in https://github.com/tsronco/TradingBotTest-Claude/actions), open the run, find the failed step, read the log.
+
+> 💡 **"Insufficient cash" is NOT in errors.** That goes to `#all-actions` / `#aggressive-actions` (muted firehose) by design — running out of buying power for a fallback-tier symbol in aggressive mode is the priority-ordering working as intended, not a bug. If you DO want to investigate a recurring insufficient-cash situation (e.g., on the conservative side), check the actions firehose or `logs/<mode>.jsonl`.
 
 ### A workflow didn't fire when expected
 
@@ -186,7 +205,7 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 ### State file drift / "double-place" symptoms
 
-State files (`strategy_state.json`, `wheel_state.json`, `congress-copy/data/state.db`) are committed back to the repo by each workflow run. If you see a state-file conflict in PRs or weird behavior:
+State files (`strategy_state.json`, `strategy_state_aggressive.json`, `wheel_state.json`, `wheel_state_aggressive.json`, `congress-copy/data/state.db`) are committed back to the repo by each workflow run. If you see a state-file conflict in PRs or weird behavior:
 1. Pull latest: `git pull --rebase`
 2. Compare local state files against `origin/main` — the remote is authoritative for the bot's "memory"
 3. Don't manually edit state files unless you know exactly what you're doing — the bots reason about open contracts and seen disclosures via these files
@@ -226,13 +245,14 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal).
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script). 72 tests as of 2026-04-29.
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
-## Future work (revisit week of May 5–12, 2026)
+## Future work
 
-- **Wheel stock screener v1 shipped 2026-04-29** — `wheel_screener.py` posts a Sunday-evening digest to `#daily-summary`. **Open improvements:** add earnings-date filter (currently a manual-check footer note), expand universe beyond ~40 tickers, add IV-rank component to the score (would need historical IV data — yfinance dep or manual cache).
+- **Wheel stock screener v1 shipped 2026-04-29** — runs separately for conservative (`wheel-screener.yml`) and aggressive (`wheel-screener-aggressive.yml`) on Sunday evenings. **Open improvements:** add earnings-date filter (currently a manual-check footer note), expand universes, add IV-rank component to the score (would need historical IV data — yfinance dep or manual cache).
+- **Dual-mode paper architecture shipped 2026-04-29** — conservative + aggressive paper accounts running side-by-side with priority-tier symbol ordering on aggressive. **Open improvements:** seed an aggressive TSLA strategy state file once the aggressive account holds 10 TSLA shares; otherwise `strategy.py --mode aggressive` no-ops with "no state file" until then. Daily summary head-to-head will get more interesting once both accounts have ~1 week of fills to compare.
 - **Multi-stock strategy expansion** — generalize `strategy.py` past TSLA-only. Trail stop/ladder is the easier piece (just iterate open positions). Wheel is already multi-stock as of 2026-04-28.
 - **Politician roster review** — after a few weeks, evaluate which of the 4 politicians actually produced fillable copy trades. Drop dead weight, add active newcomers.
 - **Bump GitHub Actions versions** — `actions/checkout@v4` and `actions/setup-python@v5` use Node 20 which gets phased out 2026-09-16. Bump before then.

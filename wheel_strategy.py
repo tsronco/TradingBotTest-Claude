@@ -863,6 +863,13 @@ def run_wheel():
 
         account = get_account()
 
+        # NOTE — symbol order is fill priority. The wheel iterates SYMBOLS
+        # sequentially and consumes BP as it places put orders, so symbols
+        # listed earlier in the list get first claim on the account's cash.
+        # In aggressive mode the order intentionally puts the high-IV tier
+        # (COIN/MARA/RIOT/SMCI/NVDA/AMD/MU) before the baseline fallback
+        # tier (TSLA/BAC/XOM/etc.). To change the order, edit
+        # CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS in config.py.
         for symbol in SYMBOLS:
             sym_state = state.setdefault(symbol, _empty_symbol_state())
             try:
