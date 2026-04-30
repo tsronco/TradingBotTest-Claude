@@ -312,7 +312,7 @@ def run_screener():
                 SUMMARY_CH, f"{title_prefix}: no candidates",
                 color=Color.YELLOW,
                 description="Universe screened but no candidates returned data. Check errors channel.",
-                footer="wheel_screener.py",
+                footer=f"wheel_screener.py · {MODE}",
                 actions_channel=ACTIONS_CH,
             )
             log_event(LOG_STREAM, "wheel_screener.py", "screener_complete",
@@ -333,7 +333,7 @@ def run_screener():
                 {"name": "Strike target", "value": f"{PUT_STRIKE_DISCOUNT*100:.0f}% OTM", "inline": True},
                 {"name": "Free BP",       "value": f"${free_bp:,.0f}",    "inline": True},
             ],
-            footer="wheel_screener.py · verify earnings calendar before selling",
+            footer=f"wheel_screener.py · verify earnings calendar before selling · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_screener.py", "screener_complete",
@@ -350,7 +350,7 @@ def run_screener():
             ERRORS_CH, "wheel_screener.py crashed",
             color=Color.RED,
             description=f"`{type(exc).__name__}: {str(exc)[:500]}`",
-            footer="wheel_screener.py",
+            footer=f"wheel_screener.py · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_screener.py", "exception",

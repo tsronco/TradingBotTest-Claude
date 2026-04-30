@@ -264,7 +264,7 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
             ERRORS_CH, f"long_options: sell-to-close failed for {symbol}",
             color=Color.RED,
             description=f"Action: {action}\n`{type(e).__name__}: {str(e)[:300]}`",
-            footer="long_options_strategy.py",
+            footer=f"long_options_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
             )
         log_event(LOG_STREAM, "long_options_strategy.py", "close_failed",
@@ -298,7 +298,7 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
             {"name": "Qty", "value": str(qty), "inline": True},
             {"name": "Days to expiry", "value": str(info.get("days_to_expiry", "—")), "inline": True},
         ],
-        footer="long_options_strategy.py",
+        footer=f"long_options_strategy.py · {MODE}",
         actions_channel=ACTIONS_CH,
         )
     log_event(LOG_STREAM, "long_options_strategy.py", f"closed_{action}",
@@ -364,7 +364,7 @@ def run_long_options_cycle():
                     ERRORS_CH, f"long_options_strategy.py — error on {symbol}",
                     color=Color.RED,
                     description=f"`{type(e).__name__}: {str(e)[:400]}`",
-                    footer="long_options_strategy.py",
+                    footer=f"long_options_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                     )
                 log_event(LOG_STREAM, "long_options_strategy.py", "position_exception",
@@ -381,7 +381,7 @@ def run_long_options_cycle():
             ERRORS_CH, "long_options_strategy.py — cycle crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
-            footer="long_options_strategy.py",
+            footer=f"long_options_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
             )
         log_event(LOG_STREAM, "long_options_strategy.py", "exception",

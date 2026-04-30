@@ -142,7 +142,7 @@ def wait_for_fill(order_id, timeout_hours=72):
                     {"name": "Stop", "value": f"${recalculate_stop(fill_price):.2f}", "inline": True},
                     {"name": "Trail trigger", "value": f"${fill_price * (1 + TRAIL_TRIGGER_PCT):.2f}", "inline": True},
                 ],
-                footer="strategy.py",
+                footer=f"strategy.py · {MODE}",
                 actions_channel=ACTIONS_CH,
             )
             log_event(LOG_STREAM, "strategy.py", "entry_filled",
@@ -208,7 +208,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                         {"name": "Avg cost", "value": f"${avg_cost:.2f}", "inline": True},
                         {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
                     ],
-                    footer="strategy.py",
+                    footer=f"strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "strategy.py", "stop_hit",
@@ -224,7 +224,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                     TRADES_CH, "TSLA Trailing Stop Activated",
                     color=Color.BLUE,
                     description=f"Price ${price:.2f} hit +{TRAIL_TRIGGER_PCT*100:.0f}% from entry. Floor will trail 5% below high-water mark.",
-                    footer="strategy.py",
+                    footer=f"strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "strategy.py", "trail_activated",
@@ -241,7 +241,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                         TRADES_CH, f"TSLA Stop Raised → ${new_stop:.2f}",
                         color=Color.BLUE,
                         description=f"HWM ${high_water_mark:.2f} (was ${old_stop:.2f})",
-                        footer="strategy.py",
+                        footer=f"strategy.py · {MODE}",
                         actions_channel=ACTIONS_CH,
                     )
                     log_event(LOG_STREAM, "strategy.py", "stop_raised",
@@ -274,7 +274,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                             {"name": "New stop", "value": f"${new_stop:.2f}", "inline": True},
                             {"name": "Total qty", "value": str(total_qty), "inline": True},
                         ],
-                        footer="strategy.py",
+                        footer=f"strategy.py · {MODE}",
                         actions_channel=ACTIONS_CH,
                     )
                     log_event(LOG_STREAM, "strategy.py", "ladder_triggered",
@@ -288,7 +288,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                 ERRORS_CH, "strategy.py — exception in main loop",
                 color=Color.RED,
                 description=f"`{type(e).__name__}: {str(e)[:500]}`",
-                footer="strategy.py",
+                footer=f"strategy.py · {MODE}",
                 actions_channel=ACTIONS_CH,
             )
             log_event(LOG_STREAM, "strategy.py", "exception",
@@ -365,7 +365,7 @@ def run_one_cycle():
                     {"name": "Avg cost", "value": f"${avg_cost:.2f}", "inline": True},
                     {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
                 ],
-                footer="strategy.py",
+                footer=f"strategy.py · {MODE}",
                 actions_channel=ACTIONS_CH,
             )
             log_event(LOG_STREAM, "strategy.py", "stop_hit",
@@ -386,7 +386,7 @@ def run_one_cycle():
                 TRADES_CH, "TSLA Trailing Stop Activated",
                 color=Color.BLUE,
                 description=f"Price ${price:.2f} hit +{TRAIL_TRIGGER_PCT*100:.0f}% from entry. Floor will trail 5% below high-water mark.",
-                footer="strategy.py",
+                footer=f"strategy.py · {MODE}",
                 actions_channel=ACTIONS_CH,
             )
             log_event(LOG_STREAM, "strategy.py", "trail_activated",
@@ -403,7 +403,7 @@ def run_one_cycle():
                     TRADES_CH, f"TSLA Stop Raised → ${new_stop:.2f}",
                     color=Color.BLUE,
                     description=f"HWM ${high_water_mark:.2f} (was ${old_stop:.2f})",
-                    footer="strategy.py",
+                    footer=f"strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "strategy.py", "stop_raised",
@@ -434,7 +434,7 @@ def run_one_cycle():
                         {"name": "New stop", "value": f"${new_stop:.2f}", "inline": True},
                         {"name": "Total qty", "value": str(total_qty), "inline": True},
                     ],
-                    footer="strategy.py",
+                    footer=f"strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "strategy.py", "ladder_triggered",
@@ -468,7 +468,7 @@ def run_one_cycle():
             ERRORS_CH, "strategy.py — exception in run_one_cycle",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
-            footer="strategy.py",
+            footer=f"strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "strategy.py", "exception",

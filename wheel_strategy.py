@@ -525,7 +525,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                     TRADES_CH, f"Wheel: PUT ASSIGNED — now hold {actual_shares} {symbol} @ ${cost:.2f}",
                     color=Color.YELLOW,
                     description=f"Contract: {contract}\nMoving to Stage 2 (covered calls × {actual_shares // 100}).",
-                    footer="wheel_strategy.py",
+                    footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "put_assigned",
@@ -567,7 +567,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                     TRADES_CH, f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f} ({contract_qty}× contracts)",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
-                    footer="wheel_strategy.py",
+                    footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "put_expired_worthless",
@@ -619,7 +619,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                         TRADES_CH, f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f} ({contract_qty}× contracts)",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
-                        footer="wheel_strategy.py",
+                        footer=f"wheel_strategy.py · {MODE}",
                         actions_channel=ACTIONS_CH,
                     )
                     log_event(LOG_STREAM, "wheel_strategy.py", "early_close_50pct",
@@ -662,7 +662,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
             ACTIONS_CH, f"Wheel: Insufficient BP for {symbol} Put — skipped",
             color=Color.YELLOW,
             description=f"Need ${cash_required:,.0f}, have ${options_bp:,.0f}",
-            footer="wheel_strategy.py",
+            footer=f"wheel_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
             also_to_actions=False,  # we ARE the actions channel — no double-post
         )
@@ -718,7 +718,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
             {"name": "Premium (if filled)", "value": f"${limit_price*100:.2f}", "inline": True},
             {"name": "Collateral held", "value": f"${float(contract['strike_price'])*100:,.0f}", "inline": True},
         ],
-        footer="wheel_strategy.py",
+        footer=f"wheel_strategy.py · {MODE}",
         actions_channel=ACTIONS_CH,
     )
     sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
@@ -771,7 +771,7 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                     TRADES_CH, f"Wheel: {symbol} CALL ASSIGNED — {contracts_held}× contracts @ ${sym_state['contract_strike']:.0f}",
                     color=Color.GREEN,
                     description=f"+${premium_dollars:.2f} premium kept. Returning to Stage 1.",
-                    footer="wheel_strategy.py",
+                    footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "call_assigned",
@@ -812,7 +812,7 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                     TRADES_CH, f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f} ({contracts_held}× contracts)",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
-                    footer="wheel_strategy.py",
+                    footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "call_expired_worthless",
@@ -854,7 +854,7 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                         TRADES_CH, f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f} ({contracts_held}× contracts)",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
-                        footer="wheel_strategy.py",
+                        footer=f"wheel_strategy.py · {MODE}",
                         actions_channel=ACTIONS_CH,
                     )
                     log_event(LOG_STREAM, "wheel_strategy.py", "early_close_call_50pct",
@@ -934,7 +934,7 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
             {"name": "Contracts",         "value": f"{contracts_to_sell} (covering {shares_qty} shares)", "inline": True},
             {"name": "Premium (if filled)", "value": f"${limit_price*100*contracts_to_sell:.2f}", "inline": True},
         ],
-        footer="wheel_strategy.py",
+        footer=f"wheel_strategy.py · {MODE}",
         actions_channel=ACTIONS_CH,
     )
     sym_state["last_action"] = f"Sold-to-open {contracts_to_sell}× {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
@@ -993,7 +993,7 @@ def run_wheel():
                     ERRORS_CH, f"wheel_strategy.py — {symbol} cycle crashed",
                     color=Color.RED,
                     description=f"`{type(e).__name__}: {str(e)[:500]}`",
-                    footer="wheel_strategy.py",
+                    footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "symbol_exception",
@@ -1009,7 +1009,7 @@ def run_wheel():
             ERRORS_CH, "wheel_strategy.py — run_wheel crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
-            footer="wheel_strategy.py",
+            footer=f"wheel_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_strategy.py", "exception",
@@ -1062,7 +1062,7 @@ def run_daily_summary():
                 {"name": "Portfolio value", "value": f"${float(account['portfolio_value']):,.2f}", "inline": True},
                 {"name": "By symbol", "value": "```\n" + "\n".join(per_symbol_lines) + "\n```", "inline": False},
             ],
-            footer="wheel_strategy.py — daily summary",
+            footer=f"wheel_strategy.py — daily summary · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_strategy.py", "daily_summary",
@@ -1085,7 +1085,7 @@ def run_daily_summary():
             ERRORS_CH, "wheel_strategy.py — run_daily_summary crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
-            footer="wheel_strategy.py",
+            footer=f"wheel_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_strategy.py", "exception",
