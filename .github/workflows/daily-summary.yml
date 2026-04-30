@@ -1,11 +1,13 @@
 name: Daily Summary
 
-# Posts a combined end-of-day summary to #daily-summary covering TSLA stock,
-# wheel, and congress-copy bot.
+# Three-step daily summary: conservative summary → aggressive summary →
+# head-to-head comparison. Each step posts an embed to its corresponding
+# Discord channel, so the user sees three messages each afternoon:
+#   1. Daily summary (conservative) → #daily-summary
+#   2. Daily summary (aggressive)   → #aggressive-summary
+#   3. Head-to-head comparison      → #daily-summary AND #aggressive-summary
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch.
-# See tsla-monitor.yml for context on why we dropped the GitHub-native
-# `schedule:` trigger.
 
 on:
   workflow_dispatch: {}
@@ -31,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run combined daily summary
+      - name: Daily summary (conservative)
         env:
           ALPACA_API_KEY:           ${{ secrets.ALPACA_API_KEY }}
           ALPACA_API_SECRET:        ${{ secrets.ALPACA_API_SECRET }}
@@ -39,7 +41,35 @@ jobs:
           DISCORD_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
           DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
           DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py
+        run: python daily_summary.py --mode conservative
+
+      - name: Daily summary (aggressive)
+        env:
+          ALPACA_AGG_API_KEY:           ${{ secrets.ALPACA_AGG_API_KEY }}
+          ALPACA_AGG_API_SECRET:        ${{ secrets.ALPACA_AGG_API_SECRET }}
+          ALPACA_AGG_BASE_URL:          ${{ secrets.ALPACA_AGG_BASE_URL }}
+          DISCORD_AGG_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_AGG_SUMMARY_WEBHOOK }}
+          DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
+          DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode aggressive
+
+      - name: Head-to-head comparison
+        # Pulls both accounts' equity, premiums, etc. and posts a
+        # side-by-side embed to BOTH summary channels.
+        env:
+          ALPACA_API_KEY:               ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET:            ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_BASE_URL:              ${{ secrets.ALPACA_BASE_URL }}
+          ALPACA_AGG_API_KEY:           ${{ secrets.ALPACA_AGG_API_KEY }}
+          ALPACA_AGG_API_SECRET:        ${{ secrets.ALPACA_AGG_API_SECRET }}
+          ALPACA_AGG_BASE_URL:          ${{ secrets.ALPACA_AGG_BASE_URL }}
+          DISCORD_SUMMARY_WEBHOOK:      ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
+          DISCORD_AGG_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_AGG_SUMMARY_WEBHOOK }}
+          DISCORD_ERRORS_WEBHOOK:       ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
+          DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
+          DISCORD_ACTIONS_WEBHOOK:      ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
+          DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --head-to-head
 
       - name: Commit logs
         run: |

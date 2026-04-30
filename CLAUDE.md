@@ -1,46 +1,71 @@
 # TradingBotTest-Claude
 
-Alpaca paper trading sandbox running four scheduled bots on **GitHub Actions cron** (migrated from local Claude routines on 2026-04-28). Notifications flow to a private Discord server; structured logs are committed back to this repo as JSONL.
+Alpaca paper trading sandbox running scheduled bots on **GitHub Actions cron** across **two paper accounts in parallel** — a "conservative" and an "aggressive" wheel — to A/B-test wheel parameter aggressiveness in real market conditions. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
 
 ## Architecture at a glance
 
 ```
-┌─ GitHub Actions cron ────────────────────────────────────────────┐
-│  tsla-monitor.yml      (every 10 min, 9 AM–5 PM ET, Mon–Fri)     │
-│    ├─ strategy.py once          (TSLA stock: trail stop + ladder)│
-│    ├─ wheel_strategy.py once    (multi-stock wheel)              │
-│    └─ long_options_strategy.py  (manage open long options)       │
-│                                                                   │
-│  congress-copy.yml     (9 / 11 / 1 / 3 PM ET, Mon–Fri)           │
-│    ├─ disclosures cycle  (scrape 4 politicians + copy trades)    │
-│    └─ monitor cycle      (-15% stop loss on copied positions)    │
-│                                                                   │
-│  daily-summary.yml     (4:05 PM ET, Mon–Fri)                     │
-│    └─ daily_summary.py   (combined P&L report)                   │
-│                                                                   │
-│  wheel-screener.yml    (5 PM CT / 6 PM ET, Sundays)              │
-│    └─ wheel_screener.py  (weekly digest of wheel candidates)     │
-└──────────────────────────────────────────────────────────────────┘
-        │                                 │
-        ▼                                 ▼
-   Alpaca paper API              Discord webhooks (5 channels)
-   (one shared $100K account)    + JSONL logs committed back
+┌─ Conservative paper account ──────────────────────────────────────┐
+│  tsla-monitor.yml             (every 10 min, 9 AM–5 PM ET)        │
+│    ├─ strategy.py             (TSLA stock: trail + ladder)        │
+│    ├─ wheel_strategy.py       (10% OTM, 14-28 DTE, 50% close)     │
+│    └─ long_options_strategy   (manage long options)               │
+│  wheel-screener.yml           (Sundays 6pm ET — large-cap pool)   │
+│  Discord: #tsla-trades, #daily-summary, #errors, #all-actions     │
+│  Alpaca:  ALPACA_API_KEY / ALPACA_API_SECRET                       │
+└────────────────────────────────────────────────────────────────────┘
+
+┌─ Aggressive paper account ────────────────────────────────────────┐
+│  tsla-monitor-aggressive.yml  (every 10 min, :2 offset)           │
+│    ├─ strategy.py --mode aggressive                                │
+│    ├─ wheel_strategy.py --mode aggressive  (5% OTM, 7-14 DTE,     │
+│    │                                       60% close, +crypto)    │
+│    └─ long_options_strategy.py --mode aggressive                  │
+│  wheel-screener-aggressive.yml (Sundays 6pm ET — high-IV pool)    │
+│  Discord: #aggressive-trades, #aggressive-summary,                │
+│           #aggressive-errors, #aggressive-actions                 │
+│  Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET              │
+└────────────────────────────────────────────────────────────────────┘
+
+┌─ Shared workflows ────────────────────────────────────────────────┐
+│  congress-copy.yml      (Mon–Fri, 4× day)                         │
+│    Conservative-only: scrapes politicians, copies trades, -15% SL │
+│  daily-summary.yml      (4:12 PM ET Mon–Fri — combined report)    │
+│    1. Conservative summary  → #daily-summary                      │
+│    2. Aggressive summary    → #aggressive-summary                 │
+│    3. Head-to-head embed    → both summary channels               │
+└────────────────────────────────────────────────────────────────────┘
 ```
+
+The two accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Existing tests cover that the modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels).
 
 ## Environment
 
 Credentials live in `.env` (gitignored). The same values are mirrored as **GitHub Actions secrets** for hosted runs.
 
 ```
+# Conservative paper account
 ALPACA_API_KEY=...
 ALPACA_API_SECRET=...
 ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2
 
+# Aggressive paper account (different paper account, same paper-api endpoint)
+ALPACA_AGG_API_KEY=...
+ALPACA_AGG_API_SECRET=...
+ALPACA_AGG_BASE_URL=https://paper-api.alpaca.markets/v2
+
+# Discord webhooks — conservative side
 DISCORD_TSLA_WEBHOOK=https://discord.com/api/webhooks/...
 DISCORD_CONGRESS_WEBHOOK=...
 DISCORD_SUMMARY_WEBHOOK=...
 DISCORD_ERRORS_WEBHOOK=...
 DISCORD_ACTIONS_WEBHOOK=...
+
+# Discord webhooks — aggressive side
+DISCORD_AGG_TRADES_WEBHOOK=...
+DISCORD_AGG_SUMMARY_WEBHOOK=...
+DISCORD_AGG_ERRORS_WEBHOOK=...
+DISCORD_AGG_ACTIONS_WEBHOOK=...
 ```
 
 **Paper trading only.** Base URL must stay as `paper-api.alpaca.markets`. The `paper_guard.py` module asserts this on every congress-copy invocation.
@@ -49,20 +74,22 @@ DISCORD_ACTIONS_WEBHOOK=...
 
 All cron expressions are in **UTC**. Times below are translated for clarity.
 
-All four workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
+All six workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
 
 | Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
-| `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Strategy + wheel + long-options |
-| `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Scrape + monitor |
-| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | Combined P&L report |
-| `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Weekly wheel-candidate digest |
+| `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Conservative: strategy + wheel + long-options |
+| `tsla-monitor-aggressive.yml` | `9,19,29,39,49,59 13-20 * * 1-5` | every 10 min, :09 offset | every 10 min, :09 offset | Aggressive: strategy + wheel + long-options |
+| `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Conservative-only: scrape + monitor |
+| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 3-step: cons summary, agg summary, head-to-head |
+| `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Conservative wheel-candidate digest |
+| `wheel-screener-aggressive.yml` | `2 22 * * 0` | 5:02 PM Sun | 6:02 PM Sun | Aggressive (high-IV) wheel-candidate digest |
 
 **Why not GitHub's native `schedule:` trigger?** Two reasons:
 1. **Reliability**: GitHub's cron didn't fire reliably on this repo's first day (multiple missed fires, even after going public and shifting off `:00`/`:30`).
 2. **Race conditions**: when GitHub cron eventually started firing, it created a duplicate-scheduler race against cron-job.org. Both runs would update the same state files; the second would fail with merge conflicts. So we removed the native `schedule:` trigger entirely.
 
-To change a schedule, update `tools/setup_cronjobs.py` and re-run it (it's idempotent — drops and recreates the 4 jobs cleanly).
+To change a schedule, update `tools/setup_cronjobs.py` and re-run it (it's idempotent — PATCHes existing jobs in place, creates any missing ones).
 
 NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fall outside market hours are handled correctly:
 - **Wheel** has an `is_market_open()` guard that skips the cycle when market is closed (logs a JSONL heartbeat, doesn't touch state).
@@ -73,15 +100,26 @@ NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fa
 
 ## Discord channels
 
+Conservative side:
+
 | Channel | What lands there | Phone notification setting |
 |---|---|---|
-| `#tsla-trades` | Strategy fills/stops/ladders, wheel sells/closes/assignments | Mentions only |
-| `#congress-trades` | Copy trades placed, congress stop-outs | Mentions only |
-| `#daily-summary` | 4:05 PM ET combined P&L summary | All messages (push) |
-| `#errors` | API failures, rejected orders, scraper crashes, exceptions | All messages (push, with @mention) |
-| `#all-actions` | Mirror of everything for one-scroll review | Muted |
+| `#tsla-trades` | Conservative wheel sells/closes/assignments + TSLA strategy fills | Mentions only |
+| `#congress-trades` | Copy trades placed, congress stop-outs (conservative-only) | Mentions only |
+| `#daily-summary` | 4:12 PM ET conservative summary + head-to-head comparison | All messages (push) |
+| `#errors` | API failures, rejected orders, scraper crashes (conservative) | All messages (push, with @mention) |
+| `#all-actions` | Conservative firehose for one-scroll review | Muted |
 
-**If `#errors` stays empty all day, the system worked.**
+Aggressive side:
+
+| Channel | What lands there | Phone notification setting |
+|---|---|---|
+| `#aggressive-trades` | Aggressive wheel sells/closes/assignments + strategy fills | (your choice) |
+| `#aggressive-summary` | 4:12 PM ET aggressive summary + head-to-head comparison | All messages (push) |
+| `#aggressive-errors` | Aggressive-account errors / exceptions | All messages (push, with @mention) |
+| `#aggressive-actions` | Aggressive firehose for one-scroll review | Muted |
+
+**If both `#errors` and `#aggressive-errors` stay empty all day, the system worked.**
 
 ## Strategies in detail
 
@@ -95,7 +133,10 @@ NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fa
 - After each ladder: stop recalculates to `new_avg_cost × 0.90`
 
 ### Multi-stock wheel — `wheel_strategy.py`
-Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state per symbol. Currently configured for: **TSLA, BAC, XOM, KO, PLTR, SOFI**.
+Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state per symbol. The symbol list and strategy parameters come from `config.MODES[mode]["wheel_symbols"]`:
+
+- **Conservative**: TSLA, BAC, XOM, KO, PLTR, SOFI, PFE, F, T, INTC (10 large-caps + cheap names). 10% OTM puts, 14-28 DTE, 50% close.
+- **Aggressive**: conservative core + COIN, MARA, RIOT, SMCI, NVDA, AMD, MU (14 symbols). 5% OTM puts, 7-14 DTE, 60% close.
 
 - **Stage 1 — Cash-secured puts**:
   - Strike: ~10% below current stock price, rounded to nearest $5
@@ -109,7 +150,7 @@ Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state 
   - 50% profit rule applies
   - If called away → back to Stage 1
 
-**State file format** (`wheel_state.json`): top-level dict keyed by symbol, plus a `_meta` block. Legacy single-stock state (top-level `stage` key) is auto-migrated under the `TSLA` key on first load.
+**State file format** (`wheel_state.json` for conservative, `wheel_state_aggressive.json` for aggressive): top-level dict keyed by symbol, plus a `_meta` block. Legacy single-stock state (top-level `stage` key) is auto-migrated under the `TSLA` key on first load.
 
 **Per-symbol error isolation**: if `BAC` errors out, `XOM`/`KO`/etc. still process normally. Failed symbols ping `#errors` with the symbol name in the title.
 

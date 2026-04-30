@@ -1,0 +1,172 @@
+"""Mode configuration for the dual paper-account architecture.
+
+Two paper accounts run side-by-side, fully isolated:
+
+  conservative — original wheel, 10% OTM, 14-28 DTE puts, 50% early close
+                 Symbols: large-caps + a few cheap names for small-account practice.
+                 Discord: #tsla-trades, #daily-summary, #errors, #all-actions
+                 Alpaca:  ALPACA_API_KEY / ALPACA_API_SECRET
+
+  aggressive   — wheel cycling faster on higher-IV names. 5% OTM, 7-14 DTE puts,
+                 60% early close. Mirrors the conservative architecture (also
+                 runs strategy.py + long_options_strategy.py) — only the wheel
+                 parameters and symbol mix differ.
+                 Discord: #aggressive-trades, #aggressive-summary, #aggressive-errors,
+                          #aggressive-actions
+                 Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET
+
+Each script reads --mode {conservative|aggressive} on its CLI; the mode picks
+the credentials, state files, log stream, Discord channels, and parameters.
+
+To add/remove a wheel symbol, edit CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS
+and that's the entire config change.
+"""
+
+# ── Wheel symbol lists ────────────────────────────────────────────────────
+
+# Conservative: large-caps + cheap names that fit a small account
+CONSERVATIVE_SYMBOLS = [
+    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
+    "F", "T", "INTC",
+]
+
+# Aggressive: baseline 7 + 7 high-IV names (crypto-adjacent + volatile semis)
+AGGRESSIVE_SYMBOLS = [
+    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
+    "COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU",
+]
+
+# ── Wheel screener universes ─────────────────────────────────────────────
+
+# Conservative screener falls through to the default UNIVERSE in
+# wheel_screener.py (curated large-caps). Aggressive uses a separate
+# higher-IV universe so the weekly digest highlights ticker we'd
+# actually consider for the aggressive wheel.
+AGGRESSIVE_SCREENER_UNIVERSE = [
+    # Crypto-adjacent (extra volatile)
+    "MSTR", "HOOD",
+    # Volatile semis / AI
+    "ARM", "ON", "AVGO",
+    # EV / speculative auto
+    "RIVN", "LCID", "NIO",
+    # High-vol fintech / consumer
+    "AFRM", "SHOP", "U", "SNAP", "ROKU", "PINS",
+    # Cybersec / cloud (high IV)
+    "NET", "DDOG", "CRWD", "ZS", "SNOW",
+    # China tech volatility
+    "BABA", "JD", "PDD",
+    # Meme / social
+    "GME", "AMC",
+    # Volatile biopharma
+    "MRNA",
+]
+
+
+# ── Mode definitions ──────────────────────────────────────────────────────
+
+MODES = {
+    "conservative": {
+        # Alpaca env-var names (the script reads os.getenv on these)
+        "alpaca_key_env":    "ALPACA_API_KEY",
+        "alpaca_secret_env": "ALPACA_API_SECRET",
+        "alpaca_url_env":    "ALPACA_BASE_URL",
+
+        # Discord channel names (resolved by notifications/discord.py
+        # CHANNEL_ENV_MAP into the matching webhook env var)
+        "trades_channel":    "tsla",
+        "summary_channel":   "summary",
+        "errors_channel":    "errors",
+        "actions_channel":   "actions",
+
+        # JSONL log stream name (writes to logs/<stream>.jsonl)
+        "log_stream":        "tsla",
+
+        # State files
+        "wheel_state_file":     "wheel_state.json",
+        "strategy_state_file":  "strategy_state.json",
+
+        # Wheel parameters
+        "wheel_symbols":       CONSERVATIVE_SYMBOLS,
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+
+        # Screener parameters
+        "screener_universe":      None,   # falls through to default
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
+
+        # Long-options parameters (TP/SL/time-exit thresholds same for both modes for now)
+    },
+
+    "aggressive": {
+        "alpaca_key_env":    "ALPACA_AGG_API_KEY",
+        "alpaca_secret_env": "ALPACA_AGG_API_SECRET",
+        "alpaca_url_env":    "ALPACA_AGG_BASE_URL",
+
+        "trades_channel":    "agg_trades",
+        "summary_channel":   "agg_summary",
+        "errors_channel":    "agg_errors",
+        "actions_channel":   "agg_actions",
+
+        "log_stream":        "tsla_aggressive",
+
+        "wheel_state_file":     "wheel_state_aggressive.json",
+        "strategy_state_file":  "strategy_state_aggressive.json",
+
+        "wheel_symbols":       AGGRESSIVE_SYMBOLS,
+        "put_strike_pct":      0.05,
+        "call_strike_pct":     0.05,
+        "put_dte_min":          7,
+        "put_dte_max":         14,
+        "call_dte_min":         5,
+        "call_dte_max":        10,
+        "early_close_pct":     0.40,
+
+        "screener_universe":      AGGRESSIVE_SCREENER_UNIVERSE,
+        "screener_strike_pct":    0.05,
+        "screener_dte_min":        7,
+        "screener_dte_max":       14,
+    },
+}
+
+DEFAULT_MODE = "conservative"
+
+
+def get_mode(mode_name: str) -> dict:
+    """Return the config dict for the given mode. Raises ValueError if unknown."""
+    if mode_name not in MODES:
+        valid = ", ".join(sorted(MODES))
+        raise ValueError(f"Unknown mode '{mode_name}'. Valid: {valid}")
+    return MODES[mode_name]
+
+
+def parse_mode_arg(argv: list[str]) -> tuple[str, list[str]]:
+    """Extract --mode <name> from argv, return (mode, remaining_argv).
+
+    If --mode is not present, returns (DEFAULT_MODE, argv unchanged).
+
+    Used by each script's __main__ block:
+        mode, args = parse_mode_arg(sys.argv[1:])
+        if 'once' in args:
+            run_one_cycle(mode)
+    """
+    remaining = []
+    mode = DEFAULT_MODE
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--mode" and i + 1 < len(argv):
+            mode = argv[i + 1]
+            i += 2
+        elif argv[i].startswith("--mode="):
+            mode = argv[i].split("=", 1)[1]
+            i += 1
+        else:
+            remaining.append(argv[i])
+            i += 1
+    return mode, remaining

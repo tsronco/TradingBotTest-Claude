@@ -38,38 +38,89 @@ import requests
 from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
 
+import config
 from notifications import send_embed, log_event, Color
 
 load_dotenv()
 
-API_KEY    = os.getenv("ALPACA_API_KEY")
-API_SECRET = os.getenv("ALPACA_API_SECRET")
-BASE_URL          = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
+# Stock data and options data endpoints don't vary by mode.
 DATA_URL          = "https://data.alpaca.markets/v2"          # stock data
 OPTIONS_DATA_URL  = "https://data.alpaca.markets/v1beta1"     # options data (different version!)
 
-HEADERS = {
-    "APCA-API-KEY-ID":     API_KEY,
-    "APCA-API-SECRET-KEY": API_SECRET,
-    "accept":              "application/json",
-}
+POLL_INTERVAL     = 60     # seconds — only used in legacy loop mode
 
-STATE_FILE  = os.path.join(os.path.dirname(__file__), "wheel_state.json")
+# ── Mode-aware globals ───────────────────────────────────────────────────
+# All assigned by apply_mode(). Default at import time is "conservative" so
+# scripts that import SYMBOLS (like wheel_screener.py) keep their existing
+# behavior unless an aggressive entry-point explicitly switches modes.
 
-# ── Stocks the wheel runs on ──────────────────────────────────────────────
-# Each gets its own isolated state. Adding/removing here is the entire
-# config — `_empty_symbol_state` initializes any missing entry on next load.
-SYMBOLS = ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]
+API_KEY            = None
+API_SECRET         = None
+BASE_URL           = None
+HEADERS            = None
+STATE_FILE         = None
+SYMBOLS            = None
+PUT_STRIKE_PCT     = None
+CALL_STRIKE_PCT    = None
+PUT_EXPIRY_DAYS_MIN  = None
+PUT_EXPIRY_DAYS_MAX  = None
+CALL_EXPIRY_DAYS_MIN = None
+CALL_EXPIRY_DAYS_MAX = None
+EARLY_CLOSE_PCT    = None
+TRADES_CH          = None
+ERRORS_CH          = None
+SUMMARY_CH         = None
+ACTIONS_CH         = None
+LOG_STREAM         = None
+MODE               = None
 
-# ── Strategy parameters (apply uniformly to all symbols for now) ──────────
-PUT_STRIKE_PCT       = 0.10   # sell put 10% below current price
-CALL_STRIKE_PCT      = 0.10   # sell call 10% above cost basis
-PUT_EXPIRY_DAYS_MIN  = 14
-PUT_EXPIRY_DAYS_MAX  = 35
-CALL_EXPIRY_DAYS_MIN = 7
-CALL_EXPIRY_DAYS_MAX = 21
-EARLY_CLOSE_PCT      = 0.50   # buy to close when contract loses 50% of its value
-POLL_INTERVAL        = 60     # seconds — only used in legacy loop mode
+
+def apply_mode(mode_name: str) -> None:
+    """Switch this module's globals to the named mode (conservative|aggressive).
+
+    Called once at script entry, before any wheel function runs. Mutates
+    module-level globals so existing function bodies don't need to know
+    about the mode argument.
+    """
+    global API_KEY, API_SECRET, BASE_URL, HEADERS, STATE_FILE, SYMBOLS
+    global PUT_STRIKE_PCT, CALL_STRIKE_PCT
+    global PUT_EXPIRY_DAYS_MIN, PUT_EXPIRY_DAYS_MAX
+    global CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX
+    global EARLY_CLOSE_PCT
+    global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
+
+    cfg = config.get_mode(mode_name)
+    MODE = mode_name
+
+    API_KEY    = os.getenv(cfg["alpaca_key_env"])
+    API_SECRET = os.getenv(cfg["alpaca_secret_env"])
+    BASE_URL   = os.getenv(cfg["alpaca_url_env"], "https://paper-api.alpaca.markets/v2")
+    HEADERS    = {
+        "APCA-API-KEY-ID":     API_KEY,
+        "APCA-API-SECRET-KEY": API_SECRET,
+        "accept":              "application/json",
+    }
+    STATE_FILE = os.path.join(os.path.dirname(__file__), cfg["wheel_state_file"])
+
+    SYMBOLS              = cfg["wheel_symbols"]
+    PUT_STRIKE_PCT       = cfg["put_strike_pct"]
+    CALL_STRIKE_PCT      = cfg["call_strike_pct"]
+    PUT_EXPIRY_DAYS_MIN  = cfg["put_dte_min"]
+    PUT_EXPIRY_DAYS_MAX  = cfg["put_dte_max"]
+    CALL_EXPIRY_DAYS_MIN = cfg["call_dte_min"]
+    CALL_EXPIRY_DAYS_MAX = cfg["call_dte_max"]
+    EARLY_CLOSE_PCT      = cfg["early_close_pct"]
+
+    TRADES_CH  = cfg["trades_channel"]
+    ERRORS_CH  = cfg["errors_channel"]
+    SUMMARY_CH = cfg["summary_channel"]
+    ACTIONS_CH = cfg["actions_channel"]
+    LOG_STREAM = cfg["log_stream"]
+
+
+# Initialize at import time to conservative defaults so importers (e.g.,
+# wheel_screener.py importing SYMBOLS) work without first calling apply_mode().
+apply_mode(config.DEFAULT_MODE)
 
 
 def log(msg):
@@ -429,12 +480,13 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                 cost = abs(float(stock_pos["avg_entry_price"]))
                 log(f"[{symbol}] PUT ASSIGNED — acquired 100 shares @ ${cost:.2f}")
                 send_embed(
-                    "tsla", f"Wheel: PUT ASSIGNED — now hold 100 {symbol} @ ${cost:.2f}",
+                    TRADES_CH, f"Wheel: PUT ASSIGNED — now hold 100 {symbol} @ ${cost:.2f}",
                     color=Color.YELLOW,
                     description=f"Contract: {contract}\nMoving to Stage 2 (covered calls).",
                     footer="wheel_strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "wheel_strategy.py", "put_assigned",
+                log_event(LOG_STREAM, "wheel_strategy.py", "put_assigned",
                           symbol=contract,
                           details={"underlying": symbol, "cost_basis": cost, "qty": 100})
                 sym_state["stage"]                = 2
@@ -463,12 +515,13 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                 )
                 log(f"[{symbol}] PUT EXPIRED WORTHLESS — collected ${premium_dollars:.2f}.")
                 send_embed(
-                    "tsla", f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f}",
+                    TRADES_CH, f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f}",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "wheel_strategy.py", "put_expired_worthless",
+                log_event(LOG_STREAM, "wheel_strategy.py", "put_expired_worthless",
                           symbol=contract,
                           details={"underlying": symbol, "premium": premium_dollars,
                                    "total_premium": sym_state["total_premium_collected"]})
@@ -510,12 +563,13 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                         sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        "tsla", f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f}",
+                        TRADES_CH, f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f}",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
+                        actions_channel=ACTIONS_CH,
                     )
-                    log_event("tsla", "wheel_strategy.py", "early_close_50pct",
+                    log_event(LOG_STREAM, "wheel_strategy.py", "early_close_50pct",
                               symbol=contract,
                               details={"underlying": symbol, "entry": float(entry),
                                        "exit": current_price, "premium": premium_dollars})
@@ -542,12 +596,13 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
         log(f"[{symbol}] INSUFFICIENT CASH: need ${cash_required:,.0f}, have ${cash:,.0f}.")
         sym_state["last_action"] = "Insufficient cash to sell put."
         send_embed(
-            "errors", f"Wheel: Insufficient Cash for {symbol} Put",
+            ERRORS_CH, f"Wheel: Insufficient Cash for {symbol} Put",
             color=Color.RED,
             description=f"Need ${cash_required:,.0f}, have ${cash:,.0f}",
             footer="wheel_strategy.py",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("errors", "wheel_strategy.py", "insufficient_cash",
+        log_event(LOG_STREAM, "wheel_strategy.py", "insufficient_cash",
                   result="failure",
                   details={"underlying": symbol, "need": cash_required, "have": cash})
         return
@@ -557,7 +612,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     if not contract:
         log(f"[{symbol}] No suitable put contract found.")
         sym_state["last_action"] = "No suitable put contract found."
-        log_event("errors", "wheel_strategy.py", "no_put_contract_found",
+        log_event(LOG_STREAM, "wheel_strategy.py", "no_put_contract_found",
                   result="failure",
                   details={"underlying": symbol, "target_strike": target_strike})
         return
@@ -575,7 +630,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     sym_state["contract_strike"]       = float(contract["strike_price"])
     log(f"[{symbol}] New put sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
     send_embed(
-        "tsla", f"Wheel: Sold-to-Open {symbol} Put @ ${contract['strike_price']}",
+        TRADES_CH, f"Wheel: Sold-to-Open {symbol} Put @ ${contract['strike_price']}",
         color=Color.YELLOW,
         description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} (premium ≥ ${limit_price*100:.2f} if filled)",
         fields=[
@@ -587,9 +642,10 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
             {"name": "Collateral held", "value": f"${float(contract['strike_price'])*100:,.0f}", "inline": True},
         ],
         footer="wheel_strategy.py",
+        actions_channel=ACTIONS_CH,
     )
     sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
-    log_event("tsla", "wheel_strategy.py", "sold_put",
+    log_event(LOG_STREAM, "wheel_strategy.py", "sold_put",
               symbol=option_symbol,
               details={"underlying": symbol, "strike": float(contract["strike_price"]),
                        "expiry": contract["expiration_date"], "limit_price": limit_price,
@@ -629,12 +685,13 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 )
                 log(f"[{symbol}] CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}. +${premium_dollars:.2f}")
                 send_embed(
-                    "tsla", f"Wheel: {symbol} CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}",
+                    TRADES_CH, f"Wheel: {symbol} CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}",
                     color=Color.GREEN,
                     description=f"+${premium_dollars:.2f} premium kept. Returning to Stage 1.",
                     footer="wheel_strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "wheel_strategy.py", "call_assigned",
+                log_event(LOG_STREAM, "wheel_strategy.py", "call_assigned",
                           symbol=contract,
                           details={"underlying": symbol, "strike": sym_state["contract_strike"],
                                    "premium": premium_dollars})
@@ -666,12 +723,13 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 )
                 log(f"[{symbol}] CALL EXPIRED WORTHLESS — +${premium_dollars:.2f}.")
                 send_embed(
-                    "tsla", f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f}",
+                    TRADES_CH, f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f}",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "wheel_strategy.py", "call_expired_worthless",
+                log_event(LOG_STREAM, "wheel_strategy.py", "call_expired_worthless",
                           symbol=contract,
                           details={"underlying": symbol, "premium": premium_dollars,
                                    "total_premium": sym_state["total_premium_collected"]})
@@ -703,12 +761,13 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                         sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        "tsla", f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f}",
+                        TRADES_CH, f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f}",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
+                        actions_channel=ACTIONS_CH,
                     )
-                    log_event("tsla", "wheel_strategy.py", "early_close_call_50pct",
+                    log_event(LOG_STREAM, "wheel_strategy.py", "early_close_call_50pct",
                               symbol=contract,
                               details={"underlying": symbol, "entry": float(entry),
                                        "exit": current_price, "premium": premium_dollars})
@@ -759,7 +818,7 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
     sym_state["contract_strike"]       = float(contract["strike_price"])
     log(f"[{symbol}] New call sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
     send_embed(
-        "tsla", f"Wheel: Sold-to-Open {symbol} Call @ ${contract['strike_price']}",
+        TRADES_CH, f"Wheel: Sold-to-Open {symbol} Call @ ${contract['strike_price']}",
         color=Color.YELLOW,
         description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} (premium ≥ ${limit_price*100:.2f} if filled)",
         fields=[
@@ -770,9 +829,10 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
             {"name": "Premium (if filled)", "value": f"${limit_price*100:.2f}", "inline": True},
         ],
         footer="wheel_strategy.py",
+        actions_channel=ACTIONS_CH,
     )
     sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
-    log_event("tsla", "wheel_strategy.py", "sold_call",
+    log_event(LOG_STREAM, "wheel_strategy.py", "sold_call",
               symbol=option_symbol,
               details={"underlying": symbol, "strike": float(contract["strike_price"]),
                        "expiry": contract["expiration_date"], "limit_price": limit_price,
@@ -789,7 +849,7 @@ def run_wheel():
 
         if not is_market_open():
             log(f"Market closed — skipping wheel cycle for all {len(SYMBOLS)} symbols.")
-            log_event("tsla", "wheel_strategy.py", "cycle_skipped_market_closed",
+            log_event(LOG_STREAM, "wheel_strategy.py", "cycle_skipped_market_closed",
                       result="skipped",
                       details={"symbols": SYMBOLS})
             return
@@ -807,7 +867,7 @@ def run_wheel():
                 elif sym_state["stage"] == 2:
                     handle_stage2(symbol, sym_state, stock_price, account)
 
-                log_event("tsla", "wheel_strategy.py", "symbol_cycle_complete",
+                log_event(LOG_STREAM, "wheel_strategy.py", "symbol_cycle_complete",
                           result="success",
                           details={"underlying": symbol, "stage": sym_state["stage"],
                                    "contract": sym_state.get("current_contract"),
@@ -816,27 +876,29 @@ def run_wheel():
                 # Per-symbol error isolation: one bad symbol doesn't kill others.
                 log(f"[{symbol}] error in wheel cycle: {type(e).__name__}: {e}")
                 send_embed(
-                    "errors", f"wheel_strategy.py — {symbol} cycle crashed",
+                    ERRORS_CH, f"wheel_strategy.py — {symbol} cycle crashed",
                     color=Color.RED,
                     description=f"`{type(e).__name__}: {str(e)[:500]}`",
                     footer="wheel_strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("errors", "wheel_strategy.py", "symbol_exception",
+                log_event(LOG_STREAM, "wheel_strategy.py", "symbol_exception",
                           result="failure",
                           notes=f"{symbol}: {type(e).__name__}: {str(e)[:500]}")
 
         save_state(state)
-        log_event("tsla", "wheel_strategy.py", "cycle_complete",
+        log_event(LOG_STREAM, "wheel_strategy.py", "cycle_complete",
                   result="success",
                   details={"symbols": SYMBOLS})
     except Exception as e:
         send_embed(
-            "errors", "wheel_strategy.py — run_wheel crashed",
+            ERRORS_CH, "wheel_strategy.py — run_wheel crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
             footer="wheel_strategy.py",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("errors", "wheel_strategy.py", "exception",
+        log_event(LOG_STREAM, "wheel_strategy.py", "exception",
                   result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
         raise
 
@@ -876,7 +938,7 @@ def run_daily_summary():
         log("=" * 65)
 
         send_embed(
-            "summary", f"Daily Wheel Summary — {datetime.now().strftime('%Y-%m-%d')}",
+            SUMMARY_CH, f"Daily Wheel Summary — {datetime.now().strftime('%Y-%m-%d')}",
             color=Color.BLUE,
             fields=[
                 {"name": "Premium today (all symbols)", "value": f"${total_today:.2f}", "inline": True},
@@ -887,8 +949,9 @@ def run_daily_summary():
                 {"name": "By symbol", "value": "```\n" + "\n".join(per_symbol_lines) + "\n```", "inline": False},
             ],
             footer="wheel_strategy.py — daily summary",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("daily-summary", "wheel_strategy.py", "daily_summary",
+        log_event(LOG_STREAM, "wheel_strategy.py", "daily_summary",
                   result="success",
                   details={
                       "total_premium": total_premium,
@@ -905,22 +968,27 @@ def run_daily_summary():
         save_state(state)
     except Exception as e:
         send_embed(
-            "errors", "wheel_strategy.py — run_daily_summary crashed",
+            ERRORS_CH, "wheel_strategy.py — run_daily_summary crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
             footer="wheel_strategy.py",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("errors", "wheel_strategy.py", "exception",
+        log_event(LOG_STREAM, "wheel_strategy.py", "exception",
                   result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
         raise
 
 
 if __name__ == "__main__":
     import sys
-    mode = sys.argv[1] if len(sys.argv) > 1 else "loop"
-    if mode == "summary":
+    # Parse --mode and switch globals BEFORE running anything.
+    selected_mode, remaining = config.parse_mode_arg(sys.argv[1:])
+    apply_mode(selected_mode)
+
+    cmd = remaining[0] if remaining else "loop"
+    if cmd == "summary":
         run_daily_summary()
-    elif mode == "once":
+    elif cmd == "once":
         run_wheel()
     else:
         while True:

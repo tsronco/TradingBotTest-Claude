@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Configure cron-job.org jobs that trigger our 4 GitHub Actions workflows.
+Configure cron-job.org jobs that trigger our 6 GitHub Actions workflows.
 
 Reads GITHUB_ACCESS_TOKEN and CRONJOB_API_KEY from .env at the project root,
 then PATCHes/PUTs 4 job definitions to cron-job.org's REST API.
@@ -44,14 +44,26 @@ CRONJOB_HEADERS = {
     "Content-Type": "application/json",
 }
 
-# 4 job definitions. The first three run Mon–Fri; "Wheel Screener" overrides
-# wdays for Sunday-evening firing.
+# 6 job definitions. Conservative + aggressive paper accounts run side-by-side.
+# Mon–Fri jobs: TSLA Monitor (cons + agg), Congress Copy, Daily Summary.
+# Sunday-only jobs: Wheel Screener (cons + agg).
 JOBS = [
+    # Conservative paper account — original setup.
     {
         "title": "TSLA Monitor",
         "workflow": "tsla-monitor.yml",
         "hours": list(range(13, 21)),  # 13–20 UTC inclusive
         "minutes": [7, 17, 27, 37, 47, 57],  # every 10 min, :7 offset
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    # Aggressive paper account — same cadence, offset by :2 minutes so the
+    # two monitors don't fire simultaneously. The 'bot-commits' concurrency
+    # group serializes their commits anyway, but staggering reduces queueing.
+    {
+        "title": "TSLA Monitor (Aggressive)",
+        "workflow": "tsla-monitor-aggressive.yml",
+        "hours": list(range(13, 21)),
+        "minutes": [9, 19, 29, 39, 49, 59],  # every 10 min, :9 offset (+2 from cons)
         "wdays": [1, 2, 3, 4, 5],
     },
     {
@@ -62,6 +74,7 @@ JOBS = [
         "wdays": [1, 2, 3, 4, 5],
     },
     {
+        # Combined daily summary: posts conservative + aggressive + head-to-head.
         "title": "Daily Summary",
         "workflow": "daily-summary.yml",
         "hours": [20],
@@ -69,14 +82,23 @@ JOBS = [
         "wdays": [1, 2, 3, 4, 5],
     },
     {
-        # Sundays at 22:00 UTC (5pm CT / 6pm ET). Posts the upcoming week's
-        # wheel candidate digest to #daily-summary so Tim sees it on Sunday
-        # evening, a few hours before Monday's open.
+        # Sundays at 22:00 UTC (5pm CT / 6pm ET). Conservative wheel candidate
+        # digest goes to #daily-summary.
         "title": "Wheel Screener",
         "workflow": "wheel-screener.yml",
         "hours": [22],
         "minutes": [0],
         "wdays": [0],  # Sunday only
+    },
+    {
+        # Aggressive wheel candidate digest (high-IV universe) goes to
+        # #aggressive-summary, offset by 2 min so it doesn't race the
+        # conservative screener for a Sunday-evening fire.
+        "title": "Wheel Screener (Aggressive)",
+        "workflow": "wheel-screener-aggressive.yml",
+        "hours": [22],
+        "minutes": [2],
+        "wdays": [0],
     },
 ]
 

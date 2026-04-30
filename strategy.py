@@ -18,25 +18,17 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
+import config
 from notifications import send_embed, log_event, Color
 
 load_dotenv()
 
-API_KEY    = os.getenv("ALPACA_API_KEY")
-API_SECRET = os.getenv("ALPACA_API_SECRET")
-BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
-DATA_URL   = "https://data.alpaca.markets/v2"
+DATA_URL = "https://data.alpaca.markets/v2"
 
-HEADERS = {
-    "APCA-API-KEY-ID":     API_KEY,
-    "APCA-API-SECRET-KEY": API_SECRET,
-    "accept":              "application/json",
-}
-
-# ── Strategy parameters ────────────────────────────────────────────────────────
+# ── Strategy parameters (constant across modes) ───────────────────────────
 SYMBOL             = "TSLA"
 INITIAL_QTY        = 10
-INITIAL_ENTRY_ID   = "b74249cf-9fc3-4476-8b78-3202a5d2adad"
+INITIAL_ENTRY_ID   = "b74249cf-9fc3-4476-8b78-3202a5d2adad"  # conservative-account seed only
 
 STOP_PCT           = 0.10   # stop = avg_cost × (1 - STOP_PCT), recalculates after each ladder
 TRAIL_TRIGGER_PCT  = 0.10   # trailing activates after +10% from entry
@@ -49,6 +41,50 @@ LADDERS = [
 ]
 
 POLL_INTERVAL = 60  # seconds
+
+# ── Mode-aware globals (assigned by apply_mode) ──────────────────────────
+
+API_KEY     = None
+API_SECRET  = None
+BASE_URL    = None
+HEADERS     = None
+STATE_FILE  = None
+TRADES_CH   = None
+ERRORS_CH   = None
+ACTIONS_CH  = None
+LOG_STREAM  = None
+MODE        = None
+
+
+def apply_mode(mode_name: str) -> None:
+    """Switch this module to the given mode (conservative|aggressive).
+
+    Loads credentials, state file path, Discord channels, and JSONL log
+    stream from config.MODES[mode_name].
+    """
+    global API_KEY, API_SECRET, BASE_URL, HEADERS, STATE_FILE
+    global TRADES_CH, ERRORS_CH, ACTIONS_CH, LOG_STREAM, MODE
+
+    cfg = config.get_mode(mode_name)
+    MODE = mode_name
+
+    API_KEY    = os.getenv(cfg["alpaca_key_env"])
+    API_SECRET = os.getenv(cfg["alpaca_secret_env"])
+    BASE_URL   = os.getenv(cfg["alpaca_url_env"], "https://paper-api.alpaca.markets/v2")
+    HEADERS    = {
+        "APCA-API-KEY-ID":     API_KEY,
+        "APCA-API-SECRET-KEY": API_SECRET,
+        "accept":              "application/json",
+    }
+    STATE_FILE = os.path.join(os.path.dirname(__file__), cfg["strategy_state_file"])
+
+    TRADES_CH  = cfg["trades_channel"]
+    ERRORS_CH  = cfg["errors_channel"]
+    ACTIONS_CH = cfg["actions_channel"]
+    LOG_STREAM = cfg["log_stream"]
+
+
+apply_mode(config.DEFAULT_MODE)
 
 
 def log(msg):
@@ -99,7 +135,7 @@ def wait_for_fill(order_id, timeout_hours=72):
             fill_qty   = int(float(order["filled_qty"]))
             log(f"Filled: {fill_qty} shares @ ${fill_price:.2f}")
             send_embed(
-                "tsla", f"TSLA Entry Filled — {fill_qty} shares @ ${fill_price:.2f}",
+                TRADES_CH, f"TSLA Entry Filled — {fill_qty} shares @ ${fill_price:.2f}",
                 color=Color.GREEN,
                 fields=[
                     {"name": "Order ID", "value": order_id, "inline": False},
@@ -107,8 +143,9 @@ def wait_for_fill(order_id, timeout_hours=72):
                     {"name": "Trail trigger", "value": f"${fill_price * (1 + TRAIL_TRIGGER_PCT):.2f}", "inline": True},
                 ],
                 footer="strategy.py",
+                actions_channel=ACTIONS_CH,
             )
-            log_event("tsla", "strategy.py", "entry_filled",
+            log_event(LOG_STREAM, "strategy.py", "entry_filled",
                       symbol=SYMBOL,
                       details={"qty": fill_qty, "fill_price": fill_price},
                       alpaca_order_id=order_id)
@@ -164,7 +201,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                 realized = (price - avg_cost) * total_qty
                 log(f"Position closed. Realized P&L: ${realized:+.2f}")
                 send_embed(
-                    "tsla", f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
+                    TRADES_CH, f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
                     color=Color.RED,
                     description=f"Realized P&L: ${realized:+.2f}",
                     fields=[
@@ -172,8 +209,9 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                         {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
                     ],
                     footer="strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "strategy.py", "stop_hit",
+                log_event(LOG_STREAM, "strategy.py", "stop_hit",
                           symbol=SYMBOL,
                           details={"exit_price": price, "qty": total_qty, "realized_pnl": realized})
                 return
@@ -183,12 +221,13 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                 trailing_active = True
                 log(f"Trailing ACTIVATED at ${price:.2f} (+{TRAIL_TRIGGER_PCT*100:.0f}% from entry)")
                 send_embed(
-                    "tsla", "TSLA Trailing Stop Activated",
+                    TRADES_CH, "TSLA Trailing Stop Activated",
                     color=Color.BLUE,
                     description=f"Price ${price:.2f} hit +{TRAIL_TRIGGER_PCT*100:.0f}% from entry. Floor will trail 5% below high-water mark.",
                     footer="strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "strategy.py", "trail_activated",
+                log_event(LOG_STREAM, "strategy.py", "trail_activated",
                           symbol=SYMBOL, details={"price": price, "entry_price": entry_price})
 
             if trailing_active:
@@ -199,12 +238,13 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                     old_stop = stop_price
                     stop_price = new_stop
                     send_embed(
-                        "tsla", f"TSLA Stop Raised → ${new_stop:.2f}",
+                        TRADES_CH, f"TSLA Stop Raised → ${new_stop:.2f}",
                         color=Color.BLUE,
                         description=f"HWM ${high_water_mark:.2f} (was ${old_stop:.2f})",
                         footer="strategy.py",
+                        actions_channel=ACTIONS_CH,
                     )
-                    log_event("tsla", "strategy.py", "stop_raised",
+                    log_event(LOG_STREAM, "strategy.py", "stop_raised",
                               symbol=SYMBOL,
                               details={"old_stop": old_stop, "new_stop": new_stop, "hwm": high_water_mark})
 
@@ -227,7 +267,7 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
 
                     log(f"  New avg cost: ${avg_cost:.2f} | New stop: ${stop_price:.2f} | Total qty: {total_qty}")
                     send_embed(
-                        "tsla", f"TSLA {ldr['label']} Triggered — bought {qty} shares @ ${price:.2f}",
+                        TRADES_CH, f"TSLA {ldr['label']} Triggered — bought {qty} shares @ ${price:.2f}",
                         color=Color.YELLOW,
                         fields=[
                             {"name": "New avg cost", "value": f"${avg_cost:.2f}", "inline": True},
@@ -235,8 +275,9 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
                             {"name": "Total qty", "value": str(total_qty), "inline": True},
                         ],
                         footer="strategy.py",
+                        actions_channel=ACTIONS_CH,
                     )
-                    log_event("tsla", "strategy.py", "ladder_triggered",
+                    log_event(LOG_STREAM, "strategy.py", "ladder_triggered",
                               symbol=SYMBOL,
                               details={"label": ldr["label"], "qty": qty, "price": price, "new_avg_cost": avg_cost},
                               alpaca_order_id=o["id"])
@@ -244,18 +285,16 @@ def run_strategy(entry_order_id=INITIAL_ENTRY_ID):
         except Exception as e:
             log(f"Error: {e} — retrying next tick")
             send_embed(
-                "errors", "strategy.py — exception in main loop",
+                ERRORS_CH, "strategy.py — exception in main loop",
                 color=Color.RED,
                 description=f"`{type(e).__name__}: {str(e)[:500]}`",
                 footer="strategy.py",
+                actions_channel=ACTIONS_CH,
             )
-            log_event("errors", "strategy.py", "exception",
+            log_event(LOG_STREAM, "strategy.py", "exception",
                       result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
 
         time.sleep(POLL_INTERVAL)
-
-
-STATE_FILE = os.path.join(os.path.dirname(__file__), "strategy_state.json")
 
 
 def _load_state():
@@ -282,13 +321,13 @@ def run_one_cycle():
         state = _load_state()
     except FileNotFoundError:
         log(f"No state file at {STATE_FILE} — initial run_strategy() must seed state first.")
-        log_event("errors", "strategy.py", "no_state_file",
+        log_event(LOG_STREAM, "strategy.py", "no_state_file",
                   result="failure", notes=f"missing {STATE_FILE}")
         return
 
     if state.get("position_qty", 0) == 0:
         log("position_qty=0 — no shares held, skipping monitor cycle.")
-        log_event("tsla", "strategy.py", "cycle_skipped_no_position",
+        log_event(LOG_STREAM, "strategy.py", "cycle_skipped_no_position",
                   result="skipped", details={"state": state})
         return
 
@@ -319,7 +358,7 @@ def run_one_cycle():
             realized = (price - avg_cost) * total_qty
             log(f"Position closed. Realized P&L: ${realized:+.2f}")
             send_embed(
-                "tsla", f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
+                TRADES_CH, f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
                 color=Color.RED,
                 description=f"Realized P&L: ${realized:+.2f}",
                 fields=[
@@ -327,8 +366,9 @@ def run_one_cycle():
                     {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
                 ],
                 footer="strategy.py",
+                actions_channel=ACTIONS_CH,
             )
-            log_event("tsla", "strategy.py", "stop_hit",
+            log_event(LOG_STREAM, "strategy.py", "stop_hit",
                       symbol=SYMBOL,
                       details={"exit_price": price, "qty": total_qty, "realized_pnl": realized})
             # Mark position closed in state
@@ -343,12 +383,13 @@ def run_one_cycle():
             trailing_active = True
             log(f"Trailing ACTIVATED at ${price:.2f} (+{TRAIL_TRIGGER_PCT*100:.0f}% from entry)")
             send_embed(
-                "tsla", "TSLA Trailing Stop Activated",
+                TRADES_CH, "TSLA Trailing Stop Activated",
                 color=Color.BLUE,
                 description=f"Price ${price:.2f} hit +{TRAIL_TRIGGER_PCT*100:.0f}% from entry. Floor will trail 5% below high-water mark.",
                 footer="strategy.py",
+                actions_channel=ACTIONS_CH,
             )
-            log_event("tsla", "strategy.py", "trail_activated",
+            log_event(LOG_STREAM, "strategy.py", "trail_activated",
                       symbol=SYMBOL, details={"price": price, "entry_price": entry_price})
 
         if trailing_active:
@@ -359,12 +400,13 @@ def run_one_cycle():
                 old_stop = stop_price
                 stop_price = new_stop
                 send_embed(
-                    "tsla", f"TSLA Stop Raised → ${new_stop:.2f}",
+                    TRADES_CH, f"TSLA Stop Raised → ${new_stop:.2f}",
                     color=Color.BLUE,
                     description=f"HWM ${high_water_mark:.2f} (was ${old_stop:.2f})",
                     footer="strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "strategy.py", "stop_raised",
+                log_event(LOG_STREAM, "strategy.py", "stop_raised",
                           symbol=SYMBOL,
                           details={"old_stop": old_stop, "new_stop": new_stop, "hwm": high_water_mark})
 
@@ -385,7 +427,7 @@ def run_one_cycle():
 
                 log(f"  New avg cost: ${avg_cost:.2f} | New stop: ${stop_price:.2f} | Total qty: {total_qty}")
                 send_embed(
-                    "tsla", f"TSLA {ldr['label']} Triggered — bought {qty} shares @ ${price:.2f}",
+                    TRADES_CH, f"TSLA {ldr['label']} Triggered — bought {qty} shares @ ${price:.2f}",
                     color=Color.YELLOW,
                     fields=[
                         {"name": "New avg cost", "value": f"${avg_cost:.2f}", "inline": True},
@@ -393,8 +435,9 @@ def run_one_cycle():
                         {"name": "Total qty", "value": str(total_qty), "inline": True},
                     ],
                     footer="strategy.py",
+                    actions_channel=ACTIONS_CH,
                 )
-                log_event("tsla", "strategy.py", "ladder_triggered",
+                log_event(LOG_STREAM, "strategy.py", "ladder_triggered",
                           symbol=SYMBOL,
                           details={"label": ldr["label"], "qty": qty, "price": price, "new_avg_cost": avg_cost},
                           alpaca_order_id=o["id"])
@@ -414,7 +457,7 @@ def run_one_cycle():
             f"Trail {'ON' if trailing_active else 'OFF'}."
         )
         _save_state(state)
-        log_event("tsla", "strategy.py", "cycle_complete",
+        log_event(LOG_STREAM, "strategy.py", "cycle_complete",
                   result="success",
                   details={"price": price, "avg_cost": avg_cost, "stop": stop_price,
                            "qty": total_qty, "trail": trailing_active})
@@ -422,19 +465,22 @@ def run_one_cycle():
     except Exception as e:
         log(f"Error in run_one_cycle: {e}")
         send_embed(
-            "errors", "strategy.py — exception in run_one_cycle",
+            ERRORS_CH, "strategy.py — exception in run_one_cycle",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
             footer="strategy.py",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("errors", "strategy.py", "exception",
+        log_event(LOG_STREAM, "strategy.py", "exception",
                   result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
         raise
 
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "once":
+    selected_mode, remaining = config.parse_mode_arg(sys.argv[1:])
+    apply_mode(selected_mode)
+    if remaining and remaining[0] == "once":
         run_one_cycle()
     else:
         run_strategy()

@@ -1,15 +1,29 @@
 """Discord webhook notifications.
 
-Routes messages to one of several per-domain channels by name:
+Routes messages to one of several per-domain channels by name. Conservative
+paper account uses the original 5 channels; aggressive paper account uses
+its own parallel set so the two never cross-pollinate.
+
+Conservative:
   - "tsla"     → DISCORD_TSLA_WEBHOOK     (#tsla-trades)
   - "congress" → DISCORD_CONGRESS_WEBHOOK (#congress-trades)
   - "summary"  → DISCORD_SUMMARY_WEBHOOK  (#daily-summary)
   - "errors"   → DISCORD_ERRORS_WEBHOOK   (#errors)
-  - "actions"  → DISCORD_ACTIONS_WEBHOOK  (#all-actions, optional firehose)
+  - "actions"  → DISCORD_ACTIONS_WEBHOOK  (#all-actions, firehose)
+
+Aggressive:
+  - "agg_trades"  → DISCORD_AGG_TRADES_WEBHOOK   (#aggressive-trades)
+  - "agg_summary" → DISCORD_AGG_SUMMARY_WEBHOOK  (#aggressive-summary)
+  - "agg_errors"  → DISCORD_AGG_ERRORS_WEBHOOK   (#aggressive-errors)
+  - "agg_actions" → DISCORD_AGG_ACTIONS_WEBHOOK  (#aggressive-actions, firehose)
 
 If the webhook env var for a channel is unset, the call becomes a no-op so
 local dev runs don't fail. Errors talking to Discord are swallowed (logged
 to stderr) so a flaky webhook never breaks a trading bot.
+
+The send_embed/send_text functions accept `actions_channel` to specify which
+firehose channel to mirror to (defaults to "actions"). Aggressive-mode scripts
+pass `actions_channel="agg_actions"` to keep mirrors in the right server.
 """
 import json
 import os
@@ -20,11 +34,15 @@ from datetime import datetime, timezone
 from typing import Optional
 
 CHANNEL_ENV_MAP = {
-    "tsla":     "DISCORD_TSLA_WEBHOOK",
-    "congress": "DISCORD_CONGRESS_WEBHOOK",
-    "summary":  "DISCORD_SUMMARY_WEBHOOK",
-    "errors":   "DISCORD_ERRORS_WEBHOOK",
-    "actions":  "DISCORD_ACTIONS_WEBHOOK",
+    "tsla":         "DISCORD_TSLA_WEBHOOK",
+    "congress":     "DISCORD_CONGRESS_WEBHOOK",
+    "summary":      "DISCORD_SUMMARY_WEBHOOK",
+    "errors":       "DISCORD_ERRORS_WEBHOOK",
+    "actions":      "DISCORD_ACTIONS_WEBHOOK",
+    "agg_trades":   "DISCORD_AGG_TRADES_WEBHOOK",
+    "agg_summary":  "DISCORD_AGG_SUMMARY_WEBHOOK",
+    "agg_errors":   "DISCORD_AGG_ERRORS_WEBHOOK",
+    "agg_actions":  "DISCORD_AGG_ACTIONS_WEBHOOK",
 }
 
 
@@ -66,18 +84,24 @@ def _post(url: str, payload: dict) -> None:
         print(f"[discord] webhook post failed: {e}", file=sys.stderr)
 
 
-def send_text(channel: str, message: str, also_to_actions: bool = True) -> None:
+def send_text(
+    channel: str,
+    message: str,
+    also_to_actions: bool = True,
+    actions_channel: str = "actions",
+) -> None:
     """Send a plain text message to a channel.
 
     If also_to_actions is True (default), also mirror to the firehose
-    #all-actions channel for one-scroll review.
+    actions_channel ("actions" by default; aggressive scripts pass
+    "agg_actions").
     """
     url = _webhook_url(channel)
     if url:
         _post(url, {"content": message})
 
-    if also_to_actions and channel != "actions":
-        actions_url = _webhook_url("actions")
+    if also_to_actions and channel != actions_channel:
+        actions_url = _webhook_url(actions_channel)
         if actions_url:
             _post(actions_url, {"content": f"[{channel}] {message}"})
 
@@ -90,10 +114,14 @@ def send_embed(
     fields: Optional[list[dict]] = None,
     footer: Optional[str] = None,
     also_to_actions: bool = True,
+    actions_channel: str = "actions",
 ) -> None:
     """Send a Discord embed (colored card) to a channel.
 
     fields: list of {"name": str, "value": str, "inline": bool}
+
+    If also_to_actions is True (default), mirrors to actions_channel
+    ("actions" by default; aggressive scripts pass "agg_actions").
     """
     embed = {
         "title": title,
@@ -113,8 +141,8 @@ def send_embed(
     if url:
         _post(url, payload)
 
-    if also_to_actions and channel != "actions":
-        actions_url = _webhook_url("actions")
+    if also_to_actions and channel != actions_channel:
+        actions_url = _webhook_url(actions_channel)
         if actions_url:
             mirrored = dict(embed)
             mirrored["title"] = f"[{channel}] {title}"

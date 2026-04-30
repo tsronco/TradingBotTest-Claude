@@ -27,9 +27,13 @@ from datetime import date, datetime, timedelta
 import requests
 from dotenv import load_dotenv
 
+import config
+import wheel_strategy
 from notifications import send_embed, log_event, Color
 
-# Reuse wheel's API helpers — same Alpaca account, same patterns
+# Reuse wheel's API helpers (these read wheel_strategy's module globals at
+# call time, so they automatically pick up whichever mode wheel_strategy
+# is in at the moment of the call).
 from wheel_strategy import (
     api_get,
     api_post,
@@ -37,8 +41,6 @@ from wheel_strategy import (
     get_option_last_price,
     get_option_quote,
     is_market_open,
-    HEADERS,
-    BASE_URL,
 )
 
 load_dotenv()
@@ -48,6 +50,39 @@ load_dotenv()
 TAKE_PROFIT_PCT          = 1.00   # +100% (option worth ≥ 2× entry)
 STOP_LOSS_PCT            = 0.50   # −50%  (option worth ≤ 0.5× entry)
 DAYS_TO_EXPIRY_CLOSE     = 3      # close this many days before expiry if not profitable
+
+
+# ── Mode-aware globals (assigned by apply_mode) ──────────────────────────
+
+TRADES_CH  = None
+ERRORS_CH  = None
+ACTIONS_CH = None
+LOG_STREAM = None
+MODE       = None
+
+
+def apply_mode(mode_name: str) -> None:
+    """Switch this module + the underlying wheel_strategy module to the named mode.
+
+    long_options_strategy.py reuses wheel_strategy's Alpaca API helpers
+    (api_get, api_post, etc.). Those helpers reference wheel_strategy's
+    HEADERS/BASE_URL module globals at call time. So we MUST switch
+    wheel_strategy to the same mode first; otherwise we'd hit the wrong
+    Alpaca account.
+    """
+    global TRADES_CH, ERRORS_CH, ACTIONS_CH, LOG_STREAM, MODE
+    cfg = config.get_mode(mode_name)
+    MODE = mode_name
+    TRADES_CH  = cfg["trades_channel"]
+    ERRORS_CH  = cfg["errors_channel"]
+    ACTIONS_CH = cfg["actions_channel"]
+    LOG_STREAM = cfg["log_stream"]
+
+    # Ensure the borrowed wheel_strategy.api_* functions hit the right account.
+    wheel_strategy.apply_mode(mode_name)
+
+
+apply_mode(config.DEFAULT_MODE)
 
 
 def log(msg):
@@ -216,7 +251,7 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
     close_price = compute_close_price(symbol)
     if close_price is None or close_price <= 0:
         log(f"[{symbol}] cannot price for close — skipping")
-        log_event("errors", "long_options_strategy.py", "close_no_price",
+        log_event(LOG_STREAM, "long_options_strategy.py", "close_no_price",
                   symbol=symbol, result="failure",
                   notes=f"action={action} pnl={info.get('pnl_pct'):.2%}")
         return False
@@ -226,12 +261,13 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
     except Exception as e:
         log(f"[{symbol}] sell-to-close failed: {e}")
         send_embed(
-            "errors", f"long_options: sell-to-close failed for {symbol}",
+            ERRORS_CH, f"long_options: sell-to-close failed for {symbol}",
             color=Color.RED,
             description=f"Action: {action}\n`{type(e).__name__}: {str(e)[:300]}`",
             footer="long_options_strategy.py",
-        )
-        log_event("errors", "long_options_strategy.py", "close_failed",
+            actions_channel=ACTIONS_CH,
+            )
+        log_event(LOG_STREAM, "long_options_strategy.py", "close_failed",
                   symbol=symbol, result="failure",
                   notes=f"{type(e).__name__}: {str(e)[:300]}")
         return False
@@ -247,7 +283,7 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
     pnl_dollars = (info["current"] - info["entry"]) * 100 * qty
 
     send_embed(
-        "tsla", f"Long Options: {label} on {underlying} {info['type']} {info['strike']}",
+        TRADES_CH, f"Long Options: {label} on {underlying} {info['type']} {info['strike']}",
         color=color,
         description=(
             f"Contract: {symbol}\n"
@@ -263,8 +299,9 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
             {"name": "Days to expiry", "value": str(info.get("days_to_expiry", "—")), "inline": True},
         ],
         footer="long_options_strategy.py",
-    )
-    log_event("tsla", "long_options_strategy.py", f"closed_{action}",
+        actions_channel=ACTIONS_CH,
+        )
+    log_event(LOG_STREAM, "long_options_strategy.py", f"closed_{action}",
               symbol=symbol, result="success",
               details={
                   "underlying": underlying,
@@ -287,7 +324,7 @@ def run_long_options_cycle():
     try:
         if not is_market_open():
             log("Market closed — skipping long-options cycle.")
-            log_event("tsla", "long_options_strategy.py", "cycle_skipped_market_closed",
+            log_event(LOG_STREAM, "long_options_strategy.py", "cycle_skipped_market_closed",
                       result="skipped")
             return
 
@@ -295,7 +332,7 @@ def run_long_options_cycle():
         log(f"Long-options cycle: {len(positions)} long option position(s) open")
 
         if not positions:
-            log_event("tsla", "long_options_strategy.py", "cycle_complete",
+            log_event(LOG_STREAM, "long_options_strategy.py", "cycle_complete",
                       result="success", details={"checked": 0, "closed": 0})
             return
 
@@ -324,36 +361,40 @@ def run_long_options_cycle():
                 # Per-position error isolation
                 log(f"[{symbol}] error: {type(e).__name__}: {e}")
                 send_embed(
-                    "errors", f"long_options_strategy.py — error on {symbol}",
+                    ERRORS_CH, f"long_options_strategy.py — error on {symbol}",
                     color=Color.RED,
                     description=f"`{type(e).__name__}: {str(e)[:400]}`",
                     footer="long_options_strategy.py",
-                )
-                log_event("errors", "long_options_strategy.py", "position_exception",
+                    actions_channel=ACTIONS_CH,
+                    )
+                log_event(LOG_STREAM, "long_options_strategy.py", "position_exception",
                           symbol=symbol, result="failure",
                           notes=f"{type(e).__name__}: {str(e)[:400]}")
                 skipped += 1
 
-        log_event("tsla", "long_options_strategy.py", "cycle_complete",
+        log_event(LOG_STREAM, "long_options_strategy.py", "cycle_complete",
                   result="success",
                   details={"checked": len(positions), "closed": closed,
                            "held": held, "skipped": skipped})
     except Exception as e:
         send_embed(
-            "errors", "long_options_strategy.py — cycle crashed",
+            ERRORS_CH, "long_options_strategy.py — cycle crashed",
             color=Color.RED,
             description=f"`{type(e).__name__}: {str(e)[:500]}`",
             footer="long_options_strategy.py",
-        )
-        log_event("errors", "long_options_strategy.py", "exception",
+            actions_channel=ACTIONS_CH,
+            )
+        log_event(LOG_STREAM, "long_options_strategy.py", "exception",
                   result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
         raise
 
 
 if __name__ == "__main__":
     import sys
-    mode = sys.argv[1] if len(sys.argv) > 1 else "once"
-    if mode == "once":
+    selected_mode, remaining = config.parse_mode_arg(sys.argv[1:])
+    apply_mode(selected_mode)
+    cmd = remaining[0] if remaining else "once"
+    if cmd == "once":
         run_long_options_cycle()
     else:
         # Loop mode for legacy local-run; not used by GitHub Actions

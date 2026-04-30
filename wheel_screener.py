@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 """Wheel candidate screener.
 
-Posts a weekly Discord digest of best-looking wheel candidates from a curated
-universe, helping decide what to add to wheel_strategy.py SYMBOLS.
+Posts a weekly Discord digest of best-looking wheel candidates for whichever
+mode is selected, helping decide what to add to that mode's wheel SYMBOLS.
+
+  - Conservative: large-cap "happy to own" universe, ~10% OTM puts, 14-28 DTE.
+                   Posts to #daily-summary.
+  - Aggressive:   high-IV / volatile-name universe (crypto-adjacent, EV,
+                   meme, China tech, etc.), ~5% OTM puts, 7-14 DTE.
+                   Posts to #aggressive-summary.
+
+Both screeners exclude symbols already in their mode's wheel SYMBOLS so the
+digest never recommends ticker the wheel is already cycling on.
 
 Score components (per CLAUDE.md wheel criteria):
   premium_yield  = ATM-ish put bid / strike  → fatter premium relative to capital
@@ -10,10 +19,6 @@ Score components (per CLAUDE.md wheel criteria):
   budget_fit     = strike × 100 ≤ free BP    → can we actually afford to sell it
 
 Final score = premium_yield × 100 - spread_pct × 50 + budget_fit × 5
-
-Universe is curated — only liquid large-caps with active options markets and
-that pass a basic "happy to own" smell test. Symbols already in
-wheel_strategy.py SYMBOLS are excluded so we don't recommend duplicates.
 
 Note: this v1 does NOT fetch earnings dates. The embed footer reminds you to
 verify the earnings calendar manually (earningswhispers.com) before selling.
@@ -26,33 +31,18 @@ from datetime import date, timedelta
 import requests
 from dotenv import load_dotenv
 
+import config
+import wheel_strategy
 from notifications import Color, log_event, send_embed
-from wheel_strategy import SYMBOLS as WHEELED_SYMBOLS
 
 load_dotenv()
 
-API_KEY    = os.getenv("ALPACA_API_KEY")
-API_SECRET = os.getenv("ALPACA_API_SECRET")
-BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
-DATA_URL   = "https://data.alpaca.markets/v2"
+DATA_URL         = "https://data.alpaca.markets/v2"
 OPTIONS_DATA_URL = "https://data.alpaca.markets/v1beta1"
 
-HEADERS = {
-    "APCA-API-KEY-ID":     API_KEY,
-    "APCA-API-SECRET-KEY": API_SECRET,
-    "accept":              "application/json",
-}
-
-# Already-wheeled — derived from wheel_strategy.SYMBOLS so the screener
-# automatically stops recommending whatever the wheel is actively cycling on.
-# Add/remove symbols in wheel_strategy.py and the screener stays in sync.
-ALREADY_WHEELED = set(WHEELED_SYMBOLS)
-
-# Curated wheel-candidate universe. Filters applied:
-#   - Large-cap, S&P 500 / mega-cap names with deep options chains
-#   - "Happy to own" smell test (no penny stocks, no SPACs, no biotech)
-#   - Excludes anything already in ALREADY_WHEELED
-UNIVERSE = sorted({
+# Default conservative universe (large-cap "happy to own"). Used when the
+# selected mode's screener_universe config field is None.
+DEFAULT_CONSERVATIVE_UNIVERSE = sorted({
     # Tech mega-cap
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AMD",
     "INTC", "ORCL", "CRM", "ADBE", "IBM", "CSCO", "MU", "AVGO",
@@ -70,13 +60,75 @@ UNIVERSE = sorted({
     "F", "GM", "CAT", "DE",
     # Mobility
     "UBER",
-} - ALREADY_WHEELED)
+})
 
-TARGET_DTE_MIN      = 14    # 2 weeks
-TARGET_DTE_MAX      = 28    # 4 weeks
-PUT_STRIKE_DISCOUNT = 0.10  # ~10% OTM target
-TOP_N               = 10
-MIN_STOCK_PRICE     = 5.0   # below this, options are usually too thin
+# ── Constants (apply uniformly within a mode) ─────────────────────────────
+TOP_N           = 10
+MIN_STOCK_PRICE = 5.0   # below this, options are usually too thin
+
+
+# ── Mode-aware globals ────────────────────────────────────────────────────
+
+API_KEY     = None
+API_SECRET  = None
+BASE_URL    = None
+HEADERS     = None
+UNIVERSE    = None
+ALREADY_WHEELED = None
+TARGET_DTE_MIN  = None
+TARGET_DTE_MAX  = None
+PUT_STRIKE_DISCOUNT = None
+SUMMARY_CH  = None
+ERRORS_CH   = None
+ACTIONS_CH  = None
+LOG_STREAM  = None
+MODE        = None
+
+
+def apply_mode(mode_name: str) -> None:
+    """Switch the screener to the given mode. Loads the mode's universe,
+    DTE window, strike percent, Discord channels, and Alpaca credentials.
+
+    Mutates wheel_strategy as a side effect (so its SYMBOLS list reflects
+    the right mode's wheel) — that's needed because this script imports
+    SYMBOLS from wheel_strategy to build ALREADY_WHEELED.
+    """
+    global API_KEY, API_SECRET, BASE_URL, HEADERS
+    global UNIVERSE, ALREADY_WHEELED
+    global TARGET_DTE_MIN, TARGET_DTE_MAX, PUT_STRIKE_DISCOUNT
+    global SUMMARY_CH, ERRORS_CH, ACTIONS_CH, LOG_STREAM, MODE
+
+    cfg = config.get_mode(mode_name)
+    MODE = mode_name
+
+    API_KEY    = os.getenv(cfg["alpaca_key_env"])
+    API_SECRET = os.getenv(cfg["alpaca_secret_env"])
+    BASE_URL   = os.getenv(cfg["alpaca_url_env"], "https://paper-api.alpaca.markets/v2")
+    HEADERS    = {
+        "APCA-API-KEY-ID":     API_KEY,
+        "APCA-API-SECRET-KEY": API_SECRET,
+        "accept":              "application/json",
+    }
+
+    # Make wheel_strategy reflect this mode so we read the right SYMBOLS list
+    wheel_strategy.apply_mode(mode_name)
+    ALREADY_WHEELED = set(wheel_strategy.SYMBOLS)
+
+    # Universe: mode-specific override or fall through to conservative default
+    raw_universe = cfg["screener_universe"] or DEFAULT_CONSERVATIVE_UNIVERSE
+    UNIVERSE = sorted(set(raw_universe) - ALREADY_WHEELED)
+
+    PUT_STRIKE_DISCOUNT = cfg["screener_strike_pct"]
+    TARGET_DTE_MIN      = cfg["screener_dte_min"]
+    TARGET_DTE_MAX      = cfg["screener_dte_max"]
+
+    SUMMARY_CH = cfg["summary_channel"]
+    ERRORS_CH  = cfg["errors_channel"]
+    ACTIONS_CH = cfg["actions_channel"]
+    LOG_STREAM = cfg["log_stream"]
+
+
+apply_mode(config.DEFAULT_MODE)
 
 
 # ── Logging ────────────────────────────────────────────────────────────────
@@ -235,8 +287,8 @@ def run_screener():
     try:
         account = get_account()
         free_bp = float(account.get("options_buying_power", 0))
-        log(f"Free options buying power: ${free_bp:,.2f}")
-        log(f"Universe ({len(UNIVERSE)} symbols, excludes {sorted(ALREADY_WHEELED)})")
+        log(f"[{MODE}] Free options buying power: ${free_bp:,.2f}")
+        log(f"[{MODE}] Universe ({len(UNIVERSE)} symbols, excludes {sorted(ALREADY_WHEELED)})")
 
         results = []
         for symbol in UNIVERSE:
@@ -253,32 +305,41 @@ def run_screener():
         results.sort(key=lambda r: r["score"], reverse=True)
         top = results[:TOP_N]
 
+        title_prefix = "Aggressive Wheel Screener" if MODE == "aggressive" else "Wheel Screener"
+
         if not top:
             send_embed(
-                "summary", "Wheel Screener: no candidates",
+                SUMMARY_CH, f"{title_prefix}: no candidates",
                 color=Color.YELLOW,
-                description="Universe screened but no candidates returned data. Check `#errors`.",
+                description="Universe screened but no candidates returned data. Check errors channel.",
                 footer="wheel_screener.py",
+                actions_channel=ACTIONS_CH,
             )
-            log_event("tsla", "wheel_screener.py", "screener_complete",
+            log_event(LOG_STREAM, "wheel_screener.py", "screener_complete",
                       result="success",
-                      details={"universe_size": len(UNIVERSE), "scored": 0, "top_n": 0})
+                      details={"mode": MODE, "universe_size": len(UNIVERSE),
+                               "scored": 0, "top_n": 0})
             return
 
         send_embed(
-            "summary", f"Wheel Screener — Top {len(top)} candidates",
+            SUMMARY_CH, f"{title_prefix} — Top {len(top)} candidates",
             color=Color.BLUE,
             description="\n\n".join(build_embed_lines(top))[:3900],
             fields=[
-                {"name": "Universe size", "value": str(len(UNIVERSE)), "inline": True},
-                {"name": "Returned data", "value": str(len(results)), "inline": True},
-                {"name": "Free BP",       "value": f"${free_bp:,.0f}", "inline": True},
+                {"name": "Mode",          "value": MODE,                  "inline": True},
+                {"name": "Universe size", "value": str(len(UNIVERSE)),    "inline": True},
+                {"name": "Returned data", "value": str(len(results)),     "inline": True},
+                {"name": "DTE window",    "value": f"{TARGET_DTE_MIN}-{TARGET_DTE_MAX}d", "inline": True},
+                {"name": "Strike target", "value": f"{PUT_STRIKE_DISCOUNT*100:.0f}% OTM", "inline": True},
+                {"name": "Free BP",       "value": f"${free_bp:,.0f}",    "inline": True},
             ],
             footer="wheel_screener.py · verify earnings calendar before selling",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("tsla", "wheel_screener.py", "screener_complete",
+        log_event(LOG_STREAM, "wheel_screener.py", "screener_complete",
                   result="success",
                   details={
+                      "mode":          MODE,
                       "universe_size": len(UNIVERSE),
                       "scored":        len(results),
                       "top_n":         len(top),
@@ -286,15 +347,18 @@ def run_screener():
                   })
     except Exception as exc:
         send_embed(
-            "errors", "wheel_screener.py crashed",
+            ERRORS_CH, "wheel_screener.py crashed",
             color=Color.RED,
             description=f"`{type(exc).__name__}: {str(exc)[:500]}`",
             footer="wheel_screener.py",
+            actions_channel=ACTIONS_CH,
         )
-        log_event("errors", "wheel_screener.py", "exception",
+        log_event(LOG_STREAM, "wheel_screener.py", "exception",
                   result="failure", notes=f"{type(exc).__name__}: {str(exc)[:500]}")
         raise
 
 
 if __name__ == "__main__":
+    selected_mode, _remaining = config.parse_mode_arg(sys.argv[1:])
+    apply_mode(selected_mode)
     run_screener()
