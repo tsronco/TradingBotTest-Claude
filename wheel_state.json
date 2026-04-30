@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-30T17:48:19.430400Z"
+    "last_checked": "2026-04-30T17:57:53.288460Z"
   },
   "TSLA": {
     "stage": 1,
@@ -31,7 +31,7 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Monitoring TSLA260522P00340000: $2.62 vs entry $4.10"
+    "last_action": "Monitoring TSLA260522P00340000: $2.60 vs entry $4.10"
   },
   "BAC": {
     "stage": 1,
@@ -121,7 +121,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.27 vs entry $0.31"
+    "last_action": "Monitoring SOFI260515P00015000: $0.25 vs entry $0.31"
   },
   "PFE": {
     "stage": 1,
