@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-30T15:49:21.369878+00:00",
+    "last_checked": "2026-04-30T15:50:46.957178Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Reconciled from Alpaca on 2026-04-30. Position qty=-1.0 (may be > 1 due to duplicate sells before fix)."
+    "last_action": "Monitoring COIN260508P00175000: $4.22 vs entry $5.55"
   },
   "MARA": {
     "stage": 1,
@@ -42,7 +42,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Reconciled from Alpaca on 2026-04-30. Position qty=-4.0 (may be > 1 due to duplicate sells before fix)."
+    "last_action": "Monitoring MARA260508P00011000: $0.26 vs entry $0.40"
   },
   "RIOT": {
     "stage": 1,
@@ -60,7 +60,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "SMCI": {
     "stage": 1,
@@ -78,7 +78,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Reconciled from Alpaca on 2026-04-30. Position qty=-1.0 (may be > 1 due to duplicate sells before fix)."
+    "last_action": "Monitoring SMCI260508P00025000: $0.93 vs entry $1.08"
   },
   "NVDA": {
     "stage": 1,
@@ -96,7 +96,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Reconciled from Alpaca on 2026-04-30. Position qty=-1.0 (may be > 1 due to duplicate sells before fix)."
+    "last_action": "Monitoring NVDA260511P00195000: $2.72 vs entry $1.23"
   },
   "AMD": {
     "stage": 1,
@@ -114,7 +114,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "MU": {
     "stage": 1,
@@ -132,7 +132,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "TSLA": {
     "stage": 1,
@@ -150,7 +150,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "BAC": {
     "stage": 1,
@@ -168,7 +168,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Reconciled from Alpaca on 2026-04-30. Position qty=-1.0 (may be > 1 due to duplicate sells before fix)."
+    "last_action": "Monitoring BAC260508P00050000: $0.09 vs entry $0.13"
   },
   "XOM": {
     "stage": 1,
@@ -186,7 +186,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "KO": {
     "stage": 1,
@@ -204,7 +204,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "PLTR": {
     "stage": 1,
@@ -222,7 +222,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "SOFI": {
     "stage": 1,
@@ -240,7 +240,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   },
   "PFE": {
     "stage": 1,
@@ -258,6 +258,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": ""
+    "last_action": "Insufficient options BP to sell put."
   }
 }
