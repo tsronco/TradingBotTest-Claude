@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-30T16:09:36.309494Z",
+    "last_checked": "2026-04-30T16:19:29.801727Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $4.22 vs entry $5.55"
+    "last_action": "Monitoring COIN260508P00175000: $4.11 vs entry $5.55"
   },
   "MARA": {
     "stage": 1,
@@ -60,7 +60,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open RIOT260508P00016000 @ $0.63. Awaiting fill."
+    "last_action": "Awaiting fill on RIOT260508P00016000."
   },
   "SMCI": {
     "stage": 1,
@@ -96,7 +96,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.80 vs entry $1.23"
+    "last_action": "Monitoring NVDA260511P00195000: $2.82 vs entry $1.23"
   },
   "AMD": {
     "stage": 1,
@@ -114,7 +114,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open AMD260508P00330000 @ $10.35. Awaiting fill."
+    "last_action": "Awaiting fill on AMD260508P00330000."
   },
   "MU": {
     "stage": 1,
@@ -168,7 +168,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260508P00050000: $0.09 vs entry $0.13"
+    "last_action": "Monitoring BAC260508P00050000: $0.07 vs entry $0.13"
   },
   "XOM": {
     "stage": 1,
