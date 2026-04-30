@@ -11,8 +11,17 @@ import wheel_strategy as ws
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
-def _account(cash=100000):
-    return {"cash": str(cash), "portfolio_value": str(cash)}
+def _account(cash=100000, options_buying_power=None):
+    """Mock account dict. options_buying_power defaults to cash (matches
+    a brand-new account with nothing reserved). Tests that exercise the
+    insufficient-BP branch can pass a lower options_buying_power explicitly."""
+    if options_buying_power is None:
+        options_buying_power = cash
+    return {
+        "cash": str(cash),
+        "options_buying_power": str(options_buying_power),
+        "portfolio_value": str(cash),
+    }
 
 
 def _filled_order(price=4.10):
@@ -426,20 +435,48 @@ def test_compute_limit_price_last_resort_dollar(monkeypatch):
     assert ws.compute_limit_price("XYZ", contract) == 1.00
 
 
-# ── Insufficient cash ────────────────────────────────────────────────────
+# ── Insufficient buying power ────────────────────────────────────────────
 
-def test_stage1_insufficient_cash_does_not_place_order(monkeypatch, fresh_symbol_state):
-    """If cash < strike * 100, refuse to sell put."""
+def test_stage1_insufficient_bp_does_not_place_order(monkeypatch, fresh_symbol_state):
+    """If options_buying_power < strike * 100, refuse to sell put.
+
+    Crucially we check options_buying_power, NOT cash. Cash can be high
+    while options BP is depleted by pending orders or existing shorts;
+    using cash here would let the wheel try to place orders Alpaca will
+    reject with HTTP 403 (which is exactly the bug this test guards
+    against — see the INTC 403 incident on 2026-04-30)."""
     sells = []
     monkeypatch.setattr(ws, "place_sell_to_open",
                         lambda c, p: sells.append((c, p)) or {"id": "x"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
 
+    # Cash is plentiful but options BP is depleted — the realistic Alpaca
+    # state when many pending/open option orders are tying up collateral.
     ws.handle_stage1("TSLA", fresh_symbol_state,
                       stock_price=380.0,
-                      account=_account(cash=10000))  # only $10k, need $34k
+                      account=_account(cash=100000, options_buying_power=10000))  # $10k BP, need $34k
 
     assert sells == []
-    assert "Insufficient cash" in fresh_symbol_state["last_action"]
+    assert "Insufficient options BP" in fresh_symbol_state["last_action"]
+
+
+def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state):
+    """Direct regression test for the INTC 403 bug: even when cash is
+    huge, if options_buying_power is small the wheel must skip rather
+    than try to place an order Alpaca will reject."""
+    sells = []
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p: sells.append((c, p)) or {"id": "x"})
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("INTC", strike=80))
+
+    # The exact scenario from prod: $97k cash but only $3k options BP.
+    # INTC $80 put needs $8k → must be skipped, NOT attempted.
+    ws.handle_stage1("INTC", fresh_symbol_state,
+                      stock_price=94.0,
+                      account=_account(cash=97000, options_buying_power=3000))
+
+    assert sells == []  # NEVER attempted the order
+    assert fresh_symbol_state["current_contract"] is None
     assert fresh_symbol_state["current_contract"] is None

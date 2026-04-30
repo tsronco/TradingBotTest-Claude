@@ -589,29 +589,32 @@ def handle_stage1(symbol, sym_state, stock_price, account):
 def _sell_new_put(symbol, sym_state, stock_price, account):
     """Find and sell the best cash-secured put for `symbol`."""
     target_strike = round_strike(stock_price * (1 - PUT_STRIKE_PCT), stock_price)
-    cash = float(account["cash"])
+    # Use options_buying_power (NOT plain cash). Pending option orders reserve
+    # collateral against options BP, so the cash field can lie about whether
+    # we can actually place another short put. Falls back to cash if the
+    # field is missing for any reason.
+    options_bp = float(account.get("options_buying_power", account.get("cash", 0)))
     cash_required = target_strike * 100
 
-    if cash < cash_required:
-        log(f"[{symbol}] INSUFFICIENT CASH: need ${cash_required:,.0f}, have ${cash:,.0f}.")
-        sym_state["last_action"] = "Insufficient cash to sell put."
-        # Insufficient cash is EXPECTED behavior in aggressive mode (priority
-        # tier consumes BP first, fallback symbols hit this naturally). It's
-        # not an error to investigate. Route to the muted firehose so the
-        # event is still visible in #all-actions / #aggressive-actions but
-        # doesn't trip phone push notifications. Result also flipped from
-        # "failure" to "skipped" to match the semantics.
+    if options_bp < cash_required:
+        log(f"[{symbol}] INSUFFICIENT BP: need ${cash_required:,.0f}, have ${options_bp:,.0f}.")
+        sym_state["last_action"] = "Insufficient options BP to sell put."
+        # Insufficient BP is EXPECTED behavior — earlier symbols may have
+        # consumed all available collateral (especially in aggressive mode
+        # where the priority tier deliberately drains BP before fallback).
+        # Route to the muted actions firehose so the event is still visible
+        # but doesn't trip phone push. Result is "skipped" not "failure".
         send_embed(
-            ACTIONS_CH, f"Wheel: Insufficient Cash for {symbol} Put — skipped",
+            ACTIONS_CH, f"Wheel: Insufficient BP for {symbol} Put — skipped",
             color=Color.YELLOW,
-            description=f"Need ${cash_required:,.0f}, have ${cash:,.0f}",
+            description=f"Need ${cash_required:,.0f}, have ${options_bp:,.0f}",
             footer="wheel_strategy.py",
             actions_channel=ACTIONS_CH,
             also_to_actions=False,  # we ARE the actions channel — no double-post
         )
-        log_event(LOG_STREAM, "wheel_strategy.py", "insufficient_cash",
+        log_event(LOG_STREAM, "wheel_strategy.py", "insufficient_bp",
                   result="skipped",
-                  details={"underlying": symbol, "need": cash_required, "have": cash})
+                  details={"underlying": symbol, "need": cash_required, "have": options_bp})
         return
 
     contract = find_best_contract(symbol, "put", target_strike,
