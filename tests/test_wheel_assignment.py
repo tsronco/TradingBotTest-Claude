@@ -480,3 +480,83 @@ def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state):
     assert sells == []  # NEVER attempted the order
     assert fresh_symbol_state["current_contract"] is None
     assert fresh_symbol_state["current_contract"] is None
+
+
+# ── place_buy_to_close uses actual position qty ──────────────────────────
+
+def test_place_buy_to_close_closes_full_position_qty(monkeypatch):
+    """Regression test for the MARA qty=-4 incident. When the wheel
+    decides to close, it must close ALL contracts at that symbol, not
+    just one. Otherwise the duplicate-sell-bug fallout (or any external
+    multi-contract position) leaves orphan shorts the wheel can't manage."""
+    posted = []
+    monkeypatch.setattr(ws, "get_option_position",
+                        lambda c: {"qty": "-4", "avg_entry_price": "0.40"})
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "x"})
+
+    ws.place_buy_to_close("MARA260508P00011000", 0.20)
+
+    assert len(posted) == 1
+    assert posted[0]["qty"] == "4"           # not "1"!
+    assert posted[0]["symbol"] == "MARA260508P00011000"
+    assert posted[0]["side"] == "buy"
+    assert posted[0]["position_intent"] == "buy_to_close"
+
+
+def test_place_buy_to_close_skips_when_no_position(monkeypatch):
+    """If Alpaca shows no position, don't place an order. Guards against
+    submitting a phantom buy-to-close after the position was already
+    closed by some other path (manual close, expiration, etc.)."""
+    posted = []
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "x"})
+
+    result = ws.place_buy_to_close("XYZ260522P00010000", 0.20)
+    assert result is None
+    assert posted == []
+
+
+def test_place_buy_to_close_skips_when_qty_zero(monkeypatch):
+    """Defensive: if Alpaca returns a position with qty=0 for any reason,
+    don't try to send a qty=0 order (Alpaca would reject)."""
+    posted = []
+    monkeypatch.setattr(ws, "get_option_position",
+                        lambda c: {"qty": "0", "avg_entry_price": "0.40"})
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "x"})
+
+    result = ws.place_buy_to_close("XYZ260522P00010000", 0.20)
+    assert result is None
+    assert posted == []
+
+
+def test_place_buy_to_close_explicit_qty_overrides_lookup(monkeypatch):
+    """When caller passes an explicit qty, skip the position lookup.
+    Lets us do deliberate partial closes if we ever need to."""
+    posted = []
+    # Would crash if accidentally called — proves we didn't
+    def boom(c):
+        raise AssertionError("get_option_position should not have been called")
+    monkeypatch.setattr(ws, "get_option_position", boom)
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "x"})
+
+    ws.place_buy_to_close("XYZ260522P00010000", 0.20, qty=2)
+
+    assert posted[0]["qty"] == "2"
+
+
+def test_place_buy_to_close_normal_single_contract_unchanged(monkeypatch):
+    """Common case (qty=-1) still works exactly the same — closes 1 contract.
+    Just verifies the auto-lookup behaves correctly for the typical case."""
+    posted = []
+    monkeypatch.setattr(ws, "get_option_position",
+                        lambda c: {"qty": "-1", "avg_entry_price": "4.10"})
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "x"})
+
+    ws.place_buy_to_close("TSLA260522P00340000", 2.00)
+
+    assert posted[0]["qty"] == "1"

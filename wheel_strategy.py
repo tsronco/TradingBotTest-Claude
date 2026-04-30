@@ -313,17 +313,41 @@ def place_sell_to_open(option_symbol, limit_price):
     return order
 
 
-def place_buy_to_close(option_symbol, limit_price):
+def place_buy_to_close(option_symbol, limit_price, qty=None):
+    """Buy-to-close a short option position.
+
+    qty: number of contracts to close. If None (default), looks up the
+    actual short position size on Alpaca and closes ALL of it. Pass an
+    explicit qty only when you want a deliberate partial close.
+
+    Why default to "look up": before this fix the function hardcoded
+    qty="1", which broke when a state-persistence bug let the wheel sell
+    duplicate puts on the same symbol (MARA went to qty=-4 on 2026-04-30).
+    The 50%-profit close fired but only bought back 1 of the 4, leaving
+    3 orphan contracts the wheel didn't track. With auto-lookup, an
+    early-close now correctly closes every contract on that symbol in a
+    single order, no matter how the position got there.
+    """
+    if qty is None:
+        pos = get_option_position(option_symbol)
+        if pos is None:
+            log(f"place_buy_to_close: no Alpaca position for {option_symbol} — skipping")
+            return None
+        qty = abs(int(float(pos.get("qty", 0))))
+        if qty == 0:
+            log(f"place_buy_to_close: position qty=0 for {option_symbol} — skipping")
+            return None
+
     order = api_post("/orders", {
         "symbol":          option_symbol,
-        "qty":             "1",
+        "qty":             str(qty),
         "side":            "buy",
         "type":            "limit",
         "limit_price":     str(round(limit_price + 0.05, 2)),  # slight premium to ensure fill
         "time_in_force":   "day",
         "position_intent": "buy_to_close",
     })
-    log(f"Buy-to-close placed: {option_symbol} @ ${limit_price:.2f} — order {order['id']}")
+    log(f"Buy-to-close placed: {option_symbol} qty={qty} @ ${limit_price:.2f} — order {order['id']}")
     return order
 
 
