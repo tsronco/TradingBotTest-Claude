@@ -66,7 +66,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add strategy_state_aggressive.json wheel_state_aggressive.json logs/ || true
+          # Add each pathspec INDEPENDENTLY so a missing file doesn't abort
+          # the whole `git add`. (Git aborts atomically on missing pathspec
+          # even with `|| true` at the end of the line, which silently
+          # leaves other changes unstaged.) strategy_state_aggressive.json
+          # in particular won't exist until the aggressive TSLA position
+          # is seeded; before that, strategy.py exits without writing it.
+          git add strategy_state_aggressive.json 2>/dev/null || true
+          git add wheel_state_aggressive.json 2>/dev/null || true
+          git add logs/ 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "No state or log changes to commit."
           else
