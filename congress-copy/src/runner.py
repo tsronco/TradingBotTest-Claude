@@ -12,11 +12,15 @@ from dotenv import load_dotenv
 # Load .env from project root (parent of congress-copy/)
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
-# Make notifications/ at project root importable
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# Make notifications/ at project root importable. Use append (NOT insert)
+# so the cwd (congress-copy/) keeps priority for `import config` — without
+# this, the project-root `config.py` (added 2026-04-29 for wheel modes)
+# shadows congress-copy's own `config.py` and the runner crashes with
+# AttributeError: module 'config' has no attribute 'STALE_DISCLOSURE_CUTOFF_DAYS'.
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 from notifications import send_embed, log_event, Color
 
-import config
+import config  # → congress-copy/config.py (NOT project-root config.py)
 from src.alpaca_client import AlpacaClient
 from src.monitor import Monitor
 from src.paper_guard import assert_paper_only
