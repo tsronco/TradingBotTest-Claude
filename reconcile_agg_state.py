@@ -128,6 +128,7 @@ def main():
         ss["contract_expiration"] = expiry.isoformat()
         ss["contract_type"]       = "put" if side == "P" else "call"
         ss["contract_strike"]     = strike
+        ss["contract_qty"]        = int(abs(qty))  # 4 for the MARA case, 1 for normal singles
         ss["last_action"] = (f"Reconciled from Alpaca on 2026-04-30. Position qty={qty} "
                              f"(may be > 1 due to duplicate sells before fix).")
         # If qty < -1, mark in cycle_history that we have multiple contracts

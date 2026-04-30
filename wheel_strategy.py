@@ -140,6 +140,10 @@ def _empty_symbol_state() -> dict:
         "contract_expiration": None,
         "contract_type": None,
         "contract_strike": None,
+        "contract_qty": 1,  # number of contracts on this OCC symbol; almost
+                            # always 1 for puts (wheel sells one per cycle),
+                            # equals shares_qty // 100 for covered calls
+                            # (one call covers 100 shares so we sell N).
         "cost_basis_per_share": None,
         "shares_qty": 0,
         "total_cost": None,
@@ -299,17 +303,24 @@ def find_best_contract(underlying_symbol, option_type, target_strike,
     return min(contracts, key=score)
 
 
-def place_sell_to_open(option_symbol, limit_price):
+def place_sell_to_open(option_symbol, limit_price, qty=1):
+    """Sell-to-open a short option position.
+
+    qty defaults to 1 so put-selling stays unchanged (the wheel always
+    sells one cash-secured put per cycle). Stage 2 covered-call sales
+    pass qty equal to (shares_held // 100) so we sell ONE call per
+    100 shares — e.g., assigned 400 shares → sell 4 covered calls.
+    """
     order = api_post("/orders", {
         "symbol":          option_symbol,
-        "qty":             "1",
+        "qty":             str(qty),
         "side":            "sell",
         "type":            "limit",
         "limit_price":     str(round(limit_price, 2)),
         "time_in_force":   "gtc",
         "position_intent": "sell_to_open",
     })
-    log(f"Sell-to-open placed: {option_symbol} @ ${limit_price:.2f} — order {order['id']}")
+    log(f"Sell-to-open placed: {option_symbol} qty={qty} @ ${limit_price:.2f} — order {order['id']}")
     return order
 
 
@@ -501,45 +512,59 @@ def handle_stage1(symbol, sym_state, stock_price, account):
             # status == "gone" → assignment or expired
             stock_pos = get_stock_position(symbol)
             if stock_pos and int(float(stock_pos["qty"])) >= 100:
+                # Capture the ACTUAL number of shares Alpaca shows. With a single
+                # qty=-1 put that's exactly 100. With qty=-N puts (e.g., the
+                # MARA qty=-4 case from the duplicate-sell incident, or any
+                # future scenario that legitimately holds multiple short puts
+                # on the same OCC symbol), it's 100 × N. Reading from Alpaca
+                # is the single source of truth — never assume 100.
+                actual_shares = int(float(stock_pos["qty"]))
                 cost = abs(float(stock_pos["avg_entry_price"]))
-                log(f"[{symbol}] PUT ASSIGNED — acquired 100 shares @ ${cost:.2f}")
+                log(f"[{symbol}] PUT ASSIGNED — acquired {actual_shares} shares @ ${cost:.2f}")
                 send_embed(
-                    TRADES_CH, f"Wheel: PUT ASSIGNED — now hold 100 {symbol} @ ${cost:.2f}",
+                    TRADES_CH, f"Wheel: PUT ASSIGNED — now hold {actual_shares} {symbol} @ ${cost:.2f}",
                     color=Color.YELLOW,
-                    description=f"Contract: {contract}\nMoving to Stage 2 (covered calls).",
+                    description=f"Contract: {contract}\nMoving to Stage 2 (covered calls × {actual_shares // 100}).",
                     footer="wheel_strategy.py",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "put_assigned",
                           symbol=contract,
-                          details={"underlying": symbol, "cost_basis": cost, "qty": 100})
+                          details={"underlying": symbol, "cost_basis": cost, "qty": actual_shares})
                 sym_state["stage"]                = 2
                 sym_state["cost_basis_per_share"] = cost
-                sym_state["total_cost"]           = cost * 100
-                sym_state["shares_qty"]           = 100
+                sym_state["total_cost"]           = cost * actual_shares
+                sym_state["shares_qty"]           = actual_shares
                 sym_state["current_contract"]     = None
                 sym_state["contract_entry_price"] = None
-                sym_state["last_action"] = f"Assigned on {contract}. Cost basis: ${cost:.2f}"
+                sym_state["last_action"] = f"Assigned on {contract}. {actual_shares} shares, cost basis ${cost:.2f}."
                 sym_state["cycle_history"].append({
                     "cycle": sym_state["cycle_count"] + 1,
                     "type": "put",
                     "symbol": contract,
                     "outcome": "assigned",
                     "cost_basis": cost,
+                    "shares": actual_shares,
                 })
             else:
-                # Expired worthless — collect premium, sell another put
-                premium = sym_state.get("contract_entry_price", 0) or 0
-                premium_dollars = premium * 100
+                # Expired worthless — collect premium, sell another put.
+                # Multi-contract math: if we somehow had qty=-N short puts on
+                # the same OCC symbol (e.g., the MARA qty=-4 from the state-
+                # persistence bug), all N expire together → premium = entry
+                # × 100 × N. Normal case is qty=1 so this collapses to the
+                # original formula.
+                contract_qty    = sym_state.get("contract_qty") or 1
+                premium_per_unit = sym_state.get("contract_entry_price", 0) or 0
+                premium_dollars  = premium_per_unit * 100 * contract_qty
                 sym_state["total_premium_collected"] = round(
                     sym_state["total_premium_collected"] + premium_dollars, 2
                 )
                 sym_state["total_premium_today"] = round(
                     sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"[{symbol}] PUT EXPIRED WORTHLESS — collected ${premium_dollars:.2f}.")
+                log(f"[{symbol}] PUT EXPIRED WORTHLESS — {contract_qty}× contracts, collected ${premium_dollars:.2f}.")
                 send_embed(
-                    TRADES_CH, f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f}",
+                    TRADES_CH, f"Wheel: {symbol} Put Expired Worthless — kept ${premium_dollars:.2f} ({contract_qty}× contracts)",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
@@ -548,7 +573,8 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                 log_event(LOG_STREAM, "wheel_strategy.py", "put_expired_worthless",
                           symbol=contract,
                           details={"underlying": symbol, "premium": premium_dollars,
-                                   "total_premium": sym_state["total_premium_collected"]})
+                                   "total_premium": sym_state["total_premium_collected"],
+                                   "contracts": contract_qty})
                 sym_state["cycle_count"] += 1
                 sym_state["cycle_history"].append({
                     "cycle": sym_state["cycle_count"],
@@ -578,8 +604,11 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
                     log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing.")
+                    # place_buy_to_close auto-detects qty and closes ALL
+                    # contracts on this OCC symbol in one order.
                     place_buy_to_close(contract, current_price)
-                    premium_dollars = (entry - current_price) * 100
+                    contract_qty    = sym_state.get("contract_qty") or 1
+                    premium_dollars = (entry - current_price) * 100 * contract_qty
                     sym_state["total_premium_collected"] = round(
                         sym_state["total_premium_collected"] + premium_dollars, 2
                     )
@@ -587,7 +616,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                         sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        TRADES_CH, f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f}",
+                        TRADES_CH, f"Wheel: {symbol} Early Close at 50% Profit — +${premium_dollars:.2f} ({contract_qty}× contracts)",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
@@ -596,10 +625,11 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                     log_event(LOG_STREAM, "wheel_strategy.py", "early_close_50pct",
                               symbol=contract,
                               details={"underlying": symbol, "entry": float(entry),
-                                       "exit": current_price, "premium": premium_dollars})
+                                       "exit": current_price, "premium": premium_dollars,
+                                       "contracts": contract_qty})
                     sym_state["current_contract"]     = None
                     sym_state["contract_entry_price"] = None
-                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f}. Selling new put."
+                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f} ({contract_qty}× contracts). Selling new put."
                     _sell_new_put(symbol, sym_state, stock_price, account)
                 else:
                     entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
@@ -660,6 +690,7 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     sym_state["contract_entry_price"]  = None  # will update once filled
     sym_state["contract_entry_date"]   = datetime.utcnow().isoformat() + "Z"
     sym_state["contract_expiration"]   = contract["expiration_date"]
+    sym_state["contract_qty"]          = 1  # wheel always sells 1 put per cycle
     sym_state["contract_type"]         = "put"
     sym_state["contract_strike"]       = float(contract["strike_price"])
     log(f"[{symbol}] New put sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
@@ -708,18 +739,24 @@ def handle_stage2(symbol, sym_state, stock_price, account):
 
             stock_pos = get_stock_position(symbol)
             if not stock_pos or int(float(stock_pos.get("qty", 0))) < 100:
-                # Shares called away — back to Stage 1
-                premium = sym_state.get("contract_entry_price", 0) or 0
-                premium_dollars = premium * 100
+                # Shares called away — back to Stage 1.
+                # Premium accounts for ALL contracts that were assigned (with
+                # multi-contract sales we sold N calls; all N got assigned
+                # together since they share an OCC symbol). state.shares_qty
+                # captured during put assignment is the truth for "how many
+                # contracts we had" — divide by 100 to get contract count.
+                contracts_held   = max(1, (sym_state.get("shares_qty") or 100) // 100)
+                premium_per_unit = sym_state.get("contract_entry_price", 0) or 0
+                premium_dollars  = premium_per_unit * 100 * contracts_held
                 sym_state["total_premium_collected"] = round(
                     sym_state["total_premium_collected"] + premium_dollars, 2
                 )
                 sym_state["total_premium_today"] = round(
                     sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"[{symbol}] CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}. +${premium_dollars:.2f}")
+                log(f"[{symbol}] CALL ASSIGNED — {contracts_held}× contracts, shares sold @ ${sym_state['contract_strike']:.0f}. +${premium_dollars:.2f}")
                 send_embed(
-                    TRADES_CH, f"Wheel: {symbol} CALL ASSIGNED — shares sold @ ${sym_state['contract_strike']:.0f}",
+                    TRADES_CH, f"Wheel: {symbol} CALL ASSIGNED — {contracts_held}× contracts @ ${sym_state['contract_strike']:.0f}",
                     color=Color.GREEN,
                     description=f"+${premium_dollars:.2f} premium kept. Returning to Stage 1.",
                     footer="wheel_strategy.py",
@@ -728,7 +765,7 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 log_event(LOG_STREAM, "wheel_strategy.py", "call_assigned",
                           symbol=contract,
                           details={"underlying": symbol, "strike": sym_state["contract_strike"],
-                                   "premium": premium_dollars})
+                                   "premium": premium_dollars, "contracts": contracts_held})
                 sym_state["stage"]                = 1
                 sym_state["shares_qty"]           = 0
                 sym_state["cost_basis_per_share"] = None
@@ -742,22 +779,25 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                     "symbol": contract,
                     "outcome": "assigned",
                     "premium": premium_dollars,
+                    "contracts": contracts_held,
                 })
-                sym_state["last_action"] = f"Call assigned. +${premium_dollars:.2f}. Restarting Stage 1."
+                sym_state["last_action"] = f"Call assigned ({contracts_held}× contracts). +${premium_dollars:.2f}. Restarting Stage 1."
                 _sell_new_put(symbol, sym_state, stock_price, account)
             else:
-                # Call expired worthless — sell another call
-                premium = sym_state.get("contract_entry_price", 0) or 0
-                premium_dollars = premium * 100
+                # Call expired worthless — sell another call.
+                # Same multi-contract math: premium = entry × 100 × contracts.
+                contracts_held   = max(1, (sym_state.get("shares_qty") or 100) // 100)
+                premium_per_unit = sym_state.get("contract_entry_price", 0) or 0
+                premium_dollars  = premium_per_unit * 100 * contracts_held
                 sym_state["total_premium_collected"] = round(
                     sym_state["total_premium_collected"] + premium_dollars, 2
                 )
                 sym_state["total_premium_today"] = round(
                     sym_state.get("total_premium_today", 0) + premium_dollars, 2
                 )
-                log(f"[{symbol}] CALL EXPIRED WORTHLESS — +${premium_dollars:.2f}.")
+                log(f"[{symbol}] CALL EXPIRED WORTHLESS — {contracts_held}× contracts, +${premium_dollars:.2f}.")
                 send_embed(
-                    TRADES_CH, f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f}",
+                    TRADES_CH, f"Wheel: {symbol} Call Expired Worthless — kept ${premium_dollars:.2f} ({contracts_held}× contracts)",
                     color=Color.GREEN,
                     description=f"{contract}\nTotal {symbol} premium: ${sym_state['total_premium_collected']:.2f}",
                     footer="wheel_strategy.py",
@@ -766,10 +806,11 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 log_event(LOG_STREAM, "wheel_strategy.py", "call_expired_worthless",
                           symbol=contract,
                           details={"underlying": symbol, "premium": premium_dollars,
-                                   "total_premium": sym_state["total_premium_collected"]})
+                                   "total_premium": sym_state["total_premium_collected"],
+                                   "contracts": contracts_held})
                 sym_state["current_contract"]     = None
                 sym_state["contract_entry_price"] = None
-                sym_state["last_action"] = f"Call expired worthless. +${premium_dollars:.2f}. Selling new call."
+                sym_state["last_action"] = f"Call expired worthless ({contracts_held}× contracts). +${premium_dollars:.2f}. Selling new call."
                 _sell_new_call(symbol, sym_state, stock_price, cost_basis)
         else:
             if sym_state.get("contract_entry_price") is None:
@@ -786,8 +827,11 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
                     log(f"[{symbol}] 50% PROFIT RULE on call: closing.")
+                    # place_buy_to_close auto-detects qty so it'll close all
+                    # contracts on this OCC symbol regardless of how many.
                     place_buy_to_close(contract, current_price)
-                    premium_dollars = (entry - current_price) * 100
+                    contracts_held  = max(1, (sym_state.get("shares_qty") or 100) // 100)
+                    premium_dollars = (entry - current_price) * 100 * contracts_held
                     sym_state["total_premium_collected"] = round(
                         sym_state["total_premium_collected"] + premium_dollars, 2
                     )
@@ -795,7 +839,7 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                         sym_state.get("total_premium_today", 0) + premium_dollars, 2
                     )
                     send_embed(
-                        TRADES_CH, f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f}",
+                        TRADES_CH, f"Wheel: {symbol} Early Close Call at 50% Profit — +${premium_dollars:.2f} ({contracts_held}× contracts)",
                         color=Color.GREEN,
                         description=f"{contract}\nClosed @ ${current_price:.2f} (entry ${entry:.2f})",
                         footer="wheel_strategy.py",
@@ -804,10 +848,11 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                     log_event(LOG_STREAM, "wheel_strategy.py", "early_close_call_50pct",
                               symbol=contract,
                               details={"underlying": symbol, "entry": float(entry),
-                                       "exit": current_price, "premium": premium_dollars})
+                                       "exit": current_price, "premium": premium_dollars,
+                                       "contracts": contracts_held})
                     sym_state["current_contract"]     = None
                     sym_state["contract_entry_price"] = None
-                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f}. Selling new call."
+                    sym_state["last_action"] = f"Closed early: +${premium_dollars:.2f} ({contracts_held}× contracts). Selling new call."
                     _sell_new_call(symbol, sym_state, stock_price, cost_basis)
                 else:
                     entry_str = f"${entry:.2f}" if entry is not None else "(unknown)"
@@ -819,9 +864,22 @@ def handle_stage2(symbol, sym_state, stock_price, account):
 
 
 def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
-    """Find and sell the best covered call (above cost basis) for `symbol`."""
+    """Find and sell covered calls — one contract per 100 shares held.
+
+    If the wheel is sitting on 100 shares, sells 1 call. With 400 shares
+    (the MARA quad-assignment scenario), sells 4 calls of the same OCC
+    symbol so every share is covered. Pulls the actual share count from
+    state.shares_qty (which was captured fresh from Alpaca on assignment).
+    """
     if cost_basis is None:
         log(f"[{symbol}] No cost basis recorded — cannot sell call.")
+        return
+
+    shares_qty = sym_state.get("shares_qty", 0) or 0
+    contracts_to_sell = shares_qty // 100  # 1 call covers 100 shares
+    if contracts_to_sell < 1:
+        log(f"[{symbol}] Only {shares_qty} shares — need 100+ to sell a covered call. Skipping.")
+        sym_state["last_action"] = f"Cannot sell call: {shares_qty} shares < 100"
         return
 
     target_strike = round_strike(cost_basis * (1 + CALL_STRIKE_PCT), cost_basis)
@@ -842,7 +900,7 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
     option_symbol = contract["symbol"]
     limit_price   = compute_limit_price(option_symbol, contract)
 
-    order = place_sell_to_open(option_symbol, limit_price)
+    order = place_sell_to_open(option_symbol, limit_price, qty=contracts_to_sell)
     sym_state["current_contract"]      = option_symbol
     sym_state["contract_order_id"]     = order["id"]
     sym_state["contract_entry_price"]  = None
@@ -850,27 +908,30 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
     sym_state["contract_expiration"]   = contract["expiration_date"]
     sym_state["contract_type"]         = "call"
     sym_state["contract_strike"]       = float(contract["strike_price"])
-    log(f"[{symbol}] New call sold: {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
+    sym_state["contract_qty"]          = contracts_to_sell  # 1 call per 100 shares
+    log(f"[{symbol}] New call sold: {contracts_to_sell}× {option_symbol} — strike ${contract['strike_price']}, exp {contract['expiration_date']}, limit ${limit_price:.2f}")
     send_embed(
-        TRADES_CH, f"Wheel: Sold-to-Open {symbol} Call @ ${contract['strike_price']}",
+        TRADES_CH, f"Wheel: Sold-to-Open {contracts_to_sell}× {symbol} Call @ ${contract['strike_price']}",
         color=Color.YELLOW,
-        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} (premium ≥ ${limit_price*100:.2f} if filled)",
+        description=f"Contract: {option_symbol}\nLimit: ${limit_price:.2f} per contract (total premium ≥ ${limit_price*100*contracts_to_sell:.2f} if filled)",
         fields=[
-            {"name": "Underlying", "value": symbol, "inline": True},
-            {"name": "Strike", "value": f"${contract['strike_price']}", "inline": True},
-            {"name": "Expiry", "value": contract["expiration_date"], "inline": True},
-            {"name": "Cost basis", "value": f"${cost_basis:.2f}", "inline": True},
-            {"name": "Premium (if filled)", "value": f"${limit_price*100:.2f}", "inline": True},
+            {"name": "Underlying",        "value": symbol,                                    "inline": True},
+            {"name": "Strike",            "value": f"${contract['strike_price']}",            "inline": True},
+            {"name": "Expiry",            "value": contract["expiration_date"],               "inline": True},
+            {"name": "Cost basis",        "value": f"${cost_basis:.2f}",                      "inline": True},
+            {"name": "Contracts",         "value": f"{contracts_to_sell} (covering {shares_qty} shares)", "inline": True},
+            {"name": "Premium (if filled)", "value": f"${limit_price*100*contracts_to_sell:.2f}", "inline": True},
         ],
         footer="wheel_strategy.py",
         actions_channel=ACTIONS_CH,
     )
-    sym_state["last_action"] = f"Sold-to-open {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
+    sym_state["last_action"] = f"Sold-to-open {contracts_to_sell}× {option_symbol} @ ${limit_price:.2f}. Awaiting fill."
     log_event(LOG_STREAM, "wheel_strategy.py", "sold_call",
               symbol=option_symbol,
               details={"underlying": symbol, "strike": float(contract["strike_price"]),
                        "expiry": contract["expiration_date"], "limit_price": limit_price,
-                       "cost_basis": cost_basis},
+                       "cost_basis": cost_basis, "qty": contracts_to_sell,
+                       "shares_covered": shares_qty},
               alpaca_order_id=order["id"])
 
 

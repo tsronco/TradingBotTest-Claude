@@ -19,7 +19,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $4.11 vs entry $5.55"
+    "last_action": "Monitoring COIN260508P00175000: $4.11 vs entry $5.55",
+    "contract_qty": 1
   },
   "MARA": {
     "stage": 1,
@@ -42,7 +43,8 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260508P00011000: $0.26 vs entry $0.40"
+    "last_action": "Monitoring MARA260508P00011000: $0.26 vs entry $0.40",
+    "contract_qty": 4
   },
   "RIOT": {
     "stage": 1,
@@ -60,7 +62,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on RIOT260508P00016000."
+    "last_action": "Awaiting fill on RIOT260508P00016000.",
+    "contract_qty": 1
   },
   "SMCI": {
     "stage": 1,
@@ -78,7 +81,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.95 vs entry $1.08"
+    "last_action": "Monitoring SMCI260508P00025000: $0.95 vs entry $1.08",
+    "contract_qty": 1
   },
   "NVDA": {
     "stage": 1,
@@ -96,7 +100,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.82 vs entry $1.23"
+    "last_action": "Monitoring NVDA260511P00195000: $2.82 vs entry $1.23",
+    "contract_qty": 1
   },
   "AMD": {
     "stage": 1,
@@ -114,7 +119,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on AMD260508P00330000."
+    "last_action": "Awaiting fill on AMD260508P00330000.",
+    "contract_qty": 1
   },
   "MU": {
     "stage": 1,
@@ -132,7 +138,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "TSLA": {
     "stage": 1,
@@ -150,7 +157,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
@@ -168,7 +176,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260508P00050000: $0.07 vs entry $0.13"
+    "last_action": "Monitoring BAC260508P00050000: $0.07 vs entry $0.13",
+    "contract_qty": 1
   },
   "XOM": {
     "stage": 1,
@@ -186,7 +195,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "KO": {
     "stage": 1,
@@ -204,7 +214,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "PLTR": {
     "stage": 1,
@@ -222,7 +233,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "SOFI": {
     "stage": 1,
@@ -240,7 +252,8 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
@@ -258,6 +271,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Insufficient options BP to sell put.",
+    "contract_qty": 1
   }
 }

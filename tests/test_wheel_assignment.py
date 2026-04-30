@@ -143,11 +143,11 @@ def test_stage1_position_open_at_50pct_profit_closes_early(monkeypatch, fresh_sy
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 2.00)  # < 50% of 4.10
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p: closes.append((c, p)) or {"id": "close-1"})
+                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-1"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "new-put"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "new-put"})
 
     ws.handle_stage1("TSLA", fresh_symbol_state, stock_price=380.0, account=_account(100000))
 
@@ -197,7 +197,7 @@ def test_stage1_expired_worthless_sells_new_put(monkeypatch, fresh_symbol_state)
 
     sells = []
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "new-put"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "new-put"})
 
     ws.handle_stage1("TSLA", fresh_symbol_state, stock_price=380.0, account=_account(100000))
 
@@ -228,7 +228,7 @@ def test_stage2_no_contract_sells_new_call(monkeypatch):
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "new-call"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "new-call"})
 
     ws.handle_stage2("TSLA", state, stock_price=345.0, account=_account())
 
@@ -253,7 +253,7 @@ def test_stage2_call_assigned_returns_to_stage1(monkeypatch):
     # Will then try to sell a new put
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=315, option_type="put"))
-    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p: {"id": "new-put"})
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: {"id": "new-put"})
 
     ws.handle_stage2("TSLA", state, stock_price=380.0, account=_account())
 
@@ -281,7 +281,7 @@ def test_stage2_call_expired_worthless_sells_new_call(monkeypatch):
                         lambda s: _stock_position_100("TSLA", avg=340.0))
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
-    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p: {"id": "new-call"})
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: {"id": "new-call"})
 
     ws.handle_stage2("TSLA", state, stock_price=350.0, account=_account())
 
@@ -304,11 +304,11 @@ def test_stage2_50pct_close_buys_back_then_sells_new_call(monkeypatch):
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 1.20)  # < 50% of 2.50
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p: closes.append((c, p)) or {"id": "close-call"})
+                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-call"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "new-call"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "new-call"})
 
     ws.handle_stage2("TSLA", state, stock_price=345.0, account=_account())
 
@@ -327,7 +327,7 @@ def test_stage2_call_strike_never_below_cost_basis(monkeypatch):
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=320, option_type="call"))
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "x"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "x"})
 
     ws.handle_stage2("TSLA", state, stock_price=345.0, account=_account())
 
@@ -447,7 +447,7 @@ def test_stage1_insufficient_bp_does_not_place_order(monkeypatch, fresh_symbol_s
     against — see the INTC 403 incident on 2026-04-30)."""
     sells = []
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "x"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "x"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
 
@@ -467,7 +467,7 @@ def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state):
     than try to place an order Alpaca will reject."""
     sells = []
     monkeypatch.setattr(ws, "place_sell_to_open",
-                        lambda c, p: sells.append((c, p)) or {"id": "x"})
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "x"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("INTC", strike=80))
 
@@ -560,3 +560,161 @@ def test_place_buy_to_close_normal_single_contract_unchanged(monkeypatch):
     ws.place_buy_to_close("TSLA260522P00340000", 2.00)
 
     assert posted[0]["qty"] == "1"
+
+
+# ── Multi-contract premium accounting ────────────────────────────────────
+
+def test_stage1_expired_worthless_multi_contract_premium(monkeypatch):
+    """If contract_qty=4 (e.g., MARA from the duplicate-sell incident) and
+    all 4 expire worthless, premium = entry × 100 × 4, not just × 100."""
+    state = ws._empty_symbol_state()
+    state["current_contract"]    = "MARA260508P00011000"
+    state["contract_order_id"]   = "x"
+    state["contract_entry_price"] = 0.40
+    state["contract_qty"]        = 4
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)  # expired
+    monkeypatch.setattr(ws, "get_stock_position",  lambda s: None)  # no assignment
+    monkeypatch.setattr(ws, "get_order", lambda o: {"status": "expired"})
+    # Avoid recursion into _sell_new_put — irrelevant to premium math
+    monkeypatch.setattr(ws, "_sell_new_put", lambda *a, **kw: None)
+
+    ws.handle_stage1("MARA", state, stock_price=12.0, account=_account())
+
+    # entry $0.40 × 100 × 4 contracts = $160 premium captured
+    assert state["total_premium_collected"] == 160.0
+
+
+def test_stage1_50pct_close_multi_contract_premium(monkeypatch):
+    """If contract_qty=4 and 50% close fires, premium captured for all 4."""
+    state = ws._empty_symbol_state()
+    state["current_contract"]    = "MARA260508P00011000"
+    state["contract_order_id"]   = "x"
+    state["contract_entry_price"] = 0.40
+    state["contract_qty"]        = 4
+
+    # Position exists at half entry price → triggers 50% close
+    monkeypatch.setattr(ws, "get_option_position",
+                        lambda c: {"qty": "-4", "avg_entry_price": "0.40", "market_value": "-80"})
+    monkeypatch.setattr(ws, "get_option_last_price", lambda c: 0.10)  # 75% profit
+    posted = []
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "y"})
+    monkeypatch.setattr(ws, "_sell_new_put", lambda *a, **kw: None)
+
+    ws.handle_stage1("MARA", state, stock_price=12.0, account=_account())
+
+    # ($0.40 - $0.10) × 100 × 4 = $120 premium captured
+    assert state["total_premium_collected"] == 120.0
+    # And the buy-to-close order was for qty=4 (not qty=1)
+    assert posted[0]["qty"] == "4"
+
+
+def test_stage1_assigned_captures_actual_shares(monkeypatch):
+    """If 4 short puts get assigned at once, capture all 400 shares (NOT 100)."""
+    state = ws._empty_symbol_state()
+    state["current_contract"]   = "MARA260508P00011000"
+    state["contract_order_id"]  = "x"
+    state["contract_entry_price"] = 0.40
+    state["contract_qty"]       = 4
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    # Alpaca shows 400 shares assigned (4 puts × 100 shares each)
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: {"qty": "400", "avg_entry_price": "11.00"})
+    monkeypatch.setattr(ws, "get_order", lambda o: {"status": "expired"})
+
+    ws.handle_stage1("MARA", state, stock_price=10.5, account=_account())
+
+    assert state["stage"]                 == 2
+    assert state["shares_qty"]            == 400         # not 100!
+    assert state["cost_basis_per_share"]  == 11.00
+    assert state["total_cost"]            == 4400.00     # 11 × 400
+
+
+def test_sell_new_call_uses_shares_qty_for_contract_count(monkeypatch):
+    """With 400 shares from a quad-assignment, _sell_new_call must sell 4 calls."""
+    state = ws._empty_symbol_state()
+    state["stage"]               = 2
+    state["shares_qty"]          = 400
+    state["cost_basis_per_share"] = 11.00
+
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda *a, **kw: _option_contract("MARA", strike=12, option_type="call"))
+    monkeypatch.setattr(ws, "compute_limit_price", lambda *a: 0.50)
+    posted = []
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "z"})
+
+    ws._sell_new_call("MARA", state, stock_price=11.5, cost_basis=11.00)
+
+    assert len(posted) == 1
+    assert posted[0]["qty"] == "4"  # 400 shares // 100 = 4 calls
+    assert posted[0]["side"] == "sell"
+    assert state["contract_qty"] == 4
+
+
+def test_sell_new_call_skips_when_under_100_shares(monkeypatch):
+    """Should refuse to sell a covered call with fewer than 100 shares."""
+    state = ws._empty_symbol_state()
+    state["stage"]               = 2
+    state["shares_qty"]          = 50  # not enough to cover any call
+    state["cost_basis_per_share"] = 11.00
+
+    posted = []
+    monkeypatch.setattr(ws, "api_post",
+                        lambda path, body: posted.append(body) or {"id": "z"})
+
+    ws._sell_new_call("MARA", state, stock_price=11.5, cost_basis=11.00)
+
+    assert posted == []  # never placed an order
+    assert "50 shares" in state["last_action"]
+
+
+def test_stage2_call_expired_multi_contract_premium(monkeypatch):
+    """If we sold 4 covered calls and all 4 expired worthless, premium is 4× single."""
+    state = ws._empty_symbol_state()
+    state["stage"]                 = 2
+    state["shares_qty"]            = 400
+    state["cost_basis_per_share"]  = 11.00
+    state["current_contract"]      = "MARA260515C00012000"
+    state["contract_order_id"]     = "y"
+    state["contract_entry_price"]  = 0.30
+    state["contract_qty"]          = 4
+    state["contract_strike"]       = 12.0
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)  # expired
+    monkeypatch.setattr(ws, "get_stock_position",  lambda s: {"qty": "400", "avg_entry_price": "11.00"})
+    monkeypatch.setattr(ws, "get_order", lambda o: {"status": "expired"})
+    monkeypatch.setattr(ws, "_sell_new_call", lambda *a, **kw: None)
+
+    ws.handle_stage2("MARA", state, stock_price=11.50, account=_account())
+
+    # $0.30 × 100 × 4 = $120 premium collected
+    assert state["total_premium_collected"] == 120.0
+
+
+def test_stage2_call_assigned_multi_contract_premium(monkeypatch):
+    """If 4 covered calls all get assigned, premium captured + back to Stage 1."""
+    state = ws._empty_symbol_state()
+    state["stage"]                 = 2
+    state["shares_qty"]            = 400
+    state["cost_basis_per_share"]  = 11.00
+    state["current_contract"]      = "MARA260515C00012000"
+    state["contract_order_id"]     = "y"
+    state["contract_entry_price"]  = 0.30
+    state["contract_qty"]          = 4
+    state["contract_strike"]       = 12.0
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_stock_position",  lambda s: None)  # all called away
+    monkeypatch.setattr(ws, "get_order", lambda o: {"status": "expired"})
+    monkeypatch.setattr(ws, "_sell_new_put", lambda *a, **kw: None)
+
+    ws.handle_stage2("MARA", state, stock_price=12.50, account=_account())
+
+    # $0.30 × 100 × 4 = $120 premium kept
+    assert state["total_premium_collected"] == 120.0
+    assert state["stage"]                  == 1
+    assert state["shares_qty"]             == 0
+    assert state["cost_basis_per_share"]   is None
