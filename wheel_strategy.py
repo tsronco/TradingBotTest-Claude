@@ -685,6 +685,18 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     limit_price   = compute_limit_price(option_symbol, contract)
 
     order = place_sell_to_open(option_symbol, limit_price)
+    # Decrement the local options_buying_power snapshot so the next symbol's
+    # BP gate uses accurate data. Without this, a successful sell here leaves
+    # the account dict showing the original BP, the next symbol's check
+    # passes on stale data, and Alpaca rejects the order with HTTP 403.
+    # (Bug observed 2026-04-30 16:09 UTC: 3 spurious 403 pings on aggressive.)
+    # Alpaca reserves the full cash-secured collateral the moment the order is
+    # accepted (well before fill), so subtracting cash_required here matches
+    # what Alpaca's BP calculation does. Self-corrects every 10 min when the
+    # next cron fire fetches fresh account state.
+    account["options_buying_power"] = str(
+        float(account.get("options_buying_power", account.get("cash", 0))) - cash_required
+    )
     sym_state["current_contract"]      = option_symbol
     sym_state["contract_order_id"]     = order["id"]
     sym_state["contract_entry_price"]  = None  # will update once filled
