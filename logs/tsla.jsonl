@@ -986,3 +986,6 @@
 {"timestamp": "2026-04-30T19:58:31.340303+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "INTC", "stage": 1, "contract": null, "stock_price": 94.405}}
 {"timestamp": "2026-04-30T19:58:31.341284+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
 {"timestamp": "2026-04-30T19:58:32.067424+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 1, "skipped": 0}}
+{"timestamp": "2026-04-30T20:07:57.172622+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 381.62, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
+{"timestamp": "2026-04-30T20:07:57.870552+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
+{"timestamp": "2026-04-30T20:07:58.382621+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
