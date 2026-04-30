@@ -30,10 +30,19 @@ CONSERVATIVE_SYMBOLS = [
     "F", "T", "INTC",
 ]
 
-# Aggressive: baseline 7 + 7 high-IV names (crypto-adjacent + volatile semis)
+# Aggressive: 7 high-IV names (priority tier) + 7 baseline symbols (fallback).
+#
+# Order matters — the wheel iterates SYMBOLS sequentially and consumes BP as
+# it places put orders. Listing aggressive names first ensures the high-IV
+# tier gets first claim on the account's buying power; the baseline tier
+# only fills if BP remains afterward. Symbols that hit insufficient cash
+# log to #aggressive-actions (firehose, not errors) since this is expected
+# behavior, not a bug.
 AGGRESSIVE_SYMBOLS = [
-    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
+    # Priority tier — aggressive high-IV names get first claim on BP
     "COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU",
+    # Fallback tier — only fill if BP remains after priority tier
+    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
 ]
 
 # ── Wheel screener universes ─────────────────────────────────────────────

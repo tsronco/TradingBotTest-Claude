@@ -595,15 +595,22 @@ def _sell_new_put(symbol, sym_state, stock_price, account):
     if cash < cash_required:
         log(f"[{symbol}] INSUFFICIENT CASH: need ${cash_required:,.0f}, have ${cash:,.0f}.")
         sym_state["last_action"] = "Insufficient cash to sell put."
+        # Insufficient cash is EXPECTED behavior in aggressive mode (priority
+        # tier consumes BP first, fallback symbols hit this naturally). It's
+        # not an error to investigate. Route to the muted firehose so the
+        # event is still visible in #all-actions / #aggressive-actions but
+        # doesn't trip phone push notifications. Result also flipped from
+        # "failure" to "skipped" to match the semantics.
         send_embed(
-            ERRORS_CH, f"Wheel: Insufficient Cash for {symbol} Put",
-            color=Color.RED,
+            ACTIONS_CH, f"Wheel: Insufficient Cash for {symbol} Put — skipped",
+            color=Color.YELLOW,
             description=f"Need ${cash_required:,.0f}, have ${cash:,.0f}",
             footer="wheel_strategy.py",
             actions_channel=ACTIONS_CH,
+            also_to_actions=False,  # we ARE the actions channel — no double-post
         )
         log_event(LOG_STREAM, "wheel_strategy.py", "insufficient_cash",
-                  result="failure",
+                  result="skipped",
                   details={"underlying": symbol, "need": cash_required, "have": cash})
         return
 
