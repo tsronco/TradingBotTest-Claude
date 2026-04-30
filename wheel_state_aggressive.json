@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-04-30T15:59:44.142934Z",
+    "last_checked": "2026-04-30T16:09:36.309494Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -42,17 +42,17 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260508P00011000: $0.28 vs entry $0.40"
+    "last_action": "Monitoring MARA260508P00011000: $0.26 vs entry $0.40"
   },
   "RIOT": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "RIOT260508P00016000",
+    "contract_order_id": "bf762f7f-faee-42a7-b47e-6e306b4380f6",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-30T16:09:23.516297Z",
+    "contract_expiration": "2026-05-08",
+    "contract_type": "put",
+    "contract_strike": 16.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -60,7 +60,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Sold-to-open RIOT260508P00016000 @ $0.63. Awaiting fill."
   },
   "SMCI": {
     "stage": 1,
@@ -96,17 +96,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.68 vs entry $1.23"
+    "last_action": "Monitoring NVDA260511P00195000: $2.80 vs entry $1.23"
   },
   "AMD": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "AMD260508P00330000",
+    "contract_order_id": "97a28f75-3b12-4a55-9e10-f8dfc83a68eb",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-04-30T16:09:28.464406Z",
+    "contract_expiration": "2026-05-08",
+    "contract_type": "put",
+    "contract_strike": 330.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -114,7 +114,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Sold-to-open AMD260508P00330000 @ $10.35. Awaiting fill."
   },
   "MU": {
     "stage": 1,
