@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T14:39:36.628623Z",
+    "last_checked": "2026-05-01T14:49:28.557014Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $2.94 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $2.83 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.67 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.66 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $3.01 vs entry $1.23",
+    "last_action": "Monitoring NVDA260511P00195000: $2.61 vs entry $1.23",
     "contract_qty": 1
   },
   "AMD": {
