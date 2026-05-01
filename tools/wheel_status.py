@@ -85,16 +85,19 @@ def _fmt_contract_line(symbol: str, sym_state: dict, early_close_pct: float) -> 
         profit = entry - current
         profit_pct = profit / entry * 100 if entry else 0
         profit_str = f"${profit*100:+.0f} ({profit_pct:+.0f}%)"
-        # Distance to early-close trigger (current ≤ entry × (1 - early_close_pct))
-        # For 50% close: trigger at current = entry * 0.5. Progress = (entry - current)/(entry*0.5)
-        target = entry * (1 - early_close_pct)
+        # Trigger matches wheel_strategy.check_early_close: current <= entry * early_close_pct.
+        # config's early_close_pct is the buy-back ratio of entry, NOT the profit threshold.
+        # E.g. 0.40 = "buy back at 40% of entry" = 60% profit captured.
+        target = entry * early_close_pct
+        profit_threshold_pct = int((1 - early_close_pct) * 100)
         if current <= target:
             progress_str = f"  TRIGGER HIT — close eligible"
         else:
-            # how far through the close threshold are we
-            pct_done = (entry - current) / (entry * early_close_pct) * 100 if early_close_pct else 0
+            # progress = how much of (entry - target) distance we've covered
+            distance_needed = entry - target  # = entry * (1 - early_close_pct)
+            pct_done = (entry - current) / distance_needed * 100 if distance_needed else 0
             pct_done = max(0, min(100, pct_done))
-            progress_str = f"  {pct_done:.0f}% toward {int(early_close_pct*100)}%-close"
+            progress_str = f"  {pct_done:.0f}% toward {profit_threshold_pct}%-profit close"
 
     detail = (
         f"         contract: {contract}  exp: {expiration} ({dte_str})  "
