@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T16:39:35.911314Z",
+    "last_checked": "2026-05-01T16:49:37.219596Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $3.00 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $2.93 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
