@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T17:09:28.988954Z",
+    "last_checked": "2026-05-01T17:19:34.539529Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $3.00 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $2.86 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -62,7 +62,7 @@
     "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260508P00018000: $0.53 vs entry $0.48",
+    "last_action": "Monitoring RIOT260508P00018000: $0.52 vs entry $0.48",
     "contract_qty": 1
   },
   "SMCI": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260508P00340000: $8.98 vs entry $9.10",
+    "last_action": "Monitoring AMD260508P00340000: $9.00 vs entry $9.10",
     "contract_qty": 1
   },
   "MU": {
@@ -184,7 +184,7 @@
     "total_premium_today": 10.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260508P00050000 @ $0.08. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260508P00050000.",
     "contract_qty": 1
   },
   "XOM": {
@@ -203,7 +203,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open XOM260508P00145000 @ $0.47. Awaiting fill.",
+    "last_action": "Awaiting fill on XOM260508P00145000.",
     "contract_qty": 1
   },
   "KO": {
