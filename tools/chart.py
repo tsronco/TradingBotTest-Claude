@@ -5,7 +5,7 @@ Renders a price chart for the requested ticker. If we hold the stock, the
 average-cost line is drawn. If a wheel contract is open in either account
 on this symbol, the strike is overlaid as a dashed line.
 
-Output is a PNG at /tmp/chart_<TICKER>_<TS>.png plus a brief stdout summary.
+Output is a PNG at <tempdir>/chart_<TICKER>_<TS>.png plus a brief stdout summary.
 
 Usage:
     python tools/chart.py TSLA
@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -114,7 +115,7 @@ def render(symbol: str, days: int, mode: str) -> str:
     fig.tight_layout()
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = f"/tmp/chart_{symbol}_{ts}.png"
+    out_path = os.path.join(tempfile.gettempdir(), f"chart_{symbol}_{ts}.png")
     fig.savefig(out_path, dpi=110)
     plt.close(fig)
 
