@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T13:39:36.423426Z",
+    "last_checked": "2026-05-01T13:49:38.412711Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $4.20 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $3.30 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -43,14 +43,14 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260508P00011000: $0.28 vs entry $0.40",
+    "last_action": "Monitoring MARA260508P00011000: $0.21 vs entry $0.40",
     "contract_qty": 4
   },
   "RIOT": {
     "stage": 1,
-    "current_contract": "RIOT260508P00016000",
+    "current_contract": null,
     "contract_order_id": "bf762f7f-faee-42a7-b47e-6e306b4380f6",
-    "contract_entry_price": 0.63,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-04-30T16:09:23.516297Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
@@ -58,11 +58,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 0.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 51.0,
+    "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260508P00016000: $0.51 vs entry $0.63",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.80 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.66 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.95 vs entry $1.23",
+    "last_action": "Monitoring NVDA260511P00195000: $2.26 vs entry $1.23",
     "contract_qty": 1
   },
   "AMD": {
