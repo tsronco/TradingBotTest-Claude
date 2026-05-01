@@ -1,22 +1,22 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T16:48:01.363673Z"
+    "last_checked": "2026-05-01T16:58:31.206801Z"
   },
   "TSLA": {
     "stage": 1,
-    "current_contract": "TSLA260522P00345000",
-    "contract_order_id": "dab105fe-5d69-4fe1-82b9-fc264a13626a",
+    "current_contract": "TSLA260522P00355000",
+    "contract_order_id": "83b65f5b-1f73-4c12-811f-accc92cf3bd5",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-01T14:37:54.027470Z",
+    "contract_entry_date": "2026-05-01T16:58:08.289459Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
-    "contract_strike": 345.0,
+    "contract_strike": 355.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 309.0,
     "total_premium_today": 309.0,
-    "cycle_count": 1,
+    "cycle_count": 2,
     "cycle_history": [
       {
         "cycle": 1,
@@ -29,9 +29,16 @@
         "exit_price": 3.8,
         "premium_net": 85.0,
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
+      },
+      {
+        "cycle": 2,
+        "type": "put",
+        "symbol": "TSLA260522P00345000",
+        "outcome": "expired_worthless",
+        "premium": 0
       }
     ],
-    "last_action": "Awaiting fill on TSLA260522P00345000.",
+    "last_action": "Sold-to-open TSLA260522P00355000 @ $3.05. Awaiting fill.",
     "contract_qty": 1
   },
   "BAC": {
@@ -55,9 +62,9 @@
   "XOM": {
     "stage": 1,
     "current_contract": "XOM260522P00135000",
-    "contract_order_id": "409fed59-6c09-4f5e-bd8a-7b041d751c55",
+    "contract_order_id": "8e692cf3-65a7-4b82-a132-f0a358991d02",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-29T13:38:06.042417Z",
+    "contract_entry_date": "2026-05-01T16:58:12.915741Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
     "contract_strike": 135.0,
@@ -66,9 +73,18 @@
     "total_cost": null,
     "total_premium_collected": 0.0,
     "total_premium_today": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on XOM260522P00135000."
+    "cycle_count": 1,
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "XOM260522P00135000",
+        "outcome": "expired_worthless",
+        "premium": 0
+      }
+    ],
+    "last_action": "Sold-to-open XOM260522P00135000 @ $0.44. Awaiting fill.",
+    "contract_qty": 1
   },
   "KO": {
     "stage": 1,
@@ -122,7 +138,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.19 vs entry $0.31"
+    "last_action": "Monitoring SOFI260515P00015000: $0.18 vs entry $0.31"
   },
   "PFE": {
     "stage": 1,
@@ -140,14 +156,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.24 vs entry $0.30"
+    "last_action": "Monitoring PFE260522P00025000: $0.25 vs entry $0.30"
   },
   "F": {
     "stage": 1,
     "current_contract": "F260522P00011000",
-    "contract_order_id": "6d0f9585-8d58-40b3-b4e0-5da758e33bfa",
+    "contract_order_id": "927d7cd8-e50d-482f-aca0-4e508f23af16",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T13:37:58.977416Z",
+    "contract_entry_date": "2026-05-01T16:58:25.832206Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
     "contract_strike": 11.0,
@@ -156,16 +172,25 @@
     "total_cost": null,
     "total_premium_collected": 0.0,
     "total_premium_today": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on F260522P00011000."
+    "cycle_count": 1,
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "F260522P00011000",
+        "outcome": "expired_worthless",
+        "premium": 0
+      }
+    ],
+    "last_action": "Sold-to-open F260522P00011000 @ $0.08. Awaiting fill.",
+    "contract_qty": 1
   },
   "T": {
     "stage": 1,
     "current_contract": "T260522P00025000",
-    "contract_order_id": "44397160-ee87-49ad-b03a-9e9fbf4d48f7",
+    "contract_order_id": "7dcfaaee-372c-4deb-9b2f-ad5fe924621a",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T13:38:01.285804Z",
+    "contract_entry_date": "2026-05-01T16:58:29.235803Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
     "contract_strike": 25.0,
@@ -174,9 +199,18 @@
     "total_cost": null,
     "total_premium_collected": 0.0,
     "total_premium_today": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on T260522P00025000."
+    "cycle_count": 1,
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "T260522P00025000",
+        "outcome": "expired_worthless",
+        "premium": 0
+      }
+    ],
+    "last_action": "Sold-to-open T260522P00025000 @ $0.15. Awaiting fill.",
+    "contract_qty": 1
   },
   "INTC": {
     "stage": 1,
