@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T17:18:09.146463Z"
+    "last_checked": "2026-05-01T17:28:00.451905Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260522P00355000: $3.03 vs entry $3.05",
+    "last_action": "Monitoring TSLA260522P00355000: $3.07 vs entry $3.05",
     "contract_qty": 1
   },
   "BAC": {
@@ -120,25 +120,26 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00125000: $2.21 vs entry $4.00"
+    "last_action": "Monitoring PLTR260522P00125000: $2.16 vs entry $4.00"
   },
   "SOFI": {
     "stage": 1,
     "current_contract": "SOFI260515P00015000",
-    "contract_order_id": "f5f526f2-e707-4a1d-b11e-6098e70db723",
-    "contract_entry_price": 0.31,
-    "contract_entry_date": "2026-04-29T13:38:16.979761Z",
+    "contract_order_id": "72a12c03-e6c1-4c22-904d-4084f29765f7",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-05-01T17:27:57.515890Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
     "contract_strike": 15.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 0.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 16.0,
+    "total_premium_today": 16.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.17 vs entry $0.31"
+    "last_action": "Sold-to-open SOFI260515P00015000 @ $0.17. Awaiting fill.",
+    "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
@@ -156,7 +157,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.25 vs entry $0.30"
+    "last_action": "Monitoring PFE260522P00025000: $0.26 vs entry $0.30"
   },
   "F": {
     "stage": 1,
