@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T17:28:00.451905Z"
+    "last_checked": "2026-05-01T17:38:06.867178Z"
   },
   "TSLA": {
     "stage": 1,
@@ -57,7 +57,7 @@
     "total_premium_today": 5.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.33 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $0.29 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -138,7 +138,7 @@
     "total_premium_today": 16.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open SOFI260515P00015000 @ $0.17. Awaiting fill.",
+    "last_action": "Awaiting fill on SOFI260515P00015000.",
     "contract_qty": 1
   },
   "PFE": {
@@ -210,7 +210,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.15 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.16 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
