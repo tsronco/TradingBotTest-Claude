@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T17:39:35.894058Z",
+    "last_checked": "2026-05-01T17:49:33.753767Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $2.92 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $2.89 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260508P00011000: $0.26 vs entry $0.26",
+    "last_action": "Monitoring MARA260508P00011000: $0.27 vs entry $0.26",
     "contract_qty": 1
   },
   "RIOT": {
@@ -62,7 +62,7 @@
     "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260508P00018000: $0.59 vs entry $0.48",
+    "last_action": "Monitoring RIOT260508P00018000: $0.55 vs entry $0.48",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.66 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.69 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260508P00340000: $8.51 vs entry $9.10",
+    "last_action": "Monitoring AMD260508P00340000: $8.18 vs entry $9.10",
     "contract_qty": 1
   },
   "MU": {
