@@ -154,6 +154,23 @@ def list_long_option_positions() -> list[dict]:
     return out
 
 
+def has_open_sell_order(option_symbol: str) -> bool:
+    """True if there's already an open sell-side order for this contract.
+
+    Prevents duplicate sell-to-close placements on cycles where a prior
+    close order is still resting (Alpaca returns 403 on the second sell
+    if it would over-commit the position qty).
+    """
+    try:
+        orders = api_get("/orders", params={"status": "open", "symbols": option_symbol})
+    except Exception:
+        return False
+    for o in orders or []:
+        if o.get("symbol") == option_symbol and o.get("side") == "sell":
+            return True
+    return False
+
+
 def place_sell_to_close(option_symbol: str, limit_price: float, qty: int):
     """Submit a sell-to-close limit order to exit a long option position."""
     body = {
@@ -165,8 +182,9 @@ def place_sell_to_close(option_symbol: str, limit_price: float, qty: int):
         "time_in_force":   "day",
         "position_intent": "sell_to_close",
     }
+    order = api_post("/orders", body)
     log(f"Sell-to-close placed: {option_symbol} qty={qty} @ ${limit_price:.2f}")
-    return api_post("/orders", body)
+    return order
 
 
 def compute_close_price(option_symbol: str) -> float | None:
@@ -247,6 +265,13 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
     """Place a sell-to-close for a long option position. Logs + pings Discord."""
     symbol = pos["symbol"]
     qty = int(float(pos["qty"]))
+
+    if has_open_sell_order(symbol):
+        log(f"[{symbol}] close already pending — skipping")
+        log_event(LOG_STREAM, "long_options_strategy.py", "close_already_pending",
+                  symbol=symbol, result="skipped",
+                  notes=f"action={action} pnl={info.get('pnl_pct', 0):.2%}")
+        return False
 
     close_price = compute_close_price(symbol)
     if close_price is None or close_price <= 0:
