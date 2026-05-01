@@ -117,6 +117,34 @@ def get_position(symbol: str, mode: str = "conservative") -> dict | None:
     return resp.json()
 
 
+def get_portfolio_history(
+    period: str = "1M",
+    timeframe: str = "1D",
+    mode: str = "conservative",
+) -> dict:
+    """Equity history for the account.
+
+    period: 1D, 1W, 1M, 3M, 1A, or "all" (Alpaca: omitted → max).
+    timeframe: 1Min, 5Min, 15Min, 1H, 1D.
+    Returns {timestamp: [...], equity: [...], profit_loss: [...], profit_loss_pct: [...]}.
+    """
+    params = {"period": period, "timeframe": timeframe}
+    return _get(f"{TRADING_API_URL}/account/portfolio/history", mode, params=params)
+
+
+def get_orders(
+    status: str = "open",
+    limit: int = 100,
+    mode: str = "conservative",
+) -> list[dict]:
+    """List orders. status: open | closed | all."""
+    return _get(
+        f"{TRADING_API_URL}/orders",
+        mode,
+        params={"status": status, "limit": limit, "direction": "desc"},
+    )
+
+
 # ── Options ─────────────────────────────────────────────────────────────────
 
 def find_option_contracts(
