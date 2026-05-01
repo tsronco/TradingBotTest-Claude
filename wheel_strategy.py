@@ -643,11 +643,15 @@ def handle_stage1(symbol, sym_state, stock_price, account):
 def _sell_new_put(symbol, sym_state, stock_price, account):
     """Find and sell the best cash-secured put for `symbol`."""
     target_strike = round_strike(stock_price * (1 - PUT_STRIKE_PCT), stock_price)
-    # Use options_buying_power (NOT plain cash). Pending option orders reserve
-    # collateral against options BP, so the cash field can lie about whether
-    # we can actually place another short put. Falls back to cash if the
-    # field is missing for any reason.
-    options_bp = float(account.get("options_buying_power", account.get("cash", 0)))
+    # Re-fetch options BP from Alpaca on every check rather than trusting
+    # the cycle-start snapshot. Alpaca reserves MORE than `strike × 100`
+    # for pending CSP orders (verified 2026-05-01: SOFI/PFE 403'd with
+    # local snapshot showing $6,022 free but Alpaca actual was $0 after
+    # BAC + XOM placed). Local-decrement-only kept drifting optimistic.
+    # GET /v2/account is cheap (~50ms) and runs at most once per symbol.
+    fresh = get_account()
+    account.update(fresh)  # keep parent dict synced so callers see truth
+    options_bp = float(fresh.get("options_buying_power", fresh.get("cash", 0)))
     cash_required = target_strike * 100
 
     if options_bp < cash_required:
@@ -989,6 +993,38 @@ def run_wheel():
             except Exception as e:
                 # Per-symbol error isolation: one bad symbol doesn't kill others.
                 log(f"[{symbol}] error in wheel cycle: {type(e).__name__}: {e}")
+
+                # Special case: Alpaca returns HTTP 403 on POST /orders when
+                # the account doesn't have enough buying power for the option
+                # order. Their real-time check reserves more than our local
+                # `strike × 100` formula, so we can pass our BP gate and still
+                # get rejected. Belt-and-suspenders: with fix A the local
+                # check is now BP-fresh per symbol, so this should be rare —
+                # but if it does fire, treat it as "BP exhausted, stop trying
+                # remaining symbols this cycle" instead of spamming #errors
+                # with one ping per leftover symbol.
+                is_bp_exhaustion = (
+                    isinstance(e, requests.exceptions.HTTPError)
+                    and getattr(e.response, "status_code", None) == 403
+                )
+                if is_bp_exhaustion:
+                    send_embed(
+                        ACTIONS_CH, f"Wheel: BP exhausted at {symbol} — skipping remaining symbols this cycle",
+                        color=Color.YELLOW,
+                        description=(
+                            "Alpaca rejected the order with HTTP 403 — its real-time "
+                            "BP check is more conservative than our local snapshot. "
+                            "Stopping cycle here; next cron fire will retry with fresh state."
+                        ),
+                        footer=f"wheel_strategy.py · {MODE}",
+                        actions_channel=ACTIONS_CH,
+                        also_to_actions=False,
+                    )
+                    log_event(LOG_STREAM, "wheel_strategy.py", "bp_exhausted_short_circuit",
+                              result="skipped",
+                              notes=f"{symbol}: 403 from Alpaca; remaining symbols skipped this cycle")
+                    break  # short-circuit the for-loop over SYMBOLS
+
                 send_embed(
                     ERRORS_CH, f"wheel_strategy.py — {symbol} cycle crashed",
                     color=Color.RED,

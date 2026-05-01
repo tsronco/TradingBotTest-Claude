@@ -102,10 +102,20 @@ class TestScoreBPFit:
         assert pts == 0
         assert "too much" in reason.lower()
 
-    def test_zero_bp(self):
-        pts, reason = score_bp_fit(50.0, 0.0)
+    def test_zero_bp_no_cash(self):
+        # No options BP and no cash → flagged as short.
+        pts, reason = score_bp_fit(50.0, 0.0, cash=0.0)
         assert pts == 0
-        assert "unknown" in reason.lower()
+        assert "short" in reason.lower()
+
+    def test_zero_bp_with_cash_covering(self):
+        # Margin saturated but cash covers the collateral — surface the
+        # distinction so the user can tell "fetch broke" apart from "the
+        # wheel can't fire because no free options BP."
+        pts, reason = score_bp_fit(50.0, 0.0, cash=10_000.0)
+        assert pts == 0
+        assert "margin saturated" in reason.lower()
+        assert "cash" in reason.lower()
 
 
 class TestScoreHoldings:

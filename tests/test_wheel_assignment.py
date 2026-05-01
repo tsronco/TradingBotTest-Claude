@@ -437,7 +437,7 @@ def test_compute_limit_price_last_resort_dollar(monkeypatch):
 
 # ── Insufficient buying power ────────────────────────────────────────────
 
-def test_stage1_insufficient_bp_does_not_place_order(monkeypatch, fresh_symbol_state):
+def test_stage1_insufficient_bp_does_not_place_order(monkeypatch, fresh_symbol_state, alpaca_account_state):
     """If options_buying_power < strike * 100, refuse to sell put.
 
     Crucially we check options_buying_power, NOT cash. Cash can be high
@@ -453,15 +453,19 @@ def test_stage1_insufficient_bp_does_not_place_order(monkeypatch, fresh_symbol_s
 
     # Cash is plentiful but options BP is depleted — the realistic Alpaca
     # state when many pending/open option orders are tying up collateral.
+    # Set on the fixture so the in-function get_account() refresh sees it.
+    alpaca_account_state["cash"] = "100000"
+    alpaca_account_state["options_buying_power"] = "10000"  # need $34k
+
     ws.handle_stage1("TSLA", fresh_symbol_state,
                       stock_price=380.0,
-                      account=_account(cash=100000, options_buying_power=10000))  # $10k BP, need $34k
+                      account=alpaca_account_state)
 
     assert sells == []
     assert "Insufficient options BP" in fresh_symbol_state["last_action"]
 
 
-def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state):
+def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state, alpaca_account_state):
     """Direct regression test for the INTC 403 bug: even when cash is
     huge, if options_buying_power is small the wheel must skip rather
     than try to place an order Alpaca will reject."""
@@ -473,12 +477,15 @@ def test_stage1_uses_options_bp_not_cash(monkeypatch, fresh_symbol_state):
 
     # The exact scenario from prod: $97k cash but only $3k options BP.
     # INTC $80 put needs $8k → must be skipped, NOT attempted.
+    # Set on the fixture so the in-function get_account() refresh sees it.
+    alpaca_account_state["cash"] = "97000"
+    alpaca_account_state["options_buying_power"] = "3000"
+
     ws.handle_stage1("INTC", fresh_symbol_state,
                       stock_price=94.0,
-                      account=_account(cash=97000, options_buying_power=3000))
+                      account=alpaca_account_state)
 
     assert sells == []  # NEVER attempted the order
-    assert fresh_symbol_state["current_contract"] is None
     assert fresh_symbol_state["current_contract"] is None
 
 
@@ -722,13 +729,17 @@ def test_stage2_call_assigned_multi_contract_premium(monkeypatch):
 
 # ── Live BP tracking across same-cycle sells ──────────────────────────────
 
-def test_sell_new_put_decrements_account_options_bp(monkeypatch):
+def test_sell_new_put_decrements_account_options_bp(monkeypatch, alpaca_account_state):
     """After a successful put sale, account[options_buying_power] should
     drop by the collateral amount so the next symbol's BP check sees real
     available BP. Without this fix, two same-cycle sells on a constrained
     account would let symbol 2 pass the BP gate on stale data — Alpaca
     would then 403 the actual order. (Regression test for 2026-04-30 16:09
-    incident: PLTR/SOFI/PFE all 403'd after earlier symbols consumed BP.)"""
+    incident: PLTR/SOFI/PFE all 403'd after earlier symbols consumed BP.)
+
+    Note: with the 2026-05-01 fix, BP is also re-fetched from Alpaca on
+    every check — but the local decrement is kept as belt-and-suspenders
+    against intra-cycle lag in Alpaca's BP recalculation."""
     state = ws._empty_symbol_state()
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("BAC", strike=50))
@@ -736,19 +747,20 @@ def test_sell_new_put_decrements_account_options_bp(monkeypatch):
     monkeypatch.setattr(ws, "place_sell_to_open",
                         lambda c, p, qty=1: {"id": "x"})
 
-    account = _account(cash=100000, options_buying_power=10000)
+    alpaca_account_state["options_buying_power"] = "10000"
 
-    ws._sell_new_put("BAC", state, stock_price=53.0, account=account)
+    ws._sell_new_put("BAC", state, stock_price=53.0, account=alpaca_account_state)
 
     # BAC $50 put = $5,000 collateral. After sale, BP should be $10k − $5k = $5k.
-    assert float(account["options_buying_power"]) == 5000.0
+    assert float(alpaca_account_state["options_buying_power"]) == 5000.0
 
 
-def test_sell_new_put_two_consecutive_sales_track_bp_correctly(monkeypatch):
+def test_sell_new_put_two_consecutive_sales_track_bp_correctly(monkeypatch, alpaca_account_state):
     """Simulates two BAC sales back-to-back in the same cycle. First should
     succeed, second should hit insufficient_bp (because the local snapshot
-    decrements after the first). Catches the stale-snapshot bug that
-    caused the 16:09 PLTR/SOFI/PFE 403 storm."""
+    decrements after the first AND the next get_account() re-fetch sees
+    the lower number). Catches the stale-snapshot bug that caused the
+    16:09 PLTR/SOFI/PFE 403 storm."""
     state1 = ws._empty_symbol_state()
     state2 = ws._empty_symbol_state()
     sells = []
@@ -759,10 +771,10 @@ def test_sell_new_put_two_consecutive_sales_track_bp_correctly(monkeypatch):
                         lambda c, p, qty=1: sells.append(c) or {"id": "x"})
 
     # Just enough BP for ONE $50P sell (collateral $5,000)
-    account = _account(cash=100000, options_buying_power=5000)
+    alpaca_account_state["options_buying_power"] = "5000"
 
-    ws._sell_new_put("BAC", state1, stock_price=53.0, account=account)
-    ws._sell_new_put("XYZ", state2, stock_price=53.0, account=account)
+    ws._sell_new_put("BAC", state1, stock_price=53.0, account=alpaca_account_state)
+    ws._sell_new_put("XYZ", state2, stock_price=53.0, account=alpaca_account_state)
 
     # First should fill, second should hit insufficient_bp
     assert len(sells) == 1, f"expected 1 sale, got {len(sells)}"

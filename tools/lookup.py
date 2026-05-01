@@ -140,8 +140,8 @@ def compute_wheelability(
     open_interest: int | None,
     strike: float,
     options_bp: float,
-    cash: float,
     stock_position: dict | None,
+    cash: float = 0.0,
 ) -> dict:
     """Compute wheelability score and reasons for one put candidate."""
     components = [

@@ -47,3 +47,33 @@ def fresh_symbol_state():
     """Returns a brand-new per-symbol wheel state dict (stage 1, no contract)."""
     import wheel_strategy
     return wheel_strategy._empty_symbol_state()
+
+
+@pytest.fixture
+def alpaca_account_state():
+    """Mutable account dict that mocked get_account() returns each call.
+
+    Tests that exercise BP-constrained paths (insufficient_bp, decrement,
+    consecutive sales) modify this dict before calling the wheel, so the
+    re-fetch inside _sell_new_put sees the right BP. Tests that don't
+    care about BP just leave it at the high default.
+    """
+    return {
+        "cash": "100000",
+        "options_buying_power": "100000",
+        "portfolio_value": "100000",
+    }
+
+
+@pytest.fixture(autouse=True)
+def _mock_wheel_get_account(monkeypatch, alpaca_account_state):
+    """Stub wheel_strategy.get_account() globally so tests don't hit Alpaca.
+
+    The 2026-05-01 fix to _sell_new_put added an in-function get_account()
+    call (re-fetching BP on every order check, since Alpaca reserves more
+    than `strike × 100` for pending CSPs and our local snapshot drifted
+    optimistic). Without this mock, tests would either hit live Alpaca or
+    fail on missing creds.
+    """
+    import wheel_strategy as ws
+    monkeypatch.setattr(ws, "get_account", lambda: alpaca_account_state, raising=False)
