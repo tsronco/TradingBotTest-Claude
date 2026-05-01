@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T16:29:35.942715Z",
+    "last_checked": "2026-05-01T16:39:35.911314Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $2.77 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $3.00 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.68 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.66 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
