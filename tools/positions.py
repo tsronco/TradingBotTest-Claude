@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import alpaca_data as ad
+from config import MODES
 
 
 def _classify(p: dict) -> str:
@@ -55,25 +56,57 @@ def _row(p: dict) -> dict:
     }
 
 
-def _format_section(title: str, rows: list[dict]) -> list[str]:
+def _close_progress(r: dict, early_close_pct: float | None) -> str:
+    """For short options: % progress toward buy-to-close trigger.
+
+    Trigger price = entry × early_close_pct (e.g. 0.50 conservative = close at half entry).
+    0% = at entry, 100% = trigger hit (ready to close), >100% = past trigger.
+    Returns "—" for non-applicable rows (longs, stocks, missing data).
+    """
+    if early_close_pct is None or r["kind"] != "option" or r["side"] != "short":
+        return "—"
+    entry = r["entry"]
+    current = r["current"]
+    if entry <= 0:
+        return "—"
+    distance_needed = entry * (1 - early_close_pct)
+    if distance_needed <= 0:
+        return "—"
+    progress = (entry - current) / distance_needed * 100
+    return f"{progress:+5.0f}%"
+
+
+def _format_section(title: str, rows: list[dict], early_close_pct: float | None = None,
+                    show_close: bool = False) -> list[str]:
     if not rows:
         return [f"{title}: (none)"]
     lines = [title]
-    lines.append(f"  {'Symbol':<22} {'Side':<6} {'Qty':>6}  {'Entry':>9} {'Current':>9}  "
-                 f"{'MV':>11}  {'UPL':>11}  {'UPL%':>7}")
-    lines.append(f"  {'-'*22} {'-'*6} {'-'*6}  {'-'*9} {'-'*9}  {'-'*11}  {'-'*11}  {'-'*7}")
+    if show_close:
+        lines.append(f"  {'Symbol':<22} {'Side':<6} {'Qty':>6}  {'Entry':>9} {'Current':>9}  "
+                     f"{'MV':>11}  {'UPL':>11}  {'UPL%':>7}  {'→Close':>7}")
+        lines.append(f"  {'-'*22} {'-'*6} {'-'*6}  {'-'*9} {'-'*9}  {'-'*11}  {'-'*11}  {'-'*7}  {'-'*7}")
+    else:
+        lines.append(f"  {'Symbol':<22} {'Side':<6} {'Qty':>6}  {'Entry':>9} {'Current':>9}  "
+                     f"{'MV':>11}  {'UPL':>11}  {'UPL%':>7}")
+        lines.append(f"  {'-'*22} {'-'*6} {'-'*6}  {'-'*9} {'-'*9}  {'-'*11}  {'-'*11}  {'-'*7}")
     total_mv = 0.0
     total_upl = 0.0
     for r in rows:
-        lines.append(
+        base = (
             f"  {r['symbol']:<22} {r['side']:<6} {r['qty']:>6}  "
             f"${r['entry']:>8.2f} ${r['current']:>8.2f}  "
             f"${r['market_value']:>10,.0f}  ${r['upl']:>+10,.0f}  {r['upl_pct']:>+6.1f}%"
         )
+        if show_close:
+            base += f"  {_close_progress(r, early_close_pct):>7}"
+        lines.append(base)
         total_mv += r["market_value"]
         total_upl += r["upl"]
-    lines.append(f"  {'TOTAL':<22} {'':<6} {'':>6}  {'':>9} {'':>9}  "
-                 f"${total_mv:>10,.0f}  ${total_upl:>+10,.0f}")
+    total_line = (f"  {'TOTAL':<22} {'':<6} {'':>6}  {'':>9} {'':>9}  "
+                  f"${total_mv:>10,.0f}  ${total_upl:>+10,.0f}")
+    if show_close:
+        total_line += f"  {'':>7}  {'':>7}"
+    lines.append(total_line)
     return lines
 
 
@@ -90,12 +123,18 @@ def render_mode(mode: str, kind_filter: str | None) -> str:
     stocks = [r for r in rows if r["kind"] == "stock"]
     options = [r for r in rows if r["kind"] == "option"]
 
+    early_close_pct = MODES.get(mode, {}).get("early_close_pct")
+
     out = [f"═══ {mode.upper()} ".ljust(80, "═")]
     if kind_filter != "option":
         out.extend(_format_section("Stocks", stocks))
     if kind_filter != "stock":
         out.append("")
-        out.extend(_format_section("Options", options))
+        out.extend(_format_section("Options", options, early_close_pct, show_close=True))
+        if early_close_pct is not None and any(r["side"] == "short" for r in options):
+            close_profit_pct = (1 - early_close_pct) * 100
+            out.append(f"  → Close trigger: buy-to-close at {early_close_pct*100:.0f}% of entry "
+                       f"({close_profit_pct:.0f}% profit). →Close shows progress to that trigger.")
 
     try:
         account = ad.get_account(mode=mode)
