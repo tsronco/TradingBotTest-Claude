@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T16:59:56.761116Z",
+    "last_checked": "2026-05-01T17:09:28.988954Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,14 +19,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $3.01 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $3.00 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
     "stage": 1,
     "current_contract": "MARA260508P00011000",
     "contract_order_id": "ac126235-3886-4682-a541-4ddbf6ac017d",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.26,
     "contract_entry_date": "2026-05-01T16:59:33.880857Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
@@ -43,14 +43,14 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Sold-to-open MARA260508P00011000 @ $0.26. Awaiting fill.",
+    "last_action": "Monitoring MARA260508P00011000: $0.28 vs entry $0.26",
     "contract_qty": 1
   },
   "RIOT": {
     "stage": 1,
     "current_contract": "RIOT260508P00018000",
     "contract_order_id": "6ba90c65-7134-4769-a10f-56ab1d049045",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.48,
     "contract_entry_date": "2026-05-01T16:59:36.052766Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
@@ -62,7 +62,7 @@
     "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open RIOT260508P00018000 @ $0.48. Awaiting fill.",
+    "last_action": "Monitoring RIOT260508P00018000: $0.53 vs entry $0.48",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.66 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.69 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -107,7 +107,7 @@
     "stage": 1,
     "current_contract": "AMD260508P00340000",
     "contract_order_id": "8374543b-74fa-42c2-a5d6-39357e9ee6a7",
-    "contract_entry_price": null,
+    "contract_entry_price": 9.1,
     "contract_entry_date": "2026-05-01T16:59:42.291093Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open AMD260508P00340000 @ $9.02. Awaiting fill.",
+    "last_action": "Monitoring AMD260508P00340000: $8.98 vs entry $9.10",
     "contract_qty": 1
   },
   "MU": {
@@ -170,10 +170,10 @@
   },
   "BAC": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "BAC260508P00050000",
+    "contract_order_id": "45b50183-0e4d-4fec-9dcb-7fb9a6bc7e11",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T13:30:00Z",
+    "contract_entry_date": "2026-05-01T17:09:23.666575Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
     "contract_strike": 50.0,
@@ -184,18 +184,18 @@
     "total_premium_today": 10.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open BAC260508P00050000 @ $0.08. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "XOM260508P00145000",
+    "contract_order_id": "2260060b-d9a8-4189-adbb-7ceb33c1e681",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-05-01T17:09:25.723227Z",
+    "contract_expiration": "2026-05-08",
+    "contract_type": "put",
+    "contract_strike": 145.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -203,7 +203,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open XOM260508P00145000 @ $0.47. Awaiting fill.",
     "contract_qty": 1
   },
   "KO": {
