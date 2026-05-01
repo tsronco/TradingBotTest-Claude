@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T16:49:37.219596Z",
+    "last_checked": "2026-05-01T16:59:56.761116Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,15 +19,15 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $2.93 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $3.01 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "MARA260508P00011000",
+    "contract_order_id": "ac126235-3886-4682-a541-4ddbf6ac017d",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T13:30:00Z",
+    "contract_entry_date": "2026-05-01T16:59:33.880857Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
     "contract_strike": 11.0,
@@ -43,18 +43,18 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Insufficient options BP to sell put.",
-    "contract_qty": 4
+    "last_action": "Sold-to-open MARA260508P00011000 @ $0.26. Awaiting fill.",
+    "contract_qty": 1
   },
   "RIOT": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "bf762f7f-faee-42a7-b47e-6e306b4380f6",
+    "current_contract": "RIOT260508P00018000",
+    "contract_order_id": "6ba90c65-7134-4769-a10f-56ab1d049045",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T16:09:23.516297Z",
+    "contract_entry_date": "2026-05-01T16:59:36.052766Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
-    "contract_strike": 16.0,
+    "contract_strike": 18.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -62,7 +62,7 @@
     "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open RIOT260508P00018000 @ $0.48. Awaiting fill.",
     "contract_qty": 1
   },
   "SMCI": {
@@ -105,21 +105,29 @@
   },
   "AMD": {
     "stage": 1,
-    "current_contract": "AMD260508P00330000",
-    "contract_order_id": "97a28f75-3b12-4a55-9e10-f8dfc83a68eb",
+    "current_contract": "AMD260508P00340000",
+    "contract_order_id": "8374543b-74fa-42c2-a5d6-39357e9ee6a7",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-04-30T16:09:28.464406Z",
+    "contract_entry_date": "2026-05-01T16:59:42.291093Z",
     "contract_expiration": "2026-05-08",
     "contract_type": "put",
-    "contract_strike": 330.0,
+    "contract_strike": 340.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 0.0,
     "total_premium_today": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on AMD260508P00330000.",
+    "cycle_count": 1,
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "AMD260508P00330000",
+        "outcome": "expired_worthless",
+        "premium": 0
+      }
+    ],
+    "last_action": "Sold-to-open AMD260508P00340000 @ $9.02. Awaiting fill.",
     "contract_qty": 1
   },
   "MU": {
