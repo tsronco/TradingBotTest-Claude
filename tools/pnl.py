@@ -15,7 +15,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -120,7 +122,7 @@ def render_chart(snap_cons: dict, snap_agg: dict, period: str) -> str:
     fig.tight_layout()
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = f"/tmp/pnl_{period}_{ts}.png"
+    out = os.path.join(tempfile.gettempdir(), f"pnl_{period}_{ts}.png")
     fig.savefig(out, dpi=110)
     plt.close(fig)
     return out
