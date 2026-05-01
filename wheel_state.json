@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T14:38:26.991949Z"
+    "last_checked": "2026-05-01T14:48:00.022695Z"
   },
   "TSLA": {
     "stage": 1,
@@ -31,7 +31,7 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Sold-to-open TSLA260522P00345000 @ $2.66. Awaiting fill.",
+    "last_action": "Awaiting fill on TSLA260522P00345000.",
     "contract_qty": 1
   },
   "BAC": {
@@ -86,7 +86,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260522P00070000: $0.05 vs entry $0.09"
+    "last_action": "Monitoring KO260522P00070000: $0.07 vs entry $0.09"
   },
   "PLTR": {
     "stage": 1,
@@ -104,7 +104,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00125000: $2.48 vs entry $4.00"
+    "last_action": "Monitoring PLTR260522P00125000: $2.45 vs entry $4.00"
   },
   "SOFI": {
     "stage": 1,
@@ -122,7 +122,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.23 vs entry $0.31"
+    "last_action": "Monitoring SOFI260515P00015000: $0.25 vs entry $0.31"
   },
   "PFE": {
     "stage": 1,
@@ -140,7 +140,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.25 vs entry $0.30"
+    "last_action": "Monitoring PFE260522P00025000: $0.22 vs entry $0.30"
   },
   "F": {
     "stage": 1,
