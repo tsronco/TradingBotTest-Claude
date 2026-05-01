@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T14:18:19.006728Z"
+    "last_checked": "2026-05-01T14:28:16.806052Z"
   },
   "TSLA": {
     "stage": 1,
-    "current_contract": "TSLA260522P00340000",
+    "current_contract": null,
     "contract_order_id": "71f794b3-f352-4c7f-9f46-b39191662449",
-    "contract_entry_price": 4.1,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-04-28T11:49:02.032475Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
@@ -14,8 +14,8 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 85.0,
-    "total_premium_today": 85.0,
+    "total_premium_collected": 309.0,
+    "total_premium_today": 309.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -31,7 +31,7 @@
         "exit_reason": "UNINTENDED \u2014 congress-copy monitor falsely stop-lossed short put (treated +18% gain as -18% drawdown). Position closed via buy-to-close market order at 19:44 UTC."
       }
     ],
-    "last_action": "Monitoring TSLA260522P00340000: $2.13 vs entry $4.10"
+    "last_action": "Insufficient options BP to sell put."
   },
   "BAC": {
     "stage": 1,
@@ -121,7 +121,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00015000: $0.20 vs entry $0.31"
+    "last_action": "Monitoring SOFI260515P00015000: $0.25 vs entry $0.31"
   },
   "PFE": {
     "stage": 1,
@@ -139,7 +139,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.28 vs entry $0.30"
+    "last_action": "Monitoring PFE260522P00025000: $0.27 vs entry $0.30"
   },
   "F": {
     "stage": 1,
