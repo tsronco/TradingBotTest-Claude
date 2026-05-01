@@ -1597,3 +1597,6 @@
 {"timestamp": "2026-05-01T19:58:14.347368+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
 {"timestamp": "2026-05-01T19:58:14.895604+00:00", "script": "long_options_strategy.py", "action": "close_already_pending", "result": "skipped", "symbol": "RIVN260522C00015500", "notes": "action=stop_loss pnl=-56.88%"}
 {"timestamp": "2026-05-01T19:58:14.895782+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 0}}
+{"timestamp": "2026-05-01T20:07:55.135827+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 390.71, "avg_cost": 367.85, "stop": 331.07, "qty": 10, "trail": false}}
+{"timestamp": "2026-05-01T20:07:55.468529+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
+{"timestamp": "2026-05-01T20:07:55.732509+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
