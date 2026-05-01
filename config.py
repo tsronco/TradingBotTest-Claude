@@ -120,6 +120,12 @@ MODES = {
         "call_dte_max":        21,
         "early_close_pct":     0.50,
 
+        # Cancel any wheel sell-to-open order pending longer than this and
+        # immediately re-quote at the fresh mid. Default: 4hr. Frees BP that
+        # would otherwise stay tied up by limit orders that won't fill (e.g.,
+        # mid-of-spread on illiquid options).
+        "stale_after_hours":   4,
+
         # Screener parameters
         "screener_universe":      None,   # falls through to default
         "screener_strike_pct":    0.10,
@@ -152,6 +158,7 @@ MODES = {
         "call_dte_min":         5,
         "call_dte_max":        10,
         "early_close_pct":     0.40,
+        "stale_after_hours":   4,
 
         "screener_universe":      AGGRESSIVE_SCREENER_UNIVERSE,
         "screener_strike_pct":    0.05,

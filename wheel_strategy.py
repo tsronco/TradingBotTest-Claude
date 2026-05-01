@@ -35,7 +35,7 @@ import os
 import json
 import time
 import requests
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from dotenv import load_dotenv
 
 import config
@@ -86,7 +86,7 @@ def apply_mode(mode_name: str) -> None:
     global PUT_STRIKE_PCT, CALL_STRIKE_PCT
     global PUT_EXPIRY_DAYS_MIN, PUT_EXPIRY_DAYS_MAX
     global CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX
-    global EARLY_CLOSE_PCT
+    global EARLY_CLOSE_PCT, STALE_AFTER_HOURS
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
 
     cfg = config.get_mode(mode_name)
@@ -110,6 +110,7 @@ def apply_mode(mode_name: str) -> None:
     CALL_EXPIRY_DAYS_MIN = cfg["call_dte_min"]
     CALL_EXPIRY_DAYS_MAX = cfg["call_dte_max"]
     EARLY_CLOSE_PCT      = cfg["early_close_pct"]
+    STALE_AFTER_HOURS    = cfg["stale_after_hours"]
 
     TRADES_CH  = cfg["trades_channel"]
     ERRORS_CH  = cfg["errors_channel"]
@@ -324,6 +325,35 @@ def place_sell_to_open(option_symbol, limit_price, qty=1):
     return order
 
 
+def cancel_order(order_id: str) -> bool:
+    """Cancel an open Alpaca order. Idempotent — returns True if the order
+    is no longer open after this call (whether we cancelled it or it was
+    already gone), False if the cancel API actually failed.
+
+    Status code handling:
+      204 — cancelled successfully.
+      404 — order doesn't exist (already cancelled externally). Treat as success.
+      422 — order can't be cancelled (already filled). Treat as success — the
+            caller's intent ("this order should not be open") is satisfied
+            because the order is no longer open.
+      5xx / network — real failure. Returns False so caller knows not to
+            attempt a replacement (the old order might still be live).
+    """
+    try:
+        resp = requests.delete(
+            f"{BASE_URL}/orders/{order_id}",
+            headers=HEADERS,
+            timeout=15,
+        )
+        if resp.status_code in (204, 404, 422):
+            return True
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        log(f"cancel_order({order_id}) failed: {type(e).__name__}: {e}")
+        return False
+
+
 def place_buy_to_close(option_symbol, limit_price, qty=None):
     """Buy-to-close a short option position.
 
@@ -437,11 +467,30 @@ def check_early_close(sym_state, current_option_price):
     return current_option_price <= entry * EARLY_CLOSE_PCT
 
 
+def _order_age_hours(sym_state) -> float:
+    """How many hours has the current contract's order been pending?
+    Returns 0.0 if contract_entry_date is missing or unparseable — never
+    triggers the stale path on a parse error (defensive default)."""
+    entry_date_str = sym_state.get("contract_entry_date")
+    if not entry_date_str:
+        return 0.0
+    try:
+        entry_dt = datetime.fromisoformat(entry_date_str.replace("Z", "+00:00"))
+        # Older state files may have stored naive datetimes; treat naive as UTC.
+        if entry_dt.tzinfo is None:
+            entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - entry_dt).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def _resolve_pending_contract(sym_state):
     """Disambiguate when contract is set but no position exists yet.
 
     Returns:
       "pending"     — order placed, not yet filled. Skip this cycle.
+      "stale"       — order pending > STALE_AFTER_HOURS. Caller should
+                      cancel and re-quote at the fresh mid.
       "just_filled" — order just filled; entry_price was set as a side effect.
       "gone"        — order is cancelled/rejected/expired or no order_id.
     """
@@ -453,6 +502,10 @@ def _resolve_pending_contract(sym_state):
         return "gone"
     status = order.get("status", "")
     if status in ("new", "accepted", "pending_new", "partially_filled", "accepted_for_bidding"):
+        # Check staleness BEFORE returning "pending". Filled/gone statuses
+        # below take precedence over stale because they're terminal.
+        if _order_age_hours(sym_state) > STALE_AFTER_HOURS:
+            return "stale"
         return "pending"
     if status == "filled":
         if sym_state.get("contract_entry_price") is None:
@@ -498,7 +551,7 @@ def handle_stage1(symbol, sym_state, stock_price, account):
         pos = get_option_position(contract)
 
         if pos is None:
-            # No position. Pending fill, just filled, or contract gone?
+            # No position. Pending fill, just filled, stale, or contract gone?
             status = _resolve_pending_contract(sym_state)
             if status == "pending":
                 log(f"[{symbol}] Stage 1 — order for {contract} still pending fill.")
@@ -507,6 +560,40 @@ def handle_stage1(symbol, sym_state, stock_price, account):
             if status == "just_filled":
                 log(f"[{symbol}] Stage 1 — order for {contract} just filled. Tracking next cycle.")
                 sym_state["last_action"] = f"Order filled on {contract} @ ${sym_state.get('contract_entry_price'):.2f}. Now tracking."
+                return
+            if status == "stale":
+                # Pending > STALE_AFTER_HOURS — cancel and re-quote at fresh mid.
+                # If cancel fails, leave state untouched (old order may still be live).
+                order_id = sym_state["contract_order_id"]
+                age_hours = _order_age_hours(sym_state)
+                log(f"[{symbol}] Stage 1 — order {contract} stale at {age_hours:.1f}h, cancelling.")
+                if cancel_order(order_id):
+                    sym_state["current_contract"]      = None
+                    sym_state["contract_order_id"]     = None
+                    sym_state["contract_entry_date"]   = None
+                    sym_state["last_action"] = f"Cancelled stale put {contract} ({age_hours:.1f}h), placing fresh."
+                    send_embed(
+                        ACTIONS_CH,
+                        f"Wheel: {symbol} put stale at {age_hours:.1f}h — cancelled, refilling",
+                        color=Color.YELLOW,
+                        description=f"Old: {contract}\nReplacing with fresh limit at current mid",
+                        footer=f"wheel_strategy.py · {MODE}",
+                        actions_channel=ACTIONS_CH,
+                        also_to_actions=False,
+                    )
+                    log_event(LOG_STREAM, "wheel_strategy.py", "stale_order_cancelled",
+                              result="success",
+                              details={"underlying": symbol, "contract": contract,
+                                       "age_hours": round(age_hours, 1), "stage": 1})
+                    # Same-cycle replacement: BP just freed up.
+                    _sell_new_put(symbol, sym_state, stock_price, account)
+                else:
+                    log(f"[{symbol}] cancel_order({order_id}) returned False — leaving state, will retry next cycle.")
+                    sym_state["last_action"] = f"Cancel of stale {contract} FAILED; will retry."
+                    log_event(LOG_STREAM, "wheel_strategy.py", "stale_order_cancel_failed",
+                              result="failure",
+                              details={"underlying": symbol, "contract": contract,
+                                       "age_hours": round(age_hours, 1), "stage": 1})
                 return
 
             # status == "gone" → assignment or expired
@@ -751,6 +838,41 @@ def handle_stage2(symbol, sym_state, stock_price, account):
             if status == "just_filled":
                 log(f"[{symbol}] Stage 2 — order for {contract} just filled.")
                 sym_state["last_action"] = f"Order filled on {contract} @ ${sym_state.get('contract_entry_price'):.2f}. Now tracking."
+                return
+            if status == "stale":
+                # Pending CC > STALE_AFTER_HOURS — cancel and re-quote at fresh mid.
+                # Same pattern as handle_stage1; we still hold the shares so
+                # _sell_new_call can re-attempt against the existing cost basis.
+                order_id = sym_state["contract_order_id"]
+                age_hours = _order_age_hours(sym_state)
+                log(f"[{symbol}] Stage 2 — call {contract} stale at {age_hours:.1f}h, cancelling.")
+                if cancel_order(order_id):
+                    sym_state["current_contract"]      = None
+                    sym_state["contract_order_id"]     = None
+                    sym_state["contract_entry_date"]   = None
+                    sym_state["last_action"] = f"Cancelled stale call {contract} ({age_hours:.1f}h), placing fresh."
+                    send_embed(
+                        ACTIONS_CH,
+                        f"Wheel: {symbol} call stale at {age_hours:.1f}h — cancelled, refilling",
+                        color=Color.YELLOW,
+                        description=f"Old: {contract}\nReplacing with fresh limit at current mid",
+                        footer=f"wheel_strategy.py · {MODE}",
+                        actions_channel=ACTIONS_CH,
+                        also_to_actions=False,
+                    )
+                    log_event(LOG_STREAM, "wheel_strategy.py", "stale_order_cancelled",
+                              result="success",
+                              details={"underlying": symbol, "contract": contract,
+                                       "age_hours": round(age_hours, 1), "stage": 2})
+                    # Same-cycle replacement: re-sell against the same shares
+                    _sell_new_call(symbol, sym_state, stock_price, cost_basis)
+                else:
+                    log(f"[{symbol}] cancel_order({order_id}) returned False — leaving state, will retry next cycle.")
+                    sym_state["last_action"] = f"Cancel of stale {contract} FAILED; will retry."
+                    log_event(LOG_STREAM, "wheel_strategy.py", "stale_order_cancel_failed",
+                              result="failure",
+                              details={"underlying": symbol, "contract": contract,
+                                       "age_hours": round(age_hours, 1), "stage": 2})
                 return
 
             stock_pos = get_stock_position(symbol)

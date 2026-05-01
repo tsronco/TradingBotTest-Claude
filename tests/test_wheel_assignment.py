@@ -781,3 +781,265 @@ def test_sell_new_put_two_consecutive_sales_track_bp_correctly(monkeypatch, alpa
     assert state1["current_contract"] is not None
     assert state2["current_contract"] is None
     assert "Insufficient" in state2["last_action"]
+
+# ── Per-mode stale_after_hours wiring ────────────────────────────────────
+
+def test_apply_mode_sets_stale_after_hours_from_config():
+    """STALE_AFTER_HOURS reads from config.MODES[mode]["stale_after_hours"]
+    so each mode can tune the threshold independently without code edits."""
+    import config
+    # Conservative
+    ws.apply_mode("conservative")
+    assert ws.STALE_AFTER_HOURS == config.MODES["conservative"]["stale_after_hours"]
+    # Aggressive
+    ws.apply_mode("aggressive")
+    assert ws.STALE_AFTER_HOURS == config.MODES["aggressive"]["stale_after_hours"]
+    # Reset to default so subsequent tests aren't surprised
+    ws.apply_mode(config.DEFAULT_MODE)
+
+# ── cancel_order helper ─────────────────────────────────────────────────
+
+def test_cancel_order_returns_true_on_success(monkeypatch):
+    """Successful DELETE /orders/{id} returns True."""
+    calls = []
+    class FakeResp:
+        status_code = 204
+        def raise_for_status(self): pass
+    monkeypatch.setattr(ws.requests, "delete",
+                        lambda url, headers=None, timeout=None: calls.append(url) or FakeResp())
+    assert ws.cancel_order("order-123") is True
+    assert any("order-123" in c for c in calls)
+
+
+def test_cancel_order_returns_true_on_404_already_gone(monkeypatch):
+    """If the order was already cancelled or never existed, treat as success.
+    The caller's intent ('this order should not be open anymore') is satisfied
+    either way."""
+    import requests as rq
+    class FakeResp:
+        status_code = 404
+        def raise_for_status(self):
+            raise rq.exceptions.HTTPError(response=self)
+    monkeypatch.setattr(ws.requests, "delete",
+                        lambda url, headers=None, timeout=None: FakeResp())
+    assert ws.cancel_order("order-gone") is True
+
+
+def test_cancel_order_returns_true_on_422_already_filled(monkeypatch):
+    """Race condition: order filled between staleness check and cancel POST.
+    Alpaca returns 422 'cannot cancel filled order'. Treat as success — the
+    position now exists and next cycle picks it up via get_option_position."""
+    import requests as rq
+    class FakeResp:
+        status_code = 422
+        def raise_for_status(self):
+            raise rq.exceptions.HTTPError(response=self)
+    monkeypatch.setattr(ws.requests, "delete",
+                        lambda url, headers=None, timeout=None: FakeResp())
+    assert ws.cancel_order("order-just-filled") is True
+
+
+def test_cancel_order_returns_false_on_5xx(monkeypatch):
+    """Real API failure (5xx, network down) returns False so caller knows
+    NOT to attempt a fresh order — the old one might still be live."""
+    import requests as rq
+    class FakeResp:
+        status_code = 503
+        def raise_for_status(self):
+            raise rq.exceptions.HTTPError(response=self)
+    monkeypatch.setattr(ws.requests, "delete",
+                        lambda url, headers=None, timeout=None: FakeResp())
+    assert ws.cancel_order("order-broken") is False
+
+# ── _resolve_pending_contract "stale" branch ────────────────────────────
+
+def test_resolve_returns_stale_when_pending_past_threshold(monkeypatch):
+    """Pending order older than STALE_AFTER_HOURS returns 'stale' so the
+    caller can cancel + replace instead of just waiting another cycle."""
+    from datetime import datetime, timedelta, timezone
+    sym_state = ws._empty_symbol_state()
+    sym_state["contract_order_id"] = "old-order"
+    # Placed 5 hours ago — past the 4hr default threshold
+    sym_state["contract_entry_date"] = (datetime.now(timezone.utc)
+                                         - timedelta(hours=5)).isoformat().replace("+00:00", "Z")
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+
+    assert ws._resolve_pending_contract(sym_state) == "stale"
+
+
+def test_resolve_returns_pending_when_under_threshold(monkeypatch):
+    """Pending order younger than STALE_AFTER_HOURS still returns 'pending'
+    so the wheel waits another cycle without cancelling prematurely."""
+    from datetime import datetime, timedelta, timezone
+    sym_state = ws._empty_symbol_state()
+    sym_state["contract_order_id"] = "fresh-order"
+    # Placed 1 hour ago — well under threshold
+    sym_state["contract_entry_date"] = (datetime.now(timezone.utc)
+                                         - timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+
+    assert ws._resolve_pending_contract(sym_state) == "pending"
+
+
+def test_resolve_filled_status_takes_precedence_over_stale(monkeypatch):
+    """If the order actually filled (status=filled), return 'just_filled'
+    even if contract_entry_date is ancient. Filling is terminal and beats
+    the staleness check."""
+    from datetime import datetime, timedelta, timezone
+    sym_state = ws._empty_symbol_state()
+    sym_state["contract_order_id"] = "old-but-filled"
+    sym_state["contract_entry_date"] = (datetime.now(timezone.utc)
+                                         - timedelta(hours=10)).isoformat().replace("+00:00", "Z")
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "filled",
+                                      "filled_avg_price": "1.23"})
+
+    assert ws._resolve_pending_contract(sym_state) == "just_filled"
+
+# ── handle_stage1 stale handling ────────────────────────────────────────
+
+def test_stage1_stale_order_cancelled_and_replaced(monkeypatch, fresh_symbol_state, alpaca_account_state):
+    """Pending put order > STALE_AFTER_HOURS → cancel via Alpaca, clear
+    state, immediately place fresh sell at current mid in the SAME cycle."""
+    from datetime import datetime, timedelta, timezone
+
+    # Set up: existing pending put, placed 5hr ago (past 4hr threshold)
+    fresh_symbol_state["current_contract"]    = "TSLA260522P00340000"
+    fresh_symbol_state["contract_order_id"]   = "stale-order-id"
+    fresh_symbol_state["contract_entry_price"] = None
+    fresh_symbol_state["contract_entry_date"] = (
+        datetime.now(timezone.utc) - timedelta(hours=5)
+    ).isoformat().replace("+00:00", "Z")
+
+    cancels = []
+    sells = []
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+    monkeypatch.setattr(ws, "cancel_order",
+                        lambda oid: cancels.append(oid) or True)
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
+    monkeypatch.setattr(ws, "compute_limit_price", lambda *a: 4.10)
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "fresh-order"})
+
+    ws.handle_stage1("TSLA", fresh_symbol_state,
+                      stock_price=380.0,
+                      account=alpaca_account_state)
+
+    assert cancels == ["stale-order-id"], "cancel_order must be called with the old order id"
+    assert len(sells) == 1, "fresh sell-to-open must be placed in the same cycle"
+    assert fresh_symbol_state["current_contract"] == "TSLA260522P00340000"
+    assert fresh_symbol_state["contract_order_id"] == "fresh-order"
+
+
+def test_stage1_stale_cancel_failure_does_not_replace(monkeypatch, fresh_symbol_state, alpaca_account_state):
+    """If cancel API actually fails (5xx etc), do NOT place a new order —
+    the old one might still be live. Avoids the duplicate-sell scenario."""
+    from datetime import datetime, timedelta, timezone
+
+    fresh_symbol_state["current_contract"]    = "TSLA260522P00340000"
+    fresh_symbol_state["contract_order_id"]   = "stale-order-id"
+    fresh_symbol_state["contract_entry_date"] = (
+        datetime.now(timezone.utc) - timedelta(hours=5)
+    ).isoformat().replace("+00:00", "Z")
+
+    sells = []
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+    monkeypatch.setattr(ws, "cancel_order", lambda oid: False)  # ← cancel fails
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "x"})
+
+    ws.handle_stage1("TSLA", fresh_symbol_state,
+                      stock_price=380.0,
+                      account=alpaca_account_state)
+
+    assert sells == [], "must NOT replace if cancel failed (old order may still be live)"
+    # State stays untouched so next cycle retries
+    assert fresh_symbol_state["current_contract"] == "TSLA260522P00340000"
+    assert fresh_symbol_state["contract_order_id"] == "stale-order-id"
+
+def test_stage2_stale_call_cancelled_and_replaced(monkeypatch, fresh_symbol_state, alpaca_account_state):
+    """Same logic as stage1_stale but for Stage 2 covered calls. Pending
+    sell-to-open call > 4hr → cancel + immediate _sell_new_call."""
+    from datetime import datetime, timedelta, timezone
+
+    # Stage 2 setup: hold 100 shares, have a pending CC that's stale
+    fresh_symbol_state["stage"]                = 2
+    fresh_symbol_state["cost_basis_per_share"] = 340.0
+    fresh_symbol_state["shares_qty"]           = 100
+    fresh_symbol_state["current_contract"]    = "TSLA260522C00375000"
+    fresh_symbol_state["contract_order_id"]   = "stale-call-id"
+    fresh_symbol_state["contract_type"]       = "call"
+    fresh_symbol_state["contract_entry_date"] = (
+        datetime.now(timezone.utc) - timedelta(hours=5)
+    ).isoformat().replace("+00:00", "Z")
+
+    cancels = []
+    sells = []
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+    monkeypatch.setattr(ws, "cancel_order",
+                        lambda oid: cancels.append(oid) or True)
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: {"qty": "100", "avg_entry_price": "340.0"})
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
+    monkeypatch.setattr(ws, "compute_limit_price", lambda *a: 5.20)
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p, qty=1: sells.append((c, p, qty)) or {"id": "fresh-call"})
+
+    ws.handle_stage2("TSLA", fresh_symbol_state,
+                      stock_price=370.0,
+                      account=alpaca_account_state)
+
+    assert cancels == ["stale-call-id"]
+    assert len(sells) == 1
+    assert fresh_symbol_state["contract_order_id"] == "fresh-call"
+
+def test_stage1_stale_filled_during_cancel_treated_as_success(monkeypatch, fresh_symbol_state, alpaca_account_state):
+    """Race condition: order is pending when we check, fills before our cancel
+    POST lands. Alpaca's DELETE returns 422 ('cannot cancel filled order').
+    cancel_order returns True (idempotent), so wheel clears state and tries
+    a fresh order — but next cycle's get_option_position will see the
+    just-filled position and shift to monitoring naturally."""
+    from datetime import datetime, timedelta, timezone
+
+    fresh_symbol_state["current_contract"]    = "TSLA260522P00340000"
+    fresh_symbol_state["contract_order_id"]   = "race-order"
+    fresh_symbol_state["contract_entry_date"] = (
+        datetime.now(timezone.utc) - timedelta(hours=5)
+    ).isoformat().replace("+00:00", "Z")
+
+    sells = []
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)  # not yet visible
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "new", "filled_avg_price": None})
+    # cancel_order returns True even though "really" the order filled — that's
+    # the idempotent-422 contract. Wheel proceeds to clear state + place fresh.
+    monkeypatch.setattr(ws, "cancel_order", lambda oid: True)
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
+    monkeypatch.setattr(ws, "compute_limit_price", lambda *a: 4.10)
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "fresh"})
+
+    ws.handle_stage1("TSLA", fresh_symbol_state,
+                      stock_price=380.0,
+                      account=alpaca_account_state)
+
+    # Wheel proceeded to place fresh. Yes, this means we briefly have TWO
+    # short puts (the race-filled one + the new one). That's a known cost of
+    # the 422-as-success contract. Next cycle's get_option_position picks up
+    # the race-filled position; the new order will either fill (giving us a
+    # qty=-2 short) or sit pending and get its own staleness treatment.
+    # Documented in the spec under "Error handling".
+    assert len(sells) == 1
+    assert fresh_symbol_state["contract_order_id"] == "fresh"
+

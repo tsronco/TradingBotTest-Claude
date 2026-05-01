@@ -26,6 +26,7 @@ REQUIRED_MODE_KEYS = {
     "wheel_symbols", "put_strike_pct", "call_strike_pct",
     "put_dte_min", "put_dte_max", "call_dte_min", "call_dte_max",
     "early_close_pct",
+    "stale_after_hours",
     "screener_universe", "screener_strike_pct",
     "screener_dte_min", "screener_dte_max",
 }
