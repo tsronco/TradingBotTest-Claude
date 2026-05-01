@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-01T19:49:32.798630Z",
+    "last_checked": "2026-05-01T19:59:58.159037Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260508P00175000: $3.05 vs entry $5.55",
+    "last_action": "Monitoring COIN260508P00175000: $3.00 vs entry $5.55",
     "contract_qty": 1
   },
   "MARA": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260508P00011000: $0.34 vs entry $0.26",
+    "last_action": "Monitoring MARA260508P00011000: $0.29 vs entry $0.26",
     "contract_qty": 1
   },
   "RIOT": {
@@ -62,7 +62,7 @@
     "total_premium_today": 51.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260508P00018000: $0.59 vs entry $0.48",
+    "last_action": "Monitoring RIOT260508P00018000: $0.57 vs entry $0.48",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.85 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.86 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.49 vs entry $1.23",
+    "last_action": "Monitoring NVDA260511P00195000: $2.65 vs entry $1.23",
     "contract_qty": 1
   },
   "AMD": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260508P00340000: $8.72 vs entry $9.10",
+    "last_action": "Monitoring AMD260508P00340000: $8.29 vs entry $9.10",
     "contract_qty": 1
   },
   "MU": {
@@ -203,7 +203,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260508P00145000: $0.37 vs entry $0.47",
+    "last_action": "Monitoring XOM260508P00145000: $0.38 vs entry $0.47",
     "contract_qty": 1
   },
   "KO": {
