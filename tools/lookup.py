@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -104,10 +105,16 @@ def score_open_interest(oi: int | None) -> tuple[int, str]:
     return 0, f"Open interest {oi:,} — thin"
 
 
-def score_bp_fit(strike: float, options_bp: float) -> tuple[int, str]:
+def score_bp_fit(strike: float, options_bp: float, cash: float = 0.0) -> tuple[int, str]:
     cash_required = strike * 100
+    # Wheel sells CSPs against options_buying_power (pending orders reserve from it).
+    # If options_bp is 0 but cash covers it, surface that — the wheel won't fire,
+    # but the user can see *why* (margin saturation, not insufficient funds).
     if options_bp <= 0:
-        return 0, f"Need ${cash_required:,.0f} — BP unknown"
+        if cash >= cash_required:
+            return 0, (f"Need ${cash_required:,.0f} — options BP $0 (margin saturated); "
+                       f"cash ${cash:,.0f} would cover, but wheel needs free options BP")
+        return 0, f"Need ${cash_required:,.0f} — options BP $0 and cash ${cash:,.0f} short"
     pct_of_bp = cash_required / options_bp * 100
     if pct_of_bp <= 25:
         return 1, f"Need ${cash_required:,.0f} of ${options_bp:,.0f} BP ({pct_of_bp:.0f}%) — fits"
@@ -133,6 +140,7 @@ def compute_wheelability(
     open_interest: int | None,
     strike: float,
     options_bp: float,
+    cash: float,
     stock_position: dict | None,
 ) -> dict:
     """Compute wheelability score and reasons for one put candidate."""
@@ -140,7 +148,7 @@ def compute_wheelability(
         score_iv(iv),
         score_spread(bid, ask),
         score_open_interest(open_interest),
-        score_bp_fit(strike, options_bp),
+        score_bp_fit(strike, options_bp, cash),
         score_holdings_context(stock_position),
     ]
     max_score = 3 + 2 + 1 + 1 + 1  # 8
@@ -259,8 +267,10 @@ def render_chart(
     bars: list[dict],
     stock_price: float,
     candidate_strikes: list[float],
-    out_dir: str = "/tmp",
+    out_dir: str | None = None,
 ) -> str:
+    if out_dir is None:
+        out_dir = tempfile.gettempdir()
     """Render a 90-day price chart with candidate strikes overlaid. Returns path."""
     import matplotlib
     matplotlib.use("Agg")
@@ -309,6 +319,7 @@ def format_report(
     candidates: list[dict],
     positions: dict,
     options_bp: float,
+    cash: float,
     chart_path: str,
     mode: str,
 ) -> str:
@@ -322,7 +333,7 @@ def format_report(
 
     lines.append(f"╔═ {symbol} ".ljust(60, "═") + "╗")
     lines.append(f"║ Price: ${stock_price:.2f}{change_str}")
-    lines.append(f"║ Mode context: {mode}  |  Options BP: ${options_bp:,.0f}")
+    lines.append(f"║ Mode context: {mode}  |  Options BP: ${options_bp:,.0f}  |  Cash: ${cash:,.0f}")
 
     for tag, pos in positions.items():
         if pos:
@@ -371,6 +382,7 @@ def format_report(
         open_interest=best["open_interest"],
         strike=best["strike"],
         options_bp=options_bp,
+        cash=cash,
         stock_position=positions.get(mode),
     )
     lines.append("")
@@ -417,11 +429,16 @@ def run_lookup(symbol: str, mode: str, strike_pct: float, dte_min: int, dte_max:
 
     positions = existing_positions(symbol)
 
+    options_bp = 0.0
+    cash = 0.0
     try:
         account = ad.get_account(mode=mode)
-        options_bp = float(account.get("options_buying_power", account.get("cash", 0)) or 0)
-    except Exception:
-        options_bp = 0.0
+        options_bp = float(account.get("options_buying_power") or 0)
+        cash = float(account.get("cash") or 0)
+    except Exception as e:
+        # Don't silently mask a real failure as "$0 BP" — print why so the user
+        # can tell "fetch broke" apart from "account legitimately has $0 BP".
+        print(f"⚠ Could not fetch account ({mode}): {e}", file=sys.stderr)
 
     chart_path = ""
     if bars:
@@ -442,6 +459,7 @@ def run_lookup(symbol: str, mode: str, strike_pct: float, dte_min: int, dte_max:
         candidates=candidates,
         positions=positions,
         options_bp=options_bp,
+        cash=cash,
         chart_path=chart_path,
         mode=mode,
     )
