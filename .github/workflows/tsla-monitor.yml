@@ -64,6 +64,40 @@ jobs:
           DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
         run: python long_options_strategy.py once
 
+      - name: Push wheel state to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f wheel_state.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://dash.fattieslearnscoding.com/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p wheel_state.json \
+                         '{key: "bot:state:conservative", payload: $p[0]}')" \
+              || echo "Dashboard push for wheel state failed (non-fatal)"
+          else
+            echo "wheel_state.json not present — skipping dashboard push"
+          fi
+
+      - name: Push strategy state to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f strategy_state.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://dash.fattieslearnscoding.com/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p strategy_state.json \
+                         '{key: "bot:strategy:conservative", payload: $p[0]}')" \
+              || echo "Dashboard push for strategy state failed (non-fatal)"
+          else
+            echo "strategy_state.json not present — skipping dashboard push"
+          fi
+
       - name: Commit state and logs
         run: |
           git config user.name "github-actions[bot]"
