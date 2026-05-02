@@ -62,6 +62,40 @@ jobs:
           DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
         run: python long_options_strategy.py --mode aggressive once
 
+      - name: Push wheel state (aggressive) to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f wheel_state_aggressive.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://dash.fattieslearnscoding.com/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p wheel_state_aggressive.json \
+                         '{key: "bot:state:aggressive", payload: $p[0]}')" \
+              || echo "Dashboard push for aggressive wheel state failed (non-fatal)"
+          else
+            echo "wheel_state_aggressive.json not present — skipping dashboard push"
+          fi
+
+      - name: Push strategy state (aggressive) to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f strategy_state_aggressive.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://dash.fattieslearnscoding.com/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p strategy_state_aggressive.json \
+                         '{key: "bot:strategy:aggressive", payload: $p[0]}')" \
+              || echo "Dashboard push for aggressive strategy state failed (non-fatal)"
+          else
+            echo "strategy_state_aggressive.json not present — skipping dashboard push"
+          fi
+
       - name: Commit state and logs
         run: |
           git config user.name "github-actions[bot]"
