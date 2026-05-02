@@ -12,17 +12,27 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@alpacahq/typescript-sdk": "^0.0.32-preview",
+    "@tanstack/react-query": "^5.100.8",
+    "@upstash/redis": "^1.37.0",
+    "cookie": "^1.1.1",
+    "lucide-react": "^1.14.0",
+    "otplib": "^13.4.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^6.30.3",
+    "zod": "^4.4.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/cookie": "^0.6.0",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.7.15",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/ui": "^4.1.5",
     "autoprefixer": "^10.5.0",
