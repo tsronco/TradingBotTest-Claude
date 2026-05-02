@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyTotp } from '../_lib/totp';
 import { encodeSession, serializeSessionCookie } from '../_lib/session';
 import { isRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit';
+import { looksLikeBackupCode, consumeBackupCodeIfValid } from '../_lib/backup-codes';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -32,7 +33,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await recordFailure(ip);                                // CHANGE
     return res.status(401).json({ error: 'invalid_credentials' });
   }
-  if (!verifyTotp(totp, totpSecret)) {
+  // CHANGE: accept either a TOTP code OR a backup code
+  let secondFactorOk = false;
+  if (looksLikeBackupCode(totp)) {
+    secondFactorOk = await consumeBackupCodeIfValid(totp);
+  } else {
+    secondFactorOk = verifyTotp(totp, totpSecret);
+  }
+  if (!secondFactorOk) {
     await recordFailure(ip);                                // CHANGE
     return res.status(401).json({ error: 'invalid_credentials' });
   }

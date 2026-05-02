@@ -93,3 +93,24 @@ describe('rate limiting', () => {
     expect(res.statusCode).toBe(429);
   });
 });
+
+import { generateBackupCode } from '../../api/_lib/backup-codes';
+import * as kvModule from '../../api/_lib/kv';
+
+describe('backup code login', () => {
+  it('accepts an unused backup code in place of TOTP', async () => {
+    const { code, hash } = generateBackupCode();
+    vi.stubEnv('BACKUP_CODES_HASHED', hash);
+
+    const kvGet = vi.fn().mockResolvedValue(null);
+    const kvSet = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(kvModule, 'kv').mockReturnValue({ get: kvGet, set: kvSet, del: vi.fn() } as any);
+
+    const { req, res } = makeReqRes({
+      password: 'correct-horse-battery-staple',
+      totp: code,
+    });
+    await handler(req, res);
+    expect(res.statusCode).toBe(200);
+  });
+});
