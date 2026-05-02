@@ -1,8 +1,39 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import Login from './routes/Login';
+import Home from './routes/Home';
+import Positions from './routes/Positions';
+import Orders from './routes/Orders';
+import Lookup from './routes/Lookup';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AppShell from './components/layout/AppShell';
+
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 30_000 },
+  },
+});
+
 export default function App() {
   return (
-    <div className="p-6">
-      <h1 className="text-text-strong text-2xl font-bold">Dashboard scaffold</h1>
-      <p className="text-muted mt-2">If this is dark with orange-ish accents, Tailwind is wired up.</p>
-    </div>
+    <QueryClientProvider client={qc}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<Home />} />
+            <Route path="/positions" element={<Positions />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/lookup/:symbol" element={<Lookup />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
