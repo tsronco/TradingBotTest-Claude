@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   encodeSession,
   decodeSession,
@@ -7,7 +7,11 @@ import {
 } from '../../api/_lib/session';
 
 beforeEach(() => {
-  process.env.SESSION_SECRET = 'a'.repeat(64);
+  vi.stubEnv('SESSION_SECRET', 'a'.repeat(64));
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe('encode/decode session', () => {
@@ -32,7 +36,7 @@ describe('encode/decode session', () => {
   });
 
   it('rejects when SESSION_SECRET is missing', () => {
-    process.env.SESSION_SECRET = '';
+    vi.stubEnv('SESSION_SECRET', '');
     const token = 'ignored.ignored';
     expect(decodeSession(token)).toBeNull();
   });

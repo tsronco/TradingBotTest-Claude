@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../../api/bot-state';
 import * as kvModule from '../../api/_lib/kv';
 
@@ -6,7 +6,11 @@ const kvSet = vi.fn();
 beforeEach(() => {
   kvSet.mockReset();
   vi.spyOn(kvModule, 'kv').mockReturnValue({ set: kvSet } as any);
-  process.env.BOT_PUSH_TOKEN = 'test-token-123';
+  vi.stubEnv('BOT_PUSH_TOKEN', 'test-token-123');
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 function makeReqRes(opts: {

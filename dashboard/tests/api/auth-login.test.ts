@@ -1,13 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { authenticator } from 'otplib';
 import handler from '../../api/auth/login';
 
 const secret = authenticator.generateSecret();
 
 beforeEach(() => {
-  process.env.DASHBOARD_PASSWORD = 'correct-horse-battery-staple';
-  process.env.TOTP_SECRET = secret;
-  process.env.SESSION_SECRET = 'a'.repeat(64);
+  vi.stubEnv('DASHBOARD_PASSWORD', 'correct-horse-battery-staple');
+  vi.stubEnv('TOTP_SECRET', secret);
+  vi.stubEnv('SESSION_SECRET', 'a'.repeat(64));
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 function makeReqRes(body: any, method = 'POST') {
