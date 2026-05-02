@@ -1,11 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyTotp } from '../_lib/totp';
 import { encodeSession, serializeSessionCookie } from '../_lib/session';
+import { isRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  const ip = clientIp(req.headers as any);
+
+  // CHANGE: rate-limit check up front
+  if (await isRateLimited(ip)) {
+    return res.status(429).json({ error: 'too_many_attempts' });
   }
 
   const { password, totp } = (req.body ?? {}) as {
@@ -21,12 +29,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const totpSecret = process.env.TOTP_SECRET ?? '';
 
   if (!expectedPassword || password !== expectedPassword) {
+    await recordFailure(ip);                                // CHANGE
     return res.status(401).json({ error: 'invalid_credentials' });
   }
   if (!verifyTotp(totp, totpSecret)) {
+    await recordFailure(ip);                                // CHANGE
     return res.status(401).json({ error: 'invalid_credentials' });
   }
 
+  await clearFailures(ip);                                  // CHANGE
   const token = encodeSession({ sub: 'tim', loggedInAt: Math.floor(Date.now() / 1000) });
   const isProd = process.env.VERCEL_ENV === 'production';
   res.setHeader('Set-Cookie', serializeSessionCookie(token, { secure: isProd }));

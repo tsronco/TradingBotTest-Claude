@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { authenticator } from 'otplib';
 import handler from '../../api/auth/login';
+import * as rateLimit from '../../api/_lib/rate-limit';
+
+vi.spyOn(rateLimit, 'isRateLimited').mockResolvedValue(false);
+vi.spyOn(rateLimit, 'recordFailure').mockResolvedValue();
+vi.spyOn(rateLimit, 'clearFailures').mockResolvedValue();
 
 const secret = authenticator.generateSecret();
 
@@ -74,5 +79,17 @@ describe('POST /api/auth/login', () => {
     expect(setCookie).toBeDefined();
     expect(String(setCookie)).toMatch(/dash_session=/);
     expect(String(setCookie)).toMatch(/HttpOnly/);
+  });
+});
+
+describe('rate limiting', () => {
+  it('returns 429 when isRateLimited returns true', async () => {
+    (rateLimit.isRateLimited as any).mockResolvedValueOnce(true);
+    const { req, res } = makeReqRes({
+      password: 'correct-horse-battery-staple',
+      totp: authenticator.generate(secret),
+    });
+    await handler(req, res);
+    expect(res.statusCode).toBe(429);
   });
 });
