@@ -16,6 +16,11 @@ interface WheelInputs {
   snapshots: Record<string, Snapshot>;
 }
 
+export type WheelabilityReason =
+  | 'no_puts_in_range'      // chain has no puts in the 7-35 DTE window
+  | 'no_quotes'             // puts in range exist but none have live bid/ask (markets closed?)
+  | 'computed';             // we found a real best put and scored it
+
 export interface WheelabilityResult {
   bestStrike: number | null;
   bestExpiration: string | null;
@@ -24,20 +29,23 @@ export interface WheelabilityResult {
   bpFit: boolean;
   annualizedPct: number | null;
   score: number;
+  reason: WheelabilityReason;
 }
 
 export function scoreWheelability(input: WheelInputs): WheelabilityResult {
   const puts = input.contracts.filter((c) => c.type === 'put');
   let best: { strike: number; exp: string; bid: number; ask: number; iv: number; dte: number } | null = null;
+  let putsInRange = 0;
 
   for (const c of puts) {
     const strike = Number(c.strike_price);
     const target = input.stockPrice * 0.9; // ~10% OTM
     const distFromTarget = Math.abs(strike - target);
-    const snap = input.snapshots[(c as any).symbol] ?? {};
-    if (!snap.latestQuote) continue;
     const dte = Math.max(1, Math.round((+new Date(c.expiration_date) - Date.now()) / 86400000));
     if (dte < 7 || dte > 35) continue;
+    putsInRange++;
+    const snap = input.snapshots[(c as any).symbol] ?? {};
+    if (!snap.latestQuote) continue;
 
     const score =
       -distFromTarget * 10 +
@@ -56,7 +64,8 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
   }
 
   if (!best) {
-    return { bestStrike: null, bestExpiration: null, yieldPct: null, spread: null, bpFit: false, annualizedPct: null, score: 0 };
+    const reason: WheelabilityReason = putsInRange === 0 ? 'no_puts_in_range' : 'no_quotes';
+    return { bestStrike: null, bestExpiration: null, yieldPct: null, spread: null, bpFit: false, annualizedPct: null, score: 0, reason };
   }
 
   const yieldPct = (best.bid / best.strike) * 100;
@@ -78,5 +87,6 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
     bpFit,
     annualizedPct,
     score: Math.min(100, Math.round(s)),
+    reason: 'computed',
   };
 }

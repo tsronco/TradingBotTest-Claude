@@ -31,15 +31,29 @@ export default function WheelabilityPanel({ symbol }: { symbol: string }) {
 
   return (
     <div>
-      <div className="text-3xl font-bold text-accent">{result.score} / 100</div>
-      {result.bestStrike ? (
-        <div className="text-xs text-text mt-2 leading-relaxed">
-          Best put: <b>{fmtUsd(result.bestStrike)} · {result.bestExpiration}</b><br />
-          Yield: {fmtPct(result.yieldPct ?? 0)} · Spread: {fmtUsd(result.spread ?? 0)} · BP fit {result.bpFit ? '✓' : '✗'}<br />
-          Annualized: ~{fmtPct(result.annualizedPct ?? 0)}
-        </div>
+      {result.reason === 'computed' ? (
+        <>
+          <div className="text-3xl font-bold text-accent">{result.score} / 100</div>
+          <div className="text-xs text-text mt-2 leading-relaxed">
+            Best put: <b>{fmtUsd(result.bestStrike!)} · {result.bestExpiration}</b><br />
+            Yield: {fmtPct(result.yieldPct ?? 0)} · Spread: {fmtUsd(result.spread ?? 0)} · BP fit {result.bpFit ? '✓' : '✗'}<br />
+            Annualized: ~{fmtPct(result.annualizedPct ?? 0)}
+          </div>
+        </>
+      ) : result.reason === 'no_quotes' ? (
+        <>
+          <div className="text-3xl font-bold text-muted">— / 100</div>
+          <div className="text-xs text-muted mt-2 leading-relaxed">
+            Live option quotes unavailable. Markets are closed (or quote feed is down) — wheelability score will populate during regular hours.
+          </div>
+        </>
       ) : (
-        <div className="text-xs text-muted mt-2">No suitable put found in 7-35 DTE range.</div>
+        <>
+          <div className="text-3xl font-bold text-muted">— / 100</div>
+          <div className="text-xs text-muted mt-2 leading-relaxed">
+            No put expirations in the 7–35 DTE window for {symbol}.
+          </div>
+        </>
       )}
     </div>
   );
