@@ -125,6 +125,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newsResp = await alpacaData<{ news?: unknown[] }>(mode, '/v1beta1/news', { symbols: symbol, limit });
       return res.status(200).json({ symbol, news: newsResp.news ?? [] });
     }
+    if (endpoint === 'equity-history') {
+      // Default: last 30 calendar days at 1H granularity. Caller can override.
+      const period = String(req.query.period ?? '1M');
+      const timeframe = String(req.query.timeframe ?? '1H');
+      const history = await alpacaTrade<{
+        timestamp?: number[];
+        equity?: number[];
+        profit_loss?: number[];
+        profit_loss_pct?: number[];
+        base_value?: number;
+      }>(mode, '/v2/account/portfolio/history', {
+        period,
+        timeframe,
+        intraday_reporting: 'market_hours',
+      });
+      return res.status(200).json({ mode, period, timeframe, history });
+    }
     if (endpoint === 'bars') {
       const symbol = String(req.query.symbol ?? '').toUpperCase();
       const timeframe = String(req.query.timeframe ?? '1Day');
