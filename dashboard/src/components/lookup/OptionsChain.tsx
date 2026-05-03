@@ -22,6 +22,18 @@ interface ChainResponse {
 
 const NEAREST_STRIKE_COUNT = 6;
 
+/** Color delta by proximity to the wheel-strategy target of |Δ| ≈ 0.30.
+ *  Cyan = sweet spot (0.28–0.32). Green = acceptable band (0.25–0.40).
+ *  Bright red = out of range. Uses absolute value so puts (negative Δ) work
+ *  the same as calls (positive Δ). */
+function deltaColorClass(delta: number | undefined | null): string {
+  if (delta == null || Number.isNaN(delta)) return 'text-mid';
+  const abs = Math.abs(delta);
+  if (abs >= 0.28 && abs <= 0.32) return 'text-cyan font-semibold';
+  if (abs >= 0.25 && abs <= 0.40) return 'text-hi';
+  return 'text-red font-bold';
+}
+
 function fmtUSDate(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${m}/${d}/${y}`;
@@ -97,92 +109,98 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
-        <div className="flex items-center gap-2 text-xs">
-          <label className="text-muted">Exp</label>
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap text-[11px]">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-dim tracking-[0.15em]">EXP</span>
           <select
             value={exp}
             onChange={(e) => setSelectedExp(e.target.value)}
-            className="bg-panel-2 text-text border border-border rounded px-1.5 py-0.5 text-xs"
+            className="bg-panel-2 text-fg border border-border rounded-sm px-2 py-0.5 text-[11px] focus:outline-none focus:border-hi"
           >
             {expirations.map((e) => (
               <option key={e} value={e}>{fmtUSDate(e)}</option>
             ))}
           </select>
 
-          <div className="inline-flex bg-panel-2 border border-border rounded overflow-hidden text-[10px] ml-1">
-            {(['puts', 'calls', 'both'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setSide(s)}
-                className={`px-2 py-0.5 ${
-                  side === s
-                    ? s === 'puts' ? 'bg-green/20 text-green' : s === 'calls' ? 'bg-red/20 text-red' : 'bg-panel text-text-strong'
-                    : 'text-muted hover:text-text'
-                }`}
-              >
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
+          <div className="inline-flex gap-1 ml-1">
+            {(['puts', 'calls', 'both'] as const).map((s) => {
+              const isActive = side === s;
+              const activeColor =
+                s === 'puts' ? (isActive ? 'bg-red/15 text-red border-red/60' : '')
+                : s === 'calls' ? (isActive ? 'bg-cyan/15 text-cyan border-cyan/60' : '')
+                : (isActive ? 'bg-hi/15 text-hi border-hi/60' : '');
+              return (
+                <button
+                  key={s}
+                  onClick={() => setSide(s)}
+                  className={`pbtn ${isActive ? 'active' : ''} ${activeColor}`}
+                  type="button"
+                >
+                  [{s}{isActive ? '*' : ''}]
+                </button>
+              );
+            })}
           </div>
 
           {isFiltered ? (
             <button
               onClick={() => setShowAllStrikes(true)}
-              className="text-muted hover:text-text underline text-[10px]"
+              className="text-dim hover:text-hi text-[10px] ml-1"
+              type="button"
             >
-              Show all ({totalStrikes} strikes)
+              show all ({totalStrikes})
             </button>
           ) : showAllStrikes && totalStrikes > NEAREST_STRIKE_COUNT ? (
             <button
               onClick={() => setShowAllStrikes(false)}
-              className="text-muted hover:text-text underline text-[10px]"
+              className="text-dim hover:text-hi text-[10px] ml-1"
+              type="button"
             >
-              Show {NEAREST_STRIKE_COUNT} nearest
+              show {NEAREST_STRIKE_COUNT} nearest
             </button>
           ) : null}
         </div>
-        <label className="text-muted text-xs flex items-center gap-1.5">
+        <label className="text-dim text-[11px] flex items-center gap-1.5 cursor-pointer">
           <input
             type="checkbox"
             checked={showAllGreeks}
             onChange={(e) => setShowAllGreeks(e.target.checked)}
           />
-          All Greeks
+          all greeks
         </label>
       </div>
-      <table className="w-full text-xs">
-        <thead className="text-muted uppercase tracking-wider text-[9px]">
-          <tr>
-            <th className="text-left px-2 py-1">Strike</th>
-            <th className="text-left px-2 py-1">Type</th>
-            <th className="text-right px-2 py-1">Bid</th>
-            <th className="text-right px-2 py-1">Ask</th>
-            <th className="text-right px-2 py-1">IV</th>
-            <th className="text-right px-2 py-1">Δ</th>
-            {showAllGreeks && <th className="text-right px-2 py-1">Γ</th>}
-            <th className="text-right px-2 py-1">Θ</th>
-            {showAllGreeks && <th className="text-right px-2 py-1">ν</th>}
-            <th className="text-right px-2 py-1">OI</th>
+      <table className="w-full text-[12px] tnum">
+        <thead className="text-dim uppercase tracking-[0.15em] text-[10px]">
+          <tr className="border-t border-b border-border">
+            <th className="text-left px-2 py-1.5 font-normal">strike</th>
+            <th className="text-left px-2 py-1.5 font-normal">type</th>
+            <th className="text-right px-2 py-1.5 font-normal">bid</th>
+            <th className="text-right px-2 py-1.5 font-normal">ask</th>
+            <th className="text-right px-2 py-1.5 font-normal">IV</th>
+            <th className="text-right px-2 py-1.5 font-normal">Δ</th>
+            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal">Γ</th>}
+            <th className="text-right px-2 py-1.5 font-normal">Θ</th>
+            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal">ν</th>}
+            <th className="text-right px-2 py-1.5 font-normal">OI</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((c) => {
             const cs = data.snapshots[c.symbol] ?? {};
             const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
-            const klass = c.type === 'call' ? 'text-red' : 'text-green';
+            const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
             return (
-              <tr key={c.symbol} className="border-t border-border">
-                <td className="px-2 py-1 text-text">{fmtUsd(Number(c.strike_price))}</td>
-                <td className={`px-2 py-1 ${klass}`}>{c.type === 'call' ? 'C' : 'P'}</td>
-                <td className="px-2 py-1 text-right">{cs.latestQuote?.bp?.toFixed(2) ?? '—'}</td>
-                <td className="px-2 py-1 text-right">{cs.latestQuote?.ap?.toFixed(2) ?? '—'}</td>
-                <td className="px-2 py-1 text-right">{cs.impliedVolatility ? fmtPct(cs.impliedVolatility * 100) : '—'}</td>
-                <td className="px-2 py-1 text-right">{g.delta?.toFixed(3) ?? '—'}</td>
-                {showAllGreeks && <td className="px-2 py-1 text-right">{g.gamma?.toFixed(4) ?? '—'}</td>}
-                <td className="px-2 py-1 text-right">{g.theta?.toFixed(3) ?? '—'}</td>
-                {showAllGreeks && <td className="px-2 py-1 text-right">{g.vega?.toFixed(3) ?? '—'}</td>}
-                <td className="px-2 py-1 text-right">{cs.openInterest ?? '—'}</td>
+              <tr key={c.symbol} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
+                <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
+                <td className={`px-2 py-1 ${klass} font-semibold`}>{c.type === 'call' ? 'C' : 'P'}</td>
+                <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.bp?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
+                <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.ap?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
+                <td className="px-2 py-1 text-right text-mid">{cs.impliedVolatility ? fmtPct(cs.impliedVolatility * 100) : <span className="text-dim">—</span>}</td>
+                <td className={`px-2 py-1 text-right ${deltaColorClass(g.delta)}`}>{g.delta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
+                {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.gamma?.toFixed(4) ?? <span className="text-dim">—</span>}</td>}
+                <td className="px-2 py-1 text-right text-mid">{g.theta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
+                {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.vega?.toFixed(3) ?? <span className="text-dim">—</span>}</td>}
+                <td className="px-2 py-1 text-right text-mid">{cs.openInterest ?? <span className="text-dim">—</span>}</td>
               </tr>
             );
           })}

@@ -1,28 +1,224 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-bg: #0a0c10;
-  --color-panel: #161a20;
-  --color-panel-2: #1f242c;
-  --color-border: #262b33;
-  --color-muted: #7d8593;
-  --color-text: #cdd5e0;
-  --color-text-strong: #e6e6e6;
-  --color-accent: #ffb84d;
-  --color-green: #5cd97e;
-  --color-red: #ff6b6b;
+  /* terminal palette */
+  --color-bg: #05080a;
+  --color-panel: #080d10;
+  --color-panel-2: #0d1f17;
+  --color-border: #143a25;
+  --color-grid: #0d1f17;
+  --color-dim: #3d6650;
+  --color-mid: #6f9c83;
+  --color-fg: #a7e0c2;
+  --color-hi: #22ff88;
+  --color-amber: #ffb454;
+  --color-red: #ff5c6c;
+  --color-cyan: #5ed3f3;
+  --color-magenta: #d36bff;
 
-  --font-mono: ui-monospace, SFMono-Regular, monospace;
+  /* back-compat aliases for components written against the original tokens */
+  --color-muted: #3d6650;
+  --color-text: #a7e0c2;
+  --color-text-strong: #22ff88;
+  --color-accent: #ffb454;
+  --color-green: #22ff88;
+
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
 html, body, #root {
   height: 100%;
+  background: var(--color-bg);
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
+  color: var(--color-fg);
   font-family: var(--font-mono);
   font-size: 13px;
   margin: 0;
+  font-feature-settings: 'tnum' on, 'lnum' on, 'ss01' on, 'zero' on;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 1px rgba(34, 255, 136, 0.18);
+}
+
+/* tabular numerics — used everywhere we render dollars / counts */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* CRT scanlines + faint phosphor glow background */
+.crt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.20) 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  z-index: 1;
+}
+.crt::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 80% at 50% 50%, rgba(34, 255, 136, 0.05), rgba(0, 0, 0, 0) 70%);
+  z-index: 1;
+}
+
+.vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(150% 100% at 50% 30%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+  z-index: 1;
+}
+
+/* faint dot grid for the body */
+.dotgrid {
+  background-image: radial-gradient(rgba(34, 255, 136, 0.06) 1px, transparent 1px);
+  background-size: 14px 14px;
+  background-position: -1px -1px;
+}
+
+/* anything that should sit above the CRT/vignette pseudo-elements */
+.above-crt { position: relative; z-index: 2; }
+
+/* blinking caret */
+@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  transform: translateY(2px);
+  background: var(--color-hi);
+  box-shadow: 0 0 6px rgba(34, 255, 136, 0.7);
+  animation: blink 1s steps(2, jump-none) infinite;
+}
+
+/* tiny status dot pulse */
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.pulse { animation: pulse 1.6s ease-in-out infinite; }
+
+/* nav row hover/active */
+.navrow:hover { background: rgba(34, 255, 136, 0.06); }
+.navrow.active { background: linear-gradient(90deg, rgba(34, 255, 136, 0.10), rgba(34, 255, 136, 0)); }
+
+/* selectable button feel (period selector, granularity selector) */
+.pbtn {
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  cursor: pointer;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  padding: 1px 7px;
+  border-radius: 2px;
+}
+.pbtn:hover { background: rgba(34, 255, 136, 0.07); color: var(--color-hi); }
+.pbtn.active { background: #0d2418; color: var(--color-hi); border-color: var(--color-hi); }
+
+/* account filter buttons in the sidebar */
+.acct-btn {
+  transition: background-color 120ms ease, color 120ms ease;
+  cursor: pointer;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  text-align: left;
+}
+.acct-btn:hover { background: rgba(34, 255, 136, 0.06); }
+.acct-btn.active { background: linear-gradient(90deg, rgba(34, 255, 136, 0.10), rgba(34, 255, 136, 0)); color: var(--color-hi); }
+
+/* selection color */
+::selection { background: var(--color-hi); color: var(--color-bg); }
+
+/* responsive containment — no horizontal scrollbars, ever */
+.shell-grid { min-width: 0; }
+.shell-grid > * { min-width: 0; }
+#cards { min-width: 0; }
+#cards > * { min-width: 0; }
+
+/* card visibility driven by data-mode attribute */
+#cards[data-mode='conservative'] article[data-acct-key='AGG'] { display: none; }
+#cards[data-mode='aggressive'] article[data-acct-key='CONS'] { display: none; }
+#cards[data-mode='conservative'],
+#cards[data-mode='aggressive'] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* ASCII rows inside cards: clip cleanly, never widen the container */
+.ascii-row {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+  text-overflow: clip;
+}
+
+.metrics-rule {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.period-row { flex-wrap: wrap; row-gap: 4px; min-width: 0; }
+
+/* equity chart svg */
+svg[data-role='chart'] {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  cursor: crosshair;
+}
+svg[data-role='chart'] .hover-layer {
+  opacity: 0;
+  transition: opacity 80ms linear;
+  pointer-events: none;
+}
+svg[data-role='chart'].is-hovering .hover-layer { opacity: 1; }
+svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
+
+/* floating hover-value label */
+.hover-label {
+  position: absolute;
+  pointer-events: none;
+  padding: 2px 6px;
+  background: var(--color-bg);
+  border: 1px solid currentColor;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -130%);
+  opacity: 0;
+  transition: opacity 80ms linear;
+  z-index: 5;
+}
+.hover-label.visible { opacity: 1; }
+
+.footer-ribbon { flex-wrap: wrap; row-gap: 6px; }
+
+/* responsive breakpoints */
+@media (max-width: 1180px) {
+  #cards { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 900px) {
+  .shell-grid { grid-template-columns: 180px 1fr !important; }
+}
+@media (max-width: 720px) {
+  .shell-grid { grid-template-columns: 1fr !important; }
+  aside.term-sidebar { display: none; }
 }
