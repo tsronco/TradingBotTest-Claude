@@ -22,6 +22,11 @@ interface ChainResponse {
 
 const NEAREST_STRIKE_COUNT = 6;
 
+function fmtUSDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${m}/${d}/${y}`;
+}
+
 type SideFilter = 'puts' | 'calls' | 'both';
 
 export default function OptionsChain({ symbol }: { symbol: string }) {
@@ -101,7 +106,7 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
             className="bg-panel-2 text-text border border-border rounded px-1.5 py-0.5 text-xs"
           >
             {expirations.map((e) => (
-              <option key={e} value={e}>{e}</option>
+              <option key={e} value={e}>{fmtUSDate(e)}</option>
             ))}
           </select>
 
