@@ -1,4 +1,4 @@
-import { kv } from './kv';
+import { kv } from './kv.js';
 
 const WINDOW_SECONDS = 60 * 15;   // 15 minutes
 const MAX_FAILURES = 5;

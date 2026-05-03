@@ -1,10 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifyTotp } from '../_lib/totp';
-import { encodeSession, serializeSessionCookie } from '../_lib/session';
-import { isRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit';
-import { looksLikeBackupCode, consumeBackupCodeIfValid } from '../_lib/backup-codes';
+import { verifyTotp } from '../_lib/totp.js';
+import { encodeSession, serializeSessionCookie, clearSessionCookie } from '../_lib/session.js';
+import { isRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit.js';
+import { looksLikeBackupCode, consumeBackupCodeIfValid } from '../_lib/backup-codes.js';
+import { getSession } from '../_lib/auth-guard.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const action = String(req.query.action ?? '');
+  if (action === 'login') return handleLogin(req, res);
+  if (action === 'logout') return handleLogout(req, res);
+  if (action === 'session') return handleSession(req, res);
+  return res.status(404).json({ error: 'unknown_action' });
+}
+
+async function handleLogin(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'method_not_allowed' });
@@ -50,4 +59,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isProd = process.env.VERCEL_ENV === 'production';
   res.setHeader('Set-Cookie', serializeSessionCookie(token, { secure: isProd }));
   return res.status(200).json({ ok: true });
+}
+
+async function handleLogout(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  const isProd = process.env.VERCEL_ENV === 'production';
+  res.setHeader('Set-Cookie', clearSessionCookie({ secure: isProd }));
+  return res.status(200).json({ ok: true });
+}
+
+async function handleSession(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  const session = getSession(req);
+  if (!session) return res.status(200).json({ authenticated: false });
+  return res.status(200).json({ authenticated: true, session });
 }

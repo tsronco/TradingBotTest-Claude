@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from './_lib/kv';
-import { isAllowedBotStateKey, lastUpdateKey } from './_lib/kv-keys';
+import { kv } from './_lib/kv.js';
+import { isAllowedBotStateKey, lastUpdateKey } from './_lib/kv-keys.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

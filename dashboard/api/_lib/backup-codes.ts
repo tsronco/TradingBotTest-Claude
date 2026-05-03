@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { kv } from './kv';
+import { kv } from './kv.js';
 
 function normalize(input: string): string {
   return input.replace(/[\s-]/g, '').toUpperCase();

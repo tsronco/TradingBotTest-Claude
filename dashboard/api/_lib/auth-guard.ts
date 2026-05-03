@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { parse as parseCookie } from 'cookie';
-import { decodeSession, SESSION_COOKIE_NAME, type Session } from './session';
+import { decodeSession, SESSION_COOKIE_NAME, type Session } from './session.js';
 
 export function getSession(req: VercelRequest): Session | null {
   const raw = req.headers.cookie ?? '';

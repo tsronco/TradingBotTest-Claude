@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { authenticator } from 'otplib';
-import handler from '../../api/auth/login';
+import handler from '../../api/auth/[action]';
 import * as rateLimit from '../../api/_lib/rate-limit';
 
 vi.spyOn(rateLimit, 'isRateLimited').mockResolvedValue(false);
@@ -22,6 +22,7 @@ afterEach(() => {
 function makeReqRes(body: any, method = 'POST') {
   const req: any = {
     method,
+    query: { action: 'login' },
     headers: { 'content-type': 'application/json' },
     body,
   };
