@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
 interface FundResp {
+  error?: string;
+  message?: string;
   fundamentals: { next_earnings_date?: number };
   earnings: Array<{
     date: string;
@@ -14,10 +16,19 @@ interface FundResp {
 export default function EarningsPanel({ symbol }: { symbol: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['fundamentals', symbol],
-    queryFn: () => api<FundResp>(`/api/fundamentals-proxy?symbol=${symbol}`),
+    queryFn: () => api<FundResp>(`/api/fundamentals?symbol=${symbol}`),
   });
   if (isLoading) return <div className="text-muted text-xs">Loading earnings…</div>;
   if (!data) return <div className="text-muted text-xs">No earnings data.</div>;
+
+  // Surface the actionable not-configured message instead of rendering blank.
+  if (data.error === 'finnhub_not_configured') {
+    return (
+      <div className="text-muted text-xs leading-relaxed">
+        {data.message ?? 'Earnings data unavailable — configure FINNHUB_API_KEY.'}
+      </div>
+    );
+  }
 
   const past = (data.earnings ?? [])
     .filter((e) => e.reported_eps != null)
@@ -25,6 +36,10 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
     .slice(-4);
   const next = (data.earnings ?? []).find((e) => e.reported_eps == null);
   const beats = past.filter((e) => (e.surprise_pct ?? 0) > 0).length;
+
+  if (past.length === 0 && !next) {
+    return <div className="text-muted text-xs">No earnings history available for {symbol}.</div>;
+  }
 
   return (
     <div>
