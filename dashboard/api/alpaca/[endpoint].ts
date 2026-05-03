@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { alpacaFor, modeFromQuery } from '../_lib/alpaca.js';
+import { alpacaData } from '../_lib/data-api.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -34,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
-      const snap = await client.getStocksSnapshots({ symbols: symbol });
+      const snap = await alpacaData(mode, '/v2/stocks/snapshots', { symbols: symbol });
       return res.status(200).json({ mode, symbol, snapshot: snap });
     }
     if (endpoint === 'chain') {
@@ -43,23 +44,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
-      const contracts = await client.getOptionsContracts({
+      // Options *contracts* live on the trading endpoint, so the SDK works fine here.
+      // Only the *snapshots* call needs to bypass the SDK (data endpoint, hits the bug).
+      const contractsResp = await client.getOptionsContracts({
         underlying_symbols: symbol,
         ...(expiration ? { expiration_date: expiration } : {}),
         limit: 200,
       });
-      const ids = (contracts as any).option_contracts?.map((c: any) => c.symbol) ?? [];
-      if (ids.length === 0) {
-        return res.status(200).json({ mode, symbol, expiration, contracts: [] });
+      const contracts = (contractsResp as any).option_contracts ?? [];
+      if (contracts.length === 0) {
+        return res.status(200).json({ mode, symbol, expiration, contracts: [], snapshots: {} });
       }
-      // Snapshots gives us bid/ask + Greeks (delta, gamma, theta, vega) + IV.
-      const snapshots = await client.getOptionsSnapshots({ symbols: ids.join(',') });
-      return res.status(200).json({
+      const ids = contracts.map((c: { symbol: string }) => c.symbol).join(',');
+      const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
         mode,
-        symbol,
-        expiration,
-        contracts: (contracts as any).option_contracts ?? [],
-        snapshots,
+        '/v1beta1/options/snapshots',
+        { symbols: ids }
+      );
+      return res.status(200).json({
+        mode, symbol, expiration,
+        contracts,
+        snapshots: snapResp.snapshots ?? {},
       });
     }
     if (endpoint === 'news') {
@@ -68,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
-      const news = await client.getNews({ symbols: symbol, limit });
+      const news = await alpacaData(mode, '/v1beta1/news', { symbols: symbol, limit });
       return res.status(200).json({ symbol, news });
     }
     if (endpoint === 'bars') {
@@ -78,7 +83,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
-      const bars = await client.getStocksBars({ symbols: symbol, timeframe, limit });
+      // Alpaca returns bars:null when no start/end is given. Default to a window
+      // ~2x the requested limit (calendar days) so we comfortably cover the bar count
+      // even for daily timeframes that skip weekends.
+      const startParam = req.query.start ? String(req.query.start) : undefined;
+      const endParam = req.query.end ? String(req.query.end) : undefined;
+      const start = startParam
+        ?? new Date(Date.now() - limit * 2 * 86400000).toISOString().slice(0, 10);
+      const bars = await alpacaData(mode, `/v2/stocks/${symbol}/bars`, {
+        timeframe, limit, start, end: endParam, feed: 'iex',
+      });
       return res.status(200).json({ symbol, timeframe, bars });
     }
     return res.status(404).json({ error: 'unknown_endpoint' });
