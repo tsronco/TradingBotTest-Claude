@@ -48,7 +48,7 @@ export default function Lookup() {
               <TradingViewChart symbol={sym} />
             </ErrorBoundary>
           </Cell>
-          <Cell title="Options Chain (nearest expiration)">
+          <Cell title="Options Chain">
             <ErrorBoundary label="Options chain">
               <OptionsChain symbol={sym} />
             </ErrorBoundary>
