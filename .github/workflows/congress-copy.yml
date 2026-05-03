@@ -107,7 +107,7 @@ jobs:
         run: |
           if [ -f congress_summary.json ]; then
             curl -fsS --max-time 10 \
-              -X POST https://dash.fattieslearnscoding.com/api/bot-state \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
               -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$(jq -n --slurpfile p congress_summary.json \
