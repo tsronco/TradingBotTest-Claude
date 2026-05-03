@@ -27,3 +27,6 @@ node_modules/
 
 # Browser automation cache
 .playwright/
+
+# Brainstorming visual companion (mockups, transient state)
+.superpowers/

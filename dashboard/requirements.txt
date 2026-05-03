@@ -1,0 +1,12 @@
+# yfinance pinned to a recent version with fixes for Yahoo's response-format
+# changes. The original 0.2.50 pin (Sep 2024) hit `'str' object has no
+# attribute 'name'` on Vercel because Yahoo started returning a slightly
+# different shape that older yfinance can't parse.
+yfinance>=0.2.65
+# curl_cffi for browser impersonation — yfinance 0.2.x uses this internally
+# when a curl_cffi session is passed in. Range pinned to versions that work
+# with yfinance's session introspection.
+curl_cffi>=0.7.0,<0.8.0
+# lxml is required for yfinance's earnings-dates HTML scraping (it parses
+# the calendar HTML page, not just the JSON API).
+lxml>=4.9.0
