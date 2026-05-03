@@ -11,6 +11,7 @@ import EarningsPanel from '../components/lookup/EarningsPanel';
 import WheelabilityPanel from '../components/lookup/WheelabilityPanel';
 import NewsPanel from '../components/lookup/NewsPanel';
 import FundamentalsPanel from '../components/lookup/FundamentalsPanel';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function Lookup() {
   const { symbol = '' } = useParams();
@@ -43,43 +44,57 @@ export default function Lookup() {
         {/* LEFT 2/3 */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           <Cell title={`TradingView · ${sym}`}>
-            <TradingViewChart symbol={sym} />
+            <ErrorBoundary label="Chart">
+              <TradingViewChart symbol={sym} />
+            </ErrorBoundary>
           </Cell>
           <Cell title="Options Chain (nearest expiration)">
-            <OptionsChain symbol={sym} />
+            <ErrorBoundary label="Options chain">
+              <OptionsChain symbol={sym} />
+            </ErrorBoundary>
           </Cell>
           <Cell title="Earnings">
-            <EarningsPanel symbol={sym} />
+            <ErrorBoundary label="Earnings">
+              <EarningsPanel symbol={sym} />
+            </ErrorBoundary>
           </Cell>
         </div>
 
         {/* RIGHT 1/3 */}
         <div className="flex flex-col gap-3">
           <Cell title="Quote">
-            <QuotePanel symbol={sym} />
-            <hr className="border-border my-3" />
-            <div className="text-muted text-[10px] uppercase tracking-wider mb-2">Your position</div>
-            <PositionContextPanel symbol={sym} />
-            <div className="flex gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => addToWatchlist.mutate()}
-                disabled={addToWatchlist.isPending || addToWatchlist.isSuccess}
-                className="flex-1 bg-panel-2 border border-border rounded-md py-1.5 text-xs text-text hover:bg-panel-2/70 flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                <Star size={12} />
-                {addToWatchlist.isSuccess ? 'Added' : 'Watchlist'}
-              </button>
-            </div>
+            <ErrorBoundary label="Quote/Position">
+              <QuotePanel symbol={sym} />
+              <hr className="border-border my-3" />
+              <div className="text-muted text-[10px] uppercase tracking-wider mb-2">Your position</div>
+              <PositionContextPanel symbol={sym} />
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => addToWatchlist.mutate()}
+                  disabled={addToWatchlist.isPending || addToWatchlist.isSuccess}
+                  className="flex-1 bg-panel-2 border border-border rounded-md py-1.5 text-xs text-text hover:bg-panel-2/70 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Star size={12} />
+                  {addToWatchlist.isSuccess ? 'Added' : 'Watchlist'}
+                </button>
+              </div>
+            </ErrorBoundary>
           </Cell>
           <Cell title="Wheelability score">
-            <WheelabilityPanel symbol={sym} />
+            <ErrorBoundary label="Wheelability">
+              <WheelabilityPanel symbol={sym} />
+            </ErrorBoundary>
           </Cell>
           <Cell title="News (recent)">
-            <NewsPanel symbol={sym} />
+            <ErrorBoundary label="News">
+              <NewsPanel symbol={sym} />
+            </ErrorBoundary>
           </Cell>
           <Cell title="Fundamentals">
-            <FundamentalsPanel symbol={sym} />
+            <ErrorBoundary label="Fundamentals">
+              <FundamentalsPanel symbol={sym} />
+            </ErrorBoundary>
           </Cell>
         </div>
       </div>

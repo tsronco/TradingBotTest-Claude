@@ -73,8 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
-      const news = await alpacaData(mode, '/v1beta1/news', { symbols: symbol, limit });
-      return res.status(200).json({ symbol, news });
+      const newsResp = await alpacaData<{ news?: unknown[] }>(mode, '/v1beta1/news', { symbols: symbol, limit });
+      return res.status(200).json({ symbol, news: newsResp.news ?? [] });
     }
     if (endpoint === 'bars') {
       const symbol = String(req.query.symbol ?? '').toUpperCase();
