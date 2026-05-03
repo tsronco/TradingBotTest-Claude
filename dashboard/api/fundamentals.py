@@ -1,11 +1,21 @@
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import json
+import os
 import yfinance as yf
 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Internal-auth gate: only the TS proxy (which holds INTERNAL_FUNCTIONS_TOKEN)
+        # can reach this function. Anything else gets a 401 — the function exists
+        # in /api space publicly because Vercel routes Python files there, but
+        # we don't want random callers consuming function-execution budget.
+        expected_token = os.environ.get('INTERNAL_FUNCTIONS_TOKEN', '')
+        provided_token = self.headers.get('X-Internal-Auth', '')
+        if not expected_token or provided_token != expected_token:
+            self._respond(401, {'error': 'unauthorized'})
+            return
         try:
             qs = parse_qs(urlparse(self.path).query)
             symbol = (qs.get('symbol') or [''])[0].upper().strip()
