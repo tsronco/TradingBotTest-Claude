@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { fmtUsd, fmtNum } from '../lib/format';
 import AccountSelector from '../components/account/AccountSelector';
 import { useAccount } from '../hooks/useAccount';
+import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
 
 interface Order {
   id: string;
@@ -48,29 +49,35 @@ function OrdersTable({ mode, status, label }: { mode: 'conservative' | 'aggressi
               <th className="text-right px-4 py-2">Filled</th>
               <th className="text-right px-4 py-2">Price</th>
               <th className="text-left px-4 py-2">Status</th>
+              <th className="text-right px-4 py-2">DTE</th>
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
-              <tr key={o.id} className="border-t border-border">
-                <td className="px-4 py-2 text-muted">{new Date(o.submitted_at).toLocaleString()}</td>
-                <td className="px-4 py-2 text-text">{o.symbol}</td>
-                <td className="px-4 py-2">{o.side}</td>
-                <td className="px-4 py-2">{o.type}</td>
-                <td className="px-4 py-2 text-right">{fmtNum(Number(o.qty))}</td>
-                <td className="px-4 py-2 text-right">{fmtNum(Number(o.filled_qty))}</td>
-                <td className="px-4 py-2 text-right">
-                  {o.filled_avg_price
-                    ? fmtUsd(Number(o.filled_avg_price))
-                    : o.limit_price
-                    ? `lim ${fmtUsd(Number(o.limit_price))}`
-                    : o.stop_price
-                    ? `stp ${fmtUsd(Number(o.stop_price))}`
-                    : '—'}
-                </td>
-                <td className="px-4 py-2 text-muted">{o.status}</td>
-              </tr>
-            ))}
+            {orders.map((o) => {
+              const parsed = parseOptionSymbol(o.symbol);
+              const dte = parsed ? daysToExpiration(parsed.expiration) : null;
+              return (
+                <tr key={o.id} className="border-t border-border">
+                  <td className="px-4 py-2 text-muted">{new Date(o.submitted_at).toLocaleString()}</td>
+                  <td className="px-4 py-2 text-text">{o.symbol}</td>
+                  <td className="px-4 py-2">{o.side}</td>
+                  <td className="px-4 py-2">{o.type}</td>
+                  <td className="px-4 py-2 text-right">{fmtNum(Number(o.qty))}</td>
+                  <td className="px-4 py-2 text-right">{fmtNum(Number(o.filled_qty))}</td>
+                  <td className="px-4 py-2 text-right">
+                    {o.filled_avg_price
+                      ? fmtUsd(Number(o.filled_avg_price))
+                      : o.limit_price
+                      ? `lim ${fmtUsd(Number(o.limit_price))}`
+                      : o.stop_price
+                      ? `stp ${fmtUsd(Number(o.stop_price))}`
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-2 text-muted">{o.status}</td>
+                  <td className="px-4 py-2 text-right text-muted">{dte == null ? '—' : `${dte}d`}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
