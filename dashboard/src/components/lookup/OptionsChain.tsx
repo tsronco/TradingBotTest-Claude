@@ -22,10 +22,13 @@ interface ChainResponse {
 
 const NEAREST_STRIKE_COUNT = 6;
 
+type SideFilter = 'puts' | 'calls' | 'both';
+
 export default function OptionsChain({ symbol }: { symbol: string }) {
   const [showAllGreeks, setShowAllGreeks] = useState(false);
   const [selectedExp, setSelectedExp] = useState<string | null>(null);
   const [showAllStrikes, setShowAllStrikes] = useState(false);
+  const [side, setSide] = useState<SideFilter>('puts');
 
   const { data, isLoading } = useQuery({
     queryKey: ['chain', symbol],
@@ -63,7 +66,10 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   }
 
   const exp = selectedExp ?? expirations[0];
-  const allRows = (byExp[exp] ?? []).slice().sort((a, b) =>
+  const sideFiltered = (byExp[exp] ?? []).filter(
+    (c) => side === 'both' || (side === 'puts' ? c.type === 'put' : c.type === 'call')
+  );
+  const allRows = sideFiltered.slice().sort((a, b) =>
     Number(a.strike_price) - Number(b.strike_price)
   );
 
@@ -72,8 +78,6 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   // strike for display). If price isn't loaded yet, fall back to all rows.
   let rows = allRows;
   if (!showAllStrikes && stockPrice != null) {
-    // Each strike has up to 2 rows (call + put). Group by strike, sort strikes
-    // by distance to price, take the 6 nearest, then expand back to rows.
     const strikes = Array.from(new Set(allRows.map((c) => Number(c.strike_price))));
     const nearestStrikes = strikes
       .slice()
@@ -100,6 +104,23 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
               <option key={e} value={e}>{e}</option>
             ))}
           </select>
+
+          <div className="inline-flex bg-panel-2 border border-border rounded overflow-hidden text-[10px] ml-1">
+            {(['puts', 'calls', 'both'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSide(s)}
+                className={`px-2 py-0.5 ${
+                  side === s
+                    ? s === 'puts' ? 'bg-green/20 text-green' : s === 'calls' ? 'bg-red/20 text-red' : 'bg-panel text-text-strong'
+                    : 'text-muted hover:text-text'
+                }`}
+              >
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+
           {isFiltered ? (
             <button
               onClick={() => setShowAllStrikes(true)}
