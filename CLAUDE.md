@@ -2,6 +2,8 @@
 
 Alpaca paper trading sandbox running scheduled bots on **GitHub Actions cron** across **two paper accounts in parallel** — a "conservative" and an "aggressive" wheel — to A/B-test wheel parameter aggressiveness in real market conditions. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
 
+A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, deployed to Vercel at https://tradingbot-dashboard-blue.vercel.app) sits alongside the bots — read-only-monitoring + manual lookup of any symbol. See [Dashboard subproject](#dashboard-subproject) below.
+
 ## Architecture at a glance
 
 ```
@@ -263,3 +265,81 @@ The congress-copy package has its own pytest setup under `congress-copy/tests/` 
 - Orders placed pre-market or after-hours queue for next regular session open
 - Yahoo (YHOO) is not publicly traded — private company since 2021
 - Wheel option positions take a brief moment after market open to fill — the wheel's `_resolve_pending_contract` helper distinguishes "still pending" from "contract gone" via order status
+
+## Dashboard subproject
+
+A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. Phase 1 shipped 2026-05-02.
+
+- 🌐 **Live:** https://tradingbot-dashboard-blue.vercel.app
+- 📋 **Spec:** `docs/superpowers/specs/2026-05-02-trading-dashboard-design.md`
+- 📦 **Phase 1 plan (executed):** `docs/superpowers/plans/2026-05-02-trading-dashboard-phase1.md`
+- 🤝 **Handoff doc (continuing tomorrow):** `docs/superpowers/HANDOFF-2026-05-02.md`
+
+### Phase 1 deliverable (shipped, all working)
+
+- Auth: hardcoded password + TOTP + 8 single-use backup codes + KV-backed rate limiting (5 fails / 15 min)
+- Bot-state push contract: each of `tsla-monitor.yml`, `tsla-monitor-aggressive.yml`, `congress-copy.yml` POSTs state JSON to `/api/bot-state` after its bot scripts run; bearer-auth via `BOT_PUSH_TOKEN`; fire-and-forget so bots are unaffected if dashboard is down
+- Read-only pages: Home (dual-account snapshot + equity-curve sparklines w/ 1D/1W/1M/3M/1Y selector), Positions (stocks + options w/ all 5 Greeks + DTE + wheel-close % progress), Orders (open + filled w/ DTE)
+- Lookup page (`/lookup/:symbol`): TradingView Advanced Chart, options chain w/ 25 expirations (MM/DD/YYYY dropdown, puts/calls/both filter, 6-strikes-nearest default, all 5 Greeks toggle), Robinhood-style earnings bars (yfinance), fundamentals (yfinance), wheelability scorer (with explicit messaging when markets closed), news (Alpaca), watchlist add
+- Account selector (Both / Conservative / Aggressive) syncs across all components via custom event
+- ErrorBoundary wraps every Lookup panel (no more whole-page blanking on a single component error)
+- 34 vitest tests (auth flows, KV whitelist, TOTP, sessions, option-symbol parsing)
+
+### Architecture
+
+```
+dashboard/
+├── api/                    # 6 Vercel serverless functions (Hobby plan limit is 12)
+│   ├── _lib/              # shared helpers (NOT functions — _ prefix excludes from routing)
+│   │   ├── kv.ts          # @upstash/redis singleton + getJson/setJson
+│   │   ├── kv-keys.ts     # whitelist of allowed bot-state keys + KV_KEYS map
+│   │   ├── totp.ts        # otplib v12 — verifyTotp(code, secret) → boolean (sync)
+│   │   ├── session.ts     # HMAC-signed session cookies (Node stdlib crypto)
+│   │   ├── auth-guard.ts  # requireAuth(req, res) + getSession(req)
+│   │   ├── alpaca.ts      # createClient factory, mode-aware
+│   │   ├── data-api.ts    # alpacaData() + alpacaTrade() — bypass SDK bug (see below)
+│   │   ├── rate-limit.ts  # KV-backed login lockout
+│   │   └── backup-codes.ts # SHA-256 hashed, single-use, KV-tracked
+│   ├── auth/[action].ts   # login | logout | session
+│   ├── alpaca/[endpoint].ts  # account | positions | orders | quote | chain | news | bars | equity-history
+│   ├── kv/[resource].ts   # bot-state (read) | watchlist (CRUD)
+│   ├── bot-state.ts       # bot push webhook (bearer-auth, key whitelist)
+│   ├── fundamentals.py    # yfinance Python edge function (curl_cffi for browser impersonation)
+│   └── fundamentals-proxy.ts # TS proxy that gates the Python with INTERNAL_FUNCTIONS_TOKEN
+├── src/
+│   ├── routes/            # Login · Home · Positions · Orders · Lookup
+│   ├── components/        # auth · layout · account · lookup · ErrorBoundary · Sparkline
+│   ├── hooks/             # useAuth · useAccount · useBotState
+│   ├── lib/               # api · format · wheelability · option-symbol
+│   └── styles/globals.css # Tailwind v4 with @theme block
+├── tests/                 # 34 vitest tests
+├── scripts/generate-backup-codes.ts
+├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
+├── postcss.config.js · tsconfig.{,app,node}.json
+├── vercel.json · requirements.txt · .env.example
+└── README.md · DEPLOY.md
+```
+
+### Vercel project + env vars
+
+- Project: `tims-projects-f798c8a6/tradingbot-dashboard` (Hobby plan, Vite framework, root dir `dashboard/`)
+- KV: `upstash-kv-red-canvas` (Upstash Redis via Vercel Marketplace)
+- 16 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, 5 ALPACA_*, 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- GitHub Actions secret `BOT_PUSH_TOKEN` set on this repo (mirrors the Vercel value)
+
+### Deploys
+
+`npx vercel --prod` from the `dashboard/` directory. Git push does NOT auto-deploy. The first deploy was from local; subsequent ones go via the same command.
+
+### Known quirks (worth knowing before touching the dashboard code)
+
+- **`@alpacahq/typescript-sdk@0.0.32-preview` ignores per-request `baseURL`.** Market data calls (snapshots, news, options snapshots, bars) bypass the SDK and use `alpacaData()` from `dashboard/api/_lib/data-api.ts`. The trading endpoints (account, positions, orders) use the SDK fine. The options-contracts endpoint is on the trading domain and uses `alpacaTrade()` (also bypasses SDK because the SDK strips `next_page_token`, breaking pagination).
+- **TS strict-syntax rule:** `tsconfig.app.json` has `erasableSyntaxOnly: true` — no parameter properties (`constructor(public x: T)`), no enums, no value namespaces. Use explicit field declarations.
+- **Tailwind v4 syntax:** `@theme` block in CSS, not `theme()` calls. v4 also auto-detects `content` glob; explicit config still works.
+- **otplib v12** (NOT v13). v13 broke the `authenticator` namespace API.
+- **Vercel Hobby 12-function limit** — currently at 6. Phase 2 should stay under by reusing the catchall pattern.
+- **yfinance on Vercel** needs `curl_cffi` for browser impersonation + lxml for earnings; pinned in `requirements.txt` to specific versions that work (yfinance>=0.2.65, curl_cffi<0.8.0).
+
+### Phase 2 (next)
+
+Manual trading + AI grading. From the spec: order placement (stocks: market/limit/stop/stop-limit/trailing; options: single-leg open/close), required entry-grade-with-reasoning on every order, two-step confirm with TOTP re-prompt above per-account `$` threshold, AI hindsight grading on close (Sonnet 4.6 with prompt caching, plain-English no-jargon system prompt), tag system, `/trade/:id` detail page, `/trades` history. See spec's "Phase 2" section.
