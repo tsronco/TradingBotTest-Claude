@@ -39,6 +39,16 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
   const beats = past.filter((e) => (e.surprise_pct ?? 0) > 0).length;
   const partial = (data.warnings?.length ?? 0) > 0;
 
+  // Normalize bar heights to the max EPS across all 4 quarters so visual
+  // differences are actually visible — both across quarters (a strong quarter
+  // gets visibly taller bars) and within a quarter (a clear miss makes the
+  // actual bar visibly shorter than the estimate). The previous formula
+  // (50 + eps*5, clamped 20-90) crushed differences to <1pp on typical EPS.
+  const allValues = past
+    .flatMap((e) => [e.eps_estimate ?? 0, e.reported_eps ?? 0])
+    .filter((v) => v > 0);
+  const maxEps = allValues.length > 0 ? Math.max(...allValues) : 1;
+
   if (past.length === 0 && !next) {
     return (
       <div className="text-muted text-xs">
@@ -70,11 +80,13 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
       <div className="grid grid-cols-4 gap-3">
         {past.map((e) => {
           const beat = (e.surprise_pct ?? 0) >= 0;
-          const estH = Math.min(90, Math.max(20, 50 + (e.eps_estimate ?? 0) * 5));
-          const actH = Math.min(90, Math.max(20, 50 + (e.reported_eps ?? 0) * 5));
+          // Scale to 95% of container max; floor at 4% so tiny / zero values
+          // still render as a visible nub instead of disappearing entirely.
+          const estH = Math.max(((e.eps_estimate ?? 0) / maxEps) * 95, 4);
+          const actH = Math.max(((e.reported_eps ?? 0) / maxEps) * 95, 4);
           return (
             <div key={e.date} className="flex flex-col items-center">
-              <div className="flex items-end gap-1.5 h-[80px]">
+              <div className="flex items-end gap-1.5 h-[90px]">
                 <div className="w-5 bg-panel-2 rounded-sm" style={{ height: `${estH}%` }} />
                 <div className={`w-5 rounded-sm ${beat ? 'bg-green' : 'bg-red'}`} style={{ height: `${actH}%` }} />
               </div>
