@@ -52,14 +52,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }
 
-      // Bypass the SDK and paginate ourselves. Two reasons:
+      // Bypass the SDK and paginate ourselves. Three reasons:
       //   1. SDK's `getOptionsContracts` returns `OptionsContract[]` directly — it
       //      strips `next_page_token` from the response, so callers can't paginate.
       //   2. Without an explicit limit, Alpaca returns ~100 contracts/page, which on
       //      a liquid underlying like TSLA is exactly one expiration. The dashboard
       //      needs all expirations to populate the dropdown.
-      // With limit=10000 even TSLA (~600 active contracts) fits in a single page,
-      // but we still loop on next_page_token in case that changes.
+      //   3. `status=active` alone returns ONLY ~3 nearest expirations on TSLA
+      //      (~600 contracts). Adding `expiration_date_gte=today` widens the
+      //      response to the full forward chain — 25+ expirations, weeklies +
+      //      monthlies + LEAPS through 2028. Confirmed via direct curl 2026-05-02.
+      // With limit=10000 even TSLA's full forward chain (~5700 contracts) fits in
+      // a single page, but we still loop on next_page_token in case that changes.
+      const today = new Date().toISOString().slice(0, 10);
       const allContracts: OptionContract[] = [];
       let pageToken: string | undefined = undefined;
       let pageCount = 0;
@@ -74,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           status: 'active',
           limit: 10000,
           expiration_date: expiration,
+          expiration_date_gte: expiration ? undefined : today,
           page_token: pageToken,
         });
         if (Array.isArray(resp.option_contracts)) {
