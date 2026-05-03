@@ -19,14 +19,13 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
     queryKey: ['fundamentals', symbol],
     queryFn: () => api<FundResp>(`/api/fundamentals-proxy?symbol=${symbol}`),
   });
-  if (isLoading) return <div className="text-muted text-xs">Loading earnings…</div>;
-  if (!data) return <div className="text-muted text-xs">No earnings data.</div>;
+  if (isLoading) return <div className="text-dim text-[11px]">loading earnings…</div>;
+  if (!data) return <div className="text-dim text-[11px]">no earnings data.</div>;
 
-  // Hard error from the upstream provider — show the message instead of rendering blank.
   if (data.error) {
     return (
-      <div className="text-muted text-xs leading-relaxed">
-        Earnings temporarily unavailable{data.detail ? ` — ${data.detail}` : '.'}
+      <div className="text-dim text-[11px] leading-relaxed">
+        earnings temporarily unavailable{data.detail ? ` — ${data.detail}` : '.'}
       </div>
     );
   }
@@ -39,11 +38,6 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
   const beats = past.filter((e) => (e.surprise_pct ?? 0) > 0).length;
   const partial = (data.warnings?.length ?? 0) > 0;
 
-  // Normalize bar heights to the max EPS across all 4 quarters so visual
-  // differences are actually visible — both across quarters (a strong quarter
-  // gets visibly taller bars) and within a quarter (a clear miss makes the
-  // actual bar visibly shorter than the estimate). The previous formula
-  // (50 + eps*5, clamped 20-90) crushed differences to <1pp on typical EPS.
   const allValues = past
     .flatMap((e) => [e.eps_estimate ?? 0, e.reported_eps ?? 0])
     .filter((v) => v > 0);
@@ -51,55 +45,68 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
 
   if (past.length === 0 && !next) {
     return (
-      <div className="text-muted text-xs">
-        No earnings history available for {symbol}
-        {partial ? ' (data may be partial)' : ''}.
+      <div className="text-dim text-[11px]">
+        no earnings history available for {symbol}{partial ? ' (data may be partial)' : ''}.
       </div>
     );
   }
 
+  const beatRateColor = past.length === 0 ? 'text-dim'
+    : beats === past.length ? 'text-hi'
+    : beats >= past.length / 2 ? 'text-amber'
+    : 'text-red';
+
   return (
     <div>
-      <div className="flex items-baseline justify-between border-b border-border pb-3 mb-3">
+      <div className="flex items-baseline justify-between border-b border-border pb-3 mb-3 gap-3 flex-wrap">
         <div>
-          <div className="text-text-strong text-base font-semibold">
+          <div className="text-dim text-[10px] tracking-[0.25em] uppercase">next report</div>
+          <div className="text-amber text-[18px] font-bold tnum leading-tight mt-0.5">
             {next ? new Date(next.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
           </div>
-          <div className="text-muted text-[10px]">
-            {next?.eps_estimate != null ? `Est. EPS $${next.eps_estimate.toFixed(2)}` : 'no estimate'}
+          <div className="text-dim text-[11px] tnum">
+            {next?.eps_estimate != null ? <>est. EPS <span className="text-fg">${next.eps_estimate.toFixed(2)}</span></> : 'no estimate'}
           </div>
         </div>
-        <div className="flex gap-4 text-right">
-          <div>
-            <div className="text-text font-semibold">{beats} / {past.length}</div>
-            <div className="text-muted text-[10px] uppercase tracking-wider">Beat rate</div>
+        <div className="text-right">
+          <div className="text-dim text-[10px] tracking-[0.25em] uppercase">beat rate</div>
+          <div className={`text-[18px] font-bold tnum leading-tight mt-0.5 ${beatRateColor}`}>
+            {beats}<span className="text-dim"> / </span>{past.length}
           </div>
+          <div className="text-dim text-[11px]">last {past.length}q</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        {past.map((e) => {
-          const beat = (e.surprise_pct ?? 0) >= 0;
-          // Scale to 95% of container max; floor at 4% so tiny / zero values
-          // still render as a visible nub instead of disappearing entirely.
-          const estH = Math.max(((e.eps_estimate ?? 0) / maxEps) * 95, 4);
-          const actH = Math.max(((e.reported_eps ?? 0) / maxEps) * 95, 4);
-          return (
-            <div key={e.date} className="flex flex-col items-center">
-              <div className="flex items-end gap-1.5 h-[90px]">
-                <div className="w-5 bg-panel-2 rounded-sm" style={{ height: `${estH}%` }} />
-                <div className={`w-5 rounded-sm ${beat ? 'bg-green' : 'bg-red'}`} style={{ height: `${actH}%` }} />
+      {past.length > 0 && (
+        <div className="grid grid-cols-4 gap-3">
+          {past.map((e) => {
+            const beat = (e.surprise_pct ?? 0) >= 0;
+            const estH = Math.max(((e.eps_estimate ?? 0) / maxEps) * 95, 4);
+            const actH = Math.max(((e.reported_eps ?? 0) / maxEps) * 95, 4);
+            return (
+              <div key={e.date} className="flex flex-col items-center">
+                <div className="flex items-end gap-1.5 h-[80px]" title={`est ${e.eps_estimate?.toFixed(2)} · actual ${e.reported_eps?.toFixed(2)}`}>
+                  <div className="w-4 bg-panel-2 border border-border rounded-sm" style={{ height: `${estH}%` }} />
+                  <div className={`w-4 rounded-sm ${beat ? 'bg-hi' : 'bg-red'}`} style={{ height: `${actH}%` }} />
+                </div>
+                <div className="text-dim text-[10px] mt-1.5 tracking-[0.1em] uppercase">{new Date(e.date).toLocaleDateString('en-US', { month: 'short' })}</div>
+                <div className={`text-[10px] font-semibold tnum ${beat ? 'text-hi' : 'text-red'}`}>
+                  {(e.surprise_pct ?? 0) >= 0 ? '+' : ''}{(e.surprise_pct ?? 0).toFixed(0)}%
+                </div>
               </div>
-              <div className="text-muted text-[10px] mt-1">{new Date(e.date).toLocaleDateString('en-US', { month: 'short' })}</div>
-              <div className={`text-[10px] font-semibold ${beat ? 'text-green' : 'text-red'}`}>
-                {(e.surprise_pct ?? 0) >= 0 ? '+' : ''}{(e.surprise_pct ?? 0).toFixed(0)}%
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-3 text-[10px] text-dim flex items-center gap-3 flex-wrap">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-panel-2 border border-border rounded-sm" /> est.</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-hi rounded-sm" /> beat</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-red rounded-sm" /> miss</span>
       </div>
+
       {partial && (
-        <div className="text-muted text-[10px] mt-2 italic">data may be partial</div>
+        <div className="text-dim text-[10px] mt-2 italic">data may be partial</div>
       )}
     </div>
   );

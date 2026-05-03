@@ -3,10 +3,20 @@ import { api } from '../../lib/api';
 
 interface NewsArticle {
   id: number;
-  headline: string;
-  source: string;
-  created_at: string;
-  url: string;
+  headline?: string;
+  Headline?: string;
+  source?: string;
+  Source?: string;
+  created_at?: string;
+  CreatedAt?: string;
+  url?: string;
+  URL?: string;
+}
+
+function fmtNewsTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function NewsPanel({ symbol }: { symbol: string }) {
@@ -14,21 +24,36 @@ export default function NewsPanel({ symbol }: { symbol: string }) {
     queryKey: ['news', symbol],
     queryFn: () => api<{ news: NewsArticle[] }>(`/api/alpaca/news?symbol=${symbol}&limit=10`),
   });
-  if (isLoading) return <div className="text-muted text-xs">Loading news…</div>;
-  const news = (data?.news ?? []) as any[];
-  if (news.length === 0) return <div className="text-muted text-xs">No recent news.</div>;
+  if (isLoading) return <div className="text-dim text-[11px]">loading news…</div>;
+  const news = data?.news ?? [];
+  if (news.length === 0) return <div className="text-dim text-[11px]">no recent news.</div>;
   return (
-    <div className="space-y-2">
-      {news.slice(0, 5).map((n) => (
-        <a key={n.id} href={n.URL ?? n.url} target="_blank" rel="noreferrer" className="block hover:bg-panel-2/40 rounded p-1 -m-1">
-          <div className="text-muted text-[10px]">
-            {new Date(n.CreatedAt ?? n.created_at).toLocaleTimeString()} · {n.Source ?? n.source}
-          </div>
-          <div className="text-text text-xs leading-tight mt-0.5">
-            {n.Headline ?? n.headline}
-          </div>
-        </a>
-      ))}
-    </div>
+    <ul className="divide-y divide-border/60">
+      {news.slice(0, 6).map((n) => {
+        const url = n.URL ?? n.url;
+        const created = n.CreatedAt ?? n.created_at ?? '';
+        const source = n.Source ?? n.source ?? '';
+        const headline = n.Headline ?? n.headline ?? '';
+        return (
+          <li key={n.id}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block py-2 hover:bg-panel-2/40 -mx-2 px-2 transition-colors group"
+            >
+              <div className="text-dim text-[10px] tracking-[0.1em] flex items-center gap-2">
+                <span className="text-mid">▸</span>
+                <span className="tnum">{fmtNewsTime(created)}</span>
+                {source && <><span>·</span><span className="text-mid">{source}</span></>}
+              </div>
+              <div className="text-fg text-[12px] leading-snug mt-0.5 group-hover:text-hi transition-colors">
+                {headline}
+              </div>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
