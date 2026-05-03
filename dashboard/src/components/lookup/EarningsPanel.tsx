@@ -3,7 +3,8 @@ import { api } from '../../lib/api';
 
 interface FundResp {
   error?: string;
-  message?: string;
+  detail?: string;
+  warnings?: string[];
   fundamentals: { next_earnings_date?: number };
   earnings: Array<{
     date: string;
@@ -16,16 +17,16 @@ interface FundResp {
 export default function EarningsPanel({ symbol }: { symbol: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['fundamentals', symbol],
-    queryFn: () => api<FundResp>(`/api/fundamentals?symbol=${symbol}`),
+    queryFn: () => api<FundResp>(`/api/fundamentals-proxy?symbol=${symbol}`),
   });
   if (isLoading) return <div className="text-muted text-xs">Loading earnings…</div>;
   if (!data) return <div className="text-muted text-xs">No earnings data.</div>;
 
-  // Surface the actionable not-configured message instead of rendering blank.
-  if (data.error === 'finnhub_not_configured') {
+  // Hard error from the upstream provider — show the message instead of rendering blank.
+  if (data.error) {
     return (
       <div className="text-muted text-xs leading-relaxed">
-        {data.message ?? 'Earnings data unavailable — configure FINNHUB_API_KEY.'}
+        Earnings temporarily unavailable{data.detail ? ` — ${data.detail}` : '.'}
       </div>
     );
   }
@@ -36,9 +37,15 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
     .slice(-4);
   const next = (data.earnings ?? []).find((e) => e.reported_eps == null);
   const beats = past.filter((e) => (e.surprise_pct ?? 0) > 0).length;
+  const partial = (data.warnings?.length ?? 0) > 0;
 
   if (past.length === 0 && !next) {
-    return <div className="text-muted text-xs">No earnings history available for {symbol}.</div>;
+    return (
+      <div className="text-muted text-xs">
+        No earnings history available for {symbol}
+        {partial ? ' (data may be partial)' : ''}.
+      </div>
+    );
   }
 
   return (
@@ -79,6 +86,9 @@ export default function EarningsPanel({ symbol }: { symbol: string }) {
           );
         })}
       </div>
+      {partial && (
+        <div className="text-muted text-[10px] mt-2 italic">data may be partial</div>
+      )}
     </div>
   );
 }
