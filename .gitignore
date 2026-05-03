@@ -1,5 +1,6 @@
 # Secrets — NEVER commit
 .env
+deploy-secrets.txt
 
 # Claude Code per-machine local settings (contains API keys in command allowlists)
 .claude/settings.local.json
