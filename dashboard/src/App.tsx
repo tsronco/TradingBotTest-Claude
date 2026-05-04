@@ -6,6 +6,7 @@ import Positions from './routes/Positions';
 import Orders from './routes/Orders';
 import Lookup from './routes/Lookup';
 import Settings from './routes/Settings';
+import OrderNew from './routes/OrderNew';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/lookup/:symbol" element={<Lookup />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/order/new" element={<OrderNew />} />
           </Route>
         </Routes>
       </BrowserRouter>
