@@ -268,12 +268,12 @@ The congress-copy package has its own pytest setup under `congress-copy/tests/` 
 
 ## Dashboard subproject
 
-A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. Phase 1 shipped 2026-05-02.
+A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. **Phase 1 shipped 2026-05-02. Phase 2 (manual trading + AI grading) shipped 2026-05-03.**
 
-- 🌐 **Live:** https://tradingbot-dashboard-blue.vercel.app
-- 📋 **Spec:** `docs/superpowers/specs/2026-05-02-trading-dashboard-design.md`
-- 📦 **Phase 1 plan (executed):** `docs/superpowers/plans/2026-05-02-trading-dashboard-phase1.md`
-- 🤝 **Handoff doc (continuing tomorrow):** `docs/superpowers/HANDOFF-2026-05-02.md`
+- Live: https://tradingbot-dashboard-blue.vercel.app
+- Spec: `docs/superpowers/specs/2026-05-02-trading-dashboard-design.md`
+- Phase 1 plan (executed): `docs/superpowers/plans/2026-05-02-trading-dashboard-phase1.md`
+- Phase 2 plan (executed): `docs/superpowers/plans/2026-05-03-trading-dashboard-phase2.md`
 
 ### Phase 1 deliverable (shipped, all working)
 
@@ -285,11 +285,23 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - ErrorBoundary wraps every Lookup panel (no more whole-page blanking on a single component error)
 - 34 vitest tests (auth flows, KV whitelist, TOTP, sessions, option-symbol parsing)
 
+### Phase 2 deliverable (shipped 2026-05-03, validated end-to-end on Alpaca paper)
+
+- Settings page (`/settings`): tabs for thresholds (per-account TOTP trigger amounts), tags (add/rename/delete), recovery (backup-code regeneration)
+- Order form (`/order/new`): context-driven (stock vs. option detected from URL params), vertical stack layout, all order types (market/limit/stop/stop-limit/trailing for stocks; limit/market for options), account selector (conservative_paper / aggressive_paper / live-disabled), live quote in page header, position context line, entry grade (A–F) required, reasoning textarea required, tag picker
+- Two-state confirm modal: phosphor (green) below per-account threshold, amber + TOTP re-prompt above threshold
+- Trade detail (`/trade/:id`): lightweight-charts v5 price chart with entry/exit markers, trade timeline, your-grade-vs-AI-grade side-by-side, calibration delta display
+- Trades history (`/trades`): summary band (win rate, avg grade, AI calibration, total P&L) + filterable/sortable table
+- Modify and cancel actions on `/orders` (modify price/qty via modal, cancel with confirm)
+- AI grading via Sonnet 4.6 with prompt caching — plain-English no-jargon system prompt, grades on close using entry context + price action
+- Auto-grade cron (`*/5 13-20 * * 1-5` UTC) via cron-job.org — hits `POST /api/cron/grade-open-trades`
+- 97 vitest tests total (was 34 in Phase 1)
+
 ### Architecture
 
 ```
 dashboard/
-├── api/                    # 6 Vercel serverless functions (Hobby plan limit is 12)
+├── api/                    # 9 of 12 Vercel serverless functions used (Hobby plan limit is 12)
 │   ├── _lib/              # shared helpers (NOT functions — _ prefix excludes from routing)
 │   │   ├── kv.ts          # @upstash/redis singleton + getJson/setJson
 │   │   ├── kv-keys.ts     # whitelist of allowed bot-state keys + KV_KEYS map
@@ -297,22 +309,31 @@ dashboard/
 │   │   ├── session.ts     # HMAC-signed session cookies (Node stdlib crypto)
 │   │   ├── auth-guard.ts  # requireAuth(req, res) + getSession(req)
 │   │   ├── alpaca.ts      # createClient factory, mode-aware
-│   │   ├── data-api.ts    # alpacaData() + alpacaTrade() — bypass SDK bug (see below)
+│   │   ├── data-api.ts    # alpacaData() + alpacaTrade() + alpacaTradeMutation() — bypass SDK bug
 │   │   ├── rate-limit.ts  # KV-backed login lockout
-│   │   └── backup-codes.ts # SHA-256 hashed, single-use, KV-tracked
+│   │   ├── backup-codes.ts # SHA-256 hashed, single-use, KV-tracked
+│   │   ├── trade-types.ts  # shared TypeScript types for trades/grades/rules
+│   │   ├── trade-ids.ts    # deterministic trade ID generation
+│   │   ├── exposure.ts     # position-exposure calculator
+│   │   ├── rule-check.ts   # pre-order rule checker (stub → active in Phase 3)
+│   │   ├── grading.ts      # Sonnet 4.6 AI grading with prompt caching
+│   │   └── fundamentals-fetch.ts # shared yfinance fetch logic
 │   ├── auth/[action].ts   # login | logout | session
-│   ├── alpaca/[endpoint].ts  # account | positions | orders | quote | chain | news | bars | equity-history
+│   ├── alpaca/[endpoint].ts  # account | positions | orders | quote | chain | news | bars | equity-history | modify-order | cancel-order
 │   ├── kv/[resource].ts   # bot-state (read) | watchlist (CRUD)
 │   ├── bot-state.ts       # bot push webhook (bearer-auth, key whitelist)
 │   ├── fundamentals.py    # yfinance Python edge function (curl_cffi for browser impersonation)
-│   └── fundamentals-proxy.ts # TS proxy that gates the Python with INTERNAL_FUNCTIONS_TOKEN
+│   ├── fundamentals-proxy.ts # TS proxy that gates the Python with INTERNAL_FUNCTIONS_TOKEN
+│   ├── trades/[action].ts # preview | submit | list | get | close | grade
+│   ├── settings/[resource].ts # thresholds | tags | backup-codes
+│   └── cron/[job].ts      # grade-open-trades
 ├── src/
-│   ├── routes/            # Login · Home · Positions · Orders · Lookup
-│   ├── components/        # auth · layout · account · lookup · ErrorBoundary · Sparkline
-│   ├── hooks/             # useAuth · useAccount · useBotState
-│   ├── lib/               # api · format · wheelability · option-symbol
+│   ├── routes/            # Login · Home · Positions · Orders · Lookup · OrderNew · TradeDetail · Trades · Settings
+│   ├── components/        # auth · layout · account · lookup · order · trade · ErrorBoundary · Sparkline
+│   ├── hooks/             # useAuth · useAccount · useBotState · useSettings
+│   ├── lib/               # api · format · wheelability · option-symbol · trade-types · rule-check
 │   └── styles/globals.css # Tailwind v4 with @theme block
-├── tests/                 # 34 vitest tests
+├── tests/                 # 97 vitest tests
 ├── scripts/generate-backup-codes.ts
 ├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
 ├── postcss.config.js · tsconfig.{,app,node}.json
@@ -324,22 +345,42 @@ dashboard/
 
 - Project: `tims-projects-f798c8a6/tradingbot-dashboard` (Hobby plan, Vite framework, root dir `dashboard/`)
 - KV: `upstash-kv-red-canvas` (Upstash Redis via Vercel Marketplace)
-- 16 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, 5 ALPACA_*, 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- 18 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 5 ALPACA_*, 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- `.env` (local): also set `DASHBOARD_CRON_TOKEN` (mirrors `CRON_TOKEN` for local cron testing)
 - GitHub Actions secret `BOT_PUSH_TOKEN` set on this repo (mirrors the Vercel value)
 
 ### Deploys
 
 `npx vercel --prod` from the `dashboard/` directory. Git push does NOT auto-deploy. The first deploy was from local; subsequent ones go via the same command.
 
+> **Worktree gotcha:** if you deploy from a fresh git worktree, `dashboard/.vercel/project.json` won't exist and `vercel --prod --yes` will silently create a new Vercel project named after the directory (`dashboard`) instead of linking to the existing `tradingbot-dashboard`. Always run `npx vercel link --yes --project tradingbot-dashboard` first when deploying from a new worktree.
+
+### Cron schedule (cron-job.org)
+
+| Job | jobId | Schedule (UTC) | Target |
+|---|---|---|---|
+| Dashboard — Grade Open Trades | 7557823 | `*/5 13-20 * * 1-5` | `POST /api/cron/grade-open-trades?job=grade-open-trades` w/ Bearer `${CRON_TOKEN}` |
+
 ### Known quirks (worth knowing before touching the dashboard code)
 
-- **`@alpacahq/typescript-sdk@0.0.32-preview` ignores per-request `baseURL`.** Market data calls (snapshots, news, options snapshots, bars) bypass the SDK and use `alpacaData()` from `dashboard/api/_lib/data-api.ts`. The trading endpoints (account, positions, orders) use the SDK fine. The options-contracts endpoint is on the trading domain and uses `alpacaTrade()` (also bypasses SDK because the SDK strips `next_page_token`, breaking pagination).
+- **`@alpacahq/typescript-sdk@0.0.32-preview` ignores per-request `baseURL`.** Market data calls (snapshots, news, options snapshots, bars) bypass the SDK and use `alpacaData()` from `dashboard/api/_lib/data-api.ts`. The trading endpoints (account, positions, orders) use the SDK fine. The options-contracts endpoint is on the trading domain and uses `alpacaTrade()` (also bypasses SDK because the SDK strips `next_page_token`, breaking pagination). For non-GET trading calls (order placement, modify, cancel) use `alpacaTradeMutation()` — `alpacaTrade()` is GET-only.
 - **TS strict-syntax rule:** `tsconfig.app.json` has `erasableSyntaxOnly: true` — no parameter properties (`constructor(public x: T)`), no enums, no value namespaces. Use explicit field declarations.
 - **Tailwind v4 syntax:** `@theme` block in CSS, not `theme()` calls. v4 also auto-detects `content` glob; explicit config still works.
 - **otplib v12** (NOT v13). v13 broke the `authenticator` namespace API.
-- **Vercel Hobby 12-function limit** — currently at 6. Phase 2 should stay under by reusing the catchall pattern.
+- **Vercel Hobby 12-function limit** — currently at 9 of 12 used. Keep new endpoints inside existing catchalls where possible.
 - **yfinance on Vercel** needs `curl_cffi` for browser impersonation + lxml for earnings; pinned in `requirements.txt` to specific versions that work (yfinance>=0.2.65, curl_cffi<0.8.0).
+- **lightweight-charts v5 API:** use `addSeries(LineSeries)` not `addLineSeries()`; use `createSeriesMarkers` not `series.setMarkers()`. The v4 API is gone.
+- **`trades:index:open` uses atomic Redis list ops** (`rpush`/`lrange`/`lrem`). Do not reintroduce read-modify-write patterns on that key — it will cause race conditions under concurrent grade-cron + submit traffic.
 
-### Phase 2 (next)
+### Phase 3 (next) — known follow-ups from Phase 2 final review
 
-Manual trading + AI grading. From the spec: order placement (stocks: market/limit/stop/stop-limit/trailing; options: single-leg open/close), required entry-grade-with-reasoning on every order, two-step confirm with TOTP re-prompt above per-account `$` threshold, AI hindsight grading on close (Sonnet 4.6 with prompt caching, plain-English no-jargon system prompt), tag system, `/trade/:id` detail page, `/trades` history. See spec's "Phase 2" section.
+- Auto-create follow-on stock trade when a STO is assigned (wheel completion loop)
+- Server-side `live` account guard (currently only disabled client-side in the order form)
+- DST-aware option-expiration detection in the grade-open-trades cron
+- Activate the AI rule-checker (`rule-check.ts` is currently a stub that always passes)
+- Tendency detection — surface recurring behavioral patterns across trades (e.g., "you consistently sell too early on TSLA")
+- `/rules` page — view and manage the active rule set
+- `/calendar` page — earnings / expiration calendar overlay
+- `/performance` page — detailed P&L breakdown by symbol, strategy, tag
+- Daily 4:15 PM coach's note (Phase 4) — AI-generated end-of-day behavioral summary
+- PWA setup (Phase 4) — install prompt, offline shell, push notifications

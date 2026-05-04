@@ -9,11 +9,12 @@ import type { GradeLetter, RuleWarning, StockSide, OrderType, Tif } from '../../
 
 interface Props {
   symbol: string;
-  account: 'conservative_paper' | 'aggressive_paper';
+  account: 'conservative_paper' | 'aggressive_paper' | 'live';
+  setAccount: (a: 'conservative_paper' | 'aggressive_paper' | 'live') => void;
   onReview: (preview: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any }) => void;
 }
 
-export function StockOrderForm({ symbol, account, onReview }: Props) {
+export function StockOrderForm({ symbol, account, setAccount, onReview }: Props) {
   const [side, setSide] = useState<StockSide>('buy');
   const [orderType, setOrderType] = useState<OrderType>('limit');
   const [qty, setQty] = useState(10);
@@ -27,7 +28,7 @@ export function StockOrderForm({ symbol, account, onReview }: Props) {
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative';
+  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative' as 'aggressive' | 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['quote', symbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=${mode}`),
@@ -80,6 +81,40 @@ export function StockOrderForm({ symbol, account, onReview }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* page header with live quote */}
+      <div className="mb-4">
+        <h1 className="text-[18px] font-bold text-hi">Order — {symbol}</h1>
+        <div className="text-mid text-[10px] mb-2">// stock · {account}</div>
+        <div className="flex justify-between flex-wrap gap-2 pb-2 border-b border-dashed border-border text-[12px]">
+          <span className="text-mid">
+            {last
+              ? <>{`last `}<span className="text-fg">{fmtUsd(last)}</span>{` · bid `}{fmtUsd(bid)}{` · ask `}{fmtUsd(ask)}</>
+              : <span className="text-dim">loading quote…</span>}
+          </span>
+          <PositionLine symbol={symbol} mode={mode} />
+        </div>
+      </div>
+
+      {/* account selector */}
+      <Section label="━━━ account ─────────">
+        <div className="flex gap-1 flex-wrap">
+          <button type="button" className={`pbtn ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
+            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
+            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            className="pbtn opacity-40 cursor-not-allowed"
+            disabled
+            title="live trading not enabled yet"
+          >
+            [live (disabled)]
+          </button>
+        </div>
+      </Section>
+
       <Section label="━━━ side ──────────────">
         <div className="flex gap-1">
           {(['buy', 'sell', 'sell_short'] as StockSide[]).map((s) => (
@@ -184,4 +219,15 @@ function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange:
       className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-28 text-right"
     />
   );
+}
+
+function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' }) {
+  const { data } = useQuery({
+    queryKey: ['positions', mode],
+    queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),
+    staleTime: 30_000,
+  });
+  const pos = data?.positions.find((p) => p.symbol === symbol);
+  if (!pos) return <span className="text-mid">you hold: <span className="text-dim">— no position</span></span>;
+  return <span className="text-mid">you hold: <span className="text-hi">{Number(pos.qty)} sh @ {fmtUsd(Number(pos.avg_entry_price))}</span></span>;
 }

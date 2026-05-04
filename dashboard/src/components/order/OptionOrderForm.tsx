@@ -11,11 +11,12 @@ import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../..
 interface Props {
   contractSymbol: string;
   action: 'open' | 'close';
-  account: 'conservative_paper' | 'aggressive_paper';
+  account: 'conservative_paper' | 'aggressive_paper' | 'live';
+  setAccount: (a: 'conservative_paper' | 'aggressive_paper' | 'live') => void;
   onReview: (p: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any }) => void;
 }
 
-export function OptionOrderForm({ contractSymbol, action, account, onReview }: Props) {
+export function OptionOrderForm({ contractSymbol, action, account, setAccount, onReview }: Props) {
   const parsed = parseOptionSymbol(contractSymbol);
   if (!parsed) return <div className="text-red">invalid contract symbol.</div>;
 
@@ -31,7 +32,7 @@ export function OptionOrderForm({ contractSymbol, action, account, onReview }: P
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative';
+  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative' as 'aggressive' | 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['option-quote', contractSymbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${contractSymbol}&mode=${mode}&kind=option`),
@@ -81,6 +82,47 @@ export function OptionOrderForm({ contractSymbol, action, account, onReview }: P
 
   return (
     <div className="space-y-5">
+      {/* page header with live quote */}
+      <div className="mb-4">
+        <h1 className="text-[18px] font-bold text-hi">
+          {action === 'close' ? 'Close' : 'Order'} — {parsed.underlying}{' '}
+          <span className={parsed.type === 'put' ? 'text-red' : 'text-cyan'}>{parsed.type.toUpperCase()}</span>{' '}
+          ${parsed.strike} {parsed.expiration}
+        </h1>
+        <div className="text-mid text-[10px] mb-2">
+          // option · {action === 'close' ? 'closing existing position' : 'opening'} · {account}
+        </div>
+        <div className="flex justify-between flex-wrap gap-2 pb-2 border-b border-dashed border-border text-[12px]">
+          <span className="text-mid">
+            {(ask || bid)
+              ? <>{`bid `}<span className="text-fg">{fmtUsd(bid)}</span>{` · ask `}<span className="text-fg">{fmtUsd(ask)}</span></>
+              : <span className="text-dim">loading quote…</span>}
+          </span>
+          <span className="text-mid"><OptionPositionLine contractSymbol={contractSymbol} mode={mode} bid={bid} ask={ask} /></span>
+        </div>
+      </div>
+
+      {/* account selector */}
+      <div>
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
+        <div className="flex gap-1 flex-wrap">
+          <button type="button" className={`pbtn ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
+            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
+            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            className="pbtn opacity-40 cursor-not-allowed"
+            disabled
+            title="live trading not enabled yet"
+          >
+            [live (disabled)]
+          </button>
+        </div>
+      </div>
+
       <div>
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ greeks (auto-snapshot at submit) ──</div>
         <div className="text-[10px] tnum flex gap-3">
@@ -170,5 +212,29 @@ export function OptionOrderForm({ contractSymbol, action, account, onReview }: P
       </div>
       {error && <div className="text-red text-[10px]">{error}</div>}
     </div>
+  );
+}
+
+function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive'; bid: number; ask: number }) {
+  const { data } = useQuery({
+    queryKey: ['positions', mode],
+    queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),
+    staleTime: 30_000,
+  });
+  const pos = data?.positions.find((p) => p.symbol === contractSymbol);
+  if (!pos) return <span className="text-dim">— no position</span>;
+  const qty = Number(pos.qty);
+  const entry = Number(pos.avg_entry_price);
+  const mid = (bid + ask) / 2 || ask || bid;
+  const isShort = qty < 0;
+  const profitPct = isShort && entry > 0 ? ((entry - mid) / entry) * 100 : null;
+  const profitColor = profitPct === null ? '' : profitPct >= 0 ? 'text-cyan' : 'text-red';
+  return (
+    <span>
+      you hold: <span className="text-hi">{qty} @ {fmtUsd(entry)}</span>
+      {profitPct !== null && (
+        <span className={`ml-1 ${profitColor}`}>({profitPct >= 0 ? '+' : ''}{profitPct.toFixed(1)}%)</span>
+      )}
+    </span>
   );
 }

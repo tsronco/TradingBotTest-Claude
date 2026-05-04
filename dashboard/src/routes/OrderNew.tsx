@@ -1,7 +1,6 @@
 // dashboard/src/routes/OrderNew.tsx
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { OrderHeader } from '../components/order/OrderHeader';
 import { StockOrderForm } from '../components/order/StockOrderForm';
 import { OptionOrderForm } from '../components/order/OptionOrderForm';
 import { ConfirmModal } from '../components/order/ConfirmModal';
@@ -17,7 +16,8 @@ export default function OrderNew() {
   const contract = params.get('contract');
   const type = params.get('type');
   const action = params.get('action') as 'open' | 'close' | null;
-  const account = (params.get('account') as 'conservative_paper' | 'aggressive_paper') ?? 'conservative_paper';
+  const initialAccount = (params.get('account') as 'conservative_paper' | 'aggressive_paper' | 'live') ?? 'conservative_paper';
+  const [account, setAccount] = useState<'conservative_paper' | 'aggressive_paper' | 'live'>(initialAccount);
 
   if (!symbol && !contract) {
     return (
@@ -30,8 +30,6 @@ export default function OrderNew() {
   }
 
   const isOption = !!contract;
-  const title = isOption ? `Order — ${contract}` : `Order — ${symbol}`;
-  const subtitle = `// ${isOption ? 'option' : 'stock'} · ${account}`;
 
   return (
     <div className="p-6 max-w-3xl">
@@ -40,14 +38,11 @@ export default function OrderNew() {
         <span className="text-cyan">~/portfolio/order</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">new {isOption ? `--contract=${contract} --action=${action}` : `--symbol=${symbol} --type=${type}`}</span>
       </div>
-      <div className="mt-4">
-        <OrderHeader title={title} subtitle={subtitle} quoteLine="loading…" positionLine={null} />
-      </div>
       <div className="mt-6">
         {isOption ? (
-          <OptionOrderForm contractSymbol={contract!} action={action ?? 'open'} account={account} onReview={setPreview} />
+          <OptionOrderForm contractSymbol={contract!} action={action ?? 'open'} account={account} setAccount={setAccount} onReview={setPreview} />
         ) : (
-          <StockOrderForm symbol={symbol!} account={account} onReview={setPreview} />
+          <StockOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
         )}
       </div>
       {preview && <ConfirmModal preview={preview} onClose={() => setPreview(null)} />}
