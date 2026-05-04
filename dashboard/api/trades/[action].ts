@@ -227,11 +227,91 @@ async function submit(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({ id, alpaca_order_id: alpacaOrder.id });
 }
-async function list(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+async function list(req: VercelRequest, res: VercelResponse) {
+  const q = req.query;
+  const account = q.account ? String(q.account) : null;
+  const asset_class = q.asset_class ? String(q.asset_class) : null;
+  const tag = q.tag ? String(q.tag) : null;
+  const grade = q.grade ? String(q.grade) : null;
+  const status = q.status ? String(q.status) : null;
+  const from = q.from ? String(q.from) : null;
+  const to = q.to ? String(q.to) : null;
+  const limit = Math.min(200, Number(q.limit ?? 50));
+  const offset = Math.max(0, Number(q.offset ?? 0));
+
+  // collect month keys covering the date range — fall back to current + last 12 months
+  const months: string[] = [];
+  const start = from ? new Date(from) : new Date(Date.now() - 365 * 86400000);
+  const end = to ? new Date(to) : new Date();
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  const ids: string[] = [];
+  for (const m of months) {
+    const monthIds = (await kv().get<string[]>(tradesIndexMonthKey(m))) ?? [];
+    ids.push(...monthIds);
+  }
+
+  // de-dup, newest-first
+  const uniqIds = Array.from(new Set(ids)).reverse();
+
+  const records: Trade[] = [];
+  const grades: any[] = [];
+  for (const id of uniqIds) {
+    const t = await kv().get<Trade>(tradeKey(id));
+    if (!t) continue;
+    if (account && t.account !== account) continue;
+    if (asset_class && t.asset_class !== asset_class) continue;
+    if (tag && !t.tags.includes(tag)) continue;
+    if (grade && t.entry_grade !== grade) continue;
+    if (status === 'open' && t.closed_at) continue;
+    if (status === 'closed' && !t.closed_at) continue;
+    records.push(t);
+    const g = await kv().get<any>(gradeKey(id));
+    if (g) grades.push(g);
+  }
+
+  // summary
+  const closed = records.filter((r) => r.closed_at);
+  const winRate = closed.length === 0 ? 0
+    : closed.filter((r) => (r.realized_pnl ?? 0) > 0).length / closed.length;
+  const cal = { matched: 0, over: 0, under: 0 };
+  for (const g of grades) {
+    if (!g.hindsight) continue;
+    const c = g.hindsight.calibration;
+    if (c === 'matched') cal.matched++;
+    else if (c === 'over_1' || c === 'over_2') cal.over++;
+    else if (c === 'under_1' || c === 'under_2') cal.under++;
+  }
+
+  // Build a parallel array of compact grade summaries so the table can render AI letters + calibration colors
+  const gradeSummaries = records.map((t) => {
+    const g = grades.find((gr: any) => gr.trade_id === t.id);
+    return {
+      trade_id: t.id,
+      ai_letter: g?.hindsight?.letter ?? null,
+      calibration: g?.hindsight?.calibration ?? null,
+    };
+  });
+
+  return res.status(200).json({
+    trades: records.slice(offset, offset + limit),
+    grades: gradeSummaries.slice(offset, offset + limit),
+    total: records.length,
+    summary: { count: records.length, win_rate: winRate, calibration: cal },
+  });
 }
-async function getOne(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+
+async function getOne(req: VercelRequest, res: VercelResponse) {
+  const id = String(req.query.id ?? '');
+  if (!id) return res.status(400).json({ error: 'id_required' });
+  const trade = await kv().get<Trade>(tradeKey(id));
+  const grade = await kv().get<any>(gradeKey(id));
+  if (!trade) return res.status(404).json({ error: 'not_found' });
+  return res.status(200).json({ trade, grade });
 }
 async function regrade(_req: VercelRequest, res: VercelResponse) {
   return res.status(501).json({ error: 'not_implemented' });
