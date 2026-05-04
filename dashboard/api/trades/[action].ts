@@ -45,6 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'get') return getOne(req, res);
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
+  if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'method_not_allowed' });
@@ -315,4 +316,19 @@ async function getOne(req: VercelRequest, res: VercelResponse) {
 }
 async function regrade(_req: VercelRequest, res: VercelResponse) {
   return res.status(501).json({ error: 'not_implemented' });
+}
+
+async function updateTrade(req: VercelRequest, res: VercelResponse) {
+  const id = String(req.query.id ?? (req.body as Record<string, unknown>)?.id ?? '');
+  if (!id) return res.status(400).json({ error: 'id_required' });
+  const body = (req.body ?? {}) as { journal?: string; tags?: string[] };
+  const trade = await kv().get<Trade>(tradeKey(id));
+  if (!trade) return res.status(404).json({ error: 'not_found' });
+  const updated: Trade = {
+    ...trade,
+    journal: typeof body.journal === 'string' ? body.journal : trade.journal,
+    tags: Array.isArray(body.tags) ? body.tags : trade.tags,
+  };
+  await kv().set(tradeKey(id), updated);
+  return res.status(200).json({ ok: true });
 }

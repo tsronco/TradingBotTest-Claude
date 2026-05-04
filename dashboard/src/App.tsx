@@ -7,6 +7,7 @@ import Orders from './routes/Orders';
 import Lookup from './routes/Lookup';
 import Settings from './routes/Settings';
 import OrderNew from './routes/OrderNew';
+import TradeDetail from './routes/TradeDetail';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/lookup/:symbol" element={<Lookup />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/order/new" element={<OrderNew />} />
+            <Route path="/trade/:id" element={<TradeDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>
