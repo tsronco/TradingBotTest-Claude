@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Configure cron-job.org jobs that trigger our 6 GitHub Actions workflows.
+Configure cron-job.org jobs that trigger our 6 GitHub Actions workflows
+plus the dashboard auto-grading webhook.
 
-Reads GITHUB_ACCESS_TOKEN and CRONJOB_API_KEY from .env at the project root,
-then PATCHes/PUTs 4 job definitions to cron-job.org's REST API.
+Reads from .env at the project root:
+- GITHUB_ACCESS_TOKEN — required for GitHub Actions dispatch jobs
+- CRONJOB_API_KEY — required for cron-job.org API auth
+- DASHBOARD_CRON_TOKEN — required for the dashboard webhook bearer token
+  (must match Vercel env var CRON_TOKEN)
 
 Idempotent: lists existing jobs first. Updates any with a matching title
 in place via PATCH; creates new ones via PUT. Safe to re-run.
@@ -100,6 +104,20 @@ JOBS = [
         "minutes": [2],
         "wdays": [0],
     },
+    {
+        # Dashboard auto-grading: polls open manual trades every 5 min during
+        # market hours and fires AI hindsight grades on newly-closed trades.
+        # Hits the Vercel webhook directly with a bearer token (not a GitHub
+        # workflow dispatch).
+        "title": "Dashboard — Grade Open Trades",
+        "kind": "webhook",
+        "url": "https://tradingbot-dashboard-blue.vercel.app/api/cron/grade-open-trades?job=grade-open-trades",
+        "method": "POST",
+        "auth_header": "Bearer ${CRON_TOKEN}",  # placeholder — set real value via env
+        "hours": list(range(13, 21)),  # 13–20 UTC, market hours
+        "minutes": [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],  # every 5 min
+        "wdays": [1, 2, 3, 4, 5],
+    },
 ]
 
 
@@ -135,21 +153,49 @@ def patch_job(job_id: int, spec: dict) -> None:
 
 
 def build_job_body(spec: dict) -> dict:
+    schedule = {
+        "timezone": "UTC",
+        "expiresAt": 0,
+        "hours": spec["hours"],
+        "mdays": [-1],
+        "minutes": spec["minutes"],
+        "months": [-1],
+        "wdays": spec["wdays"],
+    }
+
+    kind = spec.get("kind", "github_dispatch")
+
+    if kind == "webhook":
+        # Direct webhook-style job — hits an external URL with custom headers,
+        # used by the dashboard auto-grading cron.
+        cron_token = os.environ.get("DASHBOARD_CRON_TOKEN", "")
+        auth_header_value = spec["auth_header"].replace("${CRON_TOKEN}", cron_token)
+        return {
+            "job": {
+                "url": spec["url"],
+                "enabled": True,
+                "title": spec["title"],
+                "saveResponses": True,
+                "schedule": schedule,
+                "requestMethod": {"GET": 0, "POST": 1, "PUT": 2, "PATCH": 3, "DELETE": 4}.get(spec.get("method", "POST"), 1),
+                "extendedData": {
+                    "headers": {
+                        "Authorization": auth_header_value,
+                        "Content-Type": "application/json",
+                    },
+                    "body": "",
+                },
+            }
+        }
+
+    # Default: github_dispatch (existing behavior)
     return {
         "job": {
             "url": f"https://api.github.com/repos/{REPO}/actions/workflows/{spec['workflow']}/dispatches",
             "enabled": True,
             "title": spec["title"],
             "saveResponses": True,
-            "schedule": {
-                "timezone": "UTC",
-                "expiresAt": 0,
-                "hours": spec["hours"],
-                "mdays": [-1],
-                "minutes": spec["minutes"],
-                "months": [-1],
-                "wdays": spec["wdays"],
-            },
+            "schedule": schedule,
             "requestMethod": 1,  # POST
             "extendedData": {
                 "headers": GH_HEADERS,

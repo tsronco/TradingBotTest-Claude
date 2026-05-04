@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { fmtUsd, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
+import { OrderEditModal } from '../components/order/OrderEditModal';
 
 interface Order {
   id: string;
@@ -58,6 +60,17 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
   const { data, isLoading, error } = useQuery({
     queryKey: ['orders', mode, status],
     queryFn: () => api<{ orders: Order[] }>(`/api/alpaca/orders?mode=${mode}&status=${status}`),
+  });
+
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<Order | null>(null);
+  const cancel = useMutation({
+    mutationFn: (id: string) =>
+      api(`/api/alpaca/cancel-order?mode=${mode}`, {
+        method: 'POST',
+        body: JSON.stringify({ order_id: id }),
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['orders'] }),
   });
 
   const isCons = acctKey === 'CONS';
@@ -126,6 +139,7 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
                 <th className="text-right px-4 py-2 font-normal">price</th>
                 <th className="text-left px-4 py-2 font-normal">status</th>
                 <th className="text-right px-4 py-2 font-normal">DTE</th>
+                {status === 'open' && <th className="text-right px-2 py-2 font-normal" />}
               </tr>
             </thead>
             <tbody>
@@ -168,12 +182,42 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
                     <td className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
                       {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
                     </td>
+                    {status === 'open' && (
+                      <td className="px-2 py-1 text-right">
+                        <span className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            className="pbtn"
+                            onClick={() => setEditing(o)}
+                          >
+                            [modify]
+                          </button>
+                          <button
+                            type="button"
+                            className="pbtn"
+                            disabled={cancel.isPending}
+                            onClick={() => {
+                              if (window.confirm('cancel this order?')) cancel.mutate(o.id);
+                            }}
+                          >
+                            [cancel]
+                          </button>
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+      )}
+      {editing && (
+        <OrderEditModal
+          order={editing}
+          mode={mode}
+          onClose={() => setEditing(null)}
+        />
       )}
     </article>
   );
