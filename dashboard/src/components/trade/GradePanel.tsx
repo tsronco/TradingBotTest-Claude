@@ -63,7 +63,15 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
               )}
             </>
           ) : (
-            <div className="text-mid text-[10px] mt-2 pulse">// grading… or click [grade now*] to fire manually</div>
+            <div className="mt-2">
+              <div className="text-mid text-[10px] pulse">// ungraded — cron picks up closed trades within 5 min</div>
+              <button
+                type="button"
+                className="pbtn active mt-2"
+                onClick={() => regrade.mutate()}
+                disabled={regrading}
+              >[{regrading ? 'grading…' : 'grade now*'}]</button>
+            </div>
           )}
         </div>
       </div>
