@@ -10,6 +10,8 @@ import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey,
 } from '../_lib/kv-keys.js';
+import { alpacaFor } from '../_lib/alpaca.js';
+import { verifyTotp } from '../_lib/totp.js';
 
 interface OrderDraft {
   account: 'conservative_paper' | 'aggressive_paper' | 'live';
@@ -116,9 +118,114 @@ async function preview(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ exposure, requires_totp, rule_warnings, validation_errors });
 }
 
-// stubs for the next tasks; written here to keep the file building
-async function submit(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+async function submit(req: VercelRequest, res: VercelResponse) {
+  const draft = (req.body ?? {}) as OrderDraft;
+  const validation_errors = validate(draft);
+  if (validation_errors.length) return res.status(400).json({ error: 'validation_failed', validation_errors });
+
+  // re-run preview math server-side
+  const thresholds = (await kv().get<typeof DEFAULT_THRESHOLDS>(KV_KEYS.totpThresholds)) ?? DEFAULT_THRESHOLDS;
+  const symbolForQuote = draft.asset_class === 'option' ? (draft.contract_symbol ?? draft.symbol) : draft.symbol;
+  const { ask, bid } = await getQuote(symbolForQuote, draft.asset_class, modeFromAccount(draft.account));
+  const exposure = computeExposure({
+    asset_class: draft.asset_class, side: draft.side as any, qty: draft.qty,
+    order_type: draft.order_type, limit_price: draft.limit_price,
+    contract_type: draft.contract_type ?? null, strike: draft.strike ?? null, ask, bid,
+  });
+  const threshold = thresholds[draft.account] ?? Number.POSITIVE_INFINITY;
+  if (exposure >= threshold) {
+    if (!draft.totp_code || !verifyTotp(draft.totp_code, process.env.TOTP_SECRET ?? '')) {
+      return res.status(401).json({ error: 'invalid_totp' });
+    }
+  }
+  const rule_warnings = await runStubRuleChecks({
+    asset_class: draft.asset_class, symbol: draft.symbol, qty: draft.qty, account: draft.account,
+  });
+
+  // Alpaca submit (paper for now)
+  const client = alpacaFor(modeFromAccount(draft.account) as any);
+  const orderPayload: any = draft.asset_class === 'stock'
+    ? {
+        symbol: draft.symbol,
+        qty: draft.qty,
+        side: draft.side,
+        type: draft.order_type === 'stop_limit' ? 'stop_limit' : draft.order_type,
+        time_in_force: draft.tif,
+        limit_price: draft.limit_price ?? undefined,
+        stop_price: draft.stop_price ?? undefined,
+        trail_percent: draft.trail_pct ?? undefined,
+      }
+    : {
+        symbol: draft.contract_symbol,
+        qty: draft.qty,
+        side: draft.side === 'BTO' || draft.side === 'BTC' ? 'buy' : 'sell',
+        type: draft.order_type,
+        time_in_force: draft.tif,
+        limit_price: draft.limit_price ?? undefined,
+      };
+  const alpacaOrder = await client.createOrder(orderPayload);
+
+  // Snapshot Greeks for option opens
+  let greeks_at_entry = null;
+  if (draft.asset_class === 'option' && (draft.side === 'BTO' || draft.side === 'STO')) {
+    const snap = await alpacaData<any>(modeFromAccount(draft.account) as any, '/v1beta1/options/snapshots', { symbols: draft.contract_symbol! });
+    const g = snap?.snapshots?.[draft.contract_symbol!]?.greeks;
+    if (g) greeks_at_entry = { delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega, iv: g.implied_volatility };
+  }
+
+  const id = await allocateTradeId();
+  const now = new Date();
+  const trade: Trade = {
+    id,
+    account: draft.account,
+    asset_class: draft.asset_class,
+    symbol: draft.symbol,
+    side: draft.side as any,
+    qty: draft.qty,
+    order_type: draft.order_type,
+    limit_price: draft.limit_price,
+    stop_price: draft.stop_price ?? null,
+    trail_pct: draft.trail_pct ?? null,
+    tif: draft.tif,
+    contract_symbol: draft.contract_symbol ?? null,
+    strike: draft.strike ?? null,
+    expiration: draft.expiration ?? null,
+    contract_type: draft.contract_type ?? null,
+    greeks_at_entry,
+    alpaca_order_id: alpacaOrder.id,
+    alpaca_close_order_id: null,
+    submitted_at: alpacaOrder.submitted_at ?? now.toISOString(),
+    filled_at: null,
+    filled_avg_price: null,
+    closed_at: null,
+    closed_avg_price: null,
+    realized_pnl: null,
+    closed_by: null,
+    tags: draft.tags ?? [],
+    entry_grade: draft.entry_grade as GradeLetter,
+    entry_reasoning: draft.entry_reasoning,
+    journal: '',
+    exposure_at_submit: exposure,
+    rule_warnings_at_entry: rule_warnings,
+    schema: 1,
+  };
+
+  await kv().set(tradeKey(id), trade);
+  await kv().set(gradeKey(id), {
+    trade_id: id,
+    entry: { letter: trade.entry_grade, reasoning: trade.entry_reasoning, ts: now.toISOString() },
+    hindsight: null,
+    history: [],
+  });
+
+  // Indexes
+  const openList = (await kv().get<string[]>(KV_KEYS.tradesIndexOpen)) ?? [];
+  await kv().set(KV_KEYS.tradesIndexOpen, [...openList, id]);
+  const monthKey = tradesIndexMonthKey(currentMonth(now));
+  const monthList = (await kv().get<string[]>(monthKey)) ?? [];
+  await kv().set(monthKey, [...monthList, id]);
+
+  return res.status(200).json({ id, alpaca_order_id: alpacaOrder.id });
 }
 async function list(_req: VercelRequest, res: VercelResponse) {
   return res.status(501).json({ error: 'not_implemented' });
