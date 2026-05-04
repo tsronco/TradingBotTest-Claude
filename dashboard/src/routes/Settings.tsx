@@ -38,6 +38,22 @@ export default function Settings() {
         {tab === 'tags' && <TagsTab />}
         {tab === 'recovery' && <RecoveryTab />}
       </div>
+
+      {/* footer ribbon */}
+      <div className="footer-ribbon mt-6 flex items-center gap-3 text-[11px] text-dim">
+        <span>━━━ ledger</span>
+        <span className="flex-1 border-t border-border" />
+        <span className="text-dim">— press</span>
+        <span className="text-fg border border-border px-1.5 rounded-sm">?</span>
+        <span className="text-dim">for keymap</span>
+      </div>
+
+      {/* bottom prompt */}
+      <div className="mt-4 text-[12px]">
+        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">~/portfolio/settings</span><span className="text-dim">$</span>{' '}
+        <span className="caret" />
+      </div>
     </div>
   );
 }
