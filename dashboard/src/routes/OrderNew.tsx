@@ -4,19 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { OrderHeader } from '../components/order/OrderHeader';
 import { StockOrderForm } from '../components/order/StockOrderForm';
 import { OptionOrderForm } from '../components/order/OptionOrderForm';
+import { ConfirmModal } from '../components/order/ConfirmModal';
 import type { RuleWarning } from '../lib/trade-types';
-
-// Inline placeholder until Task 15 ships the real ConfirmModal
-function ConfirmModalPlaceholder({ onClose }: { preview: any; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-bg/85 flex items-center justify-center p-4 z-50">
-      <div className="bg-panel border border-amber p-5 max-w-md">
-        <div className="text-amber">confirm modal coming in next task</div>
-        <button type="button" className="pbtn mt-3" onClick={onClose}>[close]</button>
-      </div>
-    </div>
-  );
-}
 
 export default function OrderNew() {
   const [params] = useSearchParams();
@@ -61,7 +50,7 @@ export default function OrderNew() {
           <StockOrderForm symbol={symbol!} account={account} onReview={setPreview} />
         )}
       </div>
-      {preview && <ConfirmModalPlaceholder preview={preview} onClose={() => setPreview(null)} />}
+      {preview && <ConfirmModal preview={preview} onClose={() => setPreview(null)} />}
 
       {/* footer ribbon */}
       <div className="footer-ribbon mt-6 flex items-center gap-3 text-[11px] text-dim">
