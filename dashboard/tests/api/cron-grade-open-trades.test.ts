@@ -8,18 +8,17 @@ const kvLrange = vi.fn();
 const kvLrem = vi.fn();
 const gradeMock = vi.fn();
 const dataMock = vi.fn();
-const alpacaGetOrder = vi.fn();
+const alpacaTradeMock = vi.fn();
 vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem }) }));
 vi.mock('../../api/_lib/grading', () => ({ gradeTrade: (...a: any[]) => gradeMock(...a) }));
-vi.mock('../../api/_lib/data-api', () => ({ alpacaData: (...a: any[]) => dataMock(...a) }));
-vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ getOrder: (...a: any[]) => alpacaGetOrder(...a), getPositions: vi.fn() }),
-  modeFromQuery: () => 'conservative',
+vi.mock('../../api/_lib/data-api', () => ({
+  alpacaData: (...a: any[]) => dataMock(...a),
+  alpacaTrade: (...a: any[]) => alpacaTradeMock(...a),
 }));
 
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
-  gradeMock.mockReset(); dataMock.mockReset(); alpacaGetOrder.mockReset();
+  gradeMock.mockReset(); dataMock.mockReset(); alpacaTradeMock.mockReset();
   process.env.CRON_TOKEN = 'cron-token';
 });
 
@@ -59,7 +58,7 @@ describe('POST /api/cron/grade-open-trades', () => {
       if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'test', ts: 'now' }, hindsight: null, history: [] });
       return Promise.resolve(null);
     });
-    alpacaGetOrder.mockResolvedValueOnce({ id: 'a-canceled-1', status: 'canceled', canceled_at: '2026-05-04T13:35Z' });
+    alpacaTradeMock.mockResolvedValueOnce({ id: 'a-canceled-1', status: 'canceled', canceled_at: '2026-05-04T13:35Z' });
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/cron/[job]')).default;
     const res = mockRes();
@@ -94,8 +93,7 @@ describe('POST /api/cron/grade-open-trades', () => {
       if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
       return Promise.resolve(null);
     });
-    alpacaGetOrder
-      .mockResolvedValueOnce({ id: 'a2', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
+    alpacaTradeMock.mockResolvedValueOnce({ id: 'a2', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
     dataMock.mockResolvedValue({ bars: { TSLA: [] } });
     gradeMock.mockResolvedValue({ letter: 'B+', review: 'r', calibration: 'over_1', tendencies_hit: [], model: 'sonnet', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
     kvSet.mockResolvedValue('OK');

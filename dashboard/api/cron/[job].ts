@@ -3,8 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey, gradeKey } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
-import { alpacaFor } from '../_lib/alpaca.js';
-import { alpacaData } from '../_lib/data-api.js';
+import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
 
 const MAX_PER_TICK = 3;
@@ -97,12 +96,19 @@ interface CloseInfo {
 }
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
-  const client = alpacaFor(modeFromAccount(trade.account) as any);
+  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive';
 
   // Path 0: entry order itself was canceled/rejected before fill — trade never existed.
   // Check this FIRST because if the entry order is canceled there's no point checking close-order paths.
   if (!trade.filled_at) {
-    const entryOrder = await (client as any).getOrder(trade.alpaca_order_id);
+    let entryOrder: any = null;
+    try {
+      entryOrder = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_order_id}`);
+    } catch (e) {
+      // 404 or other transient — leave the trade open and let next tick retry
+      console.error('detectClose entry-order fetch failed', trade.id, trade.alpaca_order_id, e);
+      return null;
+    }
     const status = (entryOrder?.status ?? '').toLowerCase();
     if (status === 'canceled' || status === 'cancelled' || status === 'rejected' || status === 'expired') {
       return {
@@ -118,7 +124,13 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
 
   // Path 1: explicit close order linked
   if (trade.alpaca_close_order_id) {
-    const order = await (client as any).getOrder(trade.alpaca_close_order_id);
+    let order: any = null;
+    try {
+      order = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_close_order_id}`);
+    } catch (e) {
+      console.error('detectClose close-order fetch failed', trade.id, trade.alpaca_close_order_id, e);
+      // Fall through to other paths
+    }
     if (order?.status === 'filled' && order.filled_at) {
       const fillPx = Number(order.filled_avg_price);
       return {
