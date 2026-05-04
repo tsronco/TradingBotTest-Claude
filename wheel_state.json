@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-04T18:58:06.433005Z"
+    "last_checked": "2026-05-04T19:08:26.316336Z"
   },
   "TSLA": {
     "stage": 1,
@@ -63,7 +63,7 @@
     "stage": 1,
     "current_contract": "XOM260522P00140000",
     "contract_order_id": "3cfee5ba-96cc-475f-ac6b-4cb0c021f1bf",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.7,
     "contract_entry_date": "2026-05-04T17:48:03.401166Z",
     "contract_expiration": "2026-05-22",
     "contract_type": "put",
@@ -90,7 +90,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Awaiting fill on XOM260522P00140000.",
+    "last_action": "Monitoring XOM260522P00140000: $0.74 vs entry $0.70",
     "contract_qty": 1
   },
   "KO": {
@@ -127,7 +127,7 @@
     "total_premium_today": 244.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $3.67 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $3.72 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -154,7 +154,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.30 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.28 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -199,7 +199,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring F260522P00011000: $0.17 vs entry $0.09",
+    "last_action": "Monitoring F260522P00011000: $0.16 vs entry $0.09",
     "contract_qty": 1
   },
   "T": {
@@ -231,13 +231,13 @@
   },
   "INTC": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "INTC260522P00085000",
+    "contract_order_id": "621b297e-f76f-422f-a772-47982aaced01",
     "contract_entry_price": null,
-    "contract_entry_date": null,
-    "contract_expiration": null,
-    "contract_type": null,
-    "contract_strike": null,
+    "contract_entry_date": "2026-05-04T19:08:25.872717Z",
+    "contract_expiration": "2026-05-22",
+    "contract_type": "put",
+    "contract_strike": 85.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -245,6 +245,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put."
+    "last_action": "Sold-to-open INTC260522P00085000 @ $2.03. Awaiting fill.",
+    "contract_qty": 1
   }
 }
