@@ -221,8 +221,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
   });
 
   // Indexes
-  const openList = (await kv().get<string[]>(KV_KEYS.tradesIndexOpen)) ?? [];
-  await kv().set(KV_KEYS.tradesIndexOpen, [...openList, id]);
+  await kv().rpush(KV_KEYS.tradesIndexOpen, id);
   const monthKey = tradesIndexMonthKey(currentMonth(now));
   const monthList = (await kv().get<string[]>(monthKey)) ?? [];
   await kv().set(monthKey, [...monthList, id]);

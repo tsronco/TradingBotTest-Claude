@@ -40,6 +40,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (endpoint === 'quote') {
       const symbol = String(req.query.symbol ?? '').toUpperCase();
+      const kind = String(req.query.kind ?? 'stock');
+
+      if (kind === 'option') {
+        if (!/^[A-Z]{1,6}\d{6}[CP]\d{8}$/.test(symbol)) {
+          return res.status(400).json({ error: 'invalid_option_symbol' });
+        }
+        const snap = await alpacaData(mode, '/v1beta1/options/snapshots', { symbols: symbol });
+        return res.status(200).json({ mode, symbol, snapshot: snap });
+      }
+
       if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
         return res.status(400).json({ error: 'invalid_symbol' });
       }

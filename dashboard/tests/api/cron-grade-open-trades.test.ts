@@ -4,10 +4,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const kvGet = vi.fn();
 const kvSet = vi.fn();
+const kvLrange = vi.fn();
+const kvLrem = vi.fn();
 const gradeMock = vi.fn();
 const dataMock = vi.fn();
 const alpacaGetOrder = vi.fn();
-vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet }) }));
+vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem }) }));
 vi.mock('../../api/_lib/grading', () => ({ gradeTrade: (...a: any[]) => gradeMock(...a) }));
 vi.mock('../../api/_lib/data-api', () => ({ alpacaData: (...a: any[]) => dataMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
@@ -16,7 +18,8 @@ vi.mock('../../api/_lib/alpaca', () => ({
 }));
 
 beforeEach(() => {
-  kvGet.mockReset(); kvSet.mockReset(); gradeMock.mockReset(); dataMock.mockReset(); alpacaGetOrder.mockReset();
+  kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
+  gradeMock.mockReset(); dataMock.mockReset(); alpacaGetOrder.mockReset();
   process.env.CRON_TOKEN = 'cron-token';
 });
 
@@ -48,8 +51,9 @@ describe('POST /api/cron/grade-open-trades', () => {
       entry_grade: 'A', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
       schema: 1,
     } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
     kvGet.mockImplementation((k: string) => {
-      if (k === 'trades:index:open') return Promise.resolve([trade.id]);
       if (k === `trade:${trade.id}`) return Promise.resolve(trade);
       if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
       return Promise.resolve(null);
@@ -64,6 +68,6 @@ describe('POST /api/cron/grade-open-trades', () => {
     await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
     expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ closed_at: expect.any(String), realized_pnl: expect.any(Number), closed_by: 'manual' }));
     expect(kvSet).toHaveBeenCalledWith(`grade:${trade.id}`, expect.objectContaining({ hindsight: expect.objectContaining({ letter: 'B+' }) }));
-    expect(kvSet).toHaveBeenCalledWith('trades:index:open', []);
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 });

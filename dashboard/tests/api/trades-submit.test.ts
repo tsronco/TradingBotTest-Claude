@@ -6,12 +6,13 @@ const kvGet = vi.fn();
 const kvSet = vi.fn();
 const kvIncr = vi.fn();
 const kvLpush = vi.fn();
+const kvRpush = vi.fn();
 const ruleCheckMock = vi.fn();
 const dataMock = vi.fn();
 const verifyTotpMock = vi.fn();
 const alpacaCreateOrder = vi.fn();
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, lpush: kvLpush, sadd: vi.fn() }),
+  kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, lpush: kvLpush, rpush: kvRpush, sadd: vi.fn(), lrange: vi.fn(), lrem: vi.fn() }),
 }));
 vi.mock('../../api/_lib/auth-guard', () => ({
   requireAuth: vi.fn(() => ({ logged_in_at: 0, last_active: 0 })),
@@ -25,7 +26,7 @@ vi.mock('../../api/_lib/alpaca', () => ({
 }));
 
 beforeEach(() => {
-  kvGet.mockReset(); kvSet.mockReset(); kvIncr.mockReset(); kvLpush.mockReset();
+  kvGet.mockReset(); kvSet.mockReset(); kvIncr.mockReset(); kvLpush.mockReset(); kvRpush.mockReset();
   ruleCheckMock.mockReset(); dataMock.mockReset(); verifyTotpMock.mockReset(); alpacaCreateOrder.mockReset();
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
 });
@@ -96,5 +97,6 @@ describe('POST /api/trades/submit', () => {
     expect(json.alpaca_order_id).toBe('alp-abc-123');
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^trade:T-/), expect.any(Object));
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^grade:T-/), expect.any(Object));
+    expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
   });
 });

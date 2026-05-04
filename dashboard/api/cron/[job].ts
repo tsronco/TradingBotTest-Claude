@@ -29,19 +29,24 @@ function modeFromAccount(account: string): string {
 }
 
 async function gradeOpenTrades(res: VercelResponse) {
-  const openIds = (await kv().get<string[]>(KV_KEYS.tradesIndexOpen)) ?? [];
+  const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
   if (openIds.length === 0) return res.status(200).json({ ok: true, graded: 0 });
 
-  const stillOpen: string[] = [];
   let graded = 0;
+  let remaining = openIds.length;
 
   for (const id of openIds) {
-    if (graded >= MAX_PER_TICK) { stillOpen.push(id); continue; }
+    if (graded >= MAX_PER_TICK) break;
     const trade = await kv().get<Trade>(tradeKey(id));
-    if (!trade) continue;
+    if (!trade) {
+      // Stale entry — remove it from the list
+      await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
+      remaining -= 1;
+      continue;
+    }
 
     const closeInfo = await detectClose(trade);
-    if (!closeInfo) { stillOpen.push(id); continue; }
+    if (!closeInfo) continue;
 
     // Update trade record
     const closedTrade: Trade = {
@@ -70,11 +75,14 @@ async function gradeOpenTrades(res: VercelResponse) {
     const hindsight = await gradeTrade({ trade: closedTrade, bars });
     const next = { ...grade, hindsight };
     await kv().set(gradeKey(id), next);
+
+    // Atomically remove the closed trade from the open list
+    await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
     graded += 1;
+    remaining -= 1;
   }
 
-  await kv().set(KV_KEYS.tradesIndexOpen, stillOpen);
-  return res.status(200).json({ ok: true, graded, remaining_open: stillOpen.length });
+  return res.status(200).json({ ok: true, graded, remaining_open: remaining });
 }
 
 interface CloseInfo {
