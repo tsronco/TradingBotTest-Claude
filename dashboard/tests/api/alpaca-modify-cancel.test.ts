@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const alpacaTradeMutationMock = vi.fn();
+const kvLrangeMock = vi.fn();
+const kvGetMock = vi.fn();
+const kvSetMock = vi.fn();
+const kvLremMock = vi.fn();
 
 vi.mock('../../api/_lib/auth-guard', () => ({
   requireAuth: vi.fn(() => ({ id: 'test-session' })),
@@ -14,9 +18,22 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaTrade: vi.fn(),
   alpacaData: vi.fn(),
 }));
+vi.mock('../../api/_lib/kv', () => ({
+  kv: () => ({ lrange: kvLrangeMock, get: kvGetMock, set: kvSetMock, lrem: kvLremMock }),
+}));
+vi.mock('../../api/_lib/kv-keys', () => ({
+  KV_KEYS: { tradesIndexOpen: 'trades:index:open' },
+  tradeKey: (id: string) => `trade:${id}`,
+}));
 
 beforeEach(() => {
   alpacaTradeMutationMock.mockReset();
+  kvLrangeMock.mockReset();
+  kvGetMock.mockReset();
+  kvSetMock.mockReset();
+  kvLremMock.mockReset();
+  // Default: no open trades
+  kvLrangeMock.mockResolvedValue([]);
   vi.resetModules();
 });
 

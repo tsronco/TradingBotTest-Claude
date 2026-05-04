@@ -59,6 +59,14 @@ async function gradeOpenTrades(res: VercelResponse) {
     };
     await kv().set(tradeKey(id), closedTrade);
 
+    // Atomically remove the closed trade from the open list
+    await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
+    graded += 1;
+    remaining -= 1;
+
+    // Skip AI grading for canceled trades — entry never filled, nothing to grade.
+    if (closeInfo.closed_by === 'canceled') continue;
+
     // Pull bars and grade
     const start = closedTrade.filled_at ?? closedTrade.submitted_at;
     const end = closedTrade.closed_at ?? new Date().toISOString();
@@ -75,11 +83,6 @@ async function gradeOpenTrades(res: VercelResponse) {
     const hindsight = await gradeTrade({ trade: closedTrade, bars });
     const next = { ...grade, hindsight };
     await kv().set(gradeKey(id), next);
-
-    // Atomically remove the closed trade from the open list
-    await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
-    graded += 1;
-    remaining -= 1;
   }
 
   return res.status(200).json({ ok: true, graded, remaining_open: remaining });
@@ -95,6 +98,23 @@ interface CloseInfo {
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   const client = alpacaFor(modeFromAccount(trade.account) as any);
+
+  // Path 0: entry order itself was canceled/rejected before fill — trade never existed.
+  // Check this FIRST because if the entry order is canceled there's no point checking close-order paths.
+  if (!trade.filled_at) {
+    const entryOrder = await (client as any).getOrder(trade.alpaca_order_id);
+    const status = (entryOrder?.status ?? '').toLowerCase();
+    if (status === 'canceled' || status === 'cancelled' || status === 'rejected' || status === 'expired') {
+      return {
+        closed_at: entryOrder.canceled_at ?? entryOrder.updated_at ?? new Date().toISOString(),
+        closed_avg_price: 0,
+        realized_pnl: 0,
+        closed_by: 'canceled',
+      };
+    }
+    // Entry order not yet filled and not canceled — leave trade open.
+    return null;
+  }
 
   // Path 1: explicit close order linked
   if (trade.alpaca_close_order_id) {

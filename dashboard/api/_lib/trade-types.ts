@@ -6,7 +6,7 @@ export type OrderSide = StockSide | OptionSide;
 export type OrderType = 'market' | 'limit' | 'stop' | 'stop_limit' | 'trailing';
 export type Tif = 'day' | 'gtc';
 export type ContractType = 'put' | 'call';
-export type ClosedBy = null | 'manual' | 'expired' | 'assigned';
+export type ClosedBy = null | 'manual' | 'expired' | 'assigned' | 'canceled';
 
 export type GradeLetter =
   | 'A+' | 'A' | 'A-'

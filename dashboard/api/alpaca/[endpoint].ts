@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { alpacaFor, modeFromQuery } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
+import { kv } from '../_lib/kv.js';
+import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
 
 type OptionContract = {
   symbol: string;
@@ -186,7 +188,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (endpoint === 'cancel-order' && req.method === 'POST') {
       const body = (req.body ?? {}) as { order_id?: string };
       if (!body.order_id) return res.status(400).json({ error: 'order_id_required' });
+
+      // 1) Cancel on Alpaca
       await alpacaTradeMutation(mode, `/v2/orders/${body.order_id}`, { method: 'DELETE' });
+
+      // 2) Find a matching trade record in trades:index:open and close it as 'canceled'
+      // (only if it hasn't filled yet — filled trades use the normal close-order flow)
+      const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
+      for (const id of openIds) {
+        const trade = await kv().get<any>(tradeKey(id));
+        if (!trade || trade.alpaca_order_id !== body.order_id) continue;
+        if (trade.filled_at) continue; // already filled — let the normal close-order flow handle it
+        const updated = {
+          ...trade,
+          closed_at: new Date().toISOString(),
+          closed_avg_price: 0,
+          realized_pnl: 0,
+          closed_by: 'canceled',
+        };
+        await kv().set(tradeKey(id), updated);
+        await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
+        break;
+      }
+
       return res.status(200).json({ ok: true });
     }
     return res.status(404).json({ error: 'unknown_endpoint' });

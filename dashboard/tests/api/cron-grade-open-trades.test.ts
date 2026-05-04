@@ -42,6 +42,42 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+  it('marks unfilled-then-canceled entry orders as closed_by: canceled (skips AI grading)', async () => {
+    const trade = {
+      id: 'T-2026-05-04-002', account: 'conservative_paper', symbol: 'SNAP', asset_class: 'stock',
+      side: 'buy', qty: 10, filled_avg_price: null, exposure_at_submit: 22.90,
+      alpaca_order_id: 'a-canceled-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-04T13:30Z', filled_at: null, closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'test', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'test', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaGetOrder.mockResolvedValueOnce({ id: 'a-canceled-1', status: 'canceled', canceled_at: '2026-05-04T13:35Z' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+    // Trade record updated with closed_by: canceled
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-05-04T13:35Z',
+      closed_avg_price: 0,
+      realized_pnl: 0,
+      closed_by: 'canceled',
+    }));
+    // Removed from open index
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+    // AI grading was NOT called
+    expect(gradeMock).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, graded: 1 }));
+  });
+
   it('grades a trade whose Alpaca close order has filled', async () => {
     const trade = {
       id: 'T-2026-05-04-001', account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
