@@ -12,6 +12,7 @@ import {
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
 import { verifyTotp } from '../_lib/totp.js';
+import { gradeTrade } from '../_lib/grading.js';
 
 interface OrderDraft {
   account: 'conservative_paper' | 'aggressive_paper' | 'live';
@@ -314,8 +315,34 @@ async function getOne(req: VercelRequest, res: VercelResponse) {
   if (!trade) return res.status(404).json({ error: 'not_found' });
   return res.status(200).json({ trade, grade });
 }
-async function regrade(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+async function regrade(req: VercelRequest, res: VercelResponse) {
+  const id = String((req.body as any)?.id ?? req.query.id ?? '');
+  if (!id) return res.status(400).json({ error: 'id_required' });
+
+  const trade = await kv().get<Trade>(tradeKey(id));
+  const grade = await kv().get<any>(gradeKey(id));
+  if (!trade) return res.status(404).json({ error: 'trade_not_found' });
+  if (!grade) return res.status(404).json({ error: 'grade_not_found' });
+
+  // Pull bars across position lifetime
+  const start = trade.filled_at ?? trade.submitted_at;
+  const end = trade.closed_at ?? new Date().toISOString();
+  let bars: Array<{ t: string; c: number }> = [];
+  try {
+    const data = await alpacaData<any>(modeFromAccount(trade.account) as any, '/v2/stocks/bars', {
+      symbols: trade.symbol, timeframe: '1Min', start, end, limit: 500,
+    });
+    bars = (data?.bars?.[trade.symbol] ?? []).map((b: any) => ({ t: b.t, c: b.c }));
+  } catch { /* bars are optional */ }
+
+  const hindsight = await gradeTrade({ trade, bars });
+
+  const history = grade.hindsight
+    ? [{ entry: grade.entry, hindsight: grade.hindsight }, ...(grade.history ?? [])]
+    : (grade.history ?? []);
+  const next = { ...grade, hindsight, history };
+  await kv().set(gradeKey(id), next);
+  return res.status(200).json({ grade: next });
 }
 
 async function updateTrade(req: VercelRequest, res: VercelResponse) {
