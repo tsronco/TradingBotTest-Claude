@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fmtUsd, fmtPct } from '../../lib/format';
 import { useEffect, useMemo, useState } from 'react';
+import { useAccount } from '../../hooks/useAccount';
+import type { AccountMode } from '../../hooks/useAccount';
+
+function accountForMode(mode: AccountMode): 'conservative_paper' | 'aggressive_paper' {
+  return mode === 'aggressive' ? 'aggressive_paper' : 'conservative_paper';
+}
 
 interface ChainResponse {
   contracts: Array<{
@@ -46,6 +53,8 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   const [selectedExp, setSelectedExp] = useState<string | null>(null);
   const [showAllStrikes, setShowAllStrikes] = useState(false);
   const [side, setSide] = useState<SideFilter>('puts');
+  const navigate = useNavigate();
+  const [accountMode] = useAccount();
 
   const { data, isLoading } = useQuery({
     queryKey: ['chain', symbol],
@@ -190,7 +199,11 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
             const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
             const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
             return (
-              <tr key={c.symbol} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
+              <tr
+                key={c.symbol}
+                className="border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer"
+                onClick={() => navigate(`/order/new?contract=${c.symbol}&action=open&account=${accountForMode(accountMode)}`)}
+              >
                 <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
                 <td className={`px-2 py-1 ${klass} font-semibold`}>{c.type === 'call' ? 'C' : 'P'}</td>
                 <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.bp?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
