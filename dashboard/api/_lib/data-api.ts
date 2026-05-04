@@ -75,3 +75,37 @@ export async function alpacaTrade<T>(
   }
   return (await res.json()) as T;
 }
+
+export interface AlpacaTradeMutationOptions {
+  method: 'POST' | 'PATCH' | 'DELETE';
+  body?: Record<string, unknown>;
+}
+
+/**
+ * Direct call to Alpaca trading API for non-GET requests (PATCH/DELETE/POST).
+ * Used for order modify/cancel where the SDK is either incomplete or buggy.
+ */
+export async function alpacaTradeMutation<T>(
+  mode: Mode,
+  path: string,
+  opts: AlpacaTradeMutationOptions
+): Promise<T> {
+  const { key, secret } = credsFor(mode);
+  const init: RequestInit = {
+    method: opts.method,
+    headers: {
+      'APCA-API-KEY-ID': key,
+      'APCA-API-SECRET-KEY': secret,
+      'Content-Type': 'application/json',
+    },
+  };
+  if (opts.body) init.body = JSON.stringify(opts.body);
+  const res = await fetch(`${TRADING_BASE_PAPER}${path}`, init);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`alpaca trade ${res.status} on ${path}: ${body || res.statusText}`);
+  }
+  // DELETE often returns empty body; tolerate that.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
+}

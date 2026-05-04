@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { alpacaFor, modeFromQuery } from '../_lib/alpaca.js';
-import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
+import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 
 type OptionContract = {
   symbol: string;
@@ -11,8 +11,9 @@ type OptionContract = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
+  const isMutation = ['modify-order', 'cancel-order'].includes(String(req.query.endpoint ?? ''));
+  if (req.method !== 'GET' && !isMutation) {
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
   if (!requireAuth(req, res)) return;
@@ -160,6 +161,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timeframe, limit, start, end: endParam, feed: 'iex',
       });
       return res.status(200).json({ symbol, timeframe, bars });
+    }
+    if (endpoint === 'modify-order' && req.method === 'POST') {
+      const body = (req.body ?? {}) as { order_id?: string; qty?: number; limit_price?: number; stop_price?: number; tif?: string };
+      if (!body.order_id) return res.status(400).json({ error: 'order_id_required' });
+      const patch: Record<string, unknown> = {};
+      if (body.qty != null) patch.qty = body.qty;
+      if (body.limit_price != null) patch.limit_price = body.limit_price;
+      if (body.stop_price != null) patch.stop_price = body.stop_price;
+      if (body.tif) patch.time_in_force = body.tif;
+      const updated = await alpacaTradeMutation(mode, `/v2/orders/${body.order_id}`, { method: 'PATCH', body: patch });
+      return res.status(200).json({ order: updated });
+    }
+    if (endpoint === 'cancel-order' && req.method === 'POST') {
+      const body = (req.body ?? {}) as { order_id?: string };
+      if (!body.order_id) return res.status(400).json({ error: 'order_id_required' });
+      await alpacaTradeMutation(mode, `/v2/orders/${body.order_id}`, { method: 'DELETE' });
+      return res.status(200).json({ ok: true });
     }
     return res.status(404).json({ error: 'unknown_endpoint' });
   } catch (e) {
