@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-05T14:28:07.535755Z"
+    "last_checked": "2026-05-05T14:38:16.084321Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260522P00355000: $2.34 vs entry $3.05",
+    "last_action": "Monitoring TSLA260522P00355000: $2.63 vs entry $3.05",
     "contract_qty": 1
   },
   "BAC": {
@@ -90,7 +90,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260522P00140000: $0.57 vs entry $0.70",
+    "last_action": "Monitoring XOM260522P00140000: $0.55 vs entry $0.70",
     "contract_qty": 1
   },
   "KO": {
@@ -127,7 +127,7 @@
     "total_premium_today": 244.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $4.58 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $5.08 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -154,7 +154,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.32 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.30 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -231,21 +231,21 @@
   },
   "INTC": {
     "stage": 1,
-    "current_contract": "INTC260522P00085000",
-    "contract_order_id": "621b297e-f76f-422f-a772-47982aaced01",
-    "contract_entry_price": 2.03,
-    "contract_entry_date": "2026-05-04T19:08:25.872717Z",
-    "contract_expiration": "2026-05-22",
+    "current_contract": "INTC260529P00100000",
+    "contract_order_id": "27271981-21b7-42cd-8733-b57bea51484a",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-05-05T14:38:15.659345Z",
+    "contract_expiration": "2026-05-29",
     "contract_type": "put",
-    "contract_strike": 85.0,
+    "contract_strike": 100.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 0.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 104.0,
+    "total_premium_today": 104.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260522P00085000: $1.05 vs entry $2.03",
+    "last_action": "Sold-to-open INTC260529P00100000 @ $5.21. Awaiting fill.",
     "contract_qty": 1
   }
 }
