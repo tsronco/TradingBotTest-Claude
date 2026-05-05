@@ -33,8 +33,12 @@ export interface WheelabilityResult {
 }
 
 export function scoreWheelability(input: WheelInputs): WheelabilityResult {
-  const puts = input.contracts.filter((c) => c.type === 'put');
-  let best: { strike: number; exp: string; bid: number; ask: number; iv: number; dte: number } | null = null;
+  // Wheel only sells OTM puts — ITM puts have intrinsic value, near-100%
+  // assignment probability, and are a different (synthetic-stock) play.
+  const puts = input.contracts.filter(
+    (c) => c.type === 'put' && Number(c.strike_price) < input.stockPrice,
+  );
+  let best: { strike: number; exp: string; bid: number; ask: number; iv: number; dte: number; score: number } | null = null;
   let putsInRange = 0;
 
   for (const c of puts) {
@@ -47,11 +51,14 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
     const snap = input.snapshots[(c as any).symbol] ?? {};
     if (!snap.latestQuote) continue;
 
+    // Yield-based scoring (premium/strike) so deep-OTM low-bid strikes don't
+    // win just by being cheap, and so OTM strikes with fat extrinsic dominate.
+    const yieldPct = (snap.latestQuote.bp / strike) * 100;
     const score =
-      -distFromTarget * 10 +
-      (snap.latestQuote.bp ?? 0) * 100 +
-      Math.min(20, 30 - Math.abs(dte - 21));
-    if (!best || score > (-Math.abs(best.strike - target) * 10 + best.bid * 100 + Math.min(20, 30 - Math.abs(best.dte - 21)))) {
+      yieldPct * 30 +              // 1% yield → 30 pts
+      -distFromTarget * 2 +        // mild penalty for distance from 10% OTM
+      Math.min(20, 30 - Math.abs(dte - 21)); // sweet spot near 21 DTE
+    if (!best || score > best.score) {
       best = {
         strike,
         exp: c.expiration_date,
@@ -59,6 +66,7 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
         ask: snap.latestQuote.ap,
         iv: snap.impliedVolatility ?? 0,
         dte,
+        score,
       };
     }
   }
