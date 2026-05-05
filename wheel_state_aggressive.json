@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-05T17:59:25.097387Z",
+    "last_checked": "2026-05-05T18:09:35.888329Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260508P00025000: $0.77 vs entry $1.08",
+    "last_action": "Monitoring SMCI260508P00025000: $0.72 vs entry $1.08",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $2.51 vs entry $1.23",
+    "last_action": "Monitoring NVDA260511P00195000: $2.59 vs entry $1.23",
     "contract_qty": 1
   },
   "AMD": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260508P00340000: $8.48 vs entry $9.10",
+    "last_action": "Monitoring AMD260508P00340000: $8.05 vs entry $9.10",
     "contract_qty": 1
   },
   "MU": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.53 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.54 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
