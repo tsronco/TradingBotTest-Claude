@@ -12,56 +12,97 @@ function put(symbol: string, strike: number, stockPrice: number, extrinsic: numb
   };
 }
 
-describe('scoreWheelability — ITM rejection', () => {
-  it('does NOT recommend an ITM put even if it has the highest premium', () => {
+describe('scoreWheelability — band filter (conservative)', () => {
+  it('rejects strikes too close to market (<7% OTM) even with great yield', () => {
     const stockPrice = 109;
-    // OTM put at $98 (~10% OTM, the wheel target) with $1 premium.
-    // ITM put at $150 — bid ~$42 (almost all intrinsic). The old formula's
-    // `bid * 100` term would dominate; the fix should reject ITM entirely.
+    // Near-ATM put has fat extrinsic and great yield, but it's NOT a wheel
+    // candidate — assignment risk is too high. Conservative band is 7-13% OTM.
+    const tooClose = put('TOO-CLOSE-108', 108, stockPrice, 1.0); // ~0.6% OTM
+    const inBand = put('IN-BAND-98', 98, stockPrice, 1.0);       // ~10% OTM ✓
+
+    const result = scoreWheelability({
+      stockPrice,
+      buyingPower: 100_000,
+      contracts: [tooClose.contract, inBand.contract],
+      snapshots: { 'TOO-CLOSE-108': tooClose.snapshot, 'IN-BAND-98': inBand.snapshot },
+      mode: 'conservative',
+    });
+    expect(result.bestStrike).toBe(98);
+  });
+
+  it('rejects strikes too far OTM (>13% OTM)', () => {
+    const stockPrice = 100;
+    const tooFar = put('TOO-FAR-80', 80, stockPrice, 0.10);  // ~20% OTM
+    const inBand = put('IN-BAND-90', 90, stockPrice, 0.50);  // ~10% OTM ✓
+    const result = scoreWheelability({
+      stockPrice,
+      buyingPower: 100_000,
+      contracts: [tooFar.contract, inBand.contract],
+      snapshots: { 'TOO-FAR-80': tooFar.snapshot, 'IN-BAND-90': inBand.snapshot },
+      mode: 'conservative',
+    });
+    expect(result.bestStrike).toBe(90);
+  });
+
+  it('does NOT recommend an ITM put even with the highest premium', () => {
+    const stockPrice = 109;
     const otm = put('OTM-98', 98, stockPrice, 1.0);
     const itm = put('ITM-150', 150, stockPrice, 0.5);
-
     const result = scoreWheelability({
       stockPrice,
       buyingPower: 100_000,
       contracts: [otm.contract, itm.contract],
       snapshots: { 'OTM-98': otm.snapshot, 'ITM-150': itm.snapshot },
+      mode: 'conservative',
     });
-
-    expect(result.reason).toBe('computed');
     expect(result.bestStrike).toBe(98);
-    // Sanity: the bad pick would have been 150
-    expect(result.bestStrike).not.toBe(150);
   });
 
-  it('falls back to no_puts_in_range when only ITM puts exist', () => {
+  it('returns no_puts_in_range when no strikes fall in the band', () => {
     const stockPrice = 109;
-    const itm1 = put('ITM-115', 115, stockPrice, 0.5);
-    const itm2 = put('ITM-150', 150, stockPrice, 0.5);
+    const itm = put('ITM-150', 150, stockPrice, 0.5);
+    const tooClose = put('TOO-CLOSE-108', 108, stockPrice, 1.0);
     const result = scoreWheelability({
       stockPrice,
       buyingPower: 100_000,
-      contracts: [itm1.contract, itm2.contract],
-      snapshots: { 'ITM-115': itm1.snapshot, 'ITM-150': itm2.snapshot },
+      contracts: [itm.contract, tooClose.contract],
+      snapshots: { 'ITM-150': itm.snapshot, 'TOO-CLOSE-108': tooClose.snapshot },
+      mode: 'conservative',
     });
     expect(result.reason).toBe('no_puts_in_range');
   });
 });
 
-describe('scoreWheelability — yield-based scoring', () => {
-  it('prefers higher yield (premium/strike) when both candidates are OTM', () => {
+describe('scoreWheelability — band filter (aggressive)', () => {
+  it('aggressive mode targets ~5% OTM (band 2-8% OTM)', () => {
     const stockPrice = 100;
-    // Candidate A: $90 strike (10% OTM, target), bid $0.50 → yield 0.56%
-    // Candidate B: $95 strike (5% OTM), bid $1.50 → yield 1.58%
-    // Both fit the wheel target band; B has clearly better yield.
-    const a = put('A', 90, stockPrice, 0.50);
-    const b = put('B', 95, stockPrice, 1.50);
+    // $95 (5% OTM) is the aggressive target, $90 (10%) is too far for aggressive
+    const at5 = put('AT-5-95', 95, stockPrice, 1.5);
+    const at10 = put('AT-10-90', 90, stockPrice, 0.5);
     const result = scoreWheelability({
       stockPrice,
       buyingPower: 100_000,
-      contracts: [a.contract, b.contract],
-      snapshots: { A: a.snapshot, B: b.snapshot },
+      contracts: [at5.contract, at10.contract],
+      snapshots: { 'AT-5-95': at5.snapshot, 'AT-10-90': at10.snapshot },
+      mode: 'aggressive',
     });
     expect(result.bestStrike).toBe(95);
+  });
+});
+
+describe('scoreWheelability — within-band yield tiebreaker', () => {
+  it('prefers higher-yield strike when both fit the band', () => {
+    const stockPrice = 100;
+    // Both 8% OTM and 12% OTM fit the conservative 7-13% band.
+    const richer = put('RICHER-92', 92, stockPrice, 1.50);  // 8% OTM, higher yield
+    const thinner = put('THINNER-88', 88, stockPrice, 0.30); // 12% OTM, lower yield
+    const result = scoreWheelability({
+      stockPrice,
+      buyingPower: 100_000,
+      contracts: [richer.contract, thinner.contract],
+      snapshots: { 'RICHER-92': richer.snapshot, 'THINNER-88': thinner.snapshot },
+      mode: 'conservative',
+    });
+    expect(result.bestStrike).toBe(92);
   });
 });

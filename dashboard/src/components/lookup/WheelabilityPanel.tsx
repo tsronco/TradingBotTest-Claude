@@ -68,6 +68,7 @@ export default function WheelabilityPanel({ symbol }: { symbol: string }) {
     buyingPower: Number(acctQ.data.account.buying_power),
     contracts: snapshotsQ.data?.contracts ?? [],
     snapshots: snapshotsQ.data?.snapshots ?? {},
+    mode,
   });
 
   return (

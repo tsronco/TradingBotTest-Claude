@@ -9,12 +9,23 @@ interface Snapshot {
   impliedVolatility?: number;
 }
 
+export type WheelMode = 'conservative' | 'aggressive';
+
 interface WheelInputs {
   stockPrice: number;
   buyingPower: number;
   contracts: ChainContract[];
   snapshots: Record<string, Snapshot>;
+  // Wheel mode controls the target OTM band — conservative aims ~10% OTM,
+  // aggressive aims ~5% OTM (matches the bot config in /config.py MODES).
+  mode?: WheelMode;
 }
+
+// Per-mode target band: bot only sells puts within this OTM range, so the
+// wheelability "best" recommendation should match. ±3 percentage points around
+// the target (conservative: 7-13% OTM; aggressive: 2-8% OTM).
+const TARGET_OTM_PCT = { conservative: 0.10, aggressive: 0.05 } as const;
+const BAND_HALF_WIDTH_PCT = 0.03;
 
 export type WheelabilityReason =
   | 'no_puts_in_range'      // chain has no puts in the 7-35 DTE window
@@ -33,30 +44,38 @@ export interface WheelabilityResult {
 }
 
 export function scoreWheelability(input: WheelInputs): WheelabilityResult {
-  // Wheel only sells OTM puts — ITM puts have intrinsic value, near-100%
-  // assignment probability, and are a different (synthetic-stock) play.
-  const puts = input.contracts.filter(
-    (c) => c.type === 'put' && Number(c.strike_price) < input.stockPrice,
-  );
+  // Filter to puts that fall in the wheel's actual operating band — anything
+  // outside this range isn't a candidate the bot would ever sell, so it's not
+  // a useful "best" recommendation either. The bot only sells:
+  //   conservative: ~10% OTM puts (we accept 7-13% OTM)
+  //   aggressive:   ~5% OTM puts (we accept 2-8% OTM)
+  const target = TARGET_OTM_PCT[input.mode ?? 'conservative'];
+  const lowStrike = input.stockPrice * (1 - target - BAND_HALF_WIDTH_PCT);
+  const highStrike = input.stockPrice * (1 - target + BAND_HALF_WIDTH_PCT);
+  const targetStrike = input.stockPrice * (1 - target);
+  const puts = input.contracts.filter((c) => {
+    if (c.type !== 'put') return false;
+    const strike = Number(c.strike_price);
+    return strike >= lowStrike && strike <= highStrike;
+  });
   let best: { strike: number; exp: string; bid: number; ask: number; iv: number; dte: number; score: number } | null = null;
   let putsInRange = 0;
 
   for (const c of puts) {
     const strike = Number(c.strike_price);
-    const target = input.stockPrice * 0.9; // ~10% OTM
-    const distFromTarget = Math.abs(strike - target);
+    const distFromTarget = Math.abs(strike - targetStrike);
     const dte = Math.max(1, Math.round((+new Date(c.expiration_date) - Date.now()) / 86400000));
     if (dte < 7 || dte > 35) continue;
     putsInRange++;
     const snap = input.snapshots[(c as any).symbol] ?? {};
     if (!snap.latestQuote) continue;
 
-    // Yield-based scoring (premium/strike) so deep-OTM low-bid strikes don't
-    // win just by being cheap, and so OTM strikes with fat extrinsic dominate.
+    // Within the band, yield is the dominant factor; distance and DTE are
+    // tiebreakers between strikes that are all wheel-eligible to begin with.
     const yieldPct = (snap.latestQuote.bp / strike) * 100;
     const score =
       yieldPct * 30 +              // 1% yield → 30 pts
-      -distFromTarget * 2 +        // mild penalty for distance from 10% OTM
+      -distFromTarget * 1 +        // small nudge toward exact target strike
       Math.min(20, 30 - Math.abs(dte - 21)); // sweet spot near 21 DTE
     if (!best || score > best.score) {
       best = {
