@@ -42,15 +42,40 @@ function mockRes() {
   return res;
 }
 
-function makeContracts(n: number) {
+function makeContracts(n: number, withOI = false) {
   return Array.from({ length: n }, (_, i) => ({
     symbol: `AMD260508P${String(i).padStart(8, '0')}`,
     underlying_symbol: 'AMD',
     expiration_date: '2026-05-08',
     strike_price: String(300 + i),
     type: 'put' as const,
+    ...(withOI ? { open_interest: String(100 + i) } : {}),
   }));
 }
+
+describe('chain endpoint — open interest', () => {
+  it('merges open_interest from contracts into snapshots[sym].openInterest as number', async () => {
+    const contracts = makeContracts(3, true); // open_interest = "100", "101", "102"
+    alpacaTradeMock.mockResolvedValue({ option_contracts: contracts });
+    alpacaDataMock.mockImplementation(async (_mode: string, _path: string, params: { symbols: string }) => {
+      const syms = params.symbols.split(',');
+      const snapshots: Record<string, unknown> = {};
+      for (const s of syms) snapshots[s] = { latestQuote: { ap: 1, bp: 0.95 } };
+      return { snapshots };
+    });
+
+    const { default: handler } = await import('../../api/alpaca/[endpoint]');
+    const res = mockRes();
+    await handler(mockReq('AMD', '2026-05-08'), res as unknown as import('@vercel/node').VercelResponse);
+
+    const payload = (res.json.mock.calls[0]?.[0] ?? {}) as { snapshots?: Record<string, { openInterest?: number; latestQuote?: unknown }> };
+    expect(payload.snapshots?.[contracts[0].symbol].openInterest).toBe(100);
+    expect(payload.snapshots?.[contracts[1].symbol].openInterest).toBe(101);
+    expect(payload.snapshots?.[contracts[2].symbol].openInterest).toBe(102);
+    // existing snapshot fields preserved
+    expect(payload.snapshots?.[contracts[0].symbol].latestQuote).toEqual({ ap: 1, bp: 0.95 });
+  });
+});
 
 describe('chain endpoint — per-expiration mode', () => {
   it('without expiration param: returns contracts but skips snapshots (cheap dropdown fetch)', async () => {

@@ -10,6 +10,9 @@ type OptionContract = {
   expiration_date: string;
   strike_price: string;
   type: 'call' | 'put';
+  // Returned by /v2/options/contracts but missing from /v1beta1/options/snapshots,
+  // so we thread it through manually below.
+  open_interest?: string;
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -119,14 +122,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // the request count bounded on the data-API rate limit. A single chunk
       // failing (transient 5xx) leaves other chunks' data intact rather than
       // blanking the whole chain.
-      const snapshots: Record<string, unknown> = {};
+      const snapshots: Record<string, Record<string, unknown>> = {};
       if (expiration) {
         const SNAPSHOT_CHUNK = 100;
         const targets = allContracts.map((c) => c.symbol);
         for (let i = 0; i < targets.length; i += SNAPSHOT_CHUNK) {
           const chunk = targets.slice(i, i + SNAPSHOT_CHUNK);
           try {
-            const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
+            const snapResp = await alpacaData<{ snapshots?: Record<string, Record<string, unknown>> }>(
               mode,
               '/v1beta1/options/snapshots',
               { symbols: chunk.join(',') }
@@ -134,6 +137,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             Object.assign(snapshots, snapResp.snapshots ?? {});
           } catch (err) {
             console.error(`[chain] snapshot chunk ${i}-${i + chunk.length} failed for ${symbol} ${expiration}:`, err);
+          }
+        }
+        // Merge open_interest from /v2/options/contracts into snapshots — Alpaca's
+        // /v1beta1/options/snapshots doesn't include OI, but we already have the
+        // contract metadata in hand, so this is free.
+        for (const c of allContracts) {
+          if (c.open_interest != null) {
+            (snapshots[c.symbol] ??= {}).openInterest = Number(c.open_interest);
           }
         }
       }
