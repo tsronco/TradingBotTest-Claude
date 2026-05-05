@@ -7,6 +7,7 @@ import { TagPicker } from './TagPicker';
 import { fmtUsd } from '../../lib/format';
 import { parseOptionSymbol } from '../../lib/option-symbol';
 import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../../lib/trade-types';
+import { GREEK_DEFS } from '../GreekLabel';
 
 interface Props {
   contractSymbol: string;
@@ -125,12 +126,26 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
 
       <div>
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ greeks (auto-snapshot at submit) ──</div>
-        <div className="text-[10px] tnum flex gap-3">
-          <span><span className="text-mid">Δ</span> <span className="text-cyan">{greeks?.delta?.toFixed(2) ?? '—'}</span></span>
-          <span><span className="text-mid">Γ</span> <span className="text-fg">{greeks?.gamma?.toFixed(3) ?? '—'}</span></span>
-          <span><span className="text-mid">Θ</span> <span className="text-red">{greeks?.theta?.toFixed(2) ?? '—'}</span></span>
-          <span><span className="text-mid">ν</span> <span className="text-fg">{greeks?.vega?.toFixed(2) ?? '—'}</span></span>
-          <span><span className="text-mid">IV</span> <span className="text-fg">{greeks?.implied_volatility ? (greeks.implied_volatility * 100).toFixed(0) + '%' : '—'}</span></span>
+        <div className="text-[10px] tnum flex gap-3 flex-wrap">
+          <span title={GREEK_DEFS.delta.tooltip} className="cursor-help">
+            <span className="text-mid">Δ</span> <span className="text-cyan">{greeks?.delta?.toFixed(2) ?? '—'}</span>
+            <span className="text-dim/70 text-[8px] ml-1">delta</span>
+          </span>
+          <span title={GREEK_DEFS.gamma.tooltip} className="cursor-help">
+            <span className="text-mid">Γ</span> <span className="text-fg">{greeks?.gamma?.toFixed(3) ?? '—'}</span>
+            <span className="text-dim/70 text-[8px] ml-1">gamma</span>
+          </span>
+          <span title={GREEK_DEFS.theta.tooltip} className="cursor-help">
+            <span className="text-mid">Θ</span> <span className="text-red">{greeks?.theta?.toFixed(2) ?? '—'}</span>
+            <span className="text-dim/70 text-[8px] ml-1">theta</span>
+          </span>
+          <span title={GREEK_DEFS.vega.tooltip} className="cursor-help">
+            <span className="text-mid">ν</span> <span className="text-fg">{greeks?.vega?.toFixed(2) ?? '—'}</span>
+            <span className="text-dim/70 text-[8px] ml-1">vega</span>
+          </span>
+          <span title={GREEK_DEFS.iv.tooltip} className="cursor-help">
+            <span className="text-mid">IV</span> <span className="text-fg">{greeks?.implied_volatility ? (greeks.implied_volatility * 100).toFixed(0) + '%' : '—'}</span>
+          </span>
         </div>
       </div>
 

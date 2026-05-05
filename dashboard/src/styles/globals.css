@@ -222,3 +222,14 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
   .shell-grid { grid-template-columns: 1fr !important; }
   aside.term-sidebar { display: none; }
 }
+
+/* slim phosphor scrollbar — used by .chain-scroll on the OptionsChain table.
+   Visible enough to discover, dim enough not to break the terminal aesthetic. */
+.chain-scroll::-webkit-scrollbar { width: 6px; }
+.chain-scroll::-webkit-scrollbar-track { background: transparent; }
+.chain-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-dim);
+  border-radius: 3px;
+}
+.chain-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-mid); }
+.chain-scroll { scrollbar-width: thin; scrollbar-color: var(--color-dim) transparent; }

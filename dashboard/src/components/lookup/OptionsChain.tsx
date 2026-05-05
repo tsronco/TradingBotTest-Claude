@@ -5,6 +5,7 @@ import { fmtUsd, fmtPct } from '../../lib/format';
 import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
+import { GreekHeader } from '../GreekLabel';
 
 function accountForMode(mode: AccountMode): 'conservative_paper' | 'aggressive_paper' {
   return mode === 'aggressive' ? 'aggressive_paper' : 'conservative_paper';
@@ -208,19 +209,23 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
           all greeks
         </label>
       </div>
+      {/* Sticky-header scrollable container so the strike/type/bid/ask row stays
+          visible when "show all" expands to 100+ rows. max-h sized so the table
+          doesn't push the page-level layout (Earnings, News, etc.) below the fold. */}
+      <div className="max-h-[60vh] overflow-y-auto chain-scroll">
       <table className="w-full text-[12px] tnum">
-        <thead className="text-dim uppercase tracking-[0.15em] text-[10px]">
+        <thead className="text-dim uppercase tracking-[0.15em] text-[10px] sticky top-0 bg-panel z-10">
           <tr className="border-t border-b border-border">
             <th className="text-left px-2 py-1.5 font-normal">strike</th>
             <th className="text-left px-2 py-1.5 font-normal">type</th>
             <th className="text-right px-2 py-1.5 font-normal">bid</th>
             <th className="text-right px-2 py-1.5 font-normal">ask</th>
-            <th className="text-right px-2 py-1.5 font-normal">IV</th>
-            <th className="text-right px-2 py-1.5 font-normal">Δ</th>
-            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal">Γ</th>}
-            <th className="text-right px-2 py-1.5 font-normal">Θ</th>
-            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal">ν</th>}
-            <th className="text-right px-2 py-1.5 font-normal">OI</th>
+            <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="iv" /></th>
+            <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="delta" /></th>
+            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="gamma" /></th>}
+            <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="theta" /></th>
+            {showAllGreeks && <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="vega" /></th>}
+            <th className="text-right px-2 py-1.5 font-normal"><GreekHeader k="oi" /></th>
           </tr>
         </thead>
         <tbody>
@@ -249,6 +254,7 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
