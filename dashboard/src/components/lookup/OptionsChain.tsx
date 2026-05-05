@@ -10,21 +10,23 @@ function accountForMode(mode: AccountMode): 'conservative_paper' | 'aggressive_p
   return mode === 'aggressive' ? 'aggressive_paper' : 'conservative_paper';
 }
 
+interface OptionContract {
+  symbol: string;
+  underlying_symbol: string;
+  expiration_date: string;
+  strike_price: string;
+  type: 'call' | 'put';
+}
+interface OptionSnapshot {
+  latestQuote?: { ap: number; bp: number };
+  greeks?: { delta: number; gamma: number; theta: number; vega: number };
+  impliedVolatility?: number;
+  openInterest?: number;
+  dailyBar?: { v: number };
+}
 interface ChainResponse {
-  contracts: Array<{
-    symbol: string;
-    underlying_symbol: string;
-    expiration_date: string;
-    strike_price: string;
-    type: 'call' | 'put';
-  }>;
-  snapshots: Record<string, {
-    latestQuote?: { ap: number; bp: number };
-    greeks?: { delta: number; gamma: number; theta: number; vega: number };
-    impliedVolatility?: number;
-    openInterest?: number;
-    dailyBar?: { v: number };
-  }>;
+  contracts: OptionContract[];
+  snapshots: Record<string, OptionSnapshot>;
 }
 
 const NEAREST_STRIKE_COUNT = 6;
@@ -56,10 +58,25 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   const navigate = useNavigate();
   const [accountMode] = useAccount();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['chain', symbol],
+  // Two-query pattern: cheap "expirations only" fetch on mount populates the
+  // dropdown; per-expiration "with snapshots" fetch fires on dropdown change.
+  // Avoids the old 300-symbol cap that left far-dated expirations dataless.
+  const expirationsQ = useQuery({
+    queryKey: ['chain-expirations', symbol],
     queryFn: () => api<ChainResponse>(`/api/alpaca/chain?symbol=${symbol}`),
   });
+
+  const snapshotsQ = useQuery({
+    queryKey: ['chain-snapshots', symbol, selectedExp],
+    queryFn: () =>
+      api<ChainResponse>(`/api/alpaca/chain?symbol=${symbol}&expiration=${selectedExp}`),
+    enabled: !!selectedExp,
+  });
+
+  // Reset selection when symbol changes (no cross-symbol leak).
+  useEffect(() => {
+    setSelectedExp(null);
+  }, [symbol]);
 
   // Pull current price from the same query the QuotePanel uses — React Query
   // dedupes, so this is free.
@@ -70,29 +87,37 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   const snap = quoteQ.data?.snapshot?.[symbol];
   const stockPrice: number | undefined = snap?.latestTrade?.p ?? snap?.dailyBar?.c;
 
-  // Group by expiration; default selection = nearest expiration once data arrives.
-  const { byExp, expirations } = useMemo(() => {
-    const grouped: Record<string, NonNullable<ChainResponse['contracts']>> = {};
-    for (const c of data?.contracts ?? []) {
-      (grouped[c.expiration_date] ??= []).push(c);
-    }
-    return { byExp: grouped, expirations: Object.keys(grouped).sort() };
-  }, [data]);
+  // Expirations from the lightweight query.
+  const expirations = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of expirationsQ.data?.contracts ?? []) set.add(c.expiration_date);
+    return Array.from(set).sort();
+  }, [expirationsQ.data]);
 
-  // Reset selection when symbol changes or first render.
+  // Default selection = nearest expiration once data arrives.
   useEffect(() => {
     if (expirations.length > 0 && (!selectedExp || !expirations.includes(selectedExp))) {
       setSelectedExp(expirations[0]);
     }
   }, [expirations, selectedExp]);
 
-  if (isLoading || !data) return <div className="text-muted text-sm">Loading options chain…</div>;
-  if (data.contracts.length === 0) {
+  if (expirationsQ.isLoading || !expirationsQ.data) {
+    return <div className="text-muted text-sm">Loading options chain…</div>;
+  }
+  if (expirationsQ.data.contracts.length === 0) {
     return <div className="text-muted text-sm">No option contracts available for {symbol}.</div>;
   }
 
   const exp = selectedExp ?? expirations[0];
-  const sideFiltered = (byExp[exp] ?? []).filter(
+  // Contracts and snapshots both come from the per-expiration query when ready;
+  // fall back to the expirations-only contracts so the strike list renders even
+  // before snapshots arrive (rows just show — for quotes during the brief load).
+  const expContracts = snapshotsQ.data?.contracts
+    ?? (expirationsQ.data.contracts.filter((c) => c.expiration_date === exp));
+  const snapshots = snapshotsQ.data?.snapshots ?? {};
+  const isSnapshotsLoading = snapshotsQ.isFetching;
+
+  const sideFiltered = expContracts.filter(
     (c) => side === 'both' || (side === 'puts' ? c.type === 'put' : c.type === 'call')
   );
   const allRows = sideFiltered.slice().sort((a, b) =>
@@ -130,6 +155,11 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
               <option key={e} value={e}>{fmtUSDate(e)}</option>
             ))}
           </select>
+          {isSnapshotsLoading && (
+            <span className="text-dim text-[10px] tracking-[0.15em] animate-pulse ml-1">
+              loading quotes…
+            </span>
+          )}
 
           <div className="inline-flex gap-1 ml-1">
             {(['puts', 'calls', 'both'] as const).map((s) => {
@@ -195,7 +225,7 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
         </thead>
         <tbody>
           {rows.map((c) => {
-            const cs = data.snapshots[c.symbol] ?? {};
+            const cs = snapshots[c.symbol] ?? {};
             const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
             const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
             return (

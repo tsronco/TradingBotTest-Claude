@@ -24,10 +24,12 @@ beforeEach(() => {
   vi.resetModules();
 });
 
-function mockReq(symbol: string) {
+function mockReq(symbol: string, expiration?: string) {
+  const query: Record<string, string> = { endpoint: 'chain', symbol, mode: 'conservative' };
+  if (expiration) query.expiration = expiration;
   return {
     method: 'GET',
-    query: { endpoint: 'chain', symbol, mode: 'conservative' },
+    query,
     headers: {},
   } as unknown as import('@vercel/node').VercelRequest;
 }
@@ -50,6 +52,55 @@ function makeContracts(n: number) {
   }));
 }
 
+describe('chain endpoint — per-expiration mode', () => {
+  it('without expiration param: returns contracts but skips snapshots (cheap dropdown fetch)', async () => {
+    const contracts = makeContracts(150);
+    alpacaTradeMock.mockResolvedValue({ option_contracts: contracts });
+
+    const { default: handler } = await import('../../api/alpaca/[endpoint]');
+    const res = mockRes();
+    await handler(mockReq('AMD'), res as unknown as import('@vercel/node').VercelResponse);
+
+    const payload = (res.json.mock.calls[0]?.[0] ?? {}) as { contracts?: unknown[]; snapshots?: Record<string, unknown> };
+    expect(payload.contracts?.length).toBe(150);
+    expect(payload.snapshots).toEqual({});
+    // No snapshot calls should have been made
+    const snapshotCalls = alpacaDataMock.mock.calls.filter(
+      ([, path]) => path === '/v1beta1/options/snapshots',
+    );
+    expect(snapshotCalls.length).toBe(0);
+  });
+
+  it('with expiration param: fetches snapshots for that expiration only', async () => {
+    const contracts = makeContracts(150);
+    alpacaTradeMock.mockResolvedValue({ option_contracts: contracts });
+    alpacaDataMock.mockImplementation(async (_mode: string, _path: string, params: { symbols: string }) => {
+      const syms = params.symbols.split(',');
+      const snapshots: Record<string, unknown> = {};
+      for (const s of syms) snapshots[s] = { latestQuote: { ap: 1, bp: 0.95 } };
+      return { snapshots };
+    });
+
+    const { default: handler } = await import('../../api/alpaca/[endpoint]');
+    const res = mockRes();
+    await handler(
+      {
+        method: 'GET',
+        query: { endpoint: 'chain', symbol: 'AMD', expiration: '2026-05-08', mode: 'conservative' },
+        headers: {},
+      } as unknown as import('@vercel/node').VercelRequest,
+      res as unknown as import('@vercel/node').VercelResponse,
+    );
+
+    const payload = (res.json.mock.calls[0]?.[0] ?? {}) as { snapshots?: Record<string, unknown> };
+    expect(Object.keys(payload.snapshots ?? {}).length).toBe(150);
+
+    // The contracts query should pass expiration_date so Alpaca only returns that exp's contracts
+    const contractsCall = alpacaTradeMock.mock.calls.find(([, path]) => path === '/v2/options/contracts');
+    expect(contractsCall?.[2]).toMatchObject({ expiration_date: '2026-05-08' });
+  });
+});
+
 describe('chain endpoint — snapshot batching', () => {
   it('chunks snapshot calls into batches of ≤100 symbols (Alpaca cap)', async () => {
     // 250 contracts: should produce 3 snapshot calls (100 + 100 + 50)
@@ -66,7 +117,7 @@ describe('chain endpoint — snapshot batching', () => {
 
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
-    await handler(mockReq('AMD'), res as unknown as import('@vercel/node').VercelResponse);
+    await handler(mockReq('AMD', '2026-05-08'), res as unknown as import('@vercel/node').VercelResponse);
 
     // Each snapshot call must be ≤100 symbols
     const snapshotCalls = alpacaDataMock.mock.calls.filter(
@@ -92,7 +143,7 @@ describe('chain endpoint — snapshot batching', () => {
 
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
-    await handler(mockReq('AMD'), res as unknown as import('@vercel/node').VercelResponse);
+    await handler(mockReq('AMD', '2026-05-08'), res as unknown as import('@vercel/node').VercelResponse);
 
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = (res.json.mock.calls[0]?.[0] ?? {}) as { snapshots?: Record<string, unknown> };
@@ -118,7 +169,7 @@ describe('chain endpoint — snapshot batching', () => {
 
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
-    await handler(mockReq('AMD'), res as unknown as import('@vercel/node').VercelResponse);
+    await handler(mockReq('AMD', '2026-05-08'), res as unknown as import('@vercel/node').VercelResponse);
 
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = (res.json.mock.calls[0]?.[0] ?? {}) as { snapshots?: Record<string, unknown> };

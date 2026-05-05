@@ -106,29 +106,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ mode, symbol, expiration, contracts: [], snapshots: {} });
       }
 
-      // Alpaca's options-snapshots endpoint hard-caps at 100 symbols per request
-      // (HTTP 400 "symbol limit is 100" above that). On a liquid name like AMD a
-      // single expiration alone can have 250+ contracts, so chunk the request.
-      // Cap the total at 300 — covers the nearest 2-3 expirations, which is what
-      // the UI displays. Chunks run sequentially to keep the request count bounded
-      // on the data-API rate limit. A single chunk failing (off-hours, transient
-      // 5xx) leaves the other chunks' data intact rather than blanking the whole
-      // chain. console.error so failures surface in Vercel logs.
-      const SNAPSHOT_CHUNK = 100;
-      const SNAPSHOT_CAP = 300;
-      const targets = allContracts.slice(0, SNAPSHOT_CAP).map((c) => c.symbol);
+      // Two-mode operation:
+      //   - No `expiration` param: caller wants the dropdown of all expirations.
+      //     Skip snapshots entirely (cheap fetch, big payload of contracts only).
+      //   - With `expiration` param: caller picked an expiration and wants live
+      //     quotes for it. The contracts query above already filtered to that
+      //     expiration via `expiration_date`, so we snapshot all of them.
+      //
+      // Snapshots still get chunked at 100/request (Alpaca's hard cap; HTTP 400
+      // "symbol limit is 100" above that). A single expiration on a liquid name
+      // like INTC has 218 contracts → 3 chunks. Chunks run sequentially to keep
+      // the request count bounded on the data-API rate limit. A single chunk
+      // failing (transient 5xx) leaves other chunks' data intact rather than
+      // blanking the whole chain.
       const snapshots: Record<string, unknown> = {};
-      for (let i = 0; i < targets.length; i += SNAPSHOT_CHUNK) {
-        const chunk = targets.slice(i, i + SNAPSHOT_CHUNK);
-        try {
-          const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
-            mode,
-            '/v1beta1/options/snapshots',
-            { symbols: chunk.join(',') }
-          );
-          Object.assign(snapshots, snapResp.snapshots ?? {});
-        } catch (err) {
-          console.error(`[chain] snapshot chunk ${i}-${i + chunk.length} failed for ${symbol}:`, err);
+      if (expiration) {
+        const SNAPSHOT_CHUNK = 100;
+        const targets = allContracts.map((c) => c.symbol);
+        for (let i = 0; i < targets.length; i += SNAPSHOT_CHUNK) {
+          const chunk = targets.slice(i, i + SNAPSHOT_CHUNK);
+          try {
+            const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
+              mode,
+              '/v1beta1/options/snapshots',
+              { symbols: chunk.join(',') }
+            );
+            Object.assign(snapshots, snapResp.snapshots ?? {});
+          } catch (err) {
+            console.error(`[chain] snapshot chunk ${i}-${i + chunk.length} failed for ${symbol} ${expiration}:`, err);
+          }
         }
       }
 

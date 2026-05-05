@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { api } from '../../lib/api';
 import { scoreWheelability } from '../../lib/wheelability';
 import { fmtUsd, fmtPct } from '../../lib/format';
@@ -11,6 +12,8 @@ interface QuoteSnap { latestTrade?: { p: number }; dailyBar?: { c: number } }
 interface QuoteResp { snapshot?: Record<string, QuoteSnap> | QuoteSnap }
 interface AcctResp { account: { buying_power: string } }
 
+const WHEEL_TARGET_DTE = 21;
+
 function scoreColor(score: number): string {
   if (score >= 70) return 'text-hi';
   if (score >= 40) return 'text-amber';
@@ -21,14 +24,37 @@ export default function WheelabilityPanel({ symbol }: { symbol: string }) {
   const [accountMode] = useAccount();
   const mode = accountMode === 'aggressive' ? 'aggressive' : 'conservative';
 
-  const chainQ = useQuery({ queryKey: ['chain', symbol], queryFn: () => api<ChainResp>(`/api/alpaca/chain?symbol=${symbol}`) });
+  // Same two-query pattern as OptionsChain. The expirations query (no snapshots,
+  // shared cache key) populates the dropdown elsewhere; we use it here to pick
+  // the expiration closest to 21 DTE (wheel target), then snapshot only that one.
+  const expirationsQ = useQuery({
+    queryKey: ['chain-expirations', symbol],
+    queryFn: () => api<ChainResp>(`/api/alpaca/chain?symbol=${symbol}`),
+  });
   const quoteQ = useQuery({ queryKey: ['quote', symbol], queryFn: () => api<QuoteResp>(`/api/alpaca/quote?symbol=${symbol}`) });
   const acctQ = useQuery({ queryKey: ['account', mode], queryFn: () => api<AcctResp>(`/api/alpaca/account?mode=${mode}`) });
 
-  if (chainQ.isLoading || quoteQ.isLoading || acctQ.isLoading) {
+  // Pick expiration nearest 21 DTE within the 7-35 window the wheel cares about.
+  const targetExp = useMemo(() => {
+    const exps = Array.from(new Set(expirationsQ.data?.contracts.map((c) => c.expiration_date) ?? []));
+    const inRange = exps
+      .map((e) => ({ e, dte: Math.round((+new Date(e) - Date.now()) / 86400000) }))
+      .filter(({ dte }) => dte >= 7 && dte <= 35);
+    if (inRange.length === 0) return null;
+    inRange.sort((a, b) => Math.abs(a.dte - WHEEL_TARGET_DTE) - Math.abs(b.dte - WHEEL_TARGET_DTE));
+    return inRange[0].e;
+  }, [expirationsQ.data]);
+
+  const snapshotsQ = useQuery({
+    queryKey: ['chain-snapshots', symbol, targetExp],
+    queryFn: () => api<ChainResp>(`/api/alpaca/chain?symbol=${symbol}&expiration=${targetExp}`),
+    enabled: !!targetExp,
+  });
+
+  if (expirationsQ.isLoading || quoteQ.isLoading || acctQ.isLoading || snapshotsQ.isLoading) {
     return <div className="text-dim text-[11px]">computing…</div>;
   }
-  if (!chainQ.data || !quoteQ.data || !acctQ.data) {
+  if (!expirationsQ.data || !quoteQ.data || !acctQ.data) {
     return <div className="text-dim text-[11px]">insufficient data.</div>;
   }
   const snap = (quoteQ.data.snapshot && typeof quoteQ.data.snapshot === 'object' && symbol in quoteQ.data.snapshot)
@@ -40,8 +66,8 @@ export default function WheelabilityPanel({ symbol }: { symbol: string }) {
   const result = scoreWheelability({
     stockPrice,
     buyingPower: Number(acctQ.data.account.buying_power),
-    contracts: chainQ.data.contracts,
-    snapshots: chainQ.data.snapshots,
+    contracts: snapshotsQ.data?.contracts ?? [],
+    snapshots: snapshotsQ.data?.snapshots ?? {},
   });
 
   return (
