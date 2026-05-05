@@ -31,3 +31,4 @@ node_modules/
 
 # Brainstorming visual companion (mockups, transient state)
 .superpowers/
+.vercel

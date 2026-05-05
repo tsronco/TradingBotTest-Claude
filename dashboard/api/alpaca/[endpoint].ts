@@ -106,21 +106,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ mode, symbol, expiration, contracts: [], snapshots: {} });
       }
 
-      // Snapshots URL gets long fast on a 600-contract list. Cap at 250 — enough
-      // to cover the visible strikes of any single expiration the UI is rendering.
-      // If snapshots fail (off-hours, IEX gaps), still return the contracts so the
-      // dropdown / strike filter remain useful.
-      const symbolsForSnapshots = allContracts.slice(0, 250).map((c) => c.symbol).join(',');
-      let snapshots: Record<string, unknown> = {};
-      try {
-        const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
-          mode,
-          '/v1beta1/options/snapshots',
-          { symbols: symbolsForSnapshots }
-        );
-        snapshots = snapResp.snapshots ?? {};
-      } catch {
-        snapshots = {};
+      // Alpaca's options-snapshots endpoint hard-caps at 100 symbols per request
+      // (HTTP 400 "symbol limit is 100" above that). On a liquid name like AMD a
+      // single expiration alone can have 250+ contracts, so chunk the request.
+      // Cap the total at 300 — covers the nearest 2-3 expirations, which is what
+      // the UI displays. Chunks run sequentially to keep the request count bounded
+      // on the data-API rate limit. A single chunk failing (off-hours, transient
+      // 5xx) leaves the other chunks' data intact rather than blanking the whole
+      // chain. console.error so failures surface in Vercel logs.
+      const SNAPSHOT_CHUNK = 100;
+      const SNAPSHOT_CAP = 300;
+      const targets = allContracts.slice(0, SNAPSHOT_CAP).map((c) => c.symbol);
+      const snapshots: Record<string, unknown> = {};
+      for (let i = 0; i < targets.length; i += SNAPSHOT_CHUNK) {
+        const chunk = targets.slice(i, i + SNAPSHOT_CHUNK);
+        try {
+          const snapResp = await alpacaData<{ snapshots?: Record<string, unknown> }>(
+            mode,
+            '/v1beta1/options/snapshots',
+            { symbols: chunk.join(',') }
+          );
+          Object.assign(snapshots, snapResp.snapshots ?? {});
+        } catch (err) {
+          console.error(`[chain] snapshot chunk ${i}-${i + chunk.length} failed for ${symbol}:`, err);
+        }
       }
 
       return res.status(200).json({
