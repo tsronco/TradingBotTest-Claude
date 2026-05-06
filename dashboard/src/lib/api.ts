@@ -18,7 +18,12 @@ export async function api<T = unknown>(
   if (!res.ok) {
     let body: any = null;
     try { body = await res.json(); } catch { /* ignore */ }
-    throw new ApiError(res.status, body?.error ?? `request_failed_${res.status}`);
+    // Include `detail` when the server provides it. Endpoints like
+    // /api/trades/submit return { error: 'alpaca_order_failed', detail: '...' };
+    // showing only `error` strips the actionable diagnostic.
+    const code = body?.error ?? `request_failed_${res.status}`;
+    const message = body?.detail ? `${code}: ${body.detail}` : code;
+    throw new ApiError(res.status, message);
   }
   return (await res.json()) as T;
 }
