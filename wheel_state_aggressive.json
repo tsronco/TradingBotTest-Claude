@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-06T13:49:40.656307Z",
+    "last_checked": "2026-05-06T13:59:25.175272Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260515P00012000: $0.61 vs entry $0.54",
+    "last_action": "Monitoring MARA260515P00012000: $0.57 vs entry $0.54",
     "contract_qty": 1
   },
   "RIOT": {
@@ -62,7 +62,7 @@
     "total_premium_today": 147.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open RIOT260515P00022000 @ $1.05. Awaiting fill.",
+    "last_action": "Awaiting fill on RIOT260515P00022000.",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 106.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open SMCI260515P00030000 @ $0.76. Awaiting fill.",
+    "last_action": "Awaiting fill on SMCI260515P00030000.",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,14 +100,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260511P00195000: $1.13 vs entry $1.23",
+    "last_action": "Monitoring NVDA260511P00195000: $0.84 vs entry $1.23",
     "contract_qty": 1
   },
   "AMD": {
     "stage": 1,
     "current_contract": "AMD260515P00400000",
     "contract_order_id": "b838c5e7-2af3-4165-a089-60bb2c2a8643",
-    "contract_entry_price": null,
+    "contract_entry_price": 10.2,
     "contract_entry_date": "2026-05-06T13:49:36.433897Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open AMD260515P00400000 @ $10.15. Awaiting fill.",
+    "last_action": "Monitoring AMD260515P00400000: $12.27 vs entry $10.20",
     "contract_qty": 1
   },
   "MU": {
@@ -170,10 +170,10 @@
   },
   "BAC": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "5e9106ca-ab9a-4131-bb0e-9e5ddb5295a4",
+    "current_contract": "BAC260515P00050000",
+    "contract_order_id": "e327e33a-d670-45f9-9e06-8efe8eeafcd8",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-04T13:39:40.240016Z",
+    "contract_entry_date": "2026-05-06T13:59:22.614574Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
     "contract_strike": 50.0,
@@ -192,7 +192,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open BAC260515P00050000 @ $0.10. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
@@ -211,7 +211,7 @@
     "total_premium_today": 29.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $0.60 vs entry $1.08",
+    "last_action": "Monitoring XOM260515P00145000: $1.59 vs entry $1.08",
     "contract_qty": 1
   },
   "KO": {
@@ -268,14 +268,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.40 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.46 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
-    "current_contract": "PFE260515P00025000",
+    "current_contract": null,
     "contract_order_id": "a3baf60e-d259-469d-9bfb-bacefdd89abc",
-    "contract_entry_price": 0.2,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-04T13:49:49.746296Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
@@ -283,11 +283,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 0.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 13.0,
+    "total_premium_today": 13.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260515P00025000: $0.11 vs entry $0.20",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   }
 }
