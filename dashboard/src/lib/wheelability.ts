@@ -13,7 +13,10 @@ export type WheelMode = 'conservative' | 'aggressive';
 
 interface WheelInputs {
   stockPrice: number;
-  buyingPower: number;
+  // Use Alpaca's options_buying_power, not buying_power. Cash-secured puts
+  // can only draw from options BP — the regular margin BP includes leverage
+  // that doesn't apply to short option collateral, so it overstates capacity.
+  optionsBuyingPower: number;
   contracts: ChainContract[];
   snapshots: Record<string, Snapshot>;
   // Wheel mode controls the target OTM band — conservative aims ~10% OTM,
@@ -98,7 +101,7 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
   const yieldPct = (best.bid / best.strike) * 100;
   const annualizedPct = yieldPct * (365 / best.dte);
   const spread = best.ask - best.bid;
-  const bpFit = best.strike * 100 <= input.buyingPower;
+  const bpFit = best.strike * 100 <= input.optionsBuyingPower;
 
   // Score: yield-weighted, spread-penalized, BP-gated.
   let s = 0;

@@ -8,6 +8,7 @@ import { fmtUsd } from '../../lib/format';
 import { parseOptionSymbol } from '../../lib/option-symbol';
 import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../../lib/trade-types';
 import { GREEK_DEFS } from '../GreekLabel';
+import { AccountBpIndicator } from './AccountBpIndicator';
 
 interface Props {
   contractSymbol: string;
@@ -48,6 +49,19 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
       setLimitPrice(Number(((ask + bid) / 2 || ask || bid).toFixed(2)));
     }
   }, [ask, bid, orderType, limitPrice]);
+
+  // Live exposure preview for the BP indicator. For short opens, the
+  // collateral is strike × 100 × qty (cash-secured puts / cash-secured calls).
+  // For long opens, cost is premium × 100 × qty. Closes don't draw new BP.
+  const liveExposure = useMemo(() => {
+    if (side === 'STC' || side === 'BTC') return 0;
+    if (side === 'STO') return parsed.strike * 100 * qty;
+    if (side === 'BTO') {
+      const px = limitPrice === '' ? (ask || bid) : Number(limitPrice);
+      return (px || 0) * 100 * qty;
+    }
+    return 0;
+  }, [side, parsed.strike, qty, limitPrice, ask, bid]);
 
   const draft = useMemo(() => ({
     account,
@@ -122,6 +136,7 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
             [live (disabled)]
           </button>
         </div>
+        <AccountBpIndicator mode={mode} assetClass="option" exposure={liveExposure} />
       </div>
 
       <div>

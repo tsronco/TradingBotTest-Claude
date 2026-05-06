@@ -22,7 +22,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
 
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [tooClose.contract, inBand.contract],
       snapshots: { 'TOO-CLOSE-108': tooClose.snapshot, 'IN-BAND-98': inBand.snapshot },
       mode: 'conservative',
@@ -36,7 +36,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
     const inBand = put('IN-BAND-90', 90, stockPrice, 0.50);  // ~10% OTM ✓
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [tooFar.contract, inBand.contract],
       snapshots: { 'TOO-FAR-80': tooFar.snapshot, 'IN-BAND-90': inBand.snapshot },
       mode: 'conservative',
@@ -50,7 +50,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
     const itm = put('ITM-150', 150, stockPrice, 0.5);
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [otm.contract, itm.contract],
       snapshots: { 'OTM-98': otm.snapshot, 'ITM-150': itm.snapshot },
       mode: 'conservative',
@@ -64,7 +64,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
     const tooClose = put('TOO-CLOSE-108', 108, stockPrice, 1.0);
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [itm.contract, tooClose.contract],
       snapshots: { 'ITM-150': itm.snapshot, 'TOO-CLOSE-108': tooClose.snapshot },
       mode: 'conservative',
@@ -81,12 +81,31 @@ describe('scoreWheelability — band filter (aggressive)', () => {
     const at10 = put('AT-10-90', 90, stockPrice, 0.5);
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [at5.contract, at10.contract],
       snapshots: { 'AT-5-95': at5.snapshot, 'AT-10-90': at10.snapshot },
       mode: 'aggressive',
     });
     expect(result.bestStrike).toBe(95);
+  });
+});
+
+describe('scoreWheelability — BP fit uses options BP only', () => {
+  it('reports bpFit=false when strike collateral exceeds options BP, even if cash is plenty', () => {
+    const stockPrice = 100;
+    // Conservative target: $90 strike → $9,000 collateral required.
+    // Account has $98k cash but only $6,500 options BP (existing CSPs absorbed the rest).
+    const target = put('TARGET-90', 90, stockPrice, 0.50);
+    const result = scoreWheelability({
+      stockPrice,
+      optionsBuyingPower: 6_500, // not enough — $9k required
+      contracts: [target.contract],
+      snapshots: { 'TARGET-90': target.snapshot },
+      mode: 'conservative',
+    });
+    expect(result.reason).toBe('computed');
+    expect(result.bestStrike).toBe(90);
+    expect(result.bpFit).toBe(false);
   });
 });
 
@@ -98,7 +117,7 @@ describe('scoreWheelability — within-band yield tiebreaker', () => {
     const thinner = put('THINNER-88', 88, stockPrice, 0.30); // 12% OTM, lower yield
     const result = scoreWheelability({
       stockPrice,
-      buyingPower: 100_000,
+      optionsBuyingPower: 100_000,
       contracts: [richer.contract, thinner.contract],
       snapshots: { 'RICHER-92': richer.snapshot, 'THINNER-88': thinner.snapshot },
       mode: 'conservative',

@@ -6,6 +6,7 @@ import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
 import { fmtUsd } from '../../lib/format';
 import type { GradeLetter, RuleWarning, StockSide, OrderType, Tif } from '../../lib/trade-types';
+import { AccountBpIndicator } from './AccountBpIndicator';
 
 interface Props {
   symbol: string;
@@ -43,6 +44,15 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   useEffect(() => {
     if (orderType === 'limit' && limitPrice === '' && last) setLimitPrice(Number(last.toFixed(2)));
   }, [last, orderType, limitPrice]);
+
+  // Live exposure for the BP indicator. Buys draw on BP (qty × limit/last);
+  // sells close existing exposure, no new BP draw. Sell-short would draw a
+  // margin requirement, but the bot doesn't short stocks so it's a 0 here.
+  const liveExposure = useMemo(() => {
+    if (side !== 'buy') return 0;
+    const px = limitPrice === '' ? last : Number(limitPrice);
+    return (px || 0) * qty;
+  }, [side, qty, limitPrice, last]);
 
   const draft = useMemo(() => ({
     account,
@@ -113,6 +123,7 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
             [live (disabled)]
           </button>
         </div>
+        <AccountBpIndicator mode={mode} assetClass="stock" exposure={liveExposure} />
       </Section>
 
       <Section label="━━━ side ──────────────">

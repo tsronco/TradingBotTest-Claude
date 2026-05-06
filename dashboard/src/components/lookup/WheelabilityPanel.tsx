@@ -10,7 +10,7 @@ interface ChainSnapshot { latestQuote?: { ap: number; bp: number }; impliedVolat
 interface ChainResp { contracts: ChainContract[]; snapshots: Record<string, ChainSnapshot> }
 interface QuoteSnap { latestTrade?: { p: number }; dailyBar?: { c: number } }
 interface QuoteResp { snapshot?: Record<string, QuoteSnap> | QuoteSnap }
-interface AcctResp { account: { buying_power: string } }
+interface AcctResp { account: { buying_power: string; options_buying_power?: string } }
 
 const WHEEL_TARGET_DTE = 21;
 
@@ -63,9 +63,15 @@ export default function WheelabilityPanel({ symbol }: { symbol: string }) {
   const stockPrice = snap?.latestTrade?.p ?? snap?.dailyBar?.c;
   if (!stockPrice) return <div className="text-dim text-[11px]">no price data.</div>;
 
+  // Use options_buying_power, NOT buying_power — short puts can only draw
+  // from the options BP pool, which is cash minus already-encumbered short
+  // option collateral. The general buying_power field includes margin
+  // leverage that doesn't apply to option collateral and overstates capacity.
   const result = scoreWheelability({
     stockPrice,
-    buyingPower: Number(acctQ.data.account.buying_power),
+    optionsBuyingPower: Number(
+      acctQ.data.account.options_buying_power ?? acctQ.data.account.buying_power,
+    ),
     contracts: snapshotsQ.data?.contracts ?? [],
     snapshots: snapshotsQ.data?.snapshots ?? {},
     mode,

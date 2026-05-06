@@ -273,9 +273,13 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
         </div>
       </div>
 
-      {/* metrics grid */}
-      <div className="px-5 py-3 grid gap-3 text-[12px]" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+      {/* metrics grid — Options BP gets equal billing because the wheel only
+          ever draws from it, and it's the number that actually gates new put
+          sales (the regular Buying Power figure includes margin leverage that
+          doesn't apply to short option collateral, so it overstates capacity). */}
+      <div className="px-5 py-3 grid gap-3 text-[12px]" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
         <Metric label="Buying power" value={Number(a.buying_power)} />
+        <Metric label="Options BP" value={Number(a.options_buying_power ?? a.buying_power)} />
         <Metric label="Cash" value={Number(a.cash)} />
         <Metric label="Long mkt value" value={Number(a.long_market_value)} />
         <Metric label="Short mkt value" value={Number(a.short_market_value)} />
