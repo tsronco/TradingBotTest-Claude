@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-06T18:59:33.395439Z",
+    "last_checked": "2026-05-06T19:09:33.763857Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260515P00012000: $0.40 vs entry $0.54",
+    "last_action": "Monitoring MARA260515P00012000: $0.42 vs entry $0.54",
     "contract_qty": 1
   },
   "RIOT": {
@@ -81,14 +81,14 @@
     "total_premium_today": 106.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260515P00030000: $0.53 vs entry $0.76",
+    "last_action": "Monitoring SMCI260515P00030000: $0.51 vs entry $0.76",
     "contract_qty": 1
   },
   "NVDA": {
     "stage": 1,
     "current_contract": "NVDA260515P00195000",
     "contract_order_id": "b97acdcc-7d5b-4bf0-9415-3d0ed1e3fe2a",
-    "contract_entry_price": null,
+    "contract_entry_price": 1.33,
     "contract_entry_date": "2026-05-06T18:29:33.052870Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
@@ -100,7 +100,7 @@
     "total_premium_today": 77.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on NVDA260515P00195000.",
+    "last_action": "Monitoring NVDA260515P00195000: $1.28 vs entry $1.33",
     "contract_qty": 1
   },
   "AMD": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260515P00400000: $9.67 vs entry $10.20",
+    "last_action": "Monitoring AMD260515P00400000: $9.82 vs entry $10.20",
     "contract_qty": 1
   },
   "MU": {
@@ -211,7 +211,7 @@
     "total_premium_today": 29.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $2.22 vs entry $1.08",
+    "last_action": "Monitoring XOM260515P00145000: $2.14 vs entry $1.08",
     "contract_qty": 1
   },
   "KO": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.42 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.41 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
