@@ -23,10 +23,20 @@ const EARLY_CLOSE_THRESHOLD: Record<string, number> = {
   aggressive: 60,
 };
 
+interface AcctResp {
+  account: { buying_power: string; options_buying_power?: string; cash: string };
+}
+
 function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggressive'; label: string; acctKey: 'CONS' | 'AGG' }) {
   const positionsQ = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Position[] }>(`/api/alpaca/positions?mode=${mode}`),
+  });
+  // Same query key as AccountCard / WheelabilityPanel — React Query dedupes.
+  const acctQ = useQuery({
+    queryKey: ['account', mode],
+    queryFn: () => api<AcctResp>(`/api/alpaca/account?mode=${mode}`),
+    staleTime: 30_000,
   });
   const wheelQ = useBotWheelState(mode);
 
@@ -55,6 +65,25 @@ function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggr
   const totalPL = positions.reduce((sum, p) => sum + Number(p.unrealized_pl), 0);
   const optionCount = positions.filter((p) => p.asset_class === 'us_option').length;
   const stockCount = positions.length - optionCount;
+
+  // Cash-secured put collateral encumbering options BP — count and sum
+  // strike × 100 × qty for every short put. (Short calls also reduce BP via
+  // underlying-share collateral but don't lock cash, so we don't sum them
+  // here; covered-call exposure is visible on each row's mkt value already.)
+  const shortPuts = positions.filter((p) => {
+    if (p.asset_class !== 'us_option' || Number(p.qty) >= 0) return false;
+    const parsed = parseOptionSymbol(p.symbol);
+    return parsed?.type === 'put';
+  });
+  const cspCollateral = shortPuts.reduce((sum, p) => {
+    const parsed = parseOptionSymbol(p.symbol);
+    if (!parsed) return sum;
+    return sum + parsed.strike * 100 * Math.abs(Number(p.qty));
+  }, 0);
+
+  const acct = acctQ.data?.account;
+  const optionsBp = acct ? Number(acct.options_buying_power ?? acct.buying_power) : null;
+  const cash = acct ? Number(acct.cash) : null;
 
   return (
     <article
@@ -88,6 +117,30 @@ function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggr
           </span>
         </span>
       </header>
+
+      {/* BP context strip — surfaces the cash/collateral picture so the user
+          can decide at a glance whether to roll/close a position to free up
+          options BP for new wheel entries. */}
+      {optionsBp != null && cash != null && (
+        <div className="px-5 pb-3 text-[11px] tnum text-mid flex flex-wrap gap-x-4 gap-y-1 border-b border-border/50">
+          <span>
+            <span className="text-dim tracking-[0.15em] uppercase mr-1.5">options bp</span>
+            <span className={optionsBp < 1000 ? 'text-amber' : 'text-fg'}>{fmtUsd(optionsBp)}</span>
+          </span>
+          <span>
+            <span className="text-dim tracking-[0.15em] uppercase mr-1.5">cash</span>
+            <span className="text-fg">{fmtUsd(cash)}</span>
+          </span>
+          {shortPuts.length > 0 && (
+            <span>
+              <span className="text-dim tracking-[0.15em] uppercase mr-1.5">csp collateral</span>
+              <span className="text-fg">{shortPuts.length}</span>
+              <span className="text-dim"> short put{shortPuts.length === 1 ? '' : 's'} encumbering </span>
+              <span className="text-fg">{fmtUsd(cspCollateral)}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {positions.length === 0 ? (
         <div className="px-5 py-6 text-dim text-[12px]">
