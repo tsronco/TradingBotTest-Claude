@@ -146,6 +146,17 @@ async function submit(req: VercelRequest, res: VercelResponse) {
 
   // Alpaca submit (paper for now)
   const client = alpacaFor(modeFromAccount(draft.account) as any);
+  // Map our STO/STC/BTO/BTC option side semantics to Alpaca's required
+  // position_intent field. Without this, Alpaca rejects short-option opens
+  // because it can't tell if `side: sell` means "open a short" or "close a
+  // long you don't have." The wheel bot does the same — see
+  // wheel_strategy.py:place_sell_to_open which sends sell_to_open explicitly.
+  const positionIntent =
+    draft.side === 'STO' ? 'sell_to_open'
+    : draft.side === 'BTO' ? 'buy_to_open'
+    : draft.side === 'STC' ? 'sell_to_close'
+    : draft.side === 'BTC' ? 'buy_to_close'
+    : undefined;
   const orderPayload: any = draft.asset_class === 'stock'
     ? {
         symbol: draft.symbol,
@@ -164,8 +175,22 @@ async function submit(req: VercelRequest, res: VercelResponse) {
         type: draft.order_type,
         time_in_force: draft.tif,
         limit_price: draft.limit_price ?? undefined,
+        position_intent: positionIntent,
       };
-  const alpacaOrder = await client.createOrder(orderPayload);
+  let alpacaOrder: any;
+  try {
+    alpacaOrder = await client.createOrder(orderPayload);
+  } catch (err) {
+    // Surface the Alpaca error verbatim — the previous behavior swallowed it
+    // into a generic 500, which made order failures impossible to diagnose
+    // from the UI. Most Alpaca rejects (422 insufficient_buying_power, 422
+    // position_intent_required, 403 market_closed, etc.) carry the actionable
+    // detail in the error message.
+    return res.status(502).json({
+      error: 'alpaca_order_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   // Snapshot Greeks for option opens
   let greeks_at_entry = null;

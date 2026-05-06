@@ -74,6 +74,74 @@ describe('POST /api/trades/submit', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+  it('sets position_intent=sell_to_open for STO option orders', async () => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 }, greeks: { delta: -0.30, gamma: 0.04, theta: -0.05, vega: 0.10, implied_volatility: 0.65 } } } });
+    kvIncr.mockResolvedValue(1);
+    alpacaCreateOrder.mockResolvedValue({ id: 'alp-opt-1', submitted_at: '2026-05-06T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      account: 'conservative_paper', asset_class: 'option', symbol: 'PLTR',
+      contract_symbol: 'PLTR260605P00100000', strike: 100, expiration: '2026-06-05', contract_type: 'put',
+      side: 'STO', qty: 1, order_type: 'limit', limit_price: 1.50,
+      tif: 'day', entry_grade: 'A', entry_reasoning: 'wheel csp 10% otm', tags: [],
+    }), res);
+    expect(alpacaCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ side: 'sell', position_intent: 'sell_to_open' }),
+    );
+  });
+
+  it('sets position_intent=buy_to_open for BTO option orders', async () => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    dataMock.mockResolvedValue({ snapshots: { 'TSLA260605C00400000': { latestQuote: { ap: 2.05, bp: 2.00 } } } });
+    kvIncr.mockResolvedValue(2);
+    alpacaCreateOrder.mockResolvedValue({ id: 'alp-opt-2', submitted_at: '2026-05-06T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      account: 'conservative_paper', asset_class: 'option', symbol: 'TSLA',
+      contract_symbol: 'TSLA260605C00400000', strike: 400, expiration: '2026-06-05', contract_type: 'call',
+      side: 'BTO', qty: 1, order_type: 'limit', limit_price: 2.00,
+      tif: 'day', entry_grade: 'B', entry_reasoning: 'long call directional', tags: [],
+    }), res);
+    expect(alpacaCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ side: 'buy', position_intent: 'buy_to_open' }),
+    );
+  });
+
+  it('returns 502 with Alpaca error message when createOrder fails', async () => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 } } } });
+    alpacaCreateOrder.mockRejectedValue(new Error('alpaca trade 422: insufficient_buying_power'));
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      account: 'conservative_paper', asset_class: 'option', symbol: 'PLTR',
+      contract_symbol: 'PLTR260605P00100000', strike: 100, expiration: '2026-06-05', contract_type: 'put',
+      side: 'STO', qty: 1, order_type: 'limit', limit_price: 1.50,
+      tif: 'day', entry_grade: 'A', entry_reasoning: 'wheel csp', tags: [],
+    }), res);
+    expect(res.status).toHaveBeenCalledWith(502);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.error).toBe('alpaca_order_failed');
+    expect(body.detail).toMatch(/insufficient_buying_power/);
+  });
+
   it('places Alpaca order, writes trade+grade records, indexes', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
