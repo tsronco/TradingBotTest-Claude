@@ -13,7 +13,10 @@ function toTs(iso: string): UTCTimestamp {
 
 export function TradeChart({ trade }: { trade: Trade }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const mode = trade.account === 'aggressive_paper' ? 'aggressive' : 'conservative';
+  const mode: 'conservative' | 'aggressive' | 'manual' =
+    trade.account === 'aggressive_paper' ? 'aggressive'
+    : trade.account === 'manual_paper' ? 'manual'
+    : 'conservative';
 
   const start = trade.submitted_at;
   const end = trade.closed_at ?? new Date().toISOString();

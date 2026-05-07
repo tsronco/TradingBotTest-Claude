@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
-interface Thresholds { conservative_paper: number; aggressive_paper: number; live: number; }
+interface Thresholds { conservative_paper: number; aggressive_paper: number; manual_paper: number; live: number; }
 
 export function ThresholdsTab() {
   const qc = useQueryClient();
@@ -10,7 +10,7 @@ export function ThresholdsTab() {
     queryKey: ['settings', 'thresholds'],
     queryFn: () => api<{ thresholds: Thresholds }>('/api/settings/thresholds'),
   });
-  const [form, setForm] = useState<Thresholds>({ conservative_paper: 5000, aggressive_paper: 10000, live: 1500 });
+  const [form, setForm] = useState<Thresholds>({ conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 });
   useEffect(() => { if (data?.thresholds) setForm(data.thresholds); }, [data]);
 
   const save = useMutation({
@@ -27,7 +27,7 @@ export function ThresholdsTab() {
       </div>
       <div className="p-5 text-[12px] tnum">
         <div className="text-mid text-[10px] mb-3">orders at or above this $ exposure require a fresh totp code.</div>
-        {(['conservative_paper', 'aggressive_paper', 'live'] as const).map((k) => (
+        {(['conservative_paper', 'aggressive_paper', 'manual_paper', 'live'] as const).map((k) => (
           <div key={k} className="flex justify-between py-1 border-b border-dashed border-border">
             <span className="text-mid">{k}{k === 'live' ? <span className="text-dim"> (LIVE_ENABLED=false)</span> : null}</span>
             <input

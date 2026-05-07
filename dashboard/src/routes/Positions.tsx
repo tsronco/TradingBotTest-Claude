@@ -21,13 +21,23 @@ interface Position {
 const EARLY_CLOSE_THRESHOLD: Record<string, number> = {
   conservative: 50,
   aggressive: 60,
+  manual: 50, // mirrors conservative — manual wheel uses the same 50% close
 };
 
 interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
 }
 
-function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggressive'; label: string; acctKey: 'CONS' | 'AGG' }) {
+type PosMode = 'conservative' | 'aggressive' | 'manual';
+type PosAcctKey = 'CONS' | 'AGG' | 'MAN';
+
+const POS_ACCENT: Record<PosAcctKey, { text: string; bg: string; tag: string }> = {
+  CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
+  AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
+  MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+};
+
+function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {
   const positionsQ = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Position[] }>(`/api/alpaca/positions?mode=${mode}`),
@@ -40,8 +50,8 @@ function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggr
   });
   const wheelQ = useBotWheelState(mode);
 
-  const isCons = acctKey === 'CONS';
-  const colorAccent = isCons ? 'text-hi' : 'text-amber';
+  const accent = POS_ACCENT[acctKey];
+  const colorAccent = accent.text;
 
   if (positionsQ.isLoading) {
     return (
@@ -101,8 +111,8 @@ function PositionsTable({ mode, label, acctKey }: { mode: 'conservative' | 'aggr
       {/* card head */}
       <header className="px-5 pt-5 pb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 min-w-0">
         <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-dim">
-          <span className={`w-2 h-2 pulse rounded-sm ${isCons ? 'bg-hi' : 'bg-amber'}`} />
-          <span>ACCT::{isCons ? 'CONS' : 'AGG '}</span>
+          <span className={`w-2 h-2 pulse rounded-sm ${accent.bg}`} />
+          <span>ACCT::{accent.tag}</span>
           <span className="text-dim">·</span>
           <span className="text-mid">positions</span>
         </div>
@@ -268,6 +278,7 @@ export default function Positions() {
   const [mode] = useAccount();
   const showCons = mode === 'both' || mode === 'conservative';
   const showAgg = mode === 'both' || mode === 'aggressive';
+  const showManual = mode === 'both' || mode === 'manual';
   const cardCount = mode === 'both' ? 2 : 1;
 
   return (
@@ -313,6 +324,7 @@ export default function Positions() {
       <div className="grid gap-2">
         {showCons && <PositionsTable mode="conservative" label="Conservative" acctKey="CONS" />}
         {showAgg && <PositionsTable mode="aggressive" label="Aggressive" acctKey="AGG" />}
+        {showManual && <PositionsTable mode="manual" label="Manual" acctKey="MAN" />}
       </div>
 
       {/* footer */}

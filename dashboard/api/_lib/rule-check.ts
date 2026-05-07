@@ -40,17 +40,21 @@ export async function runStubRuleChecks(input: RuleCheckInput): Promise<RuleWarn
     }
   }
 
-  // bot_wheel_overlap
+  // bot_wheel_overlap — checks all 3 paper accounts so any in-flight wheel
+  // on the symbol is surfaced before the user opens an overlapping order.
   const cons = (await kv().get<Record<string, { stage?: number }>>('bot:state:conservative')) ?? {};
   const agg = (await kv().get<Record<string, { stage?: number }>>('bot:state:aggressive')) ?? {};
+  const man = (await kv().get<Record<string, { stage?: number }>>('bot:state:manual')) ?? {};
   const consHas = cons[input.symbol]?.stage === 1 || cons[input.symbol]?.stage === 2;
   const aggHas = agg[input.symbol]?.stage === 1 || agg[input.symbol]?.stage === 2;
-  if (consHas || aggHas) {
-    const accounts = [consHas && 'conservative', aggHas && 'aggressive'].filter(Boolean).join(' & ');
+  const manHas = man[input.symbol]?.stage === 1 || man[input.symbol]?.stage === 2;
+  if (consHas || aggHas || manHas) {
+    const accounts = [consHas && 'conservative', aggHas && 'aggressive', manHas && 'manual']
+      .filter(Boolean).join(' & ');
     out.push({
       rule: 'bot_wheel_overlap',
       severity: 'warn',
-      message: `bot has an open wheel on ${input.symbol} in ${accounts}. manual position will share BP.`,
+      message: `bot has an open wheel on ${input.symbol} in ${accounts}. new position will share BP.`,
     });
   }
 

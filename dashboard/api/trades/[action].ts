@@ -15,7 +15,7 @@ import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
 
 interface OrderDraft {
-  account: 'conservative_paper' | 'aggressive_paper' | 'live';
+  account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
   asset_class: 'stock' | 'option';
   symbol: string;
   side: string;
@@ -35,7 +35,7 @@ interface OrderDraft {
   totp_code?: string;
 }
 
-const DEFAULT_THRESHOLDS = { conservative_paper: 5000, aggressive_paper: 10000, live: 1500 };
+const DEFAULT_THRESHOLDS = { conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return;
@@ -83,6 +83,7 @@ async function getQuote(symbol: string, asset_class: 'stock' | 'option', mode: s
 
 function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
+  if (account === 'manual_paper') return 'manual';
   return 'conservative';
 }
 

@@ -5,7 +5,7 @@ import { useTrades, type TradesFilters } from '../hooks/useTrades';
 import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
 
-const ACCOUNTS = ['conservative_paper', 'aggressive_paper'] as const;
+const ACCOUNTS = ['conservative_paper', 'aggressive_paper', 'manual_paper'] as const;
 const ASSET_CLASSES = ['stock', 'option'] as const;
 const GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'] as const;
 const STATUSES = ['open', 'closed'] as const;

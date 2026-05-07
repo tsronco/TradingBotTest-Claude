@@ -1,18 +1,7 @@
-import type { Mode } from './alpaca.js';
+import { credsFor, type Mode } from './alpaca.js';
 
 const DATA_BASE = 'https://data.alpaca.markets';
 const TRADING_BASE_PAPER = 'https://paper-api.alpaca.markets';
-
-function credsFor(mode: Mode): { key: string; secret: string } {
-  const key = mode === 'conservative'
-    ? process.env.ALPACA_API_KEY
-    : process.env.ALPACA_AGG_API_KEY;
-  const secret = mode === 'conservative'
-    ? process.env.ALPACA_API_SECRET
-    : process.env.ALPACA_AGG_API_SECRET;
-  if (!key || !secret) throw new Error(`alpaca creds missing for mode=${mode}`);
-  return { key, secret };
-}
 
 function buildUrl(base: string, path: string, params: Record<string, string | number | undefined>): string {
   const url = new URL(path, base);

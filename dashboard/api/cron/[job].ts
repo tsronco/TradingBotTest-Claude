@@ -24,7 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 function modeFromAccount(account: string): string {
-  return account === 'aggressive_paper' ? 'aggressive' : 'conservative';
+  if (account === 'aggressive_paper') return 'aggressive';
+  if (account === 'manual_paper') return 'manual';
+  return 'conservative';
 }
 
 async function gradeOpenTrades(res: VercelResponse) {
@@ -96,7 +98,7 @@ interface CloseInfo {
 }
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
-  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive';
+  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
   // Path 0: entry order itself was canceled/rejected before fill — trade never existed.
   // Check this FIRST because if the entry order is canceled there's no point checking close-order paths.

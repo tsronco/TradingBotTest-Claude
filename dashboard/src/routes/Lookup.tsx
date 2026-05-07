@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
+import { selectModeFromAccountMode, modeToAccount, type PaperAccountId } from '../lib/account-utils';
 import type { AccountMode } from '../hooks/useAccount';
 import QuotePanel from '../components/lookup/QuotePanel';
 import PositionContextPanel from '../components/lookup/PositionContextPanel';
@@ -15,8 +16,8 @@ import NewsPanel from '../components/lookup/NewsPanel';
 import FundamentalsPanel from '../components/lookup/FundamentalsPanel';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
-function accountForMode(mode: AccountMode): 'conservative_paper' | 'aggressive_paper' {
-  return mode === 'aggressive' ? 'aggressive_paper' : 'conservative_paper';
+function accountForMode(mode: AccountMode): PaperAccountId {
+  return modeToAccount(selectModeFromAccountMode(mode));
 }
 
 export default function Lookup() {

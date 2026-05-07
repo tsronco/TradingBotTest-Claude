@@ -9,7 +9,9 @@ interface Snapshot {
   impliedVolatility?: number;
 }
 
-export type WheelMode = 'conservative' | 'aggressive';
+// Manual mirrors conservative for OTM band — the bot uses conservative wheel
+// params for managing existing manual positions (50% close, 14-28 DTE puts).
+export type WheelMode = 'conservative' | 'aggressive' | 'manual';
 
 interface WheelInputs {
   stockPrice: number;
@@ -27,7 +29,7 @@ interface WheelInputs {
 // Per-mode target band: bot only sells puts within this OTM range, so the
 // wheelability "best" recommendation should match. ±3 percentage points around
 // the target (conservative: 7-13% OTM; aggressive: 2-8% OTM).
-const TARGET_OTM_PCT = { conservative: 0.10, aggressive: 0.05 } as const;
+const TARGET_OTM_PCT = { conservative: 0.10, aggressive: 0.05, manual: 0.10 } as const;
 const BAND_HALF_WIDTH_PCT = 0.03;
 
 export type WheelabilityReason =

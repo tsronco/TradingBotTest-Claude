@@ -8,7 +8,7 @@ interface AcctResp {
 
 interface Props {
   /** Drives which account's BP to fetch — flips when the user toggles the selector. */
-  mode: 'conservative' | 'aggressive';
+  mode: 'conservative' | 'aggressive' | 'manual';
   /** Stock orders draw from regular buying_power; option orders only from options_buying_power. */
   assetClass: 'stock' | 'option';
   /** Live exposure for the in-progress order. When provided, the indicator

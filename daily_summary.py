@@ -103,13 +103,37 @@ def _summarize_strategy(cfg: dict) -> dict:
     state = _load_json(ROOT / cfg["strategy_state_file"])
     if not state:
         return {"available": False}
+
+    # Single-stock format (conservative/aggressive — TSLA only)
+    if "position_qty" in state:
+        return {
+            "available":       True,
+            "format":          "single_stock",
+            "qty":             state.get("position_qty", 0),
+            "avg_cost":        state.get("avg_cost"),
+            "stop_price":      state.get("stop_price"),
+            "trailing_active": state.get("trailing_active", False),
+            "last_action":     state.get("last_action", ""),
+        }
+
+    # Multi-symbol format (manual mode — auto-discovered positions)
+    per_symbol = {}
+    for sym, sym_state in state.items():
+        if sym.startswith("_") or not isinstance(sym_state, dict):
+            continue
+        per_symbol[sym] = {
+            "qty":             sym_state.get("position_qty", 0),
+            "avg_cost":        sym_state.get("avg_cost"),
+            "stop_price":      sym_state.get("stop_price"),
+            "trailing_active": sym_state.get("trailing_active", False),
+            "last_action":     sym_state.get("last_action", ""),
+        }
+    if not per_symbol:
+        return {"available": False}
     return {
-        "available":       True,
-        "qty":             state.get("position_qty", 0),
-        "avg_cost":        state.get("avg_cost"),
-        "stop_price":      state.get("stop_price"),
-        "trailing_active": state.get("trailing_active", False),
-        "last_action":     state.get("last_action", ""),
+        "available": True,
+        "format":    "multi_stock",
+        "symbols":   per_symbol,
     }
 
 
@@ -275,16 +299,32 @@ def run_daily_summary(mode_name: str) -> None:
             {"name": "Cash",            "value": f"${cash:,.2f}",                                   "inline": True},
         ]
 
-        if strategy["available"] and strategy.get("avg_cost") is not None:
-            fields.append({
-                "name": "TSLA Stock (strategy.py)",
-                "value": (
-                    f"Qty: {strategy['qty']} | Avg: ${strategy['avg_cost']:.2f} | "
-                    f"Stop: ${strategy['stop_price']:.2f} | "
-                    f"Trail: {'ON' if strategy['trailing_active'] else 'OFF'}"
-                ),
-                "inline": False,
-            })
+        if strategy.get("available"):
+            if strategy.get("format") == "multi_stock":
+                lines = []
+                for sym, info in strategy["symbols"].items():
+                    if info.get("avg_cost") is None or info.get("qty", 0) == 0:
+                        continue
+                    lines.append(
+                        f"  {sym:<5} qty {info['qty']:>3}  avg ${info['avg_cost']:>7.2f}  "
+                        f"stop ${info['stop_price']:>7.2f}  trail {'ON ' if info['trailing_active'] else 'OFF'}"
+                    )
+                if lines:
+                    fields.append({
+                        "name":  "Stocks (strategy.py — manual mode)",
+                        "value": "```\n" + "\n".join(lines) + "\n```",
+                        "inline": False,
+                    })
+            elif strategy.get("avg_cost") is not None:
+                fields.append({
+                    "name": "TSLA Stock (strategy.py)",
+                    "value": (
+                        f"Qty: {strategy['qty']} | Avg: ${strategy['avg_cost']:.2f} | "
+                        f"Stop: ${strategy['stop_price']:.2f} | "
+                        f"Trail: {'ON' if strategy['trailing_active'] else 'OFF'}"
+                    ),
+                    "inline": False,
+                })
 
         if wheel["available"]:
             fields.append({

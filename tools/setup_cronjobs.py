@@ -48,9 +48,9 @@ CRONJOB_HEADERS = {
     "Content-Type": "application/json",
 }
 
-# 6 job definitions. Conservative + aggressive paper accounts run side-by-side.
-# Mon–Fri jobs: TSLA Monitor (cons + agg), Congress Copy, Daily Summary.
-# Sunday-only jobs: Wheel Screener (cons + agg).
+# 8 job definitions. Conservative + aggressive + manual paper accounts run
+# side-by-side. Mon–Fri jobs: TSLA Monitor × 3, Congress Copy, Daily Summary.
+# Sunday-only jobs: Wheel Screener × 3.
 JOBS = [
     # Conservative paper account — original setup.
     {
@@ -68,6 +68,15 @@ JOBS = [
         "workflow": "tsla-monitor-aggressive.yml",
         "hours": list(range(13, 21)),
         "minutes": [9, 19, 29, 39, 49, 59],  # every 10 min, :9 offset (+2 from cons)
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    # Manual paper account — same cadence, offset by another :2 minutes
+    # so all three monitors stagger evenly inside the 10-min window.
+    {
+        "title": "TSLA Monitor (Manual)",
+        "workflow": "tsla-monitor-manual.yml",
+        "hours": list(range(13, 21)),
+        "minutes": [1, 11, 21, 31, 41, 51],  # every 10 min, :11 offset (+2 from agg)
         "wdays": [1, 2, 3, 4, 5],
     },
     {
@@ -102,6 +111,16 @@ JOBS = [
         "workflow": "wheel-screener-aggressive.yml",
         "hours": [22],
         "minutes": [2],
+        "wdays": [0],
+    },
+    {
+        # Manual wheel candidate digest (default conservative universe) goes
+        # to #manual-summary as IDEAS only — manual mode never auto-executes.
+        # Offset another 2 min from aggressive so screeners stagger evenly.
+        "title": "Wheel Screener (Manual)",
+        "workflow": "wheel-screener-manual.yml",
+        "hours": [22],
+        "minutes": [4],
         "wdays": [0],
     },
     {

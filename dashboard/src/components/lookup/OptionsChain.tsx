@@ -5,10 +5,11 @@ import { fmtUsd, fmtPct } from '../../lib/format';
 import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
+import { selectModeFromAccountMode, modeToAccount, type PaperAccountId } from '../../lib/account-utils';
 import { GreekHeader } from '../GreekLabel';
 
-function accountForMode(mode: AccountMode): 'conservative_paper' | 'aggressive_paper' {
-  return mode === 'aggressive' ? 'aggressive_paper' : 'conservative_paper';
+function accountForMode(mode: AccountMode): PaperAccountId {
+  return modeToAccount(selectModeFromAccountMode(mode));
 }
 
 interface OptionContract {

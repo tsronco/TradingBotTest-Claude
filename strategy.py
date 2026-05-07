@@ -84,6 +84,11 @@ def apply_mode(mode_name: str) -> None:
     LOG_STREAM = cfg["log_stream"]
 
 
+def auto_discover_enabled() -> bool:
+    """True when the active mode auto-discovers symbols from Alpaca positions."""
+    return config.get_mode(MODE).get("auto_discover_symbols", False)
+
+
 apply_mode(config.DEFAULT_MODE)
 
 
@@ -116,6 +121,17 @@ def get_latest_price(symbol):
     )
     resp.raise_for_status()
     return float(resp.json()["trade"]["p"])
+
+
+def get_stock_positions():
+    """Return list of open stock positions on the current Alpaca account.
+
+    Filters to asset_class='us_equity' so options are excluded (those are
+    managed by wheel_strategy.py and long_options_strategy.py separately).
+    """
+    resp = requests.get(f"{BASE_URL}/positions", headers=HEADERS)
+    resp.raise_for_status()
+    return [p for p in resp.json() if p.get("asset_class") == "us_equity"]
 
 
 def close_all(symbol):
@@ -476,11 +492,290 @@ def run_one_cycle():
         raise
 
 
+def _scaled_ladders(initial_qty: int):
+    """Return ladder list with qty scaled to the position size.
+
+    TSLA's hand-tuned ratios are 8/12/20 against an INITIAL_QTY of 10 — i.e.
+    multipliers of 0.8 / 1.2 / 2.0. We reuse those multipliers for every
+    auto-discovered symbol so a 5-share manual position ladders 4/6/10 and
+    a 1-share position ladders 1/1/2 (rounding ensures at least 1 share).
+    """
+    multipliers = [0.8, 1.2, 2.0]
+    return [
+        {"drop": LADDERS[i]["drop"],
+         "qty": max(1, round(initial_qty * multipliers[i])),
+         "label": LADDERS[i]["label"]}
+        for i in range(len(LADDERS))
+    ]
+
+
+def _manual_seed_state(symbol: str, position: dict) -> dict:
+    """Seed state for a newly-discovered manual-mode position.
+
+    Treats current avg cost as the entry baseline since the user bought
+    these shares manually — the bot has no ladder/trail history pre-seed.
+    """
+    entry_price = round(float(position["avg_entry_price"]), 2)
+    qty = int(float(position["qty"]))
+    return {
+        "first_seen":      datetime.utcnow().isoformat() + "Z",
+        "entry_price":     entry_price,
+        "initial_qty":     qty,
+        "avg_cost":        entry_price,
+        "total_cost":      round(entry_price * qty, 2),
+        "position_qty":    qty,
+        "stop_price":      recalculate_stop(entry_price),
+        "high_water_mark": entry_price,
+        "trailing_active": False,
+        "ladder_done":     [False] * len(LADDERS),
+        "last_action":     f"Seeded from manual position: {qty} shares @ ${entry_price:.2f}",
+    }
+
+
+def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg_cost: float) -> dict:
+    """One cycle of trail/ladder/stop logic for a single manual-mode symbol.
+
+    Reconciles bot state against Alpaca first (the user may have bought or
+    sold shares by hand since the last cycle), then applies the same
+    stop-loss / trailing-stop / ladder-buy logic that conservative TSLA uses.
+    Returns the updated sym_state. Persistence is handled by the caller.
+    """
+    # ── Reconcile with Alpaca position drift ──────────────────────────────
+    bot_qty = int(sym_state.get("position_qty", 0))
+    if alpaca_qty != bot_qty:
+        log(f"{symbol}: position drift bot={bot_qty} alpaca={alpaca_qty} — adopting Alpaca's avg cost")
+        sym_state["position_qty"] = alpaca_qty
+        sym_state["avg_cost"]     = round(alpaca_avg_cost, 2)
+        sym_state["total_cost"]   = round(alpaca_avg_cost * alpaca_qty, 2)
+        sym_state["stop_price"]   = recalculate_stop(alpaca_avg_cost)
+
+    if sym_state["position_qty"] == 0:
+        sym_state["last_action"] = "Position empty — skipping cycle."
+        return sym_state
+
+    # ── Local vars matching run_one_cycle's naming ────────────────────────
+    entry_price     = sym_state["entry_price"]
+    avg_cost        = sym_state["avg_cost"]
+    total_qty       = sym_state["position_qty"]
+    total_cost      = sym_state["total_cost"]
+    stop_price      = sym_state["stop_price"]
+    high_water_mark = sym_state["high_water_mark"]
+    trailing_active = sym_state["trailing_active"]
+    ladder_done     = list(sym_state.get("ladder_done", [False] * len(LADDERS)))
+    ladders         = _scaled_ladders(int(sym_state["initial_qty"]))
+
+    price = get_latest_price(symbol)
+    pnl_pct = (price - avg_cost) / avg_cost * 100
+    log(
+        f"{symbol} ${price:.2f}  |  avg ${avg_cost:.2f} ({pnl_pct:+.2f}%)  |  "
+        f"Stop ${stop_price:.2f}  |  Trail {'ON' if trailing_active else 'OFF'}  |  "
+        f"HWM ${high_water_mark:.2f}  |  Qty {total_qty}"
+    )
+
+    # ── 1. Stop loss ──────────────────────────────────────────────────────
+    if price <= stop_price:
+        log(f"{symbol} STOP HIT — ${price:.2f} ≤ ${stop_price:.2f}. Closing {total_qty} shares.")
+        close_all(symbol)
+        realized = (price - avg_cost) * total_qty
+        send_embed(
+            TRADES_CH, f"{symbol} STOP HIT — closed {total_qty} shares @ ${price:.2f}",
+            color=Color.RED,
+            description=f"Realized P&L: ${realized:+.2f}",
+            fields=[
+                {"name": "Avg cost", "value": f"${avg_cost:.2f}", "inline": True},
+                {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
+            ],
+            footer=f"strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        log_event(LOG_STREAM, "strategy.py", "stop_hit",
+                  symbol=symbol,
+                  details={"exit_price": price, "qty": total_qty, "realized_pnl": realized})
+        sym_state["position_qty"] = 0
+        sym_state["total_cost"]   = 0
+        sym_state["last_action"]  = f"Stop hit at ${price:.2f}. Closed {total_qty} shares. Realized ${realized:+.2f}."
+        return sym_state
+
+    # ── 2. Trailing stop ──────────────────────────────────────────────────
+    if not trailing_active and price >= entry_price * (1 + TRAIL_TRIGGER_PCT):
+        trailing_active = True
+        send_embed(
+            TRADES_CH, f"{symbol} Trailing Stop Activated",
+            color=Color.BLUE,
+            description=f"${price:.2f} hit +{TRAIL_TRIGGER_PCT*100:.0f}% from entry. Floor trails 5% below HWM.",
+            footer=f"strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        log_event(LOG_STREAM, "strategy.py", "trail_activated",
+                  symbol=symbol, details={"price": price, "entry_price": entry_price})
+
+    if trailing_active:
+        high_water_mark = max(high_water_mark, price)
+        new_stop = round(high_water_mark * (1 - TRAIL_DISTANCE_PCT), 2)
+        if new_stop > stop_price:
+            old_stop = stop_price
+            stop_price = new_stop
+            send_embed(
+                TRADES_CH, f"{symbol} Stop Raised → ${new_stop:.2f}",
+                color=Color.BLUE,
+                description=f"HWM ${high_water_mark:.2f} (was ${old_stop:.2f})",
+                footer=f"strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "strategy.py", "stop_raised",
+                      symbol=symbol,
+                      details={"old_stop": old_stop, "new_stop": new_stop, "hwm": high_water_mark})
+
+    # ── 3. Ladder buys ────────────────────────────────────────────────────
+    for i, ldr in enumerate(ladders):
+        if not ladder_done[i] and price <= entry_price * (1 - ldr["drop"]):
+            qty = ldr["qty"]
+            log(f"{symbol} {ldr['label']} TRIGGERED — ${price:.2f} hit -{ldr['drop']*100:.0f}%. Buying {qty}.")
+            o = place_order(symbol, qty, "buy")
+            total_cost  += price * qty
+            total_qty   += qty
+            avg_cost     = round(total_cost / total_qty, 2)
+            stop_price   = recalculate_stop(avg_cost)
+            ladder_done[i] = True
+            send_embed(
+                TRADES_CH, f"{symbol} {ldr['label']} Triggered — bought {qty} shares @ ${price:.2f}",
+                color=Color.YELLOW,
+                fields=[
+                    {"name": "New avg cost", "value": f"${avg_cost:.2f}", "inline": True},
+                    {"name": "New stop",     "value": f"${stop_price:.2f}", "inline": True},
+                    {"name": "Total qty",    "value": str(total_qty), "inline": True},
+                ],
+                footer=f"strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "strategy.py", "ladder_triggered",
+                      symbol=symbol,
+                      details={"label": ldr["label"], "qty": qty, "price": price, "new_avg_cost": avg_cost},
+                      alpaca_order_id=o["id"])
+
+    # ── Persist ───────────────────────────────────────────────────────────
+    sym_state["avg_cost"]        = avg_cost
+    sym_state["total_cost"]      = total_cost
+    sym_state["position_qty"]    = total_qty
+    sym_state["stop_price"]      = stop_price
+    sym_state["high_water_mark"] = high_water_mark
+    sym_state["trailing_active"] = trailing_active
+    sym_state["ladder_done"]     = ladder_done
+    sym_state["last_action"] = (
+        f"Monitoring ${price:.2f} vs avg ${avg_cost:.2f} (PnL {pnl_pct:+.2f}%). "
+        f"Stop ${stop_price:.2f}, Trail {'ON' if trailing_active else 'OFF'}."
+    )
+    return sym_state
+
+
+def run_one_cycle_manual():
+    """Manual-mode cycle: trail/ladder/stop on every stock the user holds.
+
+    Symbols are auto-discovered from Alpaca positions each cycle. State is
+    keyed by symbol in strategy_state_manual.json. New positions seed at
+    the current avg cost; closed positions are pruned from state.
+    """
+    import json
+
+    try:
+        positions = get_stock_positions()
+    except Exception as e:
+        log(f"Error fetching positions: {e}")
+        send_embed(
+            ERRORS_CH, "strategy.py — failed to fetch positions",
+            color=Color.RED,
+            description=f"`{type(e).__name__}: {str(e)[:500]}`",
+            footer=f"strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        log_event(LOG_STREAM, "strategy.py", "exception",
+                  result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
+        raise
+
+    # Load state (or initialize empty)
+    try:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+    except FileNotFoundError:
+        state = {}
+
+    # Index Alpaca positions for quick lookup
+    held = {p["symbol"]: p for p in positions}
+
+    if not held:
+        log("No stock positions held — manual strategy cycle is a no-op.")
+        log_event(LOG_STREAM, "strategy.py", "no_positions",
+                  result="skipped", details={"mode": MODE})
+        state["_meta"] = {"last_checked": datetime.utcnow().isoformat() + "Z"}
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        return
+
+    log(f"Manual strategy cycle: {len(held)} symbols held — {', '.join(sorted(held))}")
+
+    # Process each held symbol with per-symbol error isolation
+    for symbol, position in sorted(held.items()):
+        try:
+            if symbol not in state or symbol.startswith("_"):
+                log(f"{symbol}: first sighting, seeding state")
+                state[symbol] = _manual_seed_state(symbol, position)
+                send_embed(
+                    TRADES_CH, f"{symbol} — manual position seeded",
+                    color=Color.BLUE,
+                    description=(
+                        f"Bot now managing {state[symbol]['position_qty']} shares @ "
+                        f"${state[symbol]['entry_price']:.2f}. Stop ${state[symbol]['stop_price']:.2f}."
+                    ),
+                    footer=f"strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH,
+                )
+
+            alpaca_qty = int(float(position["qty"]))
+            alpaca_avg = float(position["avg_entry_price"])
+            state[symbol] = _manual_run_symbol(symbol, state[symbol], alpaca_qty, alpaca_avg)
+        except Exception as e:
+            log(f"{symbol}: error in cycle: {e}")
+            send_embed(
+                ERRORS_CH, f"strategy.py — {symbol} cycle exception",
+                color=Color.RED,
+                description=f"`{type(e).__name__}: {str(e)[:500]}`",
+                footer=f"strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "strategy.py", "exception",
+                      symbol=symbol, result="failure",
+                      notes=f"{type(e).__name__}: {str(e)[:500]}")
+            # Continue to next symbol — don't break the whole cycle on one failure
+
+    # Prune symbols the user has fully closed (not in held AND state qty is 0)
+    pruned = []
+    for sym in list(state):
+        if sym.startswith("_"):
+            continue
+        if sym not in held and int(state[sym].get("position_qty", 0)) == 0:
+            pruned.append(sym)
+            del state[sym]
+    if pruned:
+        log(f"Pruned closed positions from state: {', '.join(pruned)}")
+
+    state["_meta"] = {"last_checked": datetime.utcnow().isoformat() + "Z"}
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
 if __name__ == "__main__":
     import sys
     selected_mode, remaining = config.parse_mode_arg(sys.argv[1:])
     apply_mode(selected_mode)
     if remaining and remaining[0] == "once":
-        run_one_cycle()
+        if auto_discover_enabled():
+            run_one_cycle_manual()
+        else:
+            run_one_cycle()
     else:
-        run_strategy()
+        if auto_discover_enabled():
+            # Manual mode has no run_strategy() seed flow; the cycle is the
+            # entire strategy and runs once per cron fire.
+            run_one_cycle_manual()
+        else:
+            run_strategy()

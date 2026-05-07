@@ -1,8 +1,7 @@
 """Discord webhook notifications.
 
-Routes messages to one of several per-domain channels by name. Conservative
-paper account uses the original 5 channels; aggressive paper account uses
-its own parallel set so the two never cross-pollinate.
+Routes messages to one of several per-domain channels by name. Each paper
+account uses its own parallel set so the modes never cross-pollinate.
 
 Conservative:
   - "tsla"     → DISCORD_TSLA_WEBHOOK     (#tsla-trades)
@@ -17,13 +16,19 @@ Aggressive:
   - "agg_errors"  → DISCORD_AGG_ERRORS_WEBHOOK   (#aggressive-errors)
   - "agg_actions" → DISCORD_AGG_ACTIONS_WEBHOOK  (#aggressive-actions, firehose)
 
+Manual:
+  - "manual_trades"  → DISCORD_MANUAL_TRADES_WEBHOOK   (#manual-trades)
+  - "manual_summary" → DISCORD_MANUAL_SUMMARY_WEBHOOK  (#manual-summary)
+  - "manual_errors"  → DISCORD_MANUAL_ERRORS_WEBHOOK   (#manual-errors)
+  - "manual_actions" → DISCORD_MANUAL_ACTIONS_WEBHOOK  (#manual-actions, firehose)
+
 If the webhook env var for a channel is unset, the call becomes a no-op so
 local dev runs don't fail. Errors talking to Discord are swallowed (logged
 to stderr) so a flaky webhook never breaks a trading bot.
 
 The send_embed/send_text functions accept `actions_channel` to specify which
-firehose channel to mirror to (defaults to "actions"). Aggressive-mode scripts
-pass `actions_channel="agg_actions"` to keep mirrors in the right server.
+firehose channel to mirror to (defaults to "actions"). Non-conservative scripts
+pass their own actions channel name (e.g. "agg_actions", "manual_actions").
 """
 import json
 import os
@@ -43,6 +48,10 @@ CHANNEL_ENV_MAP = {
     "agg_summary":  "DISCORD_AGG_SUMMARY_WEBHOOK",
     "agg_errors":   "DISCORD_AGG_ERRORS_WEBHOOK",
     "agg_actions":  "DISCORD_AGG_ACTIONS_WEBHOOK",
+    "manual_trades":  "DISCORD_MANUAL_TRADES_WEBHOOK",
+    "manual_summary": "DISCORD_MANUAL_SUMMARY_WEBHOOK",
+    "manual_errors":  "DISCORD_MANUAL_ERRORS_WEBHOOK",
+    "manual_actions": "DISCORD_MANUAL_ACTIONS_WEBHOOK",
 }
 
 
