@@ -18,13 +18,27 @@ export function TradeChart({ trade }: { trade: Trade }) {
     : trade.account === 'manual_paper' ? 'manual'
     : 'conservative';
 
-  const start = trade.submitted_at;
-  const end = trade.closed_at ?? new Date().toISOString();
+  // Pad an hour of pre-trade context so the chart is meaningful even for
+  // a trade submitted minutes ago (1Hour bars wouldn't have closed yet).
+  // Pad 15 min after close so a same-bar close still has a tick after it.
+  const submitted = new Date(trade.submitted_at);
+  const start = new Date(submitted.getTime() - 60 * 60 * 1000).toISOString();
+  const end = (trade.closed_at
+    ? new Date(new Date(trade.closed_at).getTime() + 15 * 60 * 1000)
+    : new Date()
+  ).toISOString();
+
+  // Pick a timeframe based on the trade's open duration. Fresh trades need
+  // sub-hour bars to show anything at all; long-running trades use coarser
+  // bars to keep the bar count reasonable.
+  const closeOrNow = trade.closed_at ? new Date(trade.closed_at).getTime() : Date.now();
+  const durationDays = (closeOrNow - submitted.getTime()) / (24 * 60 * 60 * 1000);
+  const timeframe = durationDays > 14 ? '1Hour' : durationDays > 2 ? '15Min' : '5Min';
 
   const { data } = useQuery({
-    queryKey: ['trade-bars', trade.id, start, end],
+    queryKey: ['trade-bars', trade.id, start, end, timeframe],
     queryFn: () => api<{ bars: Bar[] }>(
-      `/api/alpaca/bars?symbol=${trade.symbol}&mode=${mode}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&timeframe=1Hour`
+      `/api/alpaca/bars?symbol=${trade.symbol}&mode=${mode}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&timeframe=${timeframe}`
     ),
   });
 

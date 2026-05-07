@@ -38,13 +38,20 @@ async function gradeOpenTrades(res: VercelResponse) {
 
   for (const id of openIds) {
     if (graded >= MAX_PER_TICK) break;
-    const trade = await kv().get<Trade>(tradeKey(id));
+    let trade = await kv().get<Trade>(tradeKey(id));
     if (!trade) {
       // Stale entry — remove it from the list
       await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
       remaining -= 1;
       continue;
     }
+
+    // Sync delayed fills back to the trade record. Limit orders may submit
+    // with filled_at=null and fill seconds-to-hours later. Without this,
+    // the trade is permanently stuck showing "submitted · limit $X" with
+    // no entry price, and grade-on-close uses submitted_at as the start
+    // instead of the actual fill time.
+    trade = await syncFillData(trade);
 
     const closeInfo = await detectClose(trade);
     if (!closeInfo) continue;
@@ -95,6 +102,37 @@ interface CloseInfo {
   realized_pnl: number;
   closed_by: NonNullable<ClosedBy>;
   alpaca_close_order_id?: string | null;
+}
+
+/**
+ * Pull the entry order from Alpaca and copy its fill data back onto the
+ * trade record if missing. Called once per open trade per cron tick so
+ * delayed-fill limit orders eventually pick up the actual entry price
+ * and fill timestamp instead of staying stuck at "submitted · limit $X".
+ *
+ * Returns the (possibly updated) trade. Idempotent — once filled_at is
+ * set, this is a no-op aside from the Alpaca read on subsequent calls.
+ */
+async function syncFillData(trade: Trade): Promise<Trade> {
+  if (trade.filled_at) return trade; // already synced
+  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
+  let order: any = null;
+  try {
+    order = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_order_id}`);
+  } catch (e) {
+    console.error('syncFillData order fetch failed', trade.id, trade.alpaca_order_id, e);
+    return trade;
+  }
+  if (order?.status !== 'filled' || !order.filled_at || !order.filled_avg_price) {
+    return trade; // not filled yet (or canceled — detectClose Path 0 handles that)
+  }
+  const updated: Trade = {
+    ...trade,
+    filled_at: order.filled_at,
+    filled_avg_price: Number(order.filled_avg_price),
+  };
+  await kv().set(tradeKey(trade.id), updated);
+  return updated;
 }
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
