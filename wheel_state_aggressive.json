@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-07T14:49:24.752398Z",
+    "last_checked": "2026-05-07T14:59:39.399353Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260515P00012000: $0.39 vs entry $0.54",
+    "last_action": "Monitoring MARA260515P00012000: $0.37 vs entry $0.54",
     "contract_qty": 1
   },
   "RIOT": {
@@ -62,7 +62,7 @@
     "total_premium_today": 147.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260515P00022000: $0.48 vs entry $0.59",
+    "last_action": "Monitoring RIOT260515P00022000: $0.44 vs entry $0.59",
     "contract_qty": 1
   },
   "SMCI": {
@@ -81,7 +81,7 @@
     "total_premium_today": 152.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260515P00035000: $1.76 vs entry $1.79",
+    "last_action": "Monitoring SMCI260515P00035000: $1.48 vs entry $1.79",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 77.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260515P00195000: $0.67 vs entry $1.33",
+    "last_action": "Monitoring NVDA260515P00195000: $0.66 vs entry $1.33",
     "contract_qty": 1
   },
   "AMD": {
@@ -127,7 +127,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring AMD260515P00400000: $8.15 vs entry $10.20",
+    "last_action": "Monitoring AMD260515P00400000: $8.95 vs entry $10.20",
     "contract_qty": 1
   },
   "MU": {
@@ -192,7 +192,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring BAC260515P00050000: $0.10 vs entry $0.08",
+    "last_action": "Monitoring BAC260515P00050000: $0.08 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
@@ -211,7 +211,7 @@
     "total_premium_today": 29.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $3.40 vs entry $1.08",
+    "last_action": "Monitoring XOM260515P00145000: $3.35 vs entry $1.08",
     "contract_qty": 1
   },
   "KO": {
@@ -230,7 +230,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260515P00075000: $0.10 vs entry $0.16",
+    "last_action": "Monitoring KO260515P00075000: $0.09 vs entry $0.16",
     "contract_qty": 1
   },
   "PLTR": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.32 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.34 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
@@ -287,7 +287,7 @@
     "total_premium_today": 13.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260515P00025000: $0.09 vs entry $0.06",
+    "last_action": "Monitoring PFE260515P00025000: $0.06 vs entry $0.06",
     "contract_qty": 1
   }
 }
