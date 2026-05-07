@@ -14,12 +14,14 @@ describe('kv-keys', () => {
     expect(isAllowedBotStateKey('')).toBe(false);
   });
 
-  it('exposes the expected five keys', () => {
+  it('exposes the expected seven keys', () => {
     expect(BOT_STATE_KEYS).toEqual([
       'bot:state:conservative',
       'bot:state:aggressive',
+      'bot:state:manual',
       'bot:strategy:conservative',
       'bot:strategy:aggressive',
+      'bot:strategy:manual',
       'bot:congress',
     ]);
   });

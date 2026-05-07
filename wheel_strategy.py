@@ -73,6 +73,8 @@ SUMMARY_CH         = None
 ACTIONS_CH         = None
 LOG_STREAM         = None
 MODE               = None
+WHEEL_SKIP_NEW_PUTS  = False  # manual mode: never open Stage 1 puts
+AUTO_DISCOVER_SYMBOLS = False  # manual mode: build SYMBOLS from Alpaca positions
 
 
 def apply_mode(mode_name: str) -> None:
@@ -88,6 +90,7 @@ def apply_mode(mode_name: str) -> None:
     global CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX
     global EARLY_CLOSE_PCT, STALE_AFTER_HOURS
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
+    global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -117,6 +120,9 @@ def apply_mode(mode_name: str) -> None:
     SUMMARY_CH = cfg["summary_channel"]
     ACTIONS_CH = cfg["actions_channel"]
     LOG_STREAM = cfg["log_stream"]
+
+    WHEEL_SKIP_NEW_PUTS   = cfg.get("wheel_skip_new_puts", False)
+    AUTO_DISCOVER_SYMBOLS = cfg.get("auto_discover_symbols", False)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -728,7 +734,27 @@ def handle_stage1(symbol, sym_state, stock_price, account):
 
 
 def _sell_new_put(symbol, sym_state, stock_price, account):
-    """Find and sell the best cash-secured put for `symbol`."""
+    """Find and sell the best cash-secured put for `symbol`.
+
+    In modes with WHEEL_SKIP_NEW_PUTS (manual), this is a no-op — the bot
+    only manages existing puts the user opened by hand, never opens new ones.
+    """
+    if WHEEL_SKIP_NEW_PUTS:
+        log(f"[{symbol}] Manual mode — skipping new put entry (WHEEL_SKIP_NEW_PUTS).")
+        sym_state["last_action"] = "Manual mode: not opening new puts (user-driven)."
+        send_embed(
+            ACTIONS_CH, f"Wheel: {symbol} — skipping new put (manual mode)",
+            color=Color.BLUE,
+            description="Stage 1 entry skipped; user opens puts manually. Bot will manage existing positions.",
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+            also_to_actions=False,
+        )
+        log_event(LOG_STREAM, "wheel_strategy.py", "manual_skip_new_put",
+                  result="skipped",
+                  details={"underlying": symbol, "stock_price": stock_price})
+        return
+
     target_strike = round_strike(stock_price * (1 - PUT_STRIKE_PCT), stock_price)
     # Re-fetch options BP from Alpaca on every check rather than trusting
     # the cycle-start snapshot. Alpaca reserves MORE than `strike × 100`
@@ -1075,10 +1101,150 @@ def _sell_new_call(symbol, sym_state, stock_price, cost_basis):
 
 # ── Top-level orchestration ───────────────────────────────────────────────
 
+def _parse_occ(occ: str):
+    """Parse OCC option symbol → (ticker, side, strike, expiry_date) or None."""
+    for i, c in enumerate(occ):
+        if c.isdigit():
+            ticker, rest = occ[:i], occ[i:]
+            break
+    else:
+        return None
+    if len(rest) != 15:
+        return None
+    try:
+        from datetime import date as _date
+        yy = int(rest[0:2]); mm = int(rest[2:4]); dd = int(rest[4:6])
+        side = rest[6]
+        strike = int(rest[7:15]) / 1000.0
+        expiry = _date(2000 + yy, mm, dd)
+    except (ValueError, ImportError):
+        return None
+    if side not in ("C", "P"):
+        return None
+    return ticker, "put" if side == "P" else "call", strike, expiry
+
+
+def _discover_wheel_state(state: dict) -> set:
+    """Build the set of underlyings the wheel should manage this cycle.
+
+    Returns the union of:
+      - underlyings of every short option position (puts → Stage 1 mgmt;
+        calls → user pre-sold a CC, treat as Stage 2)
+      - underlyings the user holds ≥100 shares of (Stage 2 candidates)
+      - any symbol already tracked in state with a current contract
+        (don't lose track of in-flight positions mid-cycle)
+
+    Side effect: for any newly-discovered position, populates state[symbol]
+    with adopted contract metadata so handle_stage1/handle_stage2 can run.
+    """
+    discovered: set = set()
+    positions = get_positions()
+
+    # Tracked-in-state symbols stay in scope so we don't drop a symbol
+    # mid-cycle just because Alpaca hasn't synced yet.
+    for sym, ss in state.items():
+        if sym.startswith("_"):
+            continue
+        if ss.get("current_contract") or int(ss.get("shares_qty", 0)) >= 100:
+            discovered.add(sym)
+
+    for pos in positions:
+        asset_class = pos.get("asset_class")
+        symbol = pos["symbol"]
+
+        if asset_class == "us_equity":
+            qty = int(float(pos["qty"]))
+            if qty >= 100:
+                discovered.add(symbol)
+            continue
+
+        if asset_class != "us_option":
+            continue
+
+        # Only short option positions are wheel material
+        qty_int = int(float(pos["qty"]))
+        if qty_int >= 0:
+            continue
+
+        parsed = _parse_occ(symbol)
+        if not parsed:
+            log(f"[wheel-discover] could not parse OCC symbol {symbol} — skipping")
+            continue
+        ticker, opt_type, strike, expiry = parsed
+        discovered.add(ticker)
+
+        sym_state = state.setdefault(ticker, _empty_symbol_state())
+        # If we've already adopted this OCC symbol, leave state alone.
+        if sym_state.get("current_contract") == symbol:
+            continue
+
+        # Adopt: seed state from the position so existing handlers can run.
+        # Premium received per share = abs(avg_entry_price). For options,
+        # Alpaca's avg_entry_price is the per-share fill (negative for shorts).
+        entry_per_share = abs(float(pos.get("avg_entry_price", 0)))
+        contracts = abs(qty_int)
+
+        sym_state["current_contract"]     = symbol
+        sym_state["contract_order_id"]    = sym_state.get("contract_order_id")  # unknown for adopted
+        sym_state["contract_entry_price"] = round(entry_per_share, 4)
+        sym_state["contract_entry_date"]  = sym_state.get("contract_entry_date") or datetime.utcnow().isoformat() + "Z"
+        sym_state["contract_expiration"]  = expiry.isoformat()
+        sym_state["contract_type"]        = opt_type
+        sym_state["contract_strike"]      = strike
+        sym_state["contract_qty"]         = contracts
+
+        if opt_type == "put":
+            sym_state["stage"] = 1
+            sym_state["last_action"] = f"Adopted manual put {symbol} @ ${entry_per_share:.2f} ({contracts}× contracts)"
+        else:
+            # User pre-sold a covered call. Move to Stage 2 and capture cost basis.
+            sym_state["stage"] = 2
+            stock_pos = get_stock_position(ticker)
+            if stock_pos:
+                sym_state["shares_qty"]           = int(float(stock_pos["qty"]))
+                sym_state["cost_basis_per_share"] = abs(float(stock_pos["avg_entry_price"]))
+                sym_state["total_cost"]           = sym_state["cost_basis_per_share"] * sym_state["shares_qty"]
+            sym_state["last_action"] = f"Adopted manual covered call {symbol} @ ${entry_per_share:.2f} ({contracts}× contracts)"
+
+        send_embed(
+            TRADES_CH, f"Wheel: adopted manual {opt_type} {ticker}",
+            color=Color.BLUE,
+            description=(
+                f"Now managing {contracts}× {symbol} @ ${entry_per_share:.2f}/share. "
+                f"Stage {sym_state['stage']}."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        log_event(LOG_STREAM, "wheel_strategy.py", "adopted_manual_position",
+                  symbol=symbol,
+                  details={"underlying": ticker, "type": opt_type, "strike": strike,
+                           "expiry": expiry.isoformat(), "contracts": contracts,
+                           "entry_premium": entry_per_share})
+
+    return discovered
+
+
 def run_wheel():
     """One cycle: iterate every symbol in SYMBOLS, handle independently."""
+    global SYMBOLS
     try:
         state = load_state()
+
+        # Manual mode: build SYMBOLS from live Alpaca positions instead of
+        # the static list. Adopts any user-opened option/share positions
+        # the wheel hasn't seen yet so handle_stage1/handle_stage2 work
+        # without modification.
+        if AUTO_DISCOVER_SYMBOLS:
+            discovered = _discover_wheel_state(state)
+            SYMBOLS = sorted(discovered)
+            log(f"Auto-discovered {len(SYMBOLS)} wheel symbols: {', '.join(SYMBOLS) if SYMBOLS else '(none)'}")
+            if not SYMBOLS:
+                log("No wheel-relevant positions held — manual wheel cycle is a no-op.")
+                save_state(state)
+                log_event(LOG_STREAM, "wheel_strategy.py", "no_positions",
+                          result="skipped", details={"mode": MODE})
+                return
 
         if not is_market_open():
             log(f"Market closed — skipping wheel cycle for all {len(SYMBOLS)} symbols.")

@@ -1,8 +1,9 @@
 """Tests for config.py and the mode-switching machinery.
 
 Verifies that:
-  - config.MODES has exactly the two expected modes
+  - config.MODES has exactly the three expected modes
   - Each mode's required keys are present
+  - Manual mode declares the auto-discover and skip-new-puts flags
   - parse_mode_arg correctly extracts --mode from argv
   - apply_mode in each script switches the right module globals
 """
@@ -15,7 +16,7 @@ import config
 
 
 def test_modes_dict_has_expected_keys():
-    assert set(config.MODES.keys()) == {"conservative", "aggressive"}
+    assert set(config.MODES.keys()) == {"conservative", "aggressive", "manual"}
 
 
 REQUIRED_MODE_KEYS = {
@@ -32,36 +33,46 @@ REQUIRED_MODE_KEYS = {
 }
 
 
-@pytest.mark.parametrize("mode_name", ["conservative", "aggressive"])
+@pytest.mark.parametrize("mode_name", ["conservative", "aggressive", "manual"])
 def test_mode_has_all_required_keys(mode_name):
     cfg = config.MODES[mode_name]
     missing = REQUIRED_MODE_KEYS - set(cfg.keys())
     assert not missing, f"{mode_name} mode missing keys: {missing}"
 
 
+def test_manual_mode_declares_auto_discover_and_skip_new_puts():
+    """Manual mode is defined by these two flags — without them, it would
+    behave like a third static-symbol mode that auto-executes."""
+    cfg = config.MODES["manual"]
+    assert cfg.get("auto_discover_symbols") is True, \
+        "manual mode must set auto_discover_symbols=True"
+    assert cfg.get("wheel_skip_new_puts") is True, \
+        "manual mode must set wheel_skip_new_puts=True"
+
+
 def test_modes_use_distinct_alpaca_credentials():
-    """Conservative and aggressive must hit DIFFERENT paper accounts."""
-    cons = config.MODES["conservative"]
-    aggr = config.MODES["aggressive"]
-    assert cons["alpaca_key_env"]    != aggr["alpaca_key_env"]
-    assert cons["alpaca_secret_env"] != aggr["alpaca_secret_env"]
+    """All three modes must hit DIFFERENT paper accounts."""
+    keys   = [config.MODES[m]["alpaca_key_env"]    for m in ("conservative", "aggressive", "manual")]
+    secrets = [config.MODES[m]["alpaca_secret_env"] for m in ("conservative", "aggressive", "manual")]
+    assert len(set(keys))    == 3, f"alpaca_key_env not unique across modes: {keys}"
+    assert len(set(secrets)) == 3, f"alpaca_secret_env not unique across modes: {secrets}"
 
 
 def test_modes_use_distinct_state_files():
-    """State files must differ so the two accounts don't share memory."""
-    cons = config.MODES["conservative"]
-    aggr = config.MODES["aggressive"]
-    assert cons["wheel_state_file"]    != aggr["wheel_state_file"]
-    assert cons["strategy_state_file"] != aggr["strategy_state_file"]
-    assert cons["log_stream"]          != aggr["log_stream"]
+    """State files must differ so the three accounts don't share memory."""
+    wheel    = [config.MODES[m]["wheel_state_file"]    for m in ("conservative", "aggressive", "manual")]
+    strategy = [config.MODES[m]["strategy_state_file"] for m in ("conservative", "aggressive", "manual")]
+    streams  = [config.MODES[m]["log_stream"]          for m in ("conservative", "aggressive", "manual")]
+    assert len(set(wheel))    == 3, f"wheel_state_file not unique: {wheel}"
+    assert len(set(strategy)) == 3, f"strategy_state_file not unique: {strategy}"
+    assert len(set(streams))  == 3, f"log_stream not unique: {streams}"
 
 
 def test_modes_use_distinct_discord_channels():
-    """All four channel slots must differ between modes."""
-    cons = config.MODES["conservative"]
-    aggr = config.MODES["aggressive"]
+    """All four channel slots must differ across all three modes."""
     for slot in ("trades_channel", "summary_channel", "errors_channel", "actions_channel"):
-        assert cons[slot] != aggr[slot], f"{slot} not differentiated between modes"
+        values = [config.MODES[m][slot] for m in ("conservative", "aggressive", "manual")]
+        assert len(set(values)) == 3, f"{slot} not differentiated across modes: {values}"
 
 
 def test_aggressive_is_more_aggressive_than_conservative():
@@ -188,3 +199,39 @@ def test_wheel_screener_apply_mode_switches_universe():
     assert aggr_dte_min < cons_dte_min, "aggressive should screen shorter DTE"
 
     wsc.apply_mode("conservative")
+
+
+# ── Manual-mode-specific behaviour ────────────────────────────────────────
+
+
+def test_wheel_strategy_apply_mode_manual_sets_skip_flags():
+    """Manual mode must populate both behaviour flags on wheel_strategy."""
+    import wheel_strategy as ws
+    ws.apply_mode("manual")
+    assert ws.MODE == "manual"
+    assert ws.WHEEL_SKIP_NEW_PUTS is True
+    assert ws.AUTO_DISCOVER_SYMBOLS is True
+    assert ws.STATE_FILE.endswith("wheel_state_manual.json")
+    assert ws.TRADES_CH == "manual_trades"
+    # Manual mirrors conservative wheel parameters
+    assert ws.PUT_STRIKE_PCT  == 0.10
+    assert ws.EARLY_CLOSE_PCT == 0.50
+    ws.apply_mode("conservative")
+    # Conservative must NOT have these flags set after switching back
+    assert ws.WHEEL_SKIP_NEW_PUTS is False
+    assert ws.AUTO_DISCOVER_SYMBOLS is False
+
+
+def test_strategy_apply_mode_manual_enables_auto_discover():
+    """strategy.auto_discover_enabled() must report True only for manual."""
+    import strategy
+    strategy.apply_mode("conservative")
+    assert strategy.auto_discover_enabled() is False
+    strategy.apply_mode("aggressive")
+    assert strategy.auto_discover_enabled() is False
+    strategy.apply_mode("manual")
+    assert strategy.MODE == "manual"
+    assert strategy.STATE_FILE.endswith("strategy_state_manual.json")
+    assert strategy.TRADES_CH == "manual_trades"
+    assert strategy.auto_discover_enabled() is True
+    strategy.apply_mode("conservative")

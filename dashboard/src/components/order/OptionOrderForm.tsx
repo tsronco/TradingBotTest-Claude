@@ -10,11 +10,13 @@ import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../..
 import { GREEK_DEFS } from '../GreekLabel';
 import { AccountBpIndicator } from './AccountBpIndicator';
 
+type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
+
 interface Props {
   contractSymbol: string;
   action: 'open' | 'close';
-  account: 'conservative_paper' | 'aggressive_paper' | 'live';
-  setAccount: (a: 'conservative_paper' | 'aggressive_paper' | 'live') => void;
+  account: OptionAccount;
+  setAccount: (a: OptionAccount) => void;
   onReview: (p: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any }) => void;
 }
 
@@ -34,7 +36,10 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative' as 'aggressive' | 'conservative';
+  const mode: 'conservative' | 'aggressive' | 'manual' =
+    account === 'aggressive_paper' ? 'aggressive'
+    : account === 'manual_paper' ? 'manual'
+    : 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['option-quote', contractSymbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${contractSymbol}&mode=${mode}&kind=option`),
@@ -126,6 +131,9 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
           </button>
           <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
             [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
+            [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
@@ -245,7 +253,7 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   );
 }
 
-function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive'; bid: number; ask: number }) {
+function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive' | 'manual'; bid: number; ask: number }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),

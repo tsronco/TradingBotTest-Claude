@@ -305,7 +305,12 @@ def run_screener():
         results.sort(key=lambda r: r["score"], reverse=True)
         top = results[:TOP_N]
 
-        title_prefix = "Aggressive Wheel Screener" if MODE == "aggressive" else "Wheel Screener"
+        if MODE == "aggressive":
+            title_prefix = "Aggressive Wheel Screener"
+        elif MODE == "manual":
+            title_prefix = "Manual Wheel Screener (ideas only)"
+        else:
+            title_prefix = "Wheel Screener"
 
         if not top:
             send_embed(

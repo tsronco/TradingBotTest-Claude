@@ -24,13 +24,13 @@ function mockRes() {
 
 describe('GET /api/settings/thresholds', () => {
   it('returns thresholds from KV', async () => {
-    kvGet.mockResolvedValueOnce({ conservative_paper: 5000, aggressive_paper: 10000, live: 1500 });
+    kvGet.mockResolvedValueOnce({ conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 });
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('GET', { resource: 'thresholds' });
     const res = mockRes();
     await handler(req, res);
     expect(res.json).toHaveBeenCalledWith({
-      thresholds: { conservative_paper: 5000, aggressive_paper: 10000, live: 1500 },
+      thresholds: { conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 },
     });
   });
 
@@ -41,7 +41,7 @@ describe('GET /api/settings/thresholds', () => {
     const res = mockRes();
     await handler(req, res);
     expect(res.json).toHaveBeenCalledWith({
-      thresholds: { conservative_paper: 5000, aggressive_paper: 10000, live: 1500 },
+      thresholds: { conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 },
     });
   });
 });
@@ -51,12 +51,12 @@ describe('POST /api/settings/thresholds', () => {
     kvSet.mockResolvedValueOnce('OK');
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: 7500, aggressive_paper: 12000, live: 2000,
+      conservative_paper: 7500, aggressive_paper: 12000, manual_paper: 3000, live: 2000,
     });
     const res = mockRes();
     await handler(req, res);
     expect(kvSet).toHaveBeenCalledWith('config:totp_thresholds', {
-      conservative_paper: 7500, aggressive_paper: 12000, live: 2000,
+      conservative_paper: 7500, aggressive_paper: 12000, manual_paper: 3000, live: 2000,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -64,7 +64,7 @@ describe('POST /api/settings/thresholds', () => {
   it('rejects negative numbers', async () => {
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: -1, aggressive_paper: 10000, live: 1500,
+      conservative_paper: -1, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
     });
     const res = mockRes();
     await handler(req, res);

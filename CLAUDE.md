@@ -1,6 +1,6 @@
 # TradingBotTest-Claude
 
-Alpaca paper trading sandbox running scheduled bots on **GitHub Actions cron** across **two paper accounts in parallel** — a "conservative" and an "aggressive" wheel — to A/B-test wheel parameter aggressiveness in real market conditions. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
+Alpaca paper trading sandbox running scheduled bots on **GitHub Actions cron** across **three paper accounts in parallel** — a "conservative" and "aggressive" wheel that auto-execute, plus a "manual" account where the user opens trades by hand and the bot manages them (trail/ladder/stop on every stock you hold, 50% close on existing puts, covered call sale on assignment) but never opens new puts itself. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
 
 A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, deployed to Vercel at https://tradingbot-dashboard-blue.vercel.app) sits alongside the bots — read-only-monitoring + manual lookup of any symbol. See [Dashboard subproject](#dashboard-subproject) below.
 
@@ -18,15 +18,36 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 └────────────────────────────────────────────────────────────────────┘
 
 ┌─ Aggressive paper account ────────────────────────────────────────┐
-│  tsla-monitor-aggressive.yml  (every 10 min, :2 offset)           │
+│  tsla-monitor-aggressive.yml  (every 10 min, :9 offset)           │
 │    ├─ strategy.py --mode aggressive                                │
 │    ├─ wheel_strategy.py --mode aggressive  (5% OTM, 7-14 DTE,     │
 │    │                                       60% close, +crypto)    │
 │    └─ long_options_strategy.py --mode aggressive                  │
-│  wheel-screener-aggressive.yml (Sundays 6pm ET — high-IV pool)    │
+│  wheel-screener-aggressive.yml (Sundays 6:02pm ET — high-IV pool) │
 │  Discord: #aggressive-trades, #aggressive-summary,                │
 │           #aggressive-errors, #aggressive-actions                 │
 │  Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET              │
+└────────────────────────────────────────────────────────────────────┘
+
+┌─ Manual paper account ────────────────────────────────────────────┐
+│  tsla-monitor-manual.yml      (every 10 min, :11 offset)          │
+│    ├─ strategy.py --mode manual                                    │
+│    │   auto-discovers stocks from positions; trail/ladder/stop    │
+│    │   on every name held (not just TSLA); ladder qty scales      │
+│    │   to initial_position_qty × {0.8, 1.2, 2.0}                  │
+│    ├─ wheel_strategy.py --mode manual                              │
+│    │   wheel_skip_new_puts=True (never opens Stage 1); adopts     │
+│    │   user-opened puts/CCs from positions and manages them       │
+│    │   with conservative wheel params (50% close, sells CC on     │
+│    │   assignment)                                                 │
+│    └─ long_options_strategy.py --mode manual                       │
+│        manages exits on long options the user bought manually     │
+│  wheel-screener-manual.yml    (Sundays 6:04pm ET — IDEAS only,    │
+│                                 default conservative universe)    │
+│  Discord: #manual-trades, #manual-summary,                        │
+│           #manual-errors, #manual-actions                         │
+│  Alpaca:  ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET        │
+│  Starting capital: $10k (vs $100k on the auto-execute accounts)   │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌─ Shared workflows ────────────────────────────────────────────────┐
@@ -35,11 +56,14 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │  daily-summary.yml      (4:12 PM ET Mon–Fri — combined report)    │
 │    1. Conservative summary  → #daily-summary                      │
 │    2. Aggressive summary    → #aggressive-summary                 │
-│    3. Head-to-head embed    → both summary channels               │
+│    3. Manual summary        → #manual-summary  (no head-to-head)  │
+│    4. Head-to-head embed    → cons + agg summary channels         │
+│       (manual excluded — different starting capital and operating │
+│        model make a 3-way comparison apples-to-oranges)           │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The two accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Existing tests cover that the modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels).
+The three accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Manual mode adds two extra flags (`auto_discover_symbols` and `wheel_skip_new_puts`) that change behaviour without forking the scripts. Tests cover that the three modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels) and that manual's behaviour flags fire correctly.
 
 ## Environment
 
@@ -68,6 +92,17 @@ DISCORD_AGG_TRADES_WEBHOOK=...
 DISCORD_AGG_SUMMARY_WEBHOOK=...
 DISCORD_AGG_ERRORS_WEBHOOK=...
 DISCORD_AGG_ACTIONS_WEBHOOK=...
+
+# Manual paper account
+ALPACA_MANUAL_API_KEY=...
+ALPACA_MANUAL_API_SECRET=...
+ALPACA_MANUAL_BASE_URL=https://paper-api.alpaca.markets/v2
+
+# Discord webhooks — manual side
+DISCORD_MANUAL_TRADES_WEBHOOK=...
+DISCORD_MANUAL_SUMMARY_WEBHOOK=...
+DISCORD_MANUAL_ERRORS_WEBHOOK=...
+DISCORD_MANUAL_ACTIONS_WEBHOOK=...
 ```
 
 **Paper trading only.** Base URL must stay as `paper-api.alpaca.markets`. The `paper_guard.py` module asserts this on every congress-copy invocation.
@@ -76,16 +111,18 @@ DISCORD_AGG_ACTIONS_WEBHOOK=...
 
 All cron expressions are in **UTC**. Times below are translated for clarity.
 
-All six workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
+All eight workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
 
 | Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
 | `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Conservative: strategy + wheel + long-options |
 | `tsla-monitor-aggressive.yml` | `9,19,29,39,49,59 13-20 * * 1-5` | every 10 min, :09 offset | every 10 min, :09 offset | Aggressive: strategy + wheel + long-options |
+| `tsla-monitor-manual.yml` | `1,11,21,31,41,51 13-20 * * 1-5` | every 10 min, :11 offset | every 10 min, :11 offset | Manual: strategy + wheel + long-options |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Conservative-only: scrape + monitor |
-| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 3-step: cons summary, agg summary, head-to-head |
+| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 4-step: cons + agg + manual + head-to-head |
 | `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Conservative wheel-candidate digest |
 | `wheel-screener-aggressive.yml` | `2 22 * * 0` | 5:02 PM Sun | 6:02 PM Sun | Aggressive (high-IV) wheel-candidate digest |
+| `wheel-screener-manual.yml` | `4 22 * * 0` | 5:04 PM Sun | 6:04 PM Sun | Manual wheel-candidate digest (IDEAS only — bot doesn't execute) |
 
 **Why not GitHub's native `schedule:` trigger?** Two reasons:
 1. **Reliability**: GitHub's cron didn't fire reliably on this repo's first day (multiple missed fires, even after going public and shifting off `:00`/`:30`).
@@ -121,7 +158,16 @@ Aggressive side:
 | `#aggressive-errors` | Aggressive-account errors / exceptions | All messages (push, with @mention) |
 | `#aggressive-actions` | Aggressive firehose for one-scroll review | Muted |
 
-**If both `#errors` and `#aggressive-errors` stay empty all day, the system worked.**
+Manual side:
+
+| Channel | What lands there | Phone notification setting |
+|---|---|---|
+| `#manual-trades` | Manual-account trail/ladder/stop fires + wheel adoptions, 50% closes, CC sales | (your choice) |
+| `#manual-summary` | 4:12 PM ET manual summary (no head-to-head — different starting capital and operating model) | All messages (push) |
+| `#manual-errors` | Manual-account errors / exceptions | All messages (push, with @mention) |
+| `#manual-actions` | Manual firehose for one-scroll review | Muted |
+
+**If `#errors`, `#aggressive-errors`, and `#manual-errors` all stay empty all day, the system worked.**
 
 ## Strategies in detail
 
@@ -139,6 +185,7 @@ Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state 
 
 - **Conservative**: TSLA, BAC, XOM, KO, PLTR, SOFI, PFE, F, T, INTC (10 large-caps + cheap names). 10% OTM puts, 14-28 DTE, 50% close.
 - **Aggressive**: priority tier (COIN, MARA, RIOT, SMCI, NVDA, AMD, MU) + fallback tier (TSLA, BAC, XOM, KO, PLTR, SOFI, PFE) = 14 symbols. 5% OTM puts, 7-14 DTE, 60% close.
+- **Manual**: no static symbol list — auto-discovers from Alpaca positions every cycle. Wheel parameters mirror conservative (10% OTM, 14-28 DTE, 50% close) but the wheel **never opens new puts**; it only manages existing user-opened positions and sells covered calls when one of those puts gets assigned.
 
 > 📌 **Heads-up: symbol order = fill priority.**
 > The wheel iterates `SYMBOLS` sequentially and consumes buying power as it places put orders. Symbols listed *earlier* in the list get first claim on cash; later symbols only fill if BP remains.
@@ -169,6 +216,23 @@ Runs the wheel **independently on each stock in `SYMBOLS`** with isolated state 
 
 **To add/remove symbols**: edit `CONSERVATIVE_SYMBOLS` or `AGGRESSIVE_SYMBOLS` in `config.py` (NOT in `wheel_strategy.py` — that file consumes the lists from config). The empty-state initializer handles new entries automatically on next cycle. **Where you place the symbol in the list controls fill priority** — see the heads-up box above.
 
+### Manual mode — auto-discover, manage-only
+
+Manual mode runs the same `strategy.py`, `wheel_strategy.py`, and `long_options_strategy.py` as the auto-execute accounts, but with two flags in `config.MODES["manual"]` that change behaviour:
+
+- `auto_discover_symbols: True` — strategy and wheel build their symbol set from live Alpaca positions every cycle instead of iterating a static `wheel_symbols` list. The strategy treats every stock you hold as a trail/ladder/stop candidate (not just TSLA); the wheel manages every short option position you hold.
+- `wheel_skip_new_puts: True` — `_sell_new_put` is a no-op. The bot never opens Stage 1 puts. It still does everything else: 50% close on existing puts, transition to Stage 2 when a put gets assigned, sell the covered call on the new shares, manage the call to expiry/early-close.
+
+**First-sighting seed for the strategy:** when a new stock symbol appears in your manual positions, `_manual_seed_state()` adopts the position's current avg cost as the entry baseline. There's no "seed buy" step like the conservative TSLA flow — the bot picks up whatever you happen to hold and starts managing.
+
+**Ladder qty scaling:** TSLA's hand-tuned 8/12/20 ladder against `INITIAL_QTY=10` defines the multipliers (`0.8 / 1.2 / 2.0`). Manual mode applies those multipliers to whatever quantity you initially hold: 5 shares ladders 4/6/10, 1 share ladders 1/1/2 (rounded to ≥1).
+
+**Wheel adoption:** when the wheel sees a short option position on a symbol it doesn't already track, `_discover_wheel_state()` parses the OCC symbol, pulls the position's avg entry price as the per-share premium received, and seeds `sym_state` so `handle_stage1` (for puts) or `handle_stage2` (for pre-sold CCs) can run unchanged. A Discord embed announces the adoption.
+
+**Position drift reconciliation:** `_manual_run_symbol()` checks Alpaca's qty/avg_cost on every cycle and adopts Alpaca's view when it differs from bot state (e.g., user added or sold shares manually between cycles). The stop is recalculated from the new avg cost.
+
+**Closed positions are pruned:** if a symbol disappears from Alpaca and the bot's stored qty is 0, it's removed from state on the next cycle.
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)
@@ -180,13 +244,14 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 ## Daily summary
 
-`daily_summary.py` runs three steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
+`daily_summary.py` runs four steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
 
 1. **Conservative summary** (`--mode conservative`) — aggregates `strategy_state.json` + `wheel_state.json` + congress-copy SQLite + long-options positions. Posts an embed to `#daily-summary`.
 2. **Aggressive summary** (`--mode aggressive`) — aggregates `strategy_state_aggressive.json` + `wheel_state_aggressive.json` + long-options positions. Posts to `#aggressive-summary`. (Congress-copy is conservative-only, so it's omitted here.)
-3. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from both Alpaca accounts, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
+3. **Manual summary** (`--mode manual`) — aggregates `strategy_state_manual.json` (multi-symbol format) + `wheel_state_manual.json` + long-options positions. Posts to `#manual-summary`. No head-to-head inclusion — different starting capital ($10k vs $100k) and a different operating model (user-driven entries) make a 3-way comparison apples-to-oranges.
+4. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from the conservative + aggressive Alpaca accounts, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
 
-End result: 4 embed cards per day across the two summary channels — one per-mode summary in each, plus the head-to-head in each.
+End result: 5 embed cards per day across the three summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary stays standalone).
 
 ## Runbook — when something breaks
 
@@ -247,7 +312,7 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script). 72 tests as of 2026-04-29.
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 tests as of 2026-05-07.
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
@@ -295,7 +360,7 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - Modify and cancel actions on `/orders` (modify price/qty via modal, cancel with confirm)
 - AI grading via Sonnet 4.6 with prompt caching — plain-English no-jargon system prompt, grades on close using entry context + price action
 - Auto-grade cron (`*/5 13-20 * * 1-5` UTC) via cron-job.org — hits `POST /api/cron/grade-open-trades`
-- 97 vitest tests total (was 34 in Phase 1)
+- 97 vitest tests total at end of Phase 2; bumped to 114 in the manual-account expansion (third paper account wired through the full dashboard surface)
 
 ### Architecture
 
@@ -345,7 +410,7 @@ dashboard/
 
 - Project: `tims-projects-f798c8a6/tradingbot-dashboard` (Hobby plan, Vite framework, root dir `dashboard/`)
 - KV: `upstash-kv-red-canvas` (Upstash Redis via Vercel Marketplace)
-- 18 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 5 ALPACA_*, 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- 21 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 8 ALPACA_* (cons + agg + manual × 3), 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
 - `.env` (local): also set `DASHBOARD_CRON_TOKEN` (mirrors `CRON_TOKEN` for local cron testing)
 - GitHub Actions secret `BOT_PUSH_TOKEN` set on this repo (mirrors the Vercel value)
 

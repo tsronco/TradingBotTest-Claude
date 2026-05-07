@@ -1,8 +1,10 @@
 export const BOT_STATE_KEYS = [
   'bot:state:conservative',
   'bot:state:aggressive',
+  'bot:state:manual',
   'bot:strategy:conservative',
   'bot:strategy:aggressive',
+  'bot:strategy:manual',
   'bot:congress',
 ] as const;
 

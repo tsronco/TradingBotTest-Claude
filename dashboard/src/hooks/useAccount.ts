@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type AccountMode = 'conservative' | 'aggressive' | 'both';
+export type AccountMode = 'conservative' | 'aggressive' | 'manual' | 'both';
 const KEY = 'dash:selectedAccount';
 const CHANGE_EVENT = 'dash:account-mode-change';
 

@@ -1,0 +1,64 @@
+name: Wheel Screener (Manual)
+
+# Mirror of wheel-screener.yml in --mode manual: scans the same default
+# conservative universe and posts a weekly digest to #manual-summary as
+# IDEAS for the user. Manual mode never auto-executes — you decide what
+# to buy by hand and the bot manages whatever you open.
+#
+# Triggered by cron-job.org on Sundays 22:00 UTC.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run wheel screener (manual)
+        env:
+          ALPACA_MANUAL_API_KEY:           ${{ secrets.ALPACA_MANUAL_API_KEY }}
+          ALPACA_MANUAL_API_SECRET:        ${{ secrets.ALPACA_MANUAL_API_SECRET }}
+          ALPACA_MANUAL_BASE_URL:          ${{ secrets.ALPACA_MANUAL_BASE_URL }}
+          DISCORD_MANUAL_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_SUMMARY_WEBHOOK }}
+          DISCORD_MANUAL_TRADES_WEBHOOK:   ${{ secrets.DISCORD_MANUAL_TRADES_WEBHOOK }}
+          DISCORD_MANUAL_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_MANUAL_ERRORS_WEBHOOK }}
+          DISCORD_MANUAL_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_ACTIONS_WEBHOOK }}
+        run: python wheel_screener.py --mode manual
+
+      - name: Commit logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add logs/ || true
+          if git diff --staged --quiet; then
+            echo "No log changes to commit."
+          else
+            git commit -m "wheel-screener-manual: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi

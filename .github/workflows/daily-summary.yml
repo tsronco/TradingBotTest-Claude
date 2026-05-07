@@ -1,11 +1,14 @@
 name: Daily Summary
 
-# Three-step daily summary: conservative summary → aggressive summary →
+# Four-step daily summary: conservative → aggressive → manual →
 # head-to-head comparison. Each step posts an embed to its corresponding
-# Discord channel, so the user sees three messages each afternoon:
+# Discord channel:
 #   1. Daily summary (conservative) → #daily-summary
 #   2. Daily summary (aggressive)   → #aggressive-summary
-#   3. Head-to-head comparison      → #daily-summary AND #aggressive-summary
+#   3. Daily summary (manual)       → #manual-summary  (no head-to-head)
+#   4. Head-to-head comparison      → #daily-summary AND #aggressive-summary
+#                                     (manual is excluded — different starting
+#                                      capital and a different operating model)
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch.
 
@@ -52,6 +55,16 @@ jobs:
           DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
           DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
         run: python daily_summary.py --mode aggressive
+
+      - name: Daily summary (manual)
+        env:
+          ALPACA_MANUAL_API_KEY:           ${{ secrets.ALPACA_MANUAL_API_KEY }}
+          ALPACA_MANUAL_API_SECRET:        ${{ secrets.ALPACA_MANUAL_API_SECRET }}
+          ALPACA_MANUAL_BASE_URL:          ${{ secrets.ALPACA_MANUAL_BASE_URL }}
+          DISCORD_MANUAL_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_SUMMARY_WEBHOOK }}
+          DISCORD_MANUAL_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_MANUAL_ERRORS_WEBHOOK }}
+          DISCORD_MANUAL_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode manual
 
       - name: Head-to-head comparison
         # Pulls both accounts' equity, premiums, etc. and posts a

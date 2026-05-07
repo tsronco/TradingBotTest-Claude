@@ -1,6 +1,6 @@
-"""Mode configuration for the dual paper-account architecture.
+"""Mode configuration for the multi paper-account architecture.
 
-Two paper accounts run side-by-side, fully isolated:
+Three paper accounts run side-by-side, fully isolated:
 
   conservative — original wheel, 10% OTM, 14-28 DTE puts, 50% early close
                  Symbols: large-caps + a few cheap names for small-account practice.
@@ -15,11 +15,21 @@ Two paper accounts run side-by-side, fully isolated:
                           #aggressive-actions
                  Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET
 
-Each script reads --mode {conservative|aggressive} on its CLI; the mode picks
-the credentials, state files, log stream, Discord channels, and parameters.
+  manual       — bot manages whatever you buy by hand: trail/ladder/stop on every
+                 stock you hold (auto-discovered from positions), and the wheel
+                 manages existing puts (50% close) + sells covered calls on
+                 assignments — but never opens new puts itself. Wheel parameters
+                 mirror conservative for managing positions.
+                 Discord: #manual-trades, #manual-summary, #manual-errors,
+                          #manual-actions
+                 Alpaca:  ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET
+
+Each script reads --mode {conservative|aggressive|manual} on its CLI; the mode
+picks the credentials, state files, log stream, Discord channels, and parameters.
 
 To add/remove a wheel symbol, edit CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS
-and that's the entire config change.
+and that's the entire config change. Manual mode auto-discovers symbols from
+held positions, so it has no symbol list.
 """
 
 # ── Wheel symbol lists ────────────────────────────────────────────────────
@@ -164,6 +174,54 @@ MODES = {
         "screener_strike_pct":    0.05,
         "screener_dte_min":        7,
         "screener_dte_max":       14,
+    },
+
+    "manual": {
+        "alpaca_key_env":    "ALPACA_MANUAL_API_KEY",
+        "alpaca_secret_env": "ALPACA_MANUAL_API_SECRET",
+        "alpaca_url_env":    "ALPACA_MANUAL_BASE_URL",
+
+        "trades_channel":    "manual_trades",
+        "summary_channel":   "manual_summary",
+        "errors_channel":    "manual_errors",
+        "actions_channel":   "manual_actions",
+
+        "log_stream":        "manual",
+
+        "wheel_state_file":     "wheel_state_manual.json",
+        "strategy_state_file":  "strategy_state_manual.json",
+
+        # Manual mode auto-discovers symbols from live positions instead of
+        # iterating a static list. wheel_symbols stays defined (empty) so
+        # callers that read it without checking auto_discover_symbols don't
+        # crash; the auto_discover_symbols flag below is what actually drives
+        # behaviour in strategy.py and wheel_strategy.py.
+        "wheel_symbols":       [],
+        "auto_discover_symbols": True,
+
+        # Wheel never opens Stage 1 puts on this account. Existing puts are
+        # still managed (50% close) and assignments still trigger Stage 2
+        # covered call sales.
+        "wheel_skip_new_puts": True,
+
+        # Wheel parameters mirror conservative — used for the 50% close on
+        # existing puts and for pricing the covered call when an assignment
+        # moves a position into Stage 2.
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+        "stale_after_hours":   4,
+
+        # Screener parameters mirror conservative. Bot doesn't auto-execute
+        # but the Sunday digest still surfaces wheel candidates as ideas.
+        "screener_universe":      None,
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
     },
 }
 

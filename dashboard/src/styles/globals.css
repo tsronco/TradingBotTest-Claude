@@ -148,10 +148,15 @@ body {
 #cards > * { min-width: 0; }
 
 /* card visibility driven by data-mode attribute */
-#cards[data-mode='conservative'] article[data-acct-key='AGG'] { display: none; }
-#cards[data-mode='aggressive'] article[data-acct-key='CONS'] { display: none; }
+#cards[data-mode='conservative'] article[data-acct-key='AGG'],
+#cards[data-mode='conservative'] article[data-acct-key='MAN'] { display: none; }
+#cards[data-mode='aggressive'] article[data-acct-key='CONS'],
+#cards[data-mode='aggressive'] article[data-acct-key='MAN'] { display: none; }
+#cards[data-mode='manual'] article[data-acct-key='CONS'],
+#cards[data-mode='manual'] article[data-acct-key='AGG'] { display: none; }
 #cards[data-mode='conservative'],
-#cards[data-mode='aggressive'] {
+#cards[data-mode='aggressive'],
+#cards[data-mode='manual'] {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 

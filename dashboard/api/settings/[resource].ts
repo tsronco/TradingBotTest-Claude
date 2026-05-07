@@ -15,6 +15,7 @@ const SEED_TAGS = [
 const DEFAULT_THRESHOLDS = {
   conservative_paper: 5000,
   aggressive_paper: 10000,
+  manual_paper: 2500,
   live: 1500,
 };
 
@@ -37,11 +38,12 @@ async function handleThresholds(req: VercelRequest, res: VercelResponse) {
     const body = (req.body ?? {}) as Partial<typeof DEFAULT_THRESHOLDS>;
     const cons = Number(body.conservative_paper);
     const agg = Number(body.aggressive_paper);
+    const manual = Number(body.manual_paper);
     const live = Number(body.live);
-    if (![cons, agg, live].every((n) => Number.isFinite(n) && n >= 0)) {
+    if (![cons, agg, manual, live].every((n) => Number.isFinite(n) && n >= 0)) {
       return res.status(400).json({ error: 'invalid_threshold_values' });
     }
-    const thresholds = { conservative_paper: cons, aggressive_paper: agg, live };
+    const thresholds = { conservative_paper: cons, aggressive_paper: agg, manual_paper: manual, live };
     await kv().set(KV_KEYS.totpThresholds, thresholds);
     return res.status(200).json({ ok: true, thresholds });
   }

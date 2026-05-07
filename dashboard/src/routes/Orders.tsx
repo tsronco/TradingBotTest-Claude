@@ -50,11 +50,20 @@ function sideColor(side: string): string {
   return 'text-fg';
 }
 
+type OrderMode = 'conservative' | 'aggressive' | 'manual';
+type OrderAcctKey = 'CONS' | 'AGG' | 'MAN';
+
+const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string }> = {
+  CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
+  AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
+  MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+};
+
 function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
-  mode: 'conservative' | 'aggressive';
+  mode: OrderMode;
   status: 'open' | 'closed';
   label: string;
-  acctKey: 'CONS' | 'AGG';
+  acctKey: OrderAcctKey;
   statusLabel: string;
 }) {
   const { data, isLoading, error } = useQuery({
@@ -73,8 +82,8 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['orders'] }),
   });
 
-  const isCons = acctKey === 'CONS';
-  const colorAccent = isCons ? 'text-hi' : 'text-amber';
+  const accent = ORDER_ACCENT[acctKey];
+  const colorAccent = accent.text;
 
   if (isLoading) {
     return (
@@ -108,8 +117,8 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
 
       <header className="px-5 pt-5 pb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 min-w-0">
         <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-dim">
-          <span className={`w-2 h-2 pulse rounded-sm ${isCons ? 'bg-hi' : 'bg-amber'}`} />
-          <span>ACCT::{isCons ? 'CONS' : 'AGG '}</span>
+          <span className={`w-2 h-2 pulse rounded-sm ${accent.bg}`} />
+          <span>ACCT::{accent.tag}</span>
           <span className="text-dim">·</span>
           <span className="text-mid">orders</span>
           <span className="text-dim">·</span>
@@ -227,7 +236,8 @@ export default function Orders() {
   const [mode] = useAccount();
   const showCons = mode === 'both' || mode === 'conservative';
   const showAgg = mode === 'both' || mode === 'aggressive';
-  const cardCount = mode === 'both' ? 2 : 1;
+  const showManual = mode === 'both' || mode === 'manual';
+  const cardCount = mode === 'both' ? 3 : 1;
 
   return (
     <div className="p-6 max-w-[1480px]">
@@ -273,6 +283,7 @@ export default function Orders() {
       <div className="grid gap-2 mb-6">
         {showCons && <OrdersTable mode="conservative" status="open" label="Conservative" acctKey="CONS" statusLabel="open" />}
         {showAgg && <OrdersTable mode="aggressive" status="open" label="Aggressive" acctKey="AGG" statusLabel="open" />}
+        {showManual && <OrdersTable mode="manual" status="open" label="Manual" acctKey="MAN" statusLabel="open" />}
       </div>
 
       {/* FILLED section */}
@@ -285,6 +296,7 @@ export default function Orders() {
       <div className="grid gap-2">
         {showCons && <OrdersTable mode="conservative" status="closed" label="Conservative" acctKey="CONS" statusLabel="filled" />}
         {showAgg && <OrdersTable mode="aggressive" status="closed" label="Aggressive" acctKey="AGG" statusLabel="filled" />}
+        {showManual && <OrdersTable mode="manual" status="closed" label="Manual" acctKey="MAN" statusLabel="filled" />}
       </div>
 
       {/* footer */}

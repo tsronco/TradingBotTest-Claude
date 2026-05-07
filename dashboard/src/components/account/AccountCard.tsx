@@ -31,23 +31,28 @@ interface HistoryResp {
 }
 
 interface CardProps {
-  mode: 'conservative' | 'aggressive';
+  mode: 'conservative' | 'aggressive' | 'manual';
   label: string;
-  /** 'CONS' or 'AGG' — used for the data-acct-key attribute that drives the filter CSS. */
-  acctKey: 'CONS' | 'AGG';
+  /** 'CONS', 'AGG', or 'MAN' — used for the data-acct-key attribute that drives the filter CSS. */
+  acctKey: 'CONS' | 'AGG' | 'MAN';
 }
+
+const STYLE_BY_KEY: Record<CardProps['acctKey'], {
+  color: string; tag: string; tagText: string; flavor: string; ip: string;
+  textClass: string; bgClass: string;
+}> = {
+  CONS: { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail', ip: '10.0.0.1', textClass: 'text-hi',    bgClass: 'bg-hi' },
+  AGG:  { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',  ip: '10.0.0.2', textClass: 'text-amber', bgClass: 'bg-amber' },
+  MAN:  { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed', ip: '10.0.0.3', textClass: 'text-cyan',  bgClass: 'bg-cyan' },
+};
 
 export default function AccountCard({ mode, label, acctKey }: CardProps) {
   const [period] = usePeriod();
   const [gran] = useGranularity();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const isCons = acctKey === 'CONS';
-  const color = isCons ? '#22ff88' : '#ffb454';
-  const acctTag = isCons ? 'ACCT::CONS' : 'ACCT::AGG ';
-  const tagText = isCons ? 'CONSERVATIVE' : 'AGGRESSIVE';
-  const flavor = isCons ? 'Conservative · wheel + trail' : 'Aggressive · wheel + crypto';
-  const ip = isCons ? '10.0.0.1' : '10.0.0.2';
+  const style = STYLE_BY_KEY[acctKey];
+  const { color, tag: acctTag, tagText, flavor, ip } = style;
 
   const { data: acctData, isLoading: acctLoading, error: acctError } = useQuery({
     queryKey: ['account', mode],
@@ -151,7 +156,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
 
   const arrow = displayDelta >= 0 ? '▲' : '▼';
   const sign = displayDelta >= 0 ? 'text-hi' : 'text-red';
-  const colorAccent = isCons ? 'text-hi' : 'text-amber';
+  const colorAccent = style.textClass;
 
   return (
     <article data-acct-key={acctKey} className="relative border border-border bg-panel/60 rounded-sm min-w-0 mt-3" style={{ overflow: 'visible' }}>
@@ -166,7 +171,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
       <header className="px-5 pt-5 pb-3 flex flex-wrap items-start gap-4 min-w-0">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-dim">
-            <span className={`w-2 h-2 pulse rounded-sm ${isCons ? 'bg-hi' : 'bg-amber'}`} />
+            <span className={`w-2 h-2 pulse rounded-sm ${style.bgClass}`} />
             <span>{acctTag}</span>
             <span className="text-dim">·</span>
             <span className="text-mid">paper</span>
@@ -288,7 +293,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
       {/* footer status */}
       <footer className="px-5 py-2 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-dim min-w-0">
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-hi pulse" /> live</span>
-        <span><span className="text-mid">strat</span> wheel·trail{!isCons && '·crypto'}</span>
+        <span><span className="text-mid">strat</span> {acctKey === 'AGG' ? 'wheel·trail·crypto' : acctKey === 'MAN' ? 'manual·bot-mgr' : 'wheel·trail'}</span>
         <span className="ml-auto">updated {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York' })} ET</span>
       </footer>
     </article>

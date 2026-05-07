@@ -10,17 +10,26 @@ interface Pos {
   unrealized_plpc: string;
 }
 
+type Mode = 'conservative' | 'aggressive' | 'manual';
+const MODES: readonly Mode[] = ['conservative', 'aggressive', 'manual'] as const;
+
+const MODE_ACCENT: Record<Mode, { dot: string; text: string }> = {
+  conservative: { dot: 'bg-hi',    text: 'text-hi' },
+  aggressive:   { dot: 'bg-amber', text: 'text-amber' },
+  manual:       { dot: 'bg-cyan',  text: 'text-cyan' },
+};
+
 export default function PositionContextPanel({ symbol }: { symbol: string }) {
   const queries = useQueries({
-    queries: (['conservative', 'aggressive'] as const).map((mode) => ({
+    queries: MODES.map((mode) => ({
       queryKey: ['positions', mode],
       queryFn: () => api<{ positions: Pos[] }>(`/api/alpaca/positions?mode=${mode}`),
     })),
   });
 
-  const matches: { mode: 'conservative' | 'aggressive'; pos: Pos }[] = [];
+  const matches: { mode: Mode; pos: Pos }[] = [];
   queries.forEach((q, i) => {
-    const mode = (['conservative', 'aggressive'] as const)[i];
+    const mode = MODES[i];
     const pos = q.data?.positions?.find((p) => p.symbol === symbol);
     if (pos) matches.push({ mode, pos });
   });
@@ -35,13 +44,12 @@ export default function PositionContextPanel({ symbol }: { symbol: string }) {
       {matches.map(({ mode, pos }) => {
         const pl = Number(pos.unrealized_pl);
         const plpc = Number(pos.unrealized_plpc) * 100;
-        const isCons = mode === 'conservative';
-        const accentColor = isCons ? 'text-hi' : 'text-amber';
+        const accent = MODE_ACCENT[mode];
         return (
           <div key={mode} className="mb-3 last:mb-0">
             <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-dim uppercase mb-1.5">
-              <span className={`w-1.5 h-1.5 rounded-sm ${isCons ? 'bg-hi' : 'bg-amber'}`} />
-              <span className={accentColor}>{mode}</span>
+              <span className={`w-1.5 h-1.5 rounded-sm ${accent.dot}`} />
+              <span className={accent.text}>{mode}</span>
             </div>
             <div className="grid grid-cols-2 gap-y-1 text-[11px] tnum">
               <span className="text-dim tracking-[0.15em] uppercase text-[10px]">qty</span>

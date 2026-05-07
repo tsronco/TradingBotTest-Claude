@@ -8,10 +8,12 @@ import { fmtUsd } from '../../lib/format';
 import type { GradeLetter, RuleWarning, StockSide, OrderType, Tif } from '../../lib/trade-types';
 import { AccountBpIndicator } from './AccountBpIndicator';
 
+type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
+
 interface Props {
   symbol: string;
-  account: 'conservative_paper' | 'aggressive_paper' | 'live';
-  setAccount: (a: 'conservative_paper' | 'aggressive_paper' | 'live') => void;
+  account: StockAccount;
+  setAccount: (a: StockAccount) => void;
   onReview: (preview: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any }) => void;
 }
 
@@ -29,7 +31,10 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode = account === 'aggressive_paper' ? 'aggressive' : 'conservative' as 'aggressive' | 'conservative';
+  const mode: 'conservative' | 'aggressive' | 'manual' =
+    account === 'aggressive_paper' ? 'aggressive'
+    : account === 'manual_paper' ? 'manual'
+    : 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['quote', symbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=${mode}`),
@@ -113,6 +118,9 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           </button>
           <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
             [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
+            [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
@@ -232,7 +240,7 @@ function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange:
   );
 }
 
-function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' }) {
+function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' | 'manual' }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),

@@ -16,7 +16,7 @@ export default function Home() {
   const [period] = usePeriod();
   const [gran] = useGranularity();
 
-  // Aggregate equity across both accounts (always pull both — filter is presentational only)
+  // Aggregate equity across all accounts (always pull all — filter is presentational only)
   const consQ = useQuery({
     queryKey: ['account', 'conservative'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=conservative'),
@@ -25,16 +25,23 @@ export default function Home() {
     queryKey: ['account', 'aggressive'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=aggressive'),
   });
+  const manQ = useQuery({
+    queryKey: ['account', 'manual'],
+    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=manual'),
+  });
 
   const consEq = consQ.data ? Number(consQ.data.account.equity) : 0;
   const aggEq = aggQ.data ? Number(aggQ.data.account.equity) : 0;
+  const manEq = manQ.data ? Number(manQ.data.account.equity) : 0;
   const consLast = consQ.data ? Number(consQ.data.account.last_equity) : 0;
   const aggLast = aggQ.data ? Number(aggQ.data.account.last_equity) : 0;
+  const manLast = manQ.data ? Number(manQ.data.account.last_equity) : 0;
 
   let total = 0, totalLast = 0;
   if (mode === 'conservative') { total = consEq; totalLast = consLast; }
   else if (mode === 'aggressive') { total = aggEq; totalLast = aggLast; }
-  else { total = consEq + aggEq; totalLast = consLast + aggLast; }
+  else if (mode === 'manual') { total = manEq; totalLast = manLast; }
+  else { total = consEq + aggEq + manEq; totalLast = consLast + aggLast + manLast; }
   const dayChange = total - totalLast;
   const dayPct = totalLast ? (dayChange / totalLast) * 100 : 0;
 
@@ -42,7 +49,7 @@ export default function Home() {
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
   const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  const cardCount = mode === 'both' ? 2 : 1;
+  const cardCount = mode === 'both' ? 3 : 1;
 
   return (
     <div className="p-6 max-w-[1480px]">
@@ -105,9 +112,10 @@ export default function Home() {
       </div>
 
       {/* account cards */}
-      <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+      <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
         <AccountCard mode="conservative" label="Conservative" acctKey="CONS" />
         <AccountCard mode="aggressive" label="Aggressive" acctKey="AGG" />
+        <AccountCard mode="manual" label="Manual" acctKey="MAN" />
       </div>
 
       {/* footer ribbon */}
