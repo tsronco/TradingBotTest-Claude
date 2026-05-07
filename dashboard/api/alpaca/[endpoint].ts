@@ -195,10 +195,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const endParam = req.query.end ? String(req.query.end) : undefined;
       const start = startParam
         ?? new Date(Date.now() - limit * 2 * 86400000).toISOString().slice(0, 10);
-      const bars = await alpacaData(mode, `/v2/stocks/${symbol}/bars`, {
+      // Alpaca's single-symbol /bars response is { bars: [...], symbol, next_page_token }.
+      // Unwrap so the client gets a flat array under `bars` instead of nested objects.
+      const resp = await alpacaData<{ bars?: unknown[] }>(mode, `/v2/stocks/${symbol}/bars`, {
         timeframe, limit, start, end: endParam, feed: 'iex',
       });
-      return res.status(200).json({ symbol, timeframe, bars });
+      return res.status(200).json({ symbol, timeframe, bars: resp?.bars ?? [] });
     }
     if (endpoint === 'modify-order' && req.method === 'POST') {
       const body = (req.body ?? {}) as { order_id?: string; qty?: number; limit_price?: number; stop_price?: number; tif?: string };
