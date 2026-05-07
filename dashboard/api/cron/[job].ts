@@ -119,10 +119,15 @@ interface CloseInfo {
  * set, this is a no-op aside from the Alpaca read on subsequent calls.
  */
 async function syncFillData(trade: Trade): Promise<Trade> {
-  // Idempotent termination: filled AND modify_history is at least an empty
-  // array (meaning we've already checked the chain). Trades created before
-  // modify_history was added have undefined here and need one backfill pass.
-  if (trade.filled_at && trade.modify_history !== undefined) return trade;
+  // Idempotent termination: filled AND we've captured at least one modify
+  // event (or we'll fall through and re-check the chain — cheap if no
+  // chain exists). Empty/undefined modify_history → re-walk.
+  //
+  // For trades with no modifies, modify_history stays empty array and we
+  // re-fetch the head order each tick to confirm. That's 1 Alpaca call
+  // per tick per filled trade with no modifies — acceptable. Could
+  // optimize later with a `modify_history_checked: true` sentinel.
+  if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
   // Build the full modify chain bidirectionally from trade.alpaca_order_id:
