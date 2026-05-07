@@ -155,6 +155,76 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(gradeMock).not.toHaveBeenCalled();
   });
 
+  it('syncFillData follows replaced_by chain when order was modified', async () => {
+    // User submits at $0.08 (id=A), modifies to $0.07 (id=B replaces A),
+    // modifies again to $0.05 (id=C replaces B), C fills. Trade record
+    // still points at A. syncFillData must walk A→B→C, find C filled,
+    // pin alpaca_order_id to C, and write the fill data back.
+    const trade = {
+      id: 'T-2026-05-07-001', account: 'manual_paper', symbol: 'F', asset_class: 'option',
+      side: 'STO', qty: 1, contract_symbol: 'F260529P00011000',
+      strike: 11.0, expiration: '2026-05-29', contract_type: 'put',
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'order-A', alpaca_close_order_id: null,
+      submitted_at: '2026-05-07T17:44Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'D', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/order-A')) return Promise.resolve({ id: 'order-A', status: 'replaced', replaced_by: 'order-B' });
+      if (path.endsWith('/order-B')) return Promise.resolve({ id: 'order-B', status: 'replaced', replaced_by: 'order-C' });
+      if (path.endsWith('/order-C')) return Promise.resolve({
+        id: 'order-C', status: 'filled', filled_at: '2026-05-07T17:57:29Z', filled_avg_price: '0.05',
+      });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      alpaca_order_id: 'order-C',
+      filled_at: '2026-05-07T17:57:29Z',
+      filled_avg_price: 0.05,
+      closed_at: null,
+    }));
+  });
+
+  it('syncFillData pins alpaca_order_id to terminal id even when still pending', async () => {
+    // Modified order whose replacement hasn't filled yet — we still want to
+    // update the trade's order_id so we don't re-walk the chain every tick.
+    const trade = {
+      id: 'T-2026-05-07-003', account: 'manual_paper', symbol: 'F', asset_class: 'option',
+      side: 'STO', qty: 1, contract_symbol: 'F260529P00011000',
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'order-A', alpaca_close_order_id: null,
+      submitted_at: '2026-05-07T17:44Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'D', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/order-A')) return Promise.resolve({ id: 'order-A', status: 'replaced', replaced_by: 'order-B' });
+      if (path.endsWith('/order-B')) return Promise.resolve({ id: 'order-B', status: 'new', filled_at: null, filled_avg_price: null });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    // Order id pinned to terminal but no fill data
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      alpaca_order_id: 'order-B',
+      filled_at: null,
+      filled_avg_price: null,
+    }));
+  });
+
   it('syncFillData no-ops on still-pending entry orders', async () => {
     const trade = {
       id: 'T-2026-05-07-002', account: 'manual_paper', symbol: 'F', asset_class: 'option',

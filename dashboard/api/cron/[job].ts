@@ -110,24 +110,47 @@ interface CloseInfo {
  * delayed-fill limit orders eventually pick up the actual entry price
  * and fill timestamp instead of staying stuck at "submitted · limit $X".
  *
+ * Follows the `replaced_by` chain when the trade's order_id has been
+ * replaced (by a modify, either via our dashboard or directly on Alpaca).
+ * Updates `alpaca_order_id` on the trade record to the terminal order
+ * so subsequent passes don't have to re-walk the chain.
+ *
  * Returns the (possibly updated) trade. Idempotent — once filled_at is
  * set, this is a no-op aside from the Alpaca read on subsequent calls.
  */
 async function syncFillData(trade: Trade): Promise<Trade> {
   if (trade.filled_at) return trade; // already synced
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
+
+  // Walk replaced_by chain to find the terminal (non-replaced) order. Cap
+  // hops at 10 to avoid an infinite loop on malformed Alpaca responses.
+  let orderId = trade.alpaca_order_id;
   let order: any = null;
-  try {
-    order = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_order_id}`);
-  } catch (e) {
-    console.error('syncFillData order fetch failed', trade.id, trade.alpaca_order_id, e);
+  for (let hops = 0; hops < 10; hops++) {
+    try {
+      order = await alpacaTrade<any>(mode, `/v2/orders/${orderId}`);
+    } catch (e) {
+      console.error('syncFillData order fetch failed', trade.id, orderId, e);
+      return trade;
+    }
+    if (!order?.replaced_by) break;
+    orderId = order.replaced_by;
+  }
+
+  if (order?.status !== 'filled' || !order.filled_at || !order.filled_avg_price) {
+    // Not filled yet — but if we walked the chain, persist the terminal
+    // id so we don't re-walk every cron tick.
+    if (orderId !== trade.alpaca_order_id) {
+      const updated: Trade = { ...trade, alpaca_order_id: orderId };
+      await kv().set(tradeKey(trade.id), updated);
+      return updated;
+    }
     return trade;
   }
-  if (order?.status !== 'filled' || !order.filled_at || !order.filled_avg_price) {
-    return trade; // not filled yet (or canceled — detectClose Path 0 handles that)
-  }
+
   const updated: Trade = {
     ...trade,
+    alpaca_order_id: orderId,  // pin to terminal id
     filled_at: order.filled_at,
     filled_avg_price: Number(order.filled_avg_price),
   };

@@ -208,7 +208,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (body.limit_price != null) patch.limit_price = body.limit_price;
       if (body.stop_price != null) patch.stop_price = body.stop_price;
       if (body.tif) patch.time_in_force = body.tif;
-      const updated = await alpacaTradeMutation(mode, `/v2/orders/${body.order_id}`, { method: 'PATCH', body: patch });
+      const updated = await alpacaTradeMutation<any>(mode, `/v2/orders/${body.order_id}`, { method: 'PATCH', body: patch });
+      // Alpaca's modify creates a NEW order with a NEW id and marks the old
+      // one `replaced`. Walk the open-trade index and update any trade that
+      // pointed at the old id so the cron's syncFillData / detectClose can
+      // find the live order. Without this, the trade record sits frozen
+      // pointing at a "replaced" order forever.
+      const newOrderId = updated?.id;
+      if (newOrderId && newOrderId !== body.order_id) {
+        const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
+        for (const id of openIds) {
+          const trade = await kv().get<any>(tradeKey(id));
+          if (!trade || trade.alpaca_order_id !== body.order_id) continue;
+          await kv().set(tradeKey(id), { ...trade, alpaca_order_id: newOrderId });
+          break;
+        }
+      }
       return res.status(200).json({ order: updated });
     }
     if (endpoint === 'cancel-order' && req.method === 'POST') {
