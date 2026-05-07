@@ -184,15 +184,16 @@ describe('POST /api/cron/grade-open-trades', () => {
       k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
     alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
       if (path.endsWith('/order-A')) return Promise.resolve({
-        id: 'order-A', status: 'replaced', replaced_by: 'order-B',
+        id: 'order-A', status: 'replaced', replaced_by: 'order-B', replaces: null,
         submitted_at: '2026-05-07T17:44Z', limit_price: '0.08', qty: '1',
       });
       if (path.endsWith('/order-B')) return Promise.resolve({
-        id: 'order-B', status: 'replaced', replaced_by: 'order-C',
+        id: 'order-B', status: 'replaced', replaced_by: 'order-C', replaces: 'order-A',
         submitted_at: '2026-05-07T17:50Z', limit_price: '0.07', qty: '1',
       });
       if (path.endsWith('/order-C')) return Promise.resolve({
-        id: 'order-C', status: 'filled', filled_at: '2026-05-07T17:57:29Z', filled_avg_price: '0.05',
+        id: 'order-C', status: 'filled', replaces: 'order-B', replaced_by: null,
+        filled_at: '2026-05-07T17:57:29Z', filled_avg_price: '0.05',
         submitted_at: '2026-05-07T17:55Z', limit_price: '0.05', qty: '1',
       });
       return Promise.resolve(null);
@@ -241,8 +242,13 @@ describe('POST /api/cron/grade-open-trades', () => {
     kvGet.mockImplementation((k: string) =>
       k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
     alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
-      if (path.endsWith('/order-A')) return Promise.resolve({ id: 'order-A', status: 'replaced', replaced_by: 'order-B' });
-      if (path.endsWith('/order-B')) return Promise.resolve({ id: 'order-B', status: 'new', filled_at: null, filled_avg_price: null });
+      if (path.endsWith('/order-A')) return Promise.resolve({
+        id: 'order-A', status: 'replaced', replaced_by: 'order-B', replaces: null,
+      });
+      if (path.endsWith('/order-B')) return Promise.resolve({
+        id: 'order-B', status: 'new', replaces: 'order-A', replaced_by: null,
+        filled_at: null, filled_avg_price: null,
+      });
       return Promise.resolve(null);
     });
     kvSet.mockResolvedValue('OK');

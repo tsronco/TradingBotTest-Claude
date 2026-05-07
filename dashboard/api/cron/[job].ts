@@ -125,24 +125,42 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   if (trade.filled_at && trade.modify_history !== undefined) return trade;
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
-  // Walk replaced_by chain to find the terminal (non-replaced) order. Cap
-  // hops at 10 to avoid an infinite loop on malformed Alpaca responses.
-  // Collect each visited order so we can reconstruct modify_history below.
-  let orderId = trade.alpaca_order_id;
-  let order: any = null;
-  const chain: any[] = [];
-  for (let hops = 0; hops < 10; hops++) {
-    try {
-      order = await alpacaTrade<any>(mode, `/v2/orders/${orderId}`);
-    } catch (e) {
-      console.error('syncFillData order fetch failed', trade.id, orderId, e);
-      return trade;
+  // Build the full modify chain bidirectionally from trade.alpaca_order_id:
+  //   - Walk forward via replaced_by to find the terminal (non-replaced) order
+  //   - Walk backward via replaces to find every prior order
+  // This is robust whether trade.alpaca_order_id is the original (never
+  // modified yet, or modified externally and not yet seen by us) or the
+  // terminal (pinned by a previous syncFillData run). Cap each direction at
+  // 10 hops to avoid an infinite loop on malformed Alpaca responses.
+  const fetchOrder = async (id: string): Promise<any> => {
+    try { return await alpacaTrade<any>(mode, `/v2/orders/${id}`); }
+    catch (e) {
+      console.error('syncFillData order fetch failed', trade.id, id, e);
+      return null;
     }
-    if (!order) break;
-    chain.push(order);
-    if (!order.replaced_by) break;
-    orderId = order.replaced_by;
+  };
+
+  // Forward walk to terminal
+  let cursor = await fetchOrder(trade.alpaca_order_id);
+  if (!cursor) return trade;
+  for (let hops = 0; hops < 10 && cursor.replaced_by; hops++) {
+    const next = await fetchOrder(cursor.replaced_by);
+    if (!next) break;
+    cursor = next;
   }
+  const terminal = cursor;
+
+  // Backward walk from terminal to collect prior orders. Start with the
+  // terminal in the chain, prepend each `replaces` predecessor.
+  const chain: any[] = [terminal];
+  for (let hops = 0; hops < 10 && chain[0]?.replaces; hops++) {
+    const prev = await fetchOrder(chain[0].replaces);
+    if (!prev) break;
+    chain.unshift(prev);
+  }
+  // chain is now [original, ..., terminal] in chronological order
+  const order = terminal;
+  const orderId = terminal.id;
 
   // Build modify_history from the chain only when the trade doesn't already
   // have it captured (chain length 1 = no modifies, nothing to backfill).
