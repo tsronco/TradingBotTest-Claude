@@ -235,6 +235,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     journal: '',
     exposure_at_submit: exposure,
     rule_warnings_at_entry: rule_warnings,
+    modify_history: [],
     schema: 1,
   };
 

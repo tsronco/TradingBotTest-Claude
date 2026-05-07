@@ -119,13 +119,18 @@ interface CloseInfo {
  * set, this is a no-op aside from the Alpaca read on subsequent calls.
  */
 async function syncFillData(trade: Trade): Promise<Trade> {
-  if (trade.filled_at) return trade; // already synced
+  // Idempotent termination: filled AND modify_history is at least an empty
+  // array (meaning we've already checked the chain). Trades created before
+  // modify_history was added have undefined here and need one backfill pass.
+  if (trade.filled_at && trade.modify_history !== undefined) return trade;
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
   // Walk replaced_by chain to find the terminal (non-replaced) order. Cap
   // hops at 10 to avoid an infinite loop on malformed Alpaca responses.
+  // Collect each visited order so we can reconstruct modify_history below.
   let orderId = trade.alpaca_order_id;
   let order: any = null;
+  const chain: any[] = [];
   for (let hops = 0; hops < 10; hops++) {
     try {
       order = await alpacaTrade<any>(mode, `/v2/orders/${orderId}`);
@@ -133,15 +138,38 @@ async function syncFillData(trade: Trade): Promise<Trade> {
       console.error('syncFillData order fetch failed', trade.id, orderId, e);
       return trade;
     }
-    if (!order?.replaced_by) break;
+    if (!order) break;
+    chain.push(order);
+    if (!order.replaced_by) break;
     orderId = order.replaced_by;
   }
 
+  // Build modify_history from the chain only when the trade doesn't already
+  // have it captured (chain length 1 = no modifies, nothing to backfill).
+  const shouldBackfill = chain.length > 1
+    && (trade.modify_history === undefined || trade.modify_history.length === 0);
+  const backfilled = shouldBackfill
+    ? chain.slice(1).map((o, i) => ({
+        ts: o.submitted_at ?? o.created_at ?? new Date().toISOString(),
+        prev_order_id: chain[i].id,
+        new_order_id: o.id,
+        qty: o.qty != null ? Number(o.qty) : undefined,
+        limit_price: o.limit_price != null ? Number(o.limit_price) : null,
+        stop_price: o.stop_price != null ? Number(o.stop_price) : null,
+        source: 'backfill' as const,
+      }))
+    : (trade.modify_history ?? []);
+
   if (order?.status !== 'filled' || !order.filled_at || !order.filled_avg_price) {
-    // Not filled yet — but if we walked the chain, persist the terminal
-    // id so we don't re-walk every cron tick.
-    if (orderId !== trade.alpaca_order_id) {
-      const updated: Trade = { ...trade, alpaca_order_id: orderId };
+    // Not filled yet — but if we walked the chain or reconstructed history,
+    // persist the terminal id and any backfilled events so we don't redo
+    // the work every cron tick.
+    if (orderId !== trade.alpaca_order_id || shouldBackfill) {
+      const updated: Trade = {
+        ...trade,
+        alpaca_order_id: orderId,
+        modify_history: backfilled,
+      };
       await kv().set(tradeKey(trade.id), updated);
       return updated;
     }
@@ -153,6 +181,7 @@ async function syncFillData(trade: Trade): Promise<Trade> {
     alpaca_order_id: orderId,  // pin to terminal id
     filled_at: order.filled_at,
     filled_avg_price: Number(order.filled_avg_price),
+    modify_history: backfilled,
   };
   await kv().set(tradeKey(trade.id), updated);
   return updated;

@@ -31,6 +31,27 @@ export interface RuleWarning {
   message: string;
 }
 
+/**
+ * One entry per Alpaca modify (PATCH /v2/orders/{id}). Alpaca cancels the
+ * old order and creates a new one with a new id; we capture each step
+ * here so the trade detail page can show the full audit trail.
+ *
+ * `source: 'dashboard'` means the user modified through our order form
+ * (live capture). `source: 'backfill'` means we reconstructed the event
+ * from the `replaces` chain on Alpaca after the fact (e.g., when the
+ * trade was modified directly on the Alpaca web UI before our cron
+ * caught up).
+ */
+export interface ModifyEvent {
+  ts: string;
+  prev_order_id: string;
+  new_order_id: string;
+  qty?: number;
+  limit_price?: number | null;
+  stop_price?: number | null;
+  source: 'dashboard' | 'backfill';
+}
+
 export interface Trade {
   id: string;
   account: AccountId;
@@ -63,6 +84,7 @@ export interface Trade {
   journal: string;
   exposure_at_submit: number;
   rule_warnings_at_entry: RuleWarning[];
+  modify_history?: ModifyEvent[];
   schema: 1;
 }
 

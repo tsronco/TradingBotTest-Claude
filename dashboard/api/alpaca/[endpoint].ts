@@ -222,7 +222,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         for (const id of openIds) {
           const trade = await kv().get<any>(tradeKey(id));
           if (!trade || trade.alpaca_order_id !== body.order_id) continue;
-          await kv().set(tradeKey(id), { ...trade, alpaca_order_id: newOrderId });
+          const modifyEvent = {
+            ts: updated?.submitted_at ?? new Date().toISOString(),
+            prev_order_id: body.order_id,
+            new_order_id: newOrderId,
+            qty: body.qty != null ? body.qty : (updated?.qty != null ? Number(updated.qty) : undefined),
+            limit_price: body.limit_price != null ? body.limit_price : (updated?.limit_price != null ? Number(updated.limit_price) : undefined),
+            stop_price: body.stop_price != null ? body.stop_price : (updated?.stop_price != null ? Number(updated.stop_price) : undefined),
+            source: 'dashboard' as const,
+          };
+          await kv().set(tradeKey(id), {
+            ...trade,
+            alpaca_order_id: newOrderId,
+            modify_history: [...(trade.modify_history ?? []), modifyEvent],
+          });
           break;
         }
       }

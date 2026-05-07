@@ -97,7 +97,14 @@ describe('POST /api/cron/grade-open-trades', () => {
       if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
       return Promise.resolve(null);
     });
-    alpacaTradeMock.mockResolvedValueOnce({ id: 'a2', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
+    // syncFillData walks the entry-order chain first (returns a single
+    // already-filled order, no replacements), then detectClose fetches the
+    // close order separately. Two alpacaTrade calls now, not one.
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/a1')) return Promise.resolve({ id: 'a1', status: 'filled', filled_avg_price: '319.85', filled_at: '2026-05-04T13:30Z' });
+      if (path.endsWith('/a2')) return Promise.resolve({ id: 'a2', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
+      return Promise.resolve(null);
+    });
     dataMock.mockResolvedValue({ bars: { TSLA: [] } });
     gradeMock.mockResolvedValue({ letter: 'B+', review: 'r', calibration: 'over_1', tendencies_hit: [], model: 'sonnet', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
     kvSet.mockResolvedValue('OK');
@@ -155,11 +162,12 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(gradeMock).not.toHaveBeenCalled();
   });
 
-  it('syncFillData follows replaced_by chain when order was modified', async () => {
+  it('syncFillData follows replaced_by chain and backfills modify_history', async () => {
     // User submits at $0.08 (id=A), modifies to $0.07 (id=B replaces A),
     // modifies again to $0.05 (id=C replaces B), C fills. Trade record
-    // still points at A. syncFillData must walk A→B→C, find C filled,
-    // pin alpaca_order_id to C, and write the fill data back.
+    // still points at A with no modify_history. syncFillData must walk
+    // A→B→C, find C filled, pin alpaca_order_id to C, write the fill
+    // data back, AND reconstruct modify_history from the chain hops.
     const trade = {
       id: 'T-2026-05-07-001', account: 'manual_paper', symbol: 'F', asset_class: 'option',
       side: 'STO', qty: 1, contract_symbol: 'F260529P00011000',
@@ -175,10 +183,17 @@ describe('POST /api/cron/grade-open-trades', () => {
     kvGet.mockImplementation((k: string) =>
       k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
     alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
-      if (path.endsWith('/order-A')) return Promise.resolve({ id: 'order-A', status: 'replaced', replaced_by: 'order-B' });
-      if (path.endsWith('/order-B')) return Promise.resolve({ id: 'order-B', status: 'replaced', replaced_by: 'order-C' });
+      if (path.endsWith('/order-A')) return Promise.resolve({
+        id: 'order-A', status: 'replaced', replaced_by: 'order-B',
+        submitted_at: '2026-05-07T17:44Z', limit_price: '0.08', qty: '1',
+      });
+      if (path.endsWith('/order-B')) return Promise.resolve({
+        id: 'order-B', status: 'replaced', replaced_by: 'order-C',
+        submitted_at: '2026-05-07T17:50Z', limit_price: '0.07', qty: '1',
+      });
       if (path.endsWith('/order-C')) return Promise.resolve({
         id: 'order-C', status: 'filled', filled_at: '2026-05-07T17:57:29Z', filled_avg_price: '0.05',
+        submitted_at: '2026-05-07T17:55Z', limit_price: '0.05', qty: '1',
       });
       return Promise.resolve(null);
     });
@@ -190,6 +205,22 @@ describe('POST /api/cron/grade-open-trades', () => {
       filled_at: '2026-05-07T17:57:29Z',
       filled_avg_price: 0.05,
       closed_at: null,
+      modify_history: [
+        expect.objectContaining({
+          ts: '2026-05-07T17:50Z',
+          prev_order_id: 'order-A',
+          new_order_id: 'order-B',
+          limit_price: 0.07,
+          source: 'backfill',
+        }),
+        expect.objectContaining({
+          ts: '2026-05-07T17:55Z',
+          prev_order_id: 'order-B',
+          new_order_id: 'order-C',
+          limit_price: 0.05,
+          source: 'backfill',
+        }),
+      ],
     }));
   });
 
