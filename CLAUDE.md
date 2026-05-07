@@ -312,7 +312,7 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 tests as of 2026-05-07.
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 pytest + 121 vitest as of 2026-05-07.
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
@@ -360,7 +360,16 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - Modify and cancel actions on `/orders` (modify price/qty via modal, cancel with confirm)
 - AI grading via Sonnet 4.6 with prompt caching — plain-English no-jargon system prompt, grades on close using entry context + price action
 - Auto-grade cron (`*/5 13-20 * * 1-5` UTC) via cron-job.org — hits `POST /api/cron/grade-open-trades`
-- 97 vitest tests total at end of Phase 2; bumped to 114 in the manual-account expansion (third paper account wired through the full dashboard surface)
+- 97 vitest tests total at end of Phase 2; 114 after the manual-account expansion (third paper account wired through the full dashboard surface); **121 after the 2026-05-07 fix pass** below
+
+### Trade lifecycle fixes (shipped 2026-05-07)
+
+A real manual-mode trade (Ford $11 put, modified twice $0.08→$0.07→$0.05 before filling) surfaced a bunch of latent issues. Five separate commits to main fixed:
+
+- **Delayed-fill writeback.** Pre-fix, `/api/trades/submit` always wrote `filled_at: null`, and there was no code path that promoted the trade out of "submitted" once Alpaca filled the order asynchronously. Trades stuck forever showing "submitted · limit $X". Fix: new `syncFillData()` helper in the grade-open-trades cron, called once per open trade per tick.
+- **Modify chain repointing.** Alpaca handles modify by canceling the original order and creating a new one with a new id. The trade record kept the original (now-replaced) id, so sync couldn't find the fill. Fix: modify-order endpoint now repoints `alpaca_order_id` to the new id; syncFillData walks `replaces`/`replaced_by` bidirectionally as a defense for externally-modified orders.
+- **Modify history audit trail.** Added `modify_history: ModifyEvent[]` to the trade schema. Forward path captures live in modify-order endpoint; backfill path reconstructs from Alpaca's chain on first sync. Timeline component renders each event diffed against the previous limit price.
+- **Empty TradeChart panel.** Two latent Phase-2 bugs: (a) bars endpoint wrapped Alpaca's response in an extra `bars` key so `data.bars.length` was undefined, (b) my own first chart fix used `new Date()` mid-render → React Query key changed every render → infinite refetch loop. Both fixed; chart now renders a 5Min/15Min/1Hour adaptive window with 1 hour of pre-trade context.
 
 ### Architecture
 
@@ -398,7 +407,7 @@ dashboard/
 │   ├── hooks/             # useAuth · useAccount · useBotState · useSettings
 │   ├── lib/               # api · format · wheelability · option-symbol · trade-types · rule-check
 │   └── styles/globals.css # Tailwind v4 with @theme block
-├── tests/                 # 97 vitest tests
+├── tests/                 # 121 vitest tests
 ├── scripts/generate-backup-codes.ts
 ├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
 ├── postcss.config.js · tsconfig.{,app,node}.json
@@ -436,6 +445,23 @@ dashboard/
 - **yfinance on Vercel** needs `curl_cffi` for browser impersonation + lxml for earnings; pinned in `requirements.txt` to specific versions that work (yfinance>=0.2.65, curl_cffi<0.8.0).
 - **lightweight-charts v5 API:** use `addSeries(LineSeries)` not `addLineSeries()`; use `createSeriesMarkers` not `series.setMarkers()`. The v4 API is gone.
 - **`trades:index:open` uses atomic Redis list ops** (`rpush`/`lrange`/`lrem`). Do not reintroduce read-modify-write patterns on that key — it will cause race conditions under concurrent grade-cron + submit traffic.
+- **Trade lifecycle is split across submit + cron, not just submit.** Submit only writes the trade record with `filled_at: null`. The grade-open-trades cron's `syncFillData()` is what populates `filled_at` / `filled_avg_price` / `modify_history` on subsequent ticks. A limit order can submit and fill seconds later — but the trade record only catches up at the next 5-min cron fire. Don't conflate "Alpaca order filled" with "dashboard trade record reflects fill."
+- **Modify chain handling.** When a user modifies a limit order, Alpaca cancels the original and creates a new order with a new id, linked via `replaces`/`replaced_by`. The dashboard's modify-order endpoint pins the trade's `alpaca_order_id` to the new id and pushes a ModifyEvent. For trades modified externally (Alpaca web UI) or before this feature shipped, `syncFillData()` walks the `replaces`/`replaced_by` chain bidirectionally on each cron tick to backfill. See [api/cron/[job].ts](dashboard/api/cron/[job].ts) `syncFillData()`.
+- **Bars endpoint shape:** Alpaca's single-symbol `/v2/stocks/{symbol}/bars` returns `{bars: [...], symbol, next_page_token}`. The dashboard's `/api/alpaca/bars` unwraps to `{symbol, timeframe, bars: [...flat array]}` so TradeChart can read `data.bars.length` directly. Keep this contract — TradeChart depends on the flat-array shape.
+- **TradeChart query window must be memoized.** The `end` timestamp uses `new Date()` for open trades; without `useMemo`, that re-derives every render → React Query key changes → infinite refetch loop. The window is now memoized on `[trade.submitted_at, trade.closed_at]`. "Now" snapshots at memo time, not live-tick — refresh the page to advance.
+- **TradeChart timeframe is adaptive.** `5Min` for trades < 2 days old, `15Min` for 2-14 days, `1Hour` thereafter. Always pulls 1 hour of pre-trade context so even minute-old trades show meaningful chart data. 1Hour bars over a 15-min trade window would return zero bars (no hour has closed yet) — that's the bug the adaptive timeframe avoids.
+- **Alpaca free tier requires `feed=iex` for recent bars.** Default `sip` feed rejects ≤15-min-old data on the free subscription. The dashboard bars endpoint passes `feed: 'iex'` explicitly; the bot's strategy.py also uses iex for `/stocks/{symbol}/trades/latest`.
+
+### Trade record schema (KV) — quick reference
+
+Stored at `trade:T-YYYY-MM-DD-NNN`. Indexed in `trades:index:open` (open trades) and `trades:index:YYYY-MM` (per-month). Created by `/api/trades/submit`, mutated by `/api/cron/grade-open-trades` (sync fills + close detection + AI grading), `/api/alpaca/modify-order` (push to modify_history + repoint alpaca_order_id), and `/api/alpaca/cancel-order` (close trade as canceled if not yet filled). See [trade-types.ts](dashboard/api/_lib/trade-types.ts) for the canonical type.
+
+Lifecycle states (no explicit status field — derived from timestamps):
+- **Submitted, not filled:** `filled_at === null`, `closed_at === null`. Lives in `trades:index:open`.
+- **Filled, open:** `filled_at` set, `filled_avg_price` set, `closed_at === null`. Still in open index.
+- **Closed:** `closed_at` set, `closed_avg_price` set, `closed_by` set. Removed from open index, AI hindsight grade fires.
+
+`modify_history: ModifyEvent[]` — undefined on legacy trades, `[]` on new submits with no modifies, populated array if modified. The grade-open-trades cron walks Alpaca's `replaces`/`replaced_by` chain to backfill missing entries (tagged `source: 'backfill'` vs `'dashboard'` for live captures).
 
 ### Phase 3 (next) — known follow-ups from Phase 2 final review
 
