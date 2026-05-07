@@ -3306,3 +3306,7 @@
 {"timestamp": "2026-05-07T13:17:56.624841+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 406.25, "avg_cost": 367.85, "stop": 385.94, "qty": 10, "trail": true}}
 {"timestamp": "2026-05-07T13:17:57.327033+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
 {"timestamp": "2026-05-07T13:17:57.555882+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-07T13:28:04.437644+00:00", "script": "strategy.py", "action": "stop_raised", "result": "success", "symbol": "TSLA", "details": {"old_stop": 385.94, "new_stop": 386.05, "hwm": 406.37}}
+{"timestamp": "2026-05-07T13:28:04.438303+00:00", "script": "strategy.py", "action": "cycle_complete", "result": "success", "details": {"price": 406.37, "avg_cost": 367.85, "stop": 386.05, "qty": 10, "trail": true}}
+{"timestamp": "2026-05-07T13:28:04.651384+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE", "F", "T", "INTC"]}}
+{"timestamp": "2026-05-07T13:28:04.876637+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
