@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "last_checked": "2026-05-07T13:48:15.453186Z"
+    "last_checked": "2026-05-07T13:58:08.052399Z"
   },
   "TSLA": {
     "stage": 1,
     "current_contract": "TSLA260529P00370000",
     "contract_order_id": "a3fcc65f-f1ae-4beb-b92b-70b6b842c29c",
-    "contract_entry_price": null,
+    "contract_entry_price": 3.75,
     "contract_entry_date": "2026-05-07T13:48:12.571012Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open TSLA260529P00370000 @ $3.74. Awaiting fill.",
+    "last_action": "Monitoring TSLA260529P00370000: $3.42 vs entry $3.75",
     "contract_qty": 1
   },
   "BAC": {
@@ -90,7 +90,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260522P00140000: $1.05 vs entry $0.70",
+    "last_action": "Monitoring XOM260522P00140000: $1.82 vs entry $0.70",
     "contract_qty": 1
   },
   "KO": {
@@ -127,7 +127,7 @@
     "total_premium_today": 244.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $4.92 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $4.35 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -154,7 +154,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.24 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.19 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -200,7 +200,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring F260529P00011000: $0.08 vs entry $0.05",
+    "last_action": "Monitoring F260529P00011000: $0.07 vs entry $0.05",
     "contract_qty": 1
   },
   "T": {
@@ -246,7 +246,7 @@
     "total_premium_today": 104.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00100000: $4.17 vs entry $5.30",
+    "last_action": "Monitoring INTC260529P00100000: $3.88 vs entry $5.30",
     "contract_qty": 1
   }
 }
