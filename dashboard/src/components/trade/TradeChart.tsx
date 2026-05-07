@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createChart, ColorType, LineSeries, createSeriesMarkers } from 'lightweight-charts';
 import type { UTCTimestamp } from 'lightweight-charts';
@@ -21,19 +21,27 @@ export function TradeChart({ trade }: { trade: Trade }) {
   // Pad an hour of pre-trade context so the chart is meaningful even for
   // a trade submitted minutes ago (1Hour bars wouldn't have closed yet).
   // Pad 15 min after close so a same-bar close still has a tick after it.
-  const submitted = new Date(trade.submitted_at);
-  const start = new Date(submitted.getTime() - 60 * 60 * 1000).toISOString();
-  const end = (trade.closed_at
-    ? new Date(new Date(trade.closed_at).getTime() + 15 * 60 * 1000)
-    : new Date()
-  ).toISOString();
-
-  // Pick a timeframe based on the trade's open duration. Fresh trades need
-  // sub-hour bars to show anything at all; long-running trades use coarser
-  // bars to keep the bar count reasonable.
-  const closeOrNow = trade.closed_at ? new Date(trade.closed_at).getTime() : Date.now();
-  const durationDays = (closeOrNow - submitted.getTime()) / (24 * 60 * 60 * 1000);
-  const timeframe = durationDays > 14 ? '1Hour' : durationDays > 2 ? '15Min' : '5Min';
+  //
+  // CRITICAL: memoize the window so `new Date()` for the open-trade `end`
+  // doesn't tick every render. An unmemoized `new Date().toISOString()`
+  // changes the React Query key on every render → infinite refetch loop.
+  // Re-derive only when the trade's actual timestamps change.
+  const { start, end, timeframe } = useMemo(() => {
+    const submitted = new Date(trade.submitted_at);
+    const closeMs = trade.closed_at ? new Date(trade.closed_at).getTime() : Date.now();
+    const startIso = new Date(submitted.getTime() - 60 * 60 * 1000).toISOString();
+    const endIso = (trade.closed_at
+      ? new Date(closeMs + 15 * 60 * 1000)
+      : new Date(closeMs)  // freeze "now" at memo time, not every render
+    ).toISOString();
+    const durationDays = (closeMs - submitted.getTime()) / (24 * 60 * 60 * 1000);
+    const tf = durationDays > 14 ? '1Hour' : durationDays > 2 ? '15Min' : '5Min';
+    return { start: startIso, end: endIso, timeframe: tf };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally
+    // skip live-ticking "now" for open trades; we'd rather show a static
+    // window than refetch every second. A page refresh re-renders with a
+    // new "now".
+  }, [trade.submitted_at, trade.closed_at]);
 
   const { data } = useQuery({
     queryKey: ['trade-bars', trade.id, start, end, timeframe],
