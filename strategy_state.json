@@ -2,15 +2,15 @@
   "symbol": "TSLA",
   "entry_order_id": "b74249cf-9fc3-4476-8b78-3202a5d2adad",
   "entry_price": 367.85,
-  "stop_price": 392.9,
+  "stop_price": 393.25,
   "avg_cost": 367.85,
-  "high_water_mark": 413.58,
+  "high_water_mark": 413.95,
   "trailing_active": true,
   "position_qty": 10,
   "total_cost": 3678.5,
   "ladder_1_done": false,
   "ladder_2_done": false,
   "ladder_3_done": false,
-  "last_checked": "2026-05-07T19:57:56.520827Z",
-  "last_action": "Monitoring TSLA $410.71 vs avg $367.85 (PnL +11.65%). Stop $392.90, Trail ON."
+  "last_checked": "2026-05-07T20:07:57.255065Z",
+  "last_action": "Monitoring TSLA $413.95 vs avg $367.85 (PnL +12.53%). Stop $393.25, Trail ON."
 }
