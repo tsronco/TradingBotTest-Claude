@@ -21,7 +21,7 @@ export default function Trades() {
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
-        <span className="text-fg">list --account={filters.account ?? 'both'} --status={filters.status ?? 'all'}</span>
+        <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'}</span>
       </div>
       <h1 className="text-[44px] font-bold tracking-tight text-hi mt-2">Trades</h1>
 

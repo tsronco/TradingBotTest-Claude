@@ -12,7 +12,7 @@ const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
 ];
 
 const acctOpts: { value: AccountMode; label: string; key: string }[] = [
-  { value: 'both', label: 'both', key: 'a' },
+  { value: 'both', label: 'all', key: 'a' },
   { value: 'conservative', label: 'conservative', key: 'c' },
   { value: 'aggressive', label: 'aggressive', key: 'g' },
   { value: 'manual', label: 'manual', key: 'm' },

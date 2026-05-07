@@ -60,7 +60,7 @@ export default function Home() {
         <span className="text-fg">portfolio</span>
         <span className="text-amber">--today</span>
         <span className="text-dim">
-          --mode=<span className="text-fg">{mode}</span>{' '}
+          --mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span>{' '}
           --range=<span className="text-fg">{periodFlag(period)}</span>
           {period === '1D' && (
             <> --interval=<span className="text-fg">{gran}</span></>

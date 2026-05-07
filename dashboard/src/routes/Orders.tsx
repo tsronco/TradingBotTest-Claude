@@ -247,7 +247,7 @@ export default function Orders() {
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">orders</span>
         <span className="text-amber">--list</span>
-        <span className="text-dim">--mode=<span className="text-fg">{mode}</span></span>
+        <span className="text-dim">--mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span></span>
         <span className="caret" />
       </div>
 
