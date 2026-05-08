@@ -40,7 +40,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const status = ['open', 'closed', 'all'].includes(statusRaw as string)
         ? (statusRaw as 'open' | 'closed' | 'all')
         : 'all';
-      const orders = await client.getOrders({ status, limit: 100, direction: 'desc' });
+      const afterRaw = Array.isArray(req.query.after) ? req.query.after[0] : req.query.after;
+      // Validate ISO 8601 timestamp before forwarding to Alpaca to avoid 422s.
+      const after = afterRaw && !Number.isNaN(Date.parse(afterRaw)) ? afterRaw : undefined;
+      const orders = await client.getOrders({ status, limit: 500, direction: 'desc', after });
       return res.status(200).json({ mode, status, orders });
     }
     if (endpoint === 'quote') {
