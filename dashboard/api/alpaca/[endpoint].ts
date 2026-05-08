@@ -40,7 +40,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const status = ['open', 'closed', 'all'].includes(statusRaw as string)
         ? (statusRaw as 'open' | 'closed' | 'all')
         : 'all';
-      const orders = await client.getOrders({ status, limit: 100, direction: 'desc' });
+      const afterRaw = Array.isArray(req.query.after) ? req.query.after[0] : req.query.after;
+      // Validate ISO 8601 timestamp before forwarding to Alpaca to avoid 422s.
+      const after = afterRaw && !Number.isNaN(Date.parse(afterRaw)) ? afterRaw : undefined;
+      // Conditional spread: the SDK builds query strings via
+      // URLSearchParams(Object.entries(params)), which serializes `undefined`
+      // as the literal string "undefined" — Alpaca then 422s. Only include
+      // the `after` key when it has a real value.
+      // The cast bypasses two SDK type bugs in @alpacahq/typescript-sdk@0.0.32-preview:
+      //   1. GetOrdersOptions.order_id is incorrectly typed as required (it isn't)
+      //   2. Direction is typed "long"|"short" but used here for sort order ("desc")
+      // Runtime works fine — these params have been in main since day one.
+      const params = {
+        status,
+        limit: 500,
+        direction: 'desc',
+        ...(after ? { after } : {}),
+      } as unknown as Parameters<typeof client.getOrders>[0];
+      const orders = await client.getOrders(params);
       return res.status(200).json({ mode, status, orders });
     }
     if (endpoint === 'quote') {

@@ -1,11 +1,18 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { fmtUsd, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
 import { OrderEditModal } from '../components/order/OrderEditModal';
+import { OrdersFilterBar } from '../components/order/OrdersFilterBar';
+import {
+  type DateRangeKey,
+  dateRangeToAfter,
+  underlyingFromSymbol,
+  collectUnderlyings,
+} from '../lib/order-filters';
 
 interface Order {
   id: string;
@@ -59,18 +66,29 @@ const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string
   MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
 };
 
-function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
+interface OrdersTableProps {
   mode: OrderMode;
   status: 'open' | 'closed';
   label: string;
   acctKey: OrderAcctKey;
   statusLabel: string;
-}) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['orders', mode, status],
-    queryFn: () => api<{ orders: Order[] }>(`/api/alpaca/orders?mode=${mode}&status=${status}`),
-  });
+  orders: Order[];
+  isLoading: boolean;
+  isError: boolean;
+  symbolFilter: string;
+}
 
+function OrdersTable({
+  mode,
+  status,
+  label,
+  acctKey,
+  statusLabel,
+  orders,
+  isLoading,
+  isError,
+  symbolFilter,
+}: OrdersTableProps) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Order | null>(null);
   const cancel = useMutation({
@@ -92,14 +110,20 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
       </article>
     );
   }
-  if (error) {
+  if (isError) {
     return (
       <article data-acct-key={acctKey} className="relative border border-red bg-panel/60 rounded-sm min-w-0 mt-3 p-5 text-red text-[12px]">
         failed to load {label}
       </article>
     );
   }
-  const orders = data?.orders ?? [];
+
+  // Symbol filter is applied client-side. Date filter is applied server-side
+  // (via the `after` query param) so we don't blow past Alpaca's 500-order page cap.
+  const filtered = symbolFilter
+    ? orders.filter((o) => underlyingFromSymbol(o.symbol) === symbolFilter)
+    : orders;
+  const hiddenBySymbol = orders.length - filtered.length;
 
   return (
     <article
@@ -125,14 +149,18 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
           <span className="text-mid">{statusLabel}</span>
         </div>
         <span className="text-mid text-[11px] ml-auto tnum">
-          <span className="text-dim">count</span> {orders.length}
+          <span className="text-dim">count</span> {filtered.length}
+          {hiddenBySymbol > 0 && (
+            <span className="text-dim"> · {hiddenBySymbol} hidden by filter</span>
+          )}
         </span>
       </header>
 
-      {orders.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="px-5 pb-6 text-dim text-[12px]">
-          <span className="text-mid">tim@dash</span><span className="text-dim">$</span> ls orders/{statusLabel}/<br />
-          <span className="text-dim">total 0 — none</span>
+          <span className="text-mid">tim@dash</span><span className="text-dim">$</span> ls orders/{statusLabel}/
+          {symbolFilter && <span className="text-cyan"> --symbol={symbolFilter}</span>}<br />
+          <span className="text-dim">total 0 — {symbolFilter ? `no ${symbolFilter} ${statusLabel} orders in window` : 'none'}</span>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -152,7 +180,7 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => {
+              {filtered.map((o) => {
                 const parsed = parseOptionSymbol(o.symbol);
                 const dte = parsed ? daysToExpiration(parsed.expiration) : null;
                 const lookupSymbol = parsed?.underlying ?? o.symbol;
@@ -232,12 +260,64 @@ function OrdersTable({ mode, status, label, acctKey, statusLabel }: {
   );
 }
 
+interface VisibleCard {
+  mode: OrderMode;
+  acctKey: OrderAcctKey;
+  label: string;
+}
+
 export default function Orders() {
   const [mode] = useAccount();
-  const showCons = mode === 'both' || mode === 'conservative';
-  const showAgg = mode === 'both' || mode === 'aggressive';
-  const showManual = mode === 'both' || mode === 'manual';
-  const cardCount = mode === 'both' ? 3 : 1;
+  const [symbol, setSymbol] = useState<string>('');
+  const [dateRange, setDateRange] = useState<DateRangeKey>('month-rolling');
+
+  const visibleCards = useMemo<VisibleCard[]>(() => {
+    const cards: VisibleCard[] = [];
+    if (mode === 'both' || mode === 'conservative') cards.push({ mode: 'conservative', acctKey: 'CONS', label: 'Conservative' });
+    if (mode === 'both' || mode === 'aggressive') cards.push({ mode: 'aggressive', acctKey: 'AGG', label: 'Aggressive' });
+    if (mode === 'both' || mode === 'manual') cards.push({ mode: 'manual', acctKey: 'MAN', label: 'Manual' });
+    return cards;
+  }, [mode]);
+
+  // Date filter applies only to closed orders (open queue is always small + recent).
+  const after = useMemo(() => dateRangeToAfter(dateRange), [dateRange]);
+
+  // Issue all queries for visible cards × {open, closed} in one batch so we can
+  // share data with both the table renderers and the symbol-dropdown aggregator.
+  type QSpec = { card: VisibleCard; status: 'open' | 'closed' };
+  const querySpecs: QSpec[] = useMemo(() => {
+    const specs: QSpec[] = [];
+    for (const card of visibleCards) {
+      specs.push({ card, status: 'open' });
+      specs.push({ card, status: 'closed' });
+    }
+    return specs;
+  }, [visibleCards]);
+
+  const queries = useQueries({
+    queries: querySpecs.map(({ card, status }) => {
+      // Only closed orders honor the `after` filter — open orders are typically <10 items.
+      const afterParam = status === 'closed' && after ? `&after=${encodeURIComponent(after)}` : '';
+      return {
+        queryKey: ['orders', card.mode, status, status === 'closed' ? after : null] as const,
+        queryFn: () =>
+          api<{ orders: Order[] }>(`/api/alpaca/orders?mode=${card.mode}&status=${status}${afterParam}`),
+      };
+    }),
+  });
+
+  // Aggregate symbols across all visible queries for the dropdown.
+  const symbolOptions = useMemo(
+    () =>
+      collectUnderlyings(...queries.map((q) => q.data?.orders?.map((o) => o.symbol) ?? [])),
+    [queries],
+  );
+
+  // Index queries back by (mode, status) for the renderer.
+  const get = (cardMode: OrderMode, status: 'open' | 'closed') => {
+    const idx = querySpecs.findIndex((s) => s.card.mode === cardMode && s.status === status);
+    return queries[idx];
+  };
 
   return (
     <div className="p-6 max-w-[1480px]">
@@ -248,6 +328,8 @@ export default function Orders() {
         <span className="text-fg">orders</span>
         <span className="text-amber">--list</span>
         <span className="text-dim">--mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span></span>
+        {symbol && <span className="text-dim">--symbol=<span className="text-fg">{symbol}</span></span>}
+        <span className="text-dim">--range=<span className="text-fg">{dateRange}</span></span>
         <span className="caret" />
       </div>
 
@@ -273,30 +355,68 @@ export default function Orders() {
         </div>
       </div>
 
+      <OrdersFilterBar
+        symbols={symbolOptions}
+        symbol={symbol}
+        onSymbolChange={setSymbol}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+      />
+
       {/* OPEN section */}
       <div className="flex items-center gap-3 text-dim text-[11px] mb-3 select-none">
         <span className="whitespace-nowrap">━━━ open</span>
-        <span className="text-mid">[{cardCount}]</span>
+        <span className="text-mid">[{visibleCards.length}]</span>
         <span className="flex-1 border-t border-border" />
         <span className="text-dim">$ orders --status=open</span>
       </div>
       <div className="grid gap-2 mb-6">
-        {showCons && <OrdersTable mode="conservative" status="open" label="Conservative" acctKey="CONS" statusLabel="open" />}
-        {showAgg && <OrdersTable mode="aggressive" status="open" label="Aggressive" acctKey="AGG" statusLabel="open" />}
-        {showManual && <OrdersTable mode="manual" status="open" label="Manual" acctKey="MAN" statusLabel="open" />}
+        {visibleCards.map((card) => {
+          const q = get(card.mode, 'open');
+          return (
+            <OrdersTable
+              key={`${card.mode}-open`}
+              mode={card.mode}
+              status="open"
+              label={card.label}
+              acctKey={card.acctKey}
+              statusLabel="open"
+              orders={q?.data?.orders ?? []}
+              isLoading={q?.isLoading ?? true}
+              isError={!!q?.error}
+              symbolFilter={symbol}
+            />
+          );
+        })}
       </div>
 
       {/* FILLED section */}
       <div className="flex items-center gap-3 text-dim text-[11px] mb-3 select-none">
-        <span className="whitespace-nowrap">━━━ filled (recent)</span>
-        <span className="text-mid">[{cardCount}]</span>
+        <span className="whitespace-nowrap">━━━ filled</span>
+        <span className="text-mid">[{visibleCards.length}]</span>
+        <span className="text-dim">·</span>
+        <span className="text-cyan">{dateRange}</span>
         <span className="flex-1 border-t border-border" />
-        <span className="text-dim">$ orders --status=closed</span>
+        <span className="text-dim">$ orders --status=closed --range={dateRange}</span>
       </div>
       <div className="grid gap-2">
-        {showCons && <OrdersTable mode="conservative" status="closed" label="Conservative" acctKey="CONS" statusLabel="filled" />}
-        {showAgg && <OrdersTable mode="aggressive" status="closed" label="Aggressive" acctKey="AGG" statusLabel="filled" />}
-        {showManual && <OrdersTable mode="manual" status="closed" label="Manual" acctKey="MAN" statusLabel="filled" />}
+        {visibleCards.map((card) => {
+          const q = get(card.mode, 'closed');
+          return (
+            <OrdersTable
+              key={`${card.mode}-closed`}
+              mode={card.mode}
+              status="closed"
+              label={card.label}
+              acctKey={card.acctKey}
+              statusLabel="filled"
+              orders={q?.data?.orders ?? []}
+              isLoading={q?.isLoading ?? true}
+              isError={!!q?.error}
+              symbolFilter={symbol}
+            />
+          );
+        })}
       </div>
 
       {/* footer */}
