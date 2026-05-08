@@ -4,6 +4,25 @@ import { alpacaFor, modeFromQuery } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
+import {
+  pairOrders,
+  type PairableOrder,
+  type OptionActivityEvent,
+} from '../_lib/order-pairing.js';
+
+// Subset of the Alpaca Order shape we touch in pairing + response. The SDK's
+// own Order type is huge; we only need these fields and adding `realized_pl`
+// + a possibly-overridden `status`.
+type AlpacaOrder = {
+  id: string;
+  symbol: string;
+  side: string;
+  status: string;
+  submitted_at: string;
+  filled_at: string | null;
+  filled_qty: string;
+  filled_avg_price: string | null;
+};
 
 type OptionContract = {
   symbol: string;
@@ -41,24 +60,109 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? (statusRaw as 'open' | 'closed' | 'all')
         : 'all';
       const afterRaw = Array.isArray(req.query.after) ? req.query.after[0] : req.query.after;
-      // Validate ISO 8601 timestamp before forwarding to Alpaca to avoid 422s.
-      const after = afterRaw && !Number.isNaN(Date.parse(afterRaw)) ? afterRaw : undefined;
-      // Conditional spread: the SDK builds query strings via
-      // URLSearchParams(Object.entries(params)), which serializes `undefined`
-      // as the literal string "undefined" — Alpaca then 422s. Only include
-      // the `after` key when it has a real value.
-      // The cast bypasses two SDK type bugs in @alpacahq/typescript-sdk@0.0.32-preview:
-      //   1. GetOrdersOptions.order_id is incorrectly typed as required (it isn't)
-      //   2. Direction is typed "long"|"short" but used here for sort order ("desc")
-      // Runtime works fine — these params have been in main since day one.
-      const params = {
-        status,
-        limit: 500,
-        direction: 'desc',
-        ...(after ? { after } : {}),
-      } as unknown as Parameters<typeof client.getOrders>[0];
-      const orders = await client.getOrders(params);
-      return res.status(200).json({ mode, status, orders });
+      const userAfter = afterRaw && !Number.isNaN(Date.parse(afterRaw)) ? afterRaw : undefined;
+
+      // For pairing to be correct, we need enough history to find the OPENER
+      // for any closing leg in the user's window. We always look back at least
+      // 90 days for context, even if the user picked "today" — otherwise a
+      // BTC today wouldn't pair with last week's STO. The user-window filter
+      // is applied AFTER pairing, on the final response.
+      const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+      const minPairingAfter = new Date(Date.now() - NINETY_DAYS_MS).toISOString();
+      const fetchAfter =
+        userAfter && Date.parse(userAfter) > Date.parse(minPairingAfter) ? minPairingAfter : userAfter;
+
+      // Paginate orders. Alpaca returns up to 500 newest-first per page; we
+      // walk back via the `until` param until empty or before the fetch window.
+      const allOrders: AlpacaOrder[] = [];
+      let until: string | undefined = undefined;
+      const MAX_PAGES = 20; // 20 * 500 = 10k orders ceiling — plenty for a year.
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const params = {
+          status,
+          limit: 500,
+          direction: 'desc',
+          ...(fetchAfter ? { after: fetchAfter } : {}),
+          ...(until ? { until } : {}),
+        } as unknown as Parameters<typeof client.getOrders>[0];
+        const pageOrders = (await client.getOrders(params)) as unknown as AlpacaOrder[];
+        if (!Array.isArray(pageOrders) || pageOrders.length === 0) break;
+        allOrders.push(...pageOrders);
+        if (pageOrders.length < 500) break; // last page
+        // Step `until` back to 1ms before the oldest order so we don't refetch it.
+        const oldest = pageOrders[pageOrders.length - 1];
+        until = new Date(Date.parse(oldest.submitted_at) - 1).toISOString();
+      }
+
+      // Activities for option assignments + expirations. These are the closing
+      // legs for any STO that didn't get bought back. /v2/account/activities
+      // accepts a comma-separated activity_types list and an `after` date
+      // filter (YYYY-MM-DD only — no time component).
+      let activities: OptionActivityEvent[] = [];
+      if (status !== 'open') {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const raw = await alpacaTrade<any[]>(mode, '/v2/account/activities', {
+            activity_types: 'OPEXP,OPASN',
+            after: fetchAfter ? fetchAfter.slice(0, 10) : undefined,
+            page_size: 100,
+          });
+          activities = (Array.isArray(raw) ? raw : []).flatMap((a): OptionActivityEvent[] => {
+            const t = a?.activity_type === 'OPEXP' || a?.activity_type === 'OPASN' ? a.activity_type : null;
+            if (!t || !a?.symbol || !a?.qty || !a?.id || !a?.date) return [];
+            // Activities only carry a date. Anchor at 4:00 PM ET (≈ market close
+            // = 20:00 UTC) so they sort after same-day fills in the pairing pass.
+            return [{
+              id: String(a.id),
+              activity_type: t,
+              symbol: String(a.symbol),
+              qty: String(a.qty),
+              occurred_at: `${a.date}T20:00:00.000Z`,
+            }];
+          });
+        } catch {
+          // Activities are nice-to-have for pairing. If the call fails, we
+          // still return orders — closers paired by orders alone still work.
+          activities = [];
+        }
+      }
+
+      // Build the pairing input and run it. Only filled orders contribute.
+      const filledForPairing: PairableOrder[] = allOrders
+        .filter((o) => o.filled_at && o.filled_avg_price && Number(o.filled_qty) > 0)
+        .filter((o) => o.side === 'buy' || o.side === 'sell' || o.side === 'sell_short')
+        .map((o) => ({
+          id: o.id,
+          symbol: o.symbol,
+          side: o.side as PairableOrder['side'],
+          filled_qty: o.filled_qty,
+          filled_avg_price: o.filled_avg_price as string,
+          filled_at: o.filled_at as string,
+        }));
+      const { realizedByOrderId, statusByOrderId } = pairOrders(filledForPairing, activities);
+
+      // Apply the user's date window AFTER pairing — open orders have no
+      // submitted_at filter (always show all open), closed orders honor it.
+      const inUserWindow = (o: AlpacaOrder): boolean => {
+        if (!userAfter) return true;
+        if (status === 'open') return true;
+        const ts = o.filled_at ?? o.submitted_at;
+        return ts ? Date.parse(ts) >= Date.parse(userAfter) : true;
+      };
+
+      const enriched = allOrders.filter(inUserWindow).map((o) => {
+        const realized_pl = realizedByOrderId.get(o.id);
+        const statusOverride = statusByOrderId.get(o.id);
+        return {
+          ...o,
+          realized_pl: realized_pl !== undefined ? realized_pl : null,
+          // Override status when an activity closed the leg, so the UI can
+          // distinguish an expired/assigned STO from one still open.
+          status: statusOverride ?? o.status,
+        };
+      });
+
+      return res.status(200).json({ mode, status, orders: enriched });
     }
     if (endpoint === 'quote') {
       const symbol = String(req.query.symbol ?? '').toUpperCase();
