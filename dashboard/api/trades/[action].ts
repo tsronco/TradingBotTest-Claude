@@ -186,9 +186,66 @@ async function submit(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'invalid_totp' });
     }
   }
-  const rule_warnings = await runStubRuleChecks({
-    asset_class: draft.asset_class, symbol: draft.symbol, qty: draft.qty, account: draft.account,
-  });
+  // Re-run rule checks server-side so the trade record reflects ground truth
+  // at the moment of submission (block-severity rules can change between
+  // /trades/check and /trades/submit if e.g. an earnings announcement lands).
+  let positions: Array<{ symbol: string; qty: number; avg_entry_price: number }> = [];
+  try {
+    const raw = await alpacaTrade<Array<{ symbol: string; qty: string; avg_entry_price: string }>>(
+      modeFromAccount(draft.account) as any,
+      '/v2/positions',
+    );
+    positions = (raw ?? []).map((p) => ({
+      symbol: p.symbol,
+      qty: parseFloat(p.qty),
+      avg_entry_price: parseFloat(p.avg_entry_price),
+    }));
+  } catch {
+    positions = [];
+  }
+  const rule_warnings = await runRuleChecks(
+    {
+      asset_class: draft.asset_class,
+      symbol: draft.symbol,
+      qty: draft.qty,
+      account: draft.account,
+      side: draft.side as any,
+      option_type: draft.contract_type ?? undefined,
+      strike: draft.strike ?? null,
+      expiration: draft.expiration ?? null,
+      tags: Array.isArray(draft.tags) ? draft.tags : undefined,
+    },
+    { positions },
+  );
+
+  // Server is source of truth for which violations exist; the body provides
+  // override_reason strings keyed by rule ID. Match them up.
+  const submittedOverrides = (req.body as any)?.rule_violations as
+    | Array<{ rule: string; severity?: string; override_reason?: string }>
+    | undefined;
+  const overrideByRule = new Map<string, string>();
+  for (const v of submittedOverrides ?? []) {
+    if (typeof v?.rule === 'string' && typeof v?.override_reason === 'string') {
+      overrideByRule.set(v.rule, v.override_reason);
+    }
+  }
+
+  // Block-severity violations from the server MUST have a >= 20-char override_reason
+  // submitted with them. Otherwise reject the submission outright.
+  for (const v of rule_warnings) {
+    if (v.severity === 'block') {
+      const reason = (overrideByRule.get(v.rule) ?? '').trim();
+      if (reason.length < 20) {
+        return res.status(400).json({
+          error: 'block_severity_requires_override_reason',
+          rule: v.rule,
+          rule_message: v.message,
+        });
+      }
+      // Attach the user's reasoning to the violation that gets persisted
+      (v as any).override_reason = reason;
+    }
+  }
 
   // Alpaca submit (paper for now)
   const client = alpacaFor(modeFromAccount(draft.account) as any);
