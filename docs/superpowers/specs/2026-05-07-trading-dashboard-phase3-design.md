@@ -4,6 +4,15 @@
 **Status:** approved (brainstorm), ready for writing-plans
 **Predecessors:** [Phase 1 plan](../plans/2026-05-02-trading-dashboard-phase1.md) · [Phase 2 plan](../plans/2026-05-03-trading-dashboard-phase2.md) · [parent spec](2026-05-02-trading-dashboard-design.md) · [handoff 2026-05-03](../HANDOFF-2026-05-03.md)
 
+> 📌 **Update 2026-05-07 (post-spec)** — between brainstorm and execution, two things landed in `main` that affect this design:
+>
+> 1. **Third paper account: `manual`.** A user-driven account where the bot manages positions but never opens new puts. Wired through the full dashboard surface (sidebar / Home / Positions / Orders / Trades / Lookup / order forms / settings thresholds). `AccountId` union is now `'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live'`. **All Phase 3 components that touch account selection or rendering (BotRulesSection, account dropdowns on Watchlist/Calendar filters, performance per-account splits, etc.) need a third lane.** The 2-column "cons/agg" comparison patterns in this spec should become 3-column.
+> 2. **Trade lifecycle fix pass.** `Trade` schema gained `modify_history?: ModifyEvent[]`. The grade-open-trades cron now also runs `syncFillData()` to backfill delayed-fill `filled_at`/`filled_avg_price` and walk the Alpaca modify chain. The bars endpoint shape is now `{symbol, timeframe, bars: [...flat array]}`. TradeChart memoizes its query window. **Phase 3 trade-type extensions must preserve `modify_history`. The DST-aware option-expiration follow-up still applies — `detectClose` Path 2 is unchanged from the spec's perspective.**
+>
+> Test baseline: **121 vitest** (not 97). Phase 3 target should be ≥154 (delta ≥33). Vercel function count now 9 of 12 (unchanged — no new functions shipped 2026-05-07).
+>
+> See [CLAUDE.md → Trade lifecycle fixes (shipped 2026-05-07)](../../../CLAUDE.md) and the "Trade record schema" section there for full context.
+
 ## Goal
 
 Phase 3 ships the rules / playbook / coaching layer of the trading dashboard. After it lands, Tim can:
@@ -541,7 +550,7 @@ Default expansion: 1, 2, 5 expanded; 3, 4, 6, 7 collapsed. Persisted in `localSt
 
 ## Testing strategy
 
-Phase 2 baseline: 97 vitest tests. Phase 3 target: ≥130 tests (delta ≥33).
+Phase 2 baseline: 97 vitest tests; **post-2026-05-07 baseline (manual account + lifecycle fixes): 121 vitest**. Phase 3 target: ≥154 tests (delta ≥33).
 
 **New unit-test surfaces:**
 - `rule-check.ts` evaluator — one test per trigger type plus combination tests for ALL-must-match semantics
