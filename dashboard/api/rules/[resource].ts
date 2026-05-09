@@ -14,7 +14,77 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { kv } from '../_lib/kv.js';
 import { rulesKey } from '../_lib/kv-keys.js';
-import { isTrigger, newId, type ManualRule } from '../_lib/rules-types.js';
+import { isTrigger, newId, type ManualRule, type Pattern, type Cheatsheet, type Goal } from '../_lib/rules-types.js';
+
+interface BaseRecord {
+  id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+async function genericCrud<T extends BaseRecord>(
+  req: VercelRequest,
+  res: VercelResponse,
+  key: string,
+  validate: (body: unknown) => string | null,
+  idPrefix: string,
+) {
+  const list = (await kv().get<T[]>(key)) ?? [];
+
+  if (req.method === 'GET') {
+    return res.status(200).json({ items: list });
+  }
+
+  if (req.method === 'POST') {
+    const err = validate(req.body);
+    if (err) return res.status(400).json({ error: err });
+    const now = new Date().toISOString();
+    const record = {
+      ...(req.body as object),
+      id: newId(idPrefix),
+      created_at: now,
+      updated_at: now,
+    } as T;
+    await kv().set(key, [...list, record]);
+    return res.status(201).json({ item: record });
+  }
+
+  if (req.method === 'PATCH') {
+    const { id, patch } = (req.body ?? {}) as { id?: string; patch?: Record<string, unknown> };
+    if (typeof id !== 'string' || !patch || typeof patch !== 'object') {
+      return res.status(400).json({ error: 'id_and_patch_required' });
+    }
+    const idx = list.findIndex((r) => r.id === id);
+    if (idx === -1) return res.status(404).json({ error: 'not_found' });
+
+    const merged = { ...list[idx], ...patch };
+    const err = validate(merged);
+    if (err) return res.status(400).json({ error: err });
+
+    const updated = {
+      ...merged,
+      id: list[idx].id,
+      created_at: list[idx].created_at,
+      updated_at: new Date().toISOString(),
+    } as T;
+    const next = list.map((r, i) => (i === idx ? updated : r));
+    await kv().set(key, next);
+    return res.status(200).json({ item: updated });
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = (req.body ?? {}) as { id?: string };
+    if (typeof id !== 'string') {
+      return res.status(400).json({ error: 'id_required' });
+    }
+    const next = list.filter((r) => r.id !== id);
+    await kv().set(key, next);
+    return res.status(200).json({ ok: true, removed: id });
+  }
+
+  res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
+  return res.status(405).json({ error: 'method_not_allowed' });
+}
 
 type Resource =
   | 'manual'
@@ -133,14 +203,37 @@ async function manualHandler(req: VercelRequest, res: VercelResponse) {
   return res.status(405).json({ error: 'method_not_allowed' });
 }
 
-async function patternsHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+async function patternsHandler(req: VercelRequest, res: VercelResponse) {
+  return genericCrud<Pattern>(req, res, rulesKey('patterns'), (b) => {
+    const obj = b as Record<string, unknown> | null;
+    if (!obj || typeof obj.name !== 'string' || !obj.name) return 'name_required';
+    if (typeof obj.environment !== 'string') return 'environment_required';
+    if (!Array.isArray(obj.variables)) return 'variables_must_be_array';
+    if (!Array.isArray(obj.legs)) return 'legs_must_be_array';
+    if (!Array.isArray(obj.rules)) return 'rules_must_be_array';
+    if (obj.win_rate !== undefined && typeof obj.win_rate !== 'number') return 'win_rate_must_be_number';
+    return null;
+  }, 'p');
 }
-async function cheatsheetsHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+
+async function cheatsheetsHandler(req: VercelRequest, res: VercelResponse) {
+  return genericCrud<Cheatsheet>(req, res, rulesKey('cheatsheets'), (b) => {
+    const obj = b as Record<string, unknown> | null;
+    if (!obj || typeof obj.title !== 'string' || !obj.title) return 'title_required';
+    if (typeof obj.body !== 'string') return 'body_required';
+    return null;
+  }, 'c');
 }
-async function goalsHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+
+async function goalsHandler(req: VercelRequest, res: VercelResponse) {
+  return genericCrud<Goal>(req, res, rulesKey('goals'), (b) => {
+    const obj = b as Record<string, unknown> | null;
+    if (!obj || typeof obj.body !== 'string' || !obj.body) return 'body_required';
+    if (obj.target !== undefined && typeof obj.target !== 'string') return 'target_must_be_string';
+    if (obj.due !== undefined && typeof obj.due !== 'string') return 'due_must_be_string';
+    if (obj.checked !== undefined && typeof obj.checked !== 'boolean') return 'checked_must_be_boolean';
+    return null;
+  }, 'g');
 }
 async function tendenciesHandler(_req: VercelRequest, res: VercelResponse) {
   return res.status(501).json({ error: 'not_implemented' });

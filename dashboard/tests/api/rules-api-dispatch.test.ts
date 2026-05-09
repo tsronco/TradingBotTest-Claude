@@ -72,7 +72,7 @@ describe('api/rules/[resource] dispatch', () => {
     expect(body.rules[0].id).toBe('r-1');
   });
 
-  it.each(['patterns', 'cheatsheets', 'goals', 'tendencies', 'proposals', 'bot'] as const)(
+  it.each(['tendencies', 'proposals', 'bot'] as const)(
     'returns 501 (not implemented) for resource=%s in this skeleton',
     async (resource) => {
       requireAuth.mockReturnValue({ user: 'tim' });
