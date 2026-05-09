@@ -13,8 +13,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { kv } from '../_lib/kv.js';
-import { rulesKey } from '../_lib/kv-keys.js';
-import { isTrigger, newId, type ManualRule, type Pattern, type Cheatsheet, type Goal } from '../_lib/rules-types.js';
+import { rulesKey, botRulesKey } from '../_lib/kv-keys.js';
+import { isTrigger, newId, type ManualRule, type Pattern, type Cheatsheet, type Goal, type Tendency, type Proposal } from '../_lib/rules-types.js';
 
 interface BaseRecord {
   id: string;
@@ -235,12 +235,43 @@ async function goalsHandler(req: VercelRequest, res: VercelResponse) {
     return null;
   }, 'g');
 }
-async function tendenciesHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+async function tendenciesHandler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  const tendencies = (await kv().get<Tendency[]>(rulesKey('tendencies'))) ?? [];
+  return res.status(200).json({ tendencies });
 }
-async function proposalsHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+
+async function proposalsHandler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    const proposals = (await kv().get<Proposal[]>(rulesKey('proposals'))) ?? [];
+    const cutoff = Date.now() - 30 * 86400000;
+    const visible = proposals.filter((p) => {
+      if (p.status === 'open') return true;
+      const ts = p.resolved_at ? Date.parse(p.resolved_at) : Date.parse(p.proposed_at);
+      return Number.isFinite(ts) && ts >= cutoff;
+    });
+    return res.status(200).json({ proposals: visible });
+  }
+  if (req.method === 'POST') {
+    // approve / dismiss / edit-and-approve land in M2.5
+    return res.status(501).json({ error: 'not_implemented' });
+  }
+  res.setHeader('Allow', 'GET, POST');
+  return res.status(405).json({ error: 'method_not_allowed' });
 }
-async function botHandler(_req: VercelRequest, res: VercelResponse) {
-  return res.status(501).json({ error: 'not_implemented' });
+
+async function botHandler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+  const [conservative, aggressive, manual] = await Promise.all([
+    kv().get(botRulesKey('conservative')),
+    kv().get(botRulesKey('aggressive')),
+    kv().get(botRulesKey('manual')),
+  ]);
+  return res.status(200).json({ conservative, aggressive, manual });
 }
