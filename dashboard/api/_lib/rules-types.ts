@@ -162,8 +162,9 @@ export interface BotRulesPayload {
     ladders: { trigger_pct: number; qty: number }[];
   };
   congress?: {                        // conservative only
-    sizing_tiers: { name: string; min_disclosure: number; max_alloc: number }[];
-    politicians: { id: string; name: string }[];
+    /** One entry per disclosure-amount sizing tier, matching congress-copy/config.py SIZING_TIERS. */
+    sizing_tiers: { max_disclosure_usd: number; alloc_usd: number }[];
+    politicians: { slug: string; name: string }[];
   };
   /** Optional flags surfaced by manual mode (e.g., wheel_skip_new_puts, auto_discover_symbols). */
   flags?: Record<string, boolean>;
