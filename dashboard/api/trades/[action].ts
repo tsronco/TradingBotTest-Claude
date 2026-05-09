@@ -8,7 +8,7 @@ import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import { GRADE_LETTERS, type GradeLetter, type Trade } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
-  KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey,
+  KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey,
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
 import { verifyTotp } from '../_lib/totp.js';
@@ -409,8 +409,11 @@ async function list(req: VercelRequest, res: VercelResponse) {
   const winRate = closed.length === 0 ? 0
     : closed.filter((r) => (r.realized_pnl ?? 0) > 0).length / closed.length;
   const cal = { matched: 0, over: 0, under: 0 };
+  const recordById = new Map(records.map((r) => [r.id, r]));
   for (const g of grades) {
     if (!g.hindsight) continue;
+    const t = recordById.get(g.trade_id);
+    if (t?.ai_grade_inherited) continue; // M5.4: assignment-spawned trades inherit the parent's grade — don't double-count
     const c = g.hindsight.calibration;
     if (c === 'matched') cal.matched++;
     else if (c === 'over_1' || c === 'over_2') cal.over++;
@@ -441,7 +444,10 @@ async function getOne(req: VercelRequest, res: VercelResponse) {
   const trade = await kv().get<Trade>(tradeKey(id));
   const grade = await kv().get<any>(gradeKey(id));
   if (!trade) return res.status(404).json({ error: 'not_found' });
-  return res.status(200).json({ trade, grade });
+  // M5.3: if this trade has spawned a child via assignment auto-spawn,
+  // surface the child id so the UI can link to it.
+  const assignment_child_id = await kv().get<string>(assignmentChildKey(id));
+  return res.status(200).json({ trade, grade, assignment_child_id: assignment_child_id ?? null });
 }
 async function regrade(req: VercelRequest, res: VercelResponse) {
   const id = String((req.body as any)?.id ?? req.query.id ?? '');
