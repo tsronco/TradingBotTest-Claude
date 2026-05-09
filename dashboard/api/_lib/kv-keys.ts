@@ -24,6 +24,7 @@ export function lastUpdateKey(key: BotStateKey): string {
 const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^trade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^grade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
+  /^assignment-child:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^trades:index:open$/,
   /^trades:index:assignments-pending$/,
   /^trades:index:\d{4}-\d{2}$/,
@@ -85,4 +86,8 @@ export function rulesKey(resource: RulesResource): string {
 
 export function assignmentsPendingKey(): string {
   return 'trades:index:assignments-pending';
+}
+
+export function assignmentChildKey(parentTradeId: string): string {
+  return `assignment-child:${parentTradeId}`;
 }

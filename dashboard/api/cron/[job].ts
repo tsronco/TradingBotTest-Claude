@@ -1,10 +1,17 @@
 // dashboard/api/cron/[job].ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
-import { KV_KEYS, tradeKey, gradeKey, rulesKey } from '../_lib/kv-keys.js';
+import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
+import {
+  enqueueAssignmentPending,
+  drainAssignments,
+  removeAssignment,
+  buildAssignmentTrade,
+  currentMonth,
+} from '../_lib/assignment-spawn.js';
 import { runMatchers, type Finding, type ClosedTradeView } from '../_lib/tendency-matchers.js';
 import { proposeNewRule, proposeDemote } from '../_lib/proposal-prompts.js';
 import type { Tendency, Proposal, ManualRule } from '../_lib/rules-types.js';
@@ -36,7 +43,6 @@ function modeFromAccount(account: string): string {
 
 async function gradeOpenTrades(res: VercelResponse) {
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
-  if (openIds.length === 0) return res.status(200).json({ ok: true, graded: 0 });
 
   let graded = 0;
   let remaining = openIds.length;
@@ -72,6 +78,25 @@ async function gradeOpenTrades(res: VercelResponse) {
     };
     await kv().set(tradeKey(id), closedTrade);
 
+    // Detect STO put assignment for follow-on stock trade spawn (M5)
+    if (
+      closedTrade.asset_class === 'option'
+      && closedTrade.contract_type === 'put'
+      && closedTrade.side === 'STO'
+      && closeInfo.closed_by === 'assigned'
+    ) {
+      await enqueueAssignmentPending({
+        parent_trade_id: closedTrade.id,
+        underlying: closedTrade.symbol,
+        strike: closedTrade.strike ?? closedTrade.filled_avg_price ?? 0,
+        qty: closedTrade.qty * 100,        // 100 shares per contract
+        account: closedTrade.account === 'live'
+          ? 'conservative_paper'           // safety: live shouldn't get here on paper-only setup
+          : closedTrade.account,
+        detected_at: closeInfo.closed_at,
+      });
+    }
+
     // Atomically remove the closed trade from the open list
     await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
     graded += 1;
@@ -98,7 +123,47 @@ async function gradeOpenTrades(res: VercelResponse) {
     await kv().set(gradeKey(id), next);
   }
 
-  return res.status(200).json({ ok: true, graded, remaining_open: remaining });
+  // Drain assignments-pending — spawn follow-on stock trades for assigned puts
+  const drainResult = await drainAssignmentsAndSpawn();
+
+  return res.status(200).json({
+    ok: true,
+    graded,
+    remaining_open: remaining,
+    assignments_spawned: drainResult.spawned,
+    assignments_skipped: drainResult.skipped,
+  });
+}
+
+async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: number }> {
+  const entries = await drainAssignments();
+  let spawned = 0;
+  let skipped = 0;
+  for (const entry of entries) {
+    // Idempotency: skip if a child trade for this parent already exists
+    const existingChild = await kv().get<string>(assignmentChildKey(entry.parent_trade_id));
+    if (existingChild) {
+      await removeAssignment(entry);
+      skipped++;
+      continue;
+    }
+    const parent = await kv().get<Trade>(tradeKey(entry.parent_trade_id));
+    if (!parent) {
+      console.error('[drain] parent trade missing:', entry.parent_trade_id);
+      await removeAssignment(entry);
+      skipped++;
+      continue;
+    }
+    const grade = await kv().get<GradeRecord>(gradeKey(entry.parent_trade_id));
+    const newTrade = await buildAssignmentTrade(parent, entry, grade);
+    await kv().set(tradeKey(newTrade.id), newTrade);
+    await kv().set(assignmentChildKey(entry.parent_trade_id), newTrade.id);
+    await kv().rpush(KV_KEYS.tradesIndexOpen, newTrade.id);
+    await kv().rpush(tradesIndexMonthKey(currentMonth()), newTrade.id);
+    await removeAssignment(entry);
+    spawned++;
+  }
+  return { spawned, skipped };
 }
 
 interface CloseInfo {
