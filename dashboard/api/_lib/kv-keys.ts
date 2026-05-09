@@ -6,6 +6,9 @@ export const BOT_STATE_KEYS = [
   'bot:strategy:aggressive',
   'bot:strategy:manual',
   'bot:congress',
+  'bot:rules:conservative',
+  'bot:rules:aggressive',
+  'bot:rules:manual',
 ] as const;
 
 export type BotStateKey = (typeof BOT_STATE_KEYS)[number];
@@ -21,7 +24,9 @@ export function lastUpdateKey(key: BotStateKey): string {
 const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^trade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^grade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
+  /^assignment-child:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^trades:index:open$/,
+  /^trades:index:assignments-pending$/,
   /^trades:index:\d{4}-\d{2}$/,
   /^trades:counter:\d{4}-\d{2}-\d{2}$/,
   /^tags:list$/,
@@ -29,6 +34,7 @@ const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^auth:backup_codes_hashed$/,
   /^auth:used-backup-codes$/,
   /^watchlist$/,
+  /^rules:(manual|patterns|cheatsheets|goals|tendencies|proposals)$/,
 ];
 
 export function isAllowedDashboardKey(key: string): boolean {
@@ -58,4 +64,30 @@ export function tradesIndexMonthKey(yyyymm: string): string {
 
 export function tradesCounterKey(yyyymmdd: string): string {
   return `trades:counter:${yyyymmdd}`;
+}
+
+export type Mode = 'conservative' | 'aggressive' | 'manual';
+
+export function botRulesKey(mode: Mode): BotStateKey {
+  return `bot:rules:${mode}` as BotStateKey;
+}
+
+export type RulesResource =
+  | 'manual'
+  | 'patterns'
+  | 'cheatsheets'
+  | 'goals'
+  | 'tendencies'
+  | 'proposals';
+
+export function rulesKey(resource: RulesResource): string {
+  return `rules:${resource}`;
+}
+
+export function assignmentsPendingKey(): string {
+  return 'trades:index:assignments-pending';
+}
+
+export function assignmentChildKey(parentTradeId: string): string {
+  return `assignment-child:${parentTradeId}`;
 }

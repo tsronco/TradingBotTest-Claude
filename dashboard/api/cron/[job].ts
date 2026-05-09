@@ -1,10 +1,21 @@
 // dashboard/api/cron/[job].ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
-import { KV_KEYS, tradeKey, gradeKey } from '../_lib/kv-keys.js';
+import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
+import {
+  enqueueAssignmentPending,
+  drainAssignments,
+  removeAssignment,
+  buildAssignmentTrade,
+  currentMonth,
+} from '../_lib/assignment-spawn.js';
+import { runMatchers, type Finding, type ClosedTradeView } from '../_lib/tendency-matchers.js';
+import { proposeNewRule, proposeDemote } from '../_lib/proposal-prompts.js';
+import type { Tendency, Proposal, ManualRule } from '../_lib/rules-types.js';
+import { newId } from '../_lib/rules-types.js';
 
 const MAX_PER_TICK = 3;
 
@@ -20,6 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const job = String(req.query.job ?? '');
   if (job === 'grade-open-trades') return gradeOpenTrades(res);
+  if (job === 'detect-tendencies') return detectTendenciesHandler(req, res);
   return res.status(404).json({ error: 'unknown_job' });
 }
 
@@ -31,7 +43,6 @@ function modeFromAccount(account: string): string {
 
 async function gradeOpenTrades(res: VercelResponse) {
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
-  if (openIds.length === 0) return res.status(200).json({ ok: true, graded: 0 });
 
   let graded = 0;
   let remaining = openIds.length;
@@ -67,6 +78,25 @@ async function gradeOpenTrades(res: VercelResponse) {
     };
     await kv().set(tradeKey(id), closedTrade);
 
+    // Detect STO put assignment for follow-on stock trade spawn (M5)
+    if (
+      closedTrade.asset_class === 'option'
+      && closedTrade.contract_type === 'put'
+      && closedTrade.side === 'STO'
+      && closeInfo.closed_by === 'assigned'
+    ) {
+      await enqueueAssignmentPending({
+        parent_trade_id: closedTrade.id,
+        underlying: closedTrade.symbol,
+        strike: closedTrade.strike ?? closedTrade.filled_avg_price ?? 0,
+        qty: closedTrade.qty * 100,        // 100 shares per contract
+        account: closedTrade.account === 'live'
+          ? 'conservative_paper'           // safety: live shouldn't get here on paper-only setup
+          : closedTrade.account,
+        detected_at: closeInfo.closed_at,
+      });
+    }
+
     // Atomically remove the closed trade from the open list
     await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
     graded += 1;
@@ -93,7 +123,47 @@ async function gradeOpenTrades(res: VercelResponse) {
     await kv().set(gradeKey(id), next);
   }
 
-  return res.status(200).json({ ok: true, graded, remaining_open: remaining });
+  // Drain assignments-pending — spawn follow-on stock trades for assigned puts
+  const drainResult = await drainAssignmentsAndSpawn();
+
+  return res.status(200).json({
+    ok: true,
+    graded,
+    remaining_open: remaining,
+    assignments_spawned: drainResult.spawned,
+    assignments_skipped: drainResult.skipped,
+  });
+}
+
+async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: number }> {
+  const entries = await drainAssignments();
+  let spawned = 0;
+  let skipped = 0;
+  for (const entry of entries) {
+    // Idempotency: skip if a child trade for this parent already exists
+    const existingChild = await kv().get<string>(assignmentChildKey(entry.parent_trade_id));
+    if (existingChild) {
+      await removeAssignment(entry);
+      skipped++;
+      continue;
+    }
+    const parent = await kv().get<Trade>(tradeKey(entry.parent_trade_id));
+    if (!parent) {
+      console.error('[drain] parent trade missing:', entry.parent_trade_id);
+      await removeAssignment(entry);
+      skipped++;
+      continue;
+    }
+    const grade = await kv().get<GradeRecord>(gradeKey(entry.parent_trade_id));
+    const newTrade = await buildAssignmentTrade(parent, entry, grade);
+    await kv().set(tradeKey(newTrade.id), newTrade);
+    await kv().set(assignmentChildKey(entry.parent_trade_id), newTrade.id);
+    await kv().rpush(KV_KEYS.tradesIndexOpen, newTrade.id);
+    await kv().rpush(tradesIndexMonthKey(currentMonth()), newTrade.id);
+    await removeAssignment(entry);
+    spawned++;
+  }
+  return { spawned, skipped };
 }
 
 interface CloseInfo {
@@ -302,4 +372,171 @@ function realizedPnl(trade: Trade, closePx: number): number {
     return (closePx - (trade.filled_avg_price ?? 0)) * 100 * trade.qty;
   }
   return 0;
+}
+
+const TENDENCY_LOOKBACK_DAYS = 90;
+const MAX_FINDING_PROPOSALS = 6;
+const MAX_DEMOTE_PROPOSALS = 6;
+const DEMOTE_OVERRIDE_THRESHOLD = 3;
+const DEMOTE_PROFITABLE_THRESHOLD = 0.6;
+
+async function detectTendenciesHandler(req: VercelRequest, res: VercelResponse) {
+  // Bearer auth — match the grade-open-trades convention
+  const auth = req.headers.authorization ?? '';
+  if (!process.env.CRON_TOKEN || auth !== `Bearer ${process.env.CRON_TOKEN}`) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'method_not_allowed' });
+  }
+
+  const trades = await loadClosedTrades(TENDENCY_LOOKBACK_DAYS);
+  const findings = runMatchers(trades);
+
+  // Update tendencies (replace prior entries by matcher key)
+  const existingTendencies = (await kv().get<Tendency[]>(rulesKey('tendencies'))) ?? [];
+  const updatedTendencies = mergeTendencies(existingTendencies, findings);
+  await kv().set(rulesKey('tendencies'), updatedTendencies);
+
+  // Generate proposals for actionable findings, dedupe against open + dismissed
+  const proposals = (await kv().get<Proposal[]>(rulesKey('proposals'))) ?? [];
+  let proposalsAppended = 0;
+  let llmCalls = 0;
+  for (const finding of findings) {
+    if (!finding.actionable) continue;
+    if (llmCalls >= MAX_FINDING_PROPOSALS) break;
+    if (proposals.some((p) => proposalKey(p) === finding.key && p.status !== 'approved')) continue;
+    try {
+      const evidenceSnippets = trades
+        .filter((t) => finding.evidence_trade_ids.includes(t.id))
+        .slice(0, 5)
+        .map((t) => ({ id: t.id, symbol: t.symbol, pnl: t.realized_pnl, closed_at: t.closed_at }));
+      const proposal = await proposeNewRule(finding, evidenceSnippets);
+      proposals.push(proposal as Proposal);
+      proposalsAppended++;
+      llmCalls++;
+    } catch (e) {
+      console.error('[detect-tendencies] proposal generation failed:', e);
+    }
+  }
+
+  // Demote loop: for each block-severity rule, see if it's been over-overridden profitably
+  const manualRules = (await kv().get<ManualRule[]>(rulesKey('manual'))) ?? [];
+  const blockRules = manualRules.filter((r) => r.severity === 'block');
+  let demotesAppended = 0;
+  for (const rule of blockRules) {
+    if (demotesAppended >= MAX_DEMOTE_PROPOSALS) break;
+    const overrides = trades.filter((t) =>
+      t.rule_violations.some((v) =>
+        v.rule === rule.id && v.severity === 'block' && v.override_reason),
+    );
+    if (overrides.length < DEMOTE_OVERRIDE_THRESHOLD) continue;
+    const profitable = overrides.filter((t) => t.realized_pnl > 0).length;
+    const profitablePct = profitable / overrides.length;
+    if (profitablePct < DEMOTE_PROFITABLE_THRESHOLD) continue;
+    if (proposals.some((p) => p.demote_target_rule_id === rule.id && p.status === 'open')) continue;
+    try {
+      const proposal = proposeDemote(rule, { overrides: overrides.length, profitable_pct: profitablePct });
+      proposals.push(proposal as Proposal);
+      demotesAppended++;
+    } catch (e) {
+      console.error('[detect-tendencies] demote proposal failed:', e);
+    }
+  }
+
+  if (proposalsAppended > 0 || demotesAppended > 0) {
+    await kv().set(rulesKey('proposals'), proposals);
+  }
+
+  return res.status(200).json({
+    findings_count: findings.length,
+    proposals_appended: proposalsAppended,
+    demotes_appended: demotesAppended,
+    llm_calls: llmCalls,
+  });
+}
+
+function mergeTendencies(existing: Tendency[], findings: Finding[]): Tendency[] {
+  const byMatcher: Record<string, Tendency> = {};
+  for (const t of existing) byMatcher[t.matcher] = t;
+  const now = new Date().toISOString();
+  for (const f of findings) {
+    byMatcher[f.matcher] = {
+      id: newId('te'),
+      matcher: f.matcher,
+      finding: f.finding,
+      evidence_trade_ids: f.evidence_trade_ids,
+      detected_at: now,
+    };
+  }
+  return Object.values(byMatcher);
+}
+
+function proposalKey(p: Proposal): string {
+  if (p.demote_target_rule_id) return `demote:${p.demote_target_rule_id}`;
+  // Mirror the matcher.key conventions from tendency-matchers.ts
+  if (p.matcher === 'cc_below_cost_basis') return 'cc_below_cost_basis:global';
+  if (p.matcher === 'held_through_earnings') return 'held_through_earnings:global';
+  if (p.matcher === 'over_grading_self') return 'over_grading_self:global';
+  // For the per-symbol/per-side matchers, derive dim from triggers
+  const tig = p.proposed_rule.triggers[0];
+  if (tig?.type === 'symbol_in' && tig.symbols.length > 0) {
+    return `${p.matcher}:${tig.symbols[0]}`;
+  }
+  if (tig?.type === 'asset_class') {
+    const ot = p.proposed_rule.triggers.find((t) => t.type === 'option_type') as any;
+    return `${p.matcher}:${tig.value}:${ot?.value ?? 'na'}`;
+  }
+  return p.matcher;
+}
+
+async function loadClosedTrades(days: number): Promise<ClosedTradeView[]> {
+  const cutoff = new Date(Date.now() - days * 86400000);
+  const months: string[] = [];
+  const cursor = new Date(cutoff);
+  cursor.setUTCDate(1);
+  while (cursor <= new Date()) {
+    months.push(`${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  const idsByMonth = await Promise.all(
+    months.map((m) => kv().get<string[]>(`trades:index:${m}`)),
+  );
+  const allIds = idsByMonth.flat().filter(Boolean) as string[];
+
+  const records = await Promise.all(allIds.map(async (id) => {
+    const trade = await kv().get<Trade>(`trade:${id}`);
+    if (!trade || !trade.closed_at) return null;
+    if (Date.parse(trade.closed_at) < cutoff.getTime()) return null;
+    const grade = await kv().get<GradeRecord>(`grade:${id}`);
+    return tradeToClosedView(trade, grade);
+  }));
+
+  return records.filter((r): r is ClosedTradeView => r !== null);
+}
+
+function tradeToClosedView(t: Trade, grade: GradeRecord | null): ClosedTradeView {
+  return {
+    id: t.id,
+    symbol: t.symbol,
+    asset_class: t.asset_class,
+    option_type: t.contract_type,
+    side: t.side,
+    closed_at: t.closed_at!,
+    realized_pnl: t.realized_pnl ?? 0,
+    user_grade: t.entry_grade,
+    ai_grade: grade?.hindsight?.letter ?? null,
+    tags: t.tags,
+    rule_violations: (t.rule_warnings_at_entry ?? []).map((v) => ({
+      rule: v.rule,
+      severity: v.severity as any,
+      override_reason: (v as any).override_reason,
+    })),
+    strike: t.strike,
+    expiration: t.expiration,
+    cost_basis_at_entry: null,           // populated by future grade-cron extension; null is fine
+    earnings_during_hold: false,         // ditto
+  };
 }

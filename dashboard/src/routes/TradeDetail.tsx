@@ -7,6 +7,8 @@ import { TradeHeader } from '../components/trade/TradeHeader';
 import { TradeChart } from '../components/trade/TradeChart';
 import { Timeline } from '../components/trade/Timeline';
 import { GradePanel } from '../components/trade/GradePanel';
+import { RuleViolationsPanel } from '../components/trade/RuleViolationsPanel';
+import AssignmentLink from '../components/trade/AssignmentLink';
 import { api } from '../lib/api';
 import type { Trade } from '../lib/trade-types';
 
@@ -23,9 +25,23 @@ export default function TradeDetail() {
         <span className="text-cyan">tim@dash:~/portfolio/trade$</span>{' '}
         <span className="text-fg">show --id={id}</span>
       </div>
+      {data.trade.parent_id && data.trade.source === 'assignment' && (
+        <AssignmentLink
+          direction="up"
+          tradeId={data.trade.parent_id}
+          inherited={data.trade.ai_grade_inherited}
+        />
+      )}
+      {data.assignment_child_id && (
+        <AssignmentLink
+          direction="down"
+          tradeId={data.assignment_child_id}
+        />
+      )}
       <TradeHeader trade={data.trade} />
       <ErrorBoundary><TradeChart trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><Timeline trade={data.trade} /></ErrorBoundary>
+      <ErrorBoundary><RuleViolationsPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><GradePanel trade={data.trade} grade={data.grade} /></ErrorBoundary>
       <ErrorBoundary><TagsJournal trade={data.trade} /></ErrorBoundary>
 

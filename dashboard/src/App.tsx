@@ -7,8 +7,13 @@ import Orders from './routes/Orders';
 import Lookup from './routes/Lookup';
 import Settings from './routes/Settings';
 import OrderNew from './routes/OrderNew';
+import Rules from './routes/Rules';
+import RulesEdit from './routes/RulesEdit';
 import TradeDetail from './routes/TradeDetail';
 import Trades from './routes/Trades';
+import Watchlist from './routes/Watchlist';
+import Calendar from './routes/Calendar';
+import Performance from './routes/Performance';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -39,6 +44,11 @@ export default function App() {
             <Route path="/order/new" element={<OrderNew />} />
             <Route path="/trade/:id" element={<TradeDetail />} />
             <Route path="/trades" element={<Trades />} />
+            <Route path="/rules" element={<Rules />} />
+            <Route path="/rules/edit" element={<RulesEdit />} />
+            <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/performance" element={<Performance />} />
           </Route>
         </Routes>
       </BrowserRouter>

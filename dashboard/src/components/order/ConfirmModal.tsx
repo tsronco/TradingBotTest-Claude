@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fmtUsd } from '../../lib/format';
 import type { RuleWarning } from '../../lib/trade-types';
+import RuleViolationsBanner from './RuleViolationsBanner';
+import BlockOverrideFields from './BlockOverrideFields';
 
 interface Props {
   preview: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any };
@@ -15,14 +17,44 @@ export function ConfirmModal({ preview, onClose }: Props) {
   const [totp, setTotp] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reasonByRule, setReasonByRule] = useState<Record<string, string>>({});
 
-  const overlayBorder = preview.requires_totp ? 'border-amber' : 'border-hi';
-  const titleColor = preview.requires_totp ? 'text-amber' : 'text-hi';
+  const blocks = useMemo(
+    () => preview.rule_warnings.filter((w) => w.severity === 'block'),
+    [preview.rule_warnings],
+  );
+  const allBlocksOverridden = useMemo(
+    () => blocks.every((b) => (reasonByRule[b.rule] ?? '').trim().length >= 20),
+    [blocks, reasonByRule],
+  );
+
+  const overlayBorder =
+    blocks.length > 0 ? 'border-red'
+    : preview.requires_totp ? 'border-amber'
+    : 'border-hi';
+  const titleColor =
+    blocks.length > 0 ? 'text-red'
+    : preview.requires_totp ? 'text-amber'
+    : 'text-hi';
+  const titleText =
+    blocks.length > 0
+      ? (preview.requires_totp ? 'CONFIRM + OVERRIDE + TOTP' : 'CONFIRM + OVERRIDE')
+      : (preview.requires_totp ? 'CONFIRM + TOTP' : 'CONFIRM');
 
   async function place() {
     setError(null); setSubmitting(true);
     try {
-      const body = preview.requires_totp ? { ...draft, totp_code: totp } : draft;
+      const rule_violations = preview.rule_warnings.map((w) => {
+        if (w.severity === 'block') {
+          return { ...w, override_reason: (reasonByRule[w.rule] ?? '').trim() };
+        }
+        return w;
+      });
+      const body: any = {
+        ...draft,
+        rule_violations,
+      };
+      if (preview.requires_totp) body.totp_code = totp;
       const res = await api<{ id: string }>('/api/trades/submit', {
         method: 'POST',
         body: JSON.stringify(body),
@@ -33,12 +65,17 @@ export function ConfirmModal({ preview, onClose }: Props) {
     } finally { setSubmitting(false); }
   }
 
+  const placeDisabled =
+    submitting
+    || (preview.requires_totp && totp.length !== 6)
+    || (blocks.length > 0 && !allBlocksOverridden);
+
   return (
     <div className="fixed inset-0 bg-bg/85 flex items-center justify-center p-4 z-50">
-      <div className={`relative bg-panel border ${overlayBorder} max-w-md w-full`}>
+      <div className={`relative bg-panel border ${overlayBorder} max-w-md w-full max-h-[90vh] overflow-y-auto`}>
         <div className="absolute -top-3 left-3 px-2 bg-panel text-[10px] tracking-[0.25em]">
           <span className="text-dim">┌──</span>{' '}
-          <span className={titleColor}>{preview.requires_totp ? 'CONFIRM + TOTP' : 'CONFIRM'}</span>{' '}
+          <span className={titleColor}>{titleText}</span>{' '}
           <span className="text-dim">──┐</span>
         </div>
         <div className="p-5 text-[12px]">
@@ -58,13 +95,13 @@ export function ConfirmModal({ preview, onClose }: Props) {
           <div className="text-fg text-[10px] mt-1">"{draft.entry_reasoning}"</div>
 
           <div className="text-dim text-[10px] tracking-[0.25em] mt-3 mb-1">━━━ rule check ────────</div>
-          {preview.rule_warnings.length === 0
-            ? <div className="text-hi text-[10px]">▸ ok — no warnings</div>
-            : preview.rule_warnings.map((w) => (
-                <div key={w.rule} className={`text-[10px] ${w.severity === 'warn' ? 'text-amber' : 'text-mid'}`}>
-                  ▸ {w.rule}: {w.message}
-                </div>
-              ))}
+          <RuleViolationsBanner violations={preview.rule_warnings} showOkWhenEmpty />
+
+          <BlockOverrideFields
+            blocks={blocks}
+            reasonByRule={reasonByRule}
+            onReasonChange={(rule, value) => setReasonByRule((prev) => ({ ...prev, [rule]: value }))}
+          />
 
           {preview.requires_totp && (
             <>
@@ -89,11 +126,17 @@ export function ConfirmModal({ preview, onClose }: Props) {
               <button type="button" className="pbtn" onClick={onClose}>[cancel]</button>
               <button
                 type="button"
-                disabled={submitting || (preview.requires_totp && totp.length !== 6)}
+                disabled={placeDisabled}
                 onClick={place}
-                className={`pbtn ${preview.requires_totp ? 'border-amber text-amber bg-amber/5' : 'active'}`}
+                className={`pbtn ${blocks.length > 0 ? 'border-red text-red bg-red/5' : preview.requires_totp ? 'border-amber text-amber bg-amber/5' : 'active'}`}
               >
-                [{submitting ? 'placing…' : preview.requires_totp ? 'verify & place*' : 'place order*'}]
+                [{submitting
+                  ? 'placing…'
+                  : blocks.length > 0
+                  ? (allBlocksOverridden ? 'override & place*' : 'override required')
+                  : preview.requires_totp
+                  ? 'verify & place*'
+                  : 'place order*'}]
               </button>
             </div>
           </div>

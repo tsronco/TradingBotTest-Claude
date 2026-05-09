@@ -137,6 +137,20 @@ JOBS = [
         "minutes": [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],  # every 5 min
         "wdays": [1, 2, 3, 4, 5],
     },
+    {
+        # Tendency detection: scans 90 days of closed trades for behavioral
+        # patterns once a week, surfaces tendencies + AI-generated rule
+        # proposals on /rules. Sunday 22:00 UTC = 6 PM ET during DST.
+        # During EST (Nov–Mar) it fires at 5 PM ET, which is fine.
+        "title": "Dashboard — Detect Tendencies",
+        "kind": "webhook",
+        "url": "https://tradingbot-dashboard-blue.vercel.app/api/cron/detect-tendencies?job=detect-tendencies",
+        "method": "POST",
+        "auth_header": "Bearer ${CRON_TOKEN}",
+        "hours": [22],
+        "minutes": [0],
+        "wdays": [0],   # Sunday only
+    },
 ]
 
 

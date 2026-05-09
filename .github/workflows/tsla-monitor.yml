@@ -98,6 +98,15 @@ jobs:
             echo "strategy_state.json not present — skipping dashboard push"
           fi
 
+      - name: Push rules to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+          DASHBOARD_URL: https://tradingbot-dashboard-blue.vercel.app
+        run: |
+          python tools/push_rules_to_dashboard.py --mode conservative \
+            || echo "Dashboard push for rules failed (non-fatal)"
+
       - name: Commit state and logs
         run: |
           git config user.name "github-actions[bot]"

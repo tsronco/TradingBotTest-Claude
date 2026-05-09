@@ -24,11 +24,14 @@ export interface GreeksAtEntry {
   iv: number;
 }
 
-export type RuleSeverity = 'info' | 'warn';
+export type RuleSeverity = 'info' | 'warn' | 'block';
 export interface RuleWarning {
-  rule: 'sizing_1x' | 'earnings_within_7d' | 'bot_wheel_overlap';
+  rule: string;                       // built-in IDs OR user-defined rule.id
   severity: RuleSeverity;
   message: string;
+  // Required at runtime iff severity === 'block' — captures the user's
+  // justification for proceeding through a hard-block rule.
+  override_reason?: string;
 }
 
 /**
@@ -86,6 +89,9 @@ export interface Trade {
   rule_warnings_at_entry: RuleWarning[];
   modify_history?: ModifyEvent[];
   schema: 1;
+  parent_id?: string;
+  source?: 'manual' | 'assignment';
+  ai_grade_inherited?: boolean;
 }
 
 export interface GradeEntry {

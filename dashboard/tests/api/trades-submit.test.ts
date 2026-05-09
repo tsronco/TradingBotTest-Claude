@@ -17,8 +17,14 @@ vi.mock('../../api/_lib/kv', () => ({
 vi.mock('../../api/_lib/auth-guard', () => ({
   requireAuth: vi.fn(() => ({ logged_in_at: 0, last_active: 0 })),
 }));
-vi.mock('../../api/_lib/rule-check', () => ({ runStubRuleChecks: (...a: any[]) => ruleCheckMock(...a) }));
-vi.mock('../../api/_lib/data-api', () => ({ alpacaData: (...a: any[]) => dataMock(...a) }));
+vi.mock('../../api/_lib/rule-check', () => ({
+  runStubRuleChecks: (...a: any[]) => ruleCheckMock(...a),
+  runRuleChecks: (...a: any[]) => ruleCheckMock(...a),
+}));
+vi.mock('../../api/_lib/data-api', () => ({
+  alpacaData: (...a: any[]) => dataMock(...a),
+  alpacaTrade: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...a: any[]) => verifyTotpMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
   alpacaFor: () => ({ createOrder: (...a: any[]) => alpacaCreateOrder(...a) }),

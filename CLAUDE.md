@@ -434,6 +434,7 @@ dashboard/
 | Job | jobId | Schedule (UTC) | Target |
 |---|---|---|---|
 | Dashboard — Grade Open Trades | 7557823 | `*/5 13-20 * * 1-5` | `POST /api/cron/grade-open-trades?job=grade-open-trades` w/ Bearer `${CRON_TOKEN}` |
+| Dashboard — Detect Tendencies | (registered on first setup_cronjobs.py run) | `0 22 * * 0` | `POST /api/cron/detect-tendencies?job=detect-tendencies` w/ Bearer `${CRON_TOKEN}` |
 
 ### Known quirks (worth knowing before touching the dashboard code)
 
@@ -463,15 +464,28 @@ Lifecycle states (no explicit status field — derived from timestamps):
 
 `modify_history: ModifyEvent[]` — undefined on legacy trades, `[]` on new submits with no modifies, populated array if modified. The grade-open-trades cron walks Alpaca's `replaces`/`replaced_by` chain to backfill missing entries (tagged `source: 'backfill'` vs `'dashboard'` for live captures).
 
-### Phase 3 (next) — known follow-ups from Phase 2 final review
+### Phase 3 deliverable (shipped 2026-05-09, awaiting end-to-end smoke validation on Alpaca paper)
 
-- Auto-create follow-on stock trade when a STO is assigned (wheel completion loop)
-- Server-side `live` account guard (currently only disabled client-side in the order form)
-- DST-aware option-expiration detection in the grade-open-trades cron
-- Activate the AI rule-checker (`rule-check.ts` is currently a stub that always passes)
-- Tendency detection — surface recurring behavioral patterns across trades (e.g., "you consistently sell too early on TSLA")
-- `/rules` page — view and manage the active rule set
-- `/calendar` page — earnings / expiration calendar overlay
-- `/performance` page — detailed P&L breakdown by symbol, strategy, tag
-- Daily 4:15 PM coach's note (Phase 4) — AI-generated end-of-day behavioral summary
-- PWA setup (Phase 4) — install prompt, offline shell, push notifications
+- `/rules` page with seven sections (Bot · My rules · Patterns · Tendencies · Proposals · Cheatsheets · Goals); `/rules/edit` section dispatcher with a no-JSON dropdown trigger builder
+- Active rule-checker on order placement: warn-only for bot rules (3 modes — cons/agg/manual), hard-block + override-with-reasoning for manual rules. Override reason persists onto `trade.rule_warnings_at_entry`
+- Tendency-detection cron (Sundays 6 PM ET via cron-job.org) — 6 deterministic matchers (`loss_concentration_by_symbol`, `loss_concentration_by_side`, `cc_below_cost_basis`, `held_through_earnings`, `override_loss_pattern`, `over_grading_self`) → Sonnet 4.6 plain-English proposal generation (with prompt caching) → demote loop for over-overridden block rules
+- STO put assignments auto-spawn linked stock trades on the `grade-open-trades` cron — `parent_id` link, inherited entry_grade + tags, `ai_grade_inherited` flag. Calibration math excludes inherited grades to avoid double-counting
+- `/watchlist` page with quotes + 30d sparklines (uses existing string-only KV shape)
+- `/calendar` with month grid, P&L heatmap, expiration overlay for open options, day-drawer trade list, filter bar (account · symbol · tag · asset class)
+- `/performance` with 6 panels (equity curve overlaying all 3 modes, drawdown chart, your-grade-vs-AI scatter, win-rate-by-tag bars, P&L-by-symbol sortable table, time-of-day heatmap), filterable by date range + account + tag + asset class
+- DST-aware ET helper at `dashboard/api/_lib/et-time.ts` (closes Phase 2 follow-up #3)
+- Server-side `live` account 403 guard (closes Phase 2 follow-up #2). Set `LIVE_ENABLED=true` env to enable
+- TS Direction warning at `api/alpaca/[endpoint].ts:84` cleaned up via `as const` (closes Phase 2 follow-up #4)
+- Vercel function count: 9 → 10 of 12 Hobby cap (added `api/rules/[resource].ts`)
+- Test count: 146 → 351 vitest (+205) plus +9 pytest (`tools/test_push_rules_to_dashboard.py`)
+- Smoke test playbook: `dashboard/docs/PHASE3_SMOKE.md`
+
+### Phase 4 (next) — known follow-ups from Phase 3
+
+- Daily 4:15 PM coach's note cron + home-page card
+- PWA setup (manifest, service worker, install prompt, push notifications)
+- LLM-driven matchers v2 for tendency detection (in addition to the deterministic 6)
+- `cost_basis_at_entry` on closed-trade view: currently always null on the `ClosedTradeView`, so `cc_below_cost_basis` matcher can't actually fire on real data. Wire it during the grade-cron close-detection step
+- `earnings_during_hold` flag on closed trades: same — currently always false. Compute during grade-cron from cached `fundamentals-fetch.ts`
+- Final accessibility + performance audit
+- The `summary.calibration` count on `/trades` page already excludes inherited grades, but the `/trade/:id` GradePanel still shows inherited grades alongside the parent trade's calibration — UX could differentiate visually beyond just the "(grades inherited from parent)" caption
