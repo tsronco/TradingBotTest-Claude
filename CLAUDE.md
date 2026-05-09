@@ -434,7 +434,7 @@ dashboard/
 | Job | jobId | Schedule (UTC) | Target |
 |---|---|---|---|
 | Dashboard — Grade Open Trades | 7557823 | `*/5 13-20 * * 1-5` | `POST /api/cron/grade-open-trades?job=grade-open-trades` w/ Bearer `${CRON_TOKEN}` |
-| Dashboard — Detect Tendencies | (registered on first setup_cronjobs.py run) | `0 22 * * 0` | `POST /api/cron/detect-tendencies?job=detect-tendencies` w/ Bearer `${CRON_TOKEN}` |
+| Dashboard — Detect Tendencies | 7580545 | `0 22 * * 0` | `POST /api/cron/detect-tendencies?job=detect-tendencies` w/ Bearer `${CRON_TOKEN}` |
 
 ### Known quirks (worth knowing before touching the dashboard code)
 
