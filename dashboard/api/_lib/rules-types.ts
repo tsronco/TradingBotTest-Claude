@@ -1,8 +1,8 @@
 // dashboard/api/_lib/rules-types.ts
 //
-// Central type module for the Phase 3 rules / playbook / coaching system.
-// Imported by: rules API (M2.1+), rule-checker (M2.6), tendency cron (M4.x),
-// assignment auto-spawn (M5.x), rules UI hooks (M3.x).
+// Central type module for the rules / playbook / coaching system.
+// Imported by: the rules API, the pre-order rule checker, the tendency-
+// detection cron, the assignment auto-spawn cron, and the rules UI hooks.
 
 export const TRIGGER_TYPES = [
   'symbol_in', 'symbol_not_in', 'side', 'asset_class',
@@ -185,11 +185,11 @@ export interface AssignmentEntry {
 }
 
 /**
- * Stable, prefixed ID generator. Uses time-based + random component so
- * concurrent cron + UI submissions don't collide.
+ * Stable, prefixed ID generator. Time + random component (8 chars base36)
+ * so concurrent cron + UI submissions are extremely unlikely to collide.
  */
 export function newId(prefix: string): string {
   const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 6);
+  const rand = Math.random().toString(36).slice(2, 10);
   return `${prefix}-${ts}-${rand}`;
 }
