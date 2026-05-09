@@ -28,8 +28,8 @@ export default function CalibrationScatter({ data }: Props) {
         n = {data.length}. Mean delta: <span className={meanDelta < -0.5 ? 'text-amber' : meanDelta > 0.5 ? 'text-cyan' : 'text-hi'}>
           {meanDelta >= 0 ? '+' : ''}{meanDelta.toFixed(2)}
         </span>
-        {meanDelta < -0.5 ? ' — you grade higher than AI'
-          : meanDelta > 0.5 ? ' — you grade lower than AI'
+        {meanDelta > 0.5 ? ' — you grade higher than AI'
+          : meanDelta < -0.5 ? ' — you grade lower than AI'
           : ' — well calibrated'}
       </div>
     </div>
