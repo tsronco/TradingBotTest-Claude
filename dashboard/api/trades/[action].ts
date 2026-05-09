@@ -13,6 +13,7 @@ import {
 import { alpacaFor } from '../_lib/alpaca.js';
 import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
+import { etOffsetMinutes } from '../_lib/et-time.js';
 
 interface OrderDraft {
   account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
@@ -47,6 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'get') return getOne(req, res);
   if (req.method === 'GET' && action === 'calendar') return calendar(req, res);
+  if (req.method === 'GET' && action === 'performance') return performance(req, res);
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
   if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
 
@@ -541,6 +543,134 @@ async function calendar(req: VercelRequest, res: VercelResponse) {
 
   const month_total = Object.values(days).reduce((s, d) => s + d.realized_pnl, 0);
   return res.status(200).json({ days, month_total });
+}
+
+async function performance(req: VercelRequest, res: VercelResponse) {
+  const account = req.query.account as string | undefined;
+  const tag = req.query.tag as string | undefined;
+  const asset_class = req.query.asset_class as string | undefined;
+  const dateRange = String(req.query.date_range ?? 'ALL');
+
+  const cutoff = dateRangeToCutoff(dateRange);
+  const months = monthsInRange(cutoff, new Date());
+
+  const idsByMonth = await Promise.all(
+    months.map((m) => kv().get<string[]>(tradesIndexMonthKey(m))),
+  );
+  const ids = idsByMonth.flat().filter((x): x is string => !!x);
+
+  const rawTrades = await Promise.all(ids.map((id) => kv().get<Trade>(tradeKey(id))));
+  const trades = rawTrades
+    .filter((t): t is Trade => !!t)
+    .filter((t) => account ? t.account === account : true)
+    .filter((t) => tag ? t.tags.includes(tag) : true)
+    .filter((t) => asset_class ? t.asset_class === asset_class : true);
+
+  const grades = await Promise.all(trades.map((t) => kv().get<any>(gradeKey(t.id))));
+
+  // Calibration scatter — exclude inherited grades (M5.4 rationale)
+  interface CalPoint { trade_id: string; user_grade: number; ai_grade: number; }
+  const calibration: CalPoint[] = [];
+  trades.forEach((t, i) => {
+    if (t.ai_grade_inherited) return;
+    const aiLetter = grades[i]?.hindsight?.letter;
+    if (!aiLetter) return;
+    calibration.push({
+      trade_id: t.id,
+      user_grade: gradeToNum(t.entry_grade),
+      ai_grade: gradeToNum(aiLetter),
+    });
+  });
+
+  // Win rate by tag
+  interface TagBucket { tag: string; trades: number; wins: number; total_pnl: number; }
+  const tagBuckets = new Map<string, TagBucket>();
+  for (const t of trades) {
+    if (!t.closed_at) continue;
+    for (const tg of t.tags) {
+      const b = tagBuckets.get(tg) ?? { tag: tg, trades: 0, wins: 0, total_pnl: 0 };
+      b.trades += 1;
+      b.wins += (t.realized_pnl ?? 0) > 0 ? 1 : 0;
+      b.total_pnl += t.realized_pnl ?? 0;
+      tagBuckets.set(tg, b);
+    }
+  }
+  const win_rate_by_tag = Array.from(tagBuckets.values()).sort((a, b) => b.trades - a.trades);
+
+  // P&L by symbol
+  interface SymBucket { symbol: string; trades: number; wins: number; total_pnl: number; grade_sum: number; }
+  const symBuckets = new Map<string, SymBucket>();
+  trades.forEach((t) => {
+    if (!t.closed_at) return;
+    const b = symBuckets.get(t.symbol) ?? { symbol: t.symbol, trades: 0, wins: 0, total_pnl: 0, grade_sum: 0 };
+    b.trades += 1;
+    b.wins += (t.realized_pnl ?? 0) > 0 ? 1 : 0;
+    b.total_pnl += t.realized_pnl ?? 0;
+    b.grade_sum += gradeToNum(t.entry_grade);
+    symBuckets.set(t.symbol, b);
+  });
+  const pnl_by_symbol = Array.from(symBuckets.values())
+    .map((b) => ({ symbol: b.symbol, trades: b.trades, wins: b.wins, total_pnl: b.total_pnl, avg_grade: b.grade_sum / b.trades }))
+    .sort((a, b) => b.total_pnl - a.total_pnl);
+
+  // Time-of-day heatmap (Mon-Fri × 9-15 ET, by closed_at)
+  interface HeatCell { dow: number; hour: number; trades: number; win_rate: number; }
+  const heatRaw = new Map<string, { dow: number; hour: number; trades: number; wins: number }>();
+  for (const t of trades) {
+    if (!t.closed_at) continue;
+    const closeDate = new Date(t.closed_at);
+    const offsetMin = etOffsetMinutes(closeDate);
+    const local = new Date(closeDate.getTime() + offsetMin * 60_000);
+    const dow = local.getUTCDay();
+    if (dow < 1 || dow > 5) continue;
+    const hour = local.getUTCHours();
+    if (hour < 9 || hour > 15) continue;
+    const k = `${dow}-${hour}`;
+    const cell = heatRaw.get(k) ?? { dow, hour, trades: 0, wins: 0 };
+    cell.trades += 1;
+    cell.wins += (t.realized_pnl ?? 0) > 0 ? 1 : 0;
+    heatRaw.set(k, cell);
+  }
+  const time_heatmap: HeatCell[] = Array.from(heatRaw.values()).map((h) => ({
+    dow: h.dow, hour: h.hour, trades: h.trades,
+    win_rate: h.trades ? h.wins / h.trades : 0,
+  }));
+
+  return res.status(200).json({
+    cutoff: cutoff.toISOString(),
+    calibration,
+    win_rate_by_tag,
+    pnl_by_symbol,
+    time_heatmap,
+  });
+}
+
+function dateRangeToCutoff(r: string): Date {
+  const now = new Date();
+  switch (r) {
+    case '1W': return new Date(now.getTime() -   7 * 86400000);
+    case '1M': return new Date(now.getTime() -  30 * 86400000);
+    case '3M': return new Date(now.getTime() -  90 * 86400000);
+    case '1Y': return new Date(now.getTime() - 365 * 86400000);
+    default:   return new Date(2020, 0, 1);
+  }
+}
+
+function monthsInRange(start: Date, end: Date): string[] {
+  const out: string[] = [];
+  const d = new Date(Date.UTC(start.getFullYear(), start.getMonth(), 1));
+  const endUtc = new Date(Date.UTC(end.getFullYear(), end.getMonth(), 1));
+  while (d <= endUtc) {
+    out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+  }
+  return out;
+}
+
+function gradeToNum(letter: string): number {
+  const order = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'];
+  const idx = order.indexOf(letter);
+  return idx === -1 ? 5 : 11 - idx;
 }
 
 async function updateTrade(req: VercelRequest, res: VercelResponse) {

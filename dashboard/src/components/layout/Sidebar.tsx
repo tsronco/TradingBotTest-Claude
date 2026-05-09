@@ -12,6 +12,7 @@ const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
   { to: '/rules', label: 'rules', key: '7' },
   { to: '/watchlist', label: 'watchlist', key: '8' },
   { to: '/calendar', label: 'calendar', key: '9' },
+  { to: '/performance', label: 'performance', key: '0' },
 ];
 
 const acctOpts: { value: AccountMode; label: string; key: string }[] = [
