@@ -3,8 +3,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { computeExposure } from '../_lib/exposure.js';
-import { runStubRuleChecks } from '../_lib/rule-check.js';
-import { alpacaData } from '../_lib/data-api.js';
+import { runStubRuleChecks, runRuleChecks } from '../_lib/rule-check.js';
+import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import { GRADE_LETTERS, type GradeLetter, type Trade } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'POST' && action === 'preview') return preview(req, res);
   if (req.method === 'POST' && action === 'submit') return submit(req, res);
+  if (req.method === 'POST' && action === 'check') return check(req, res);
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'get') return getOne(req, res);
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
@@ -85,6 +86,50 @@ function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
   return 'conservative';
+}
+
+async function check(req: VercelRequest, res: VercelResponse) {
+  const draft = (req.body ?? {}) as Partial<OrderDraft> & {
+    option_type?: 'put' | 'call';
+    strike?: number | null;
+    expiration?: string | null;
+    tags?: string[];
+  };
+
+  const account = (draft.account ?? 'conservative_paper') as OrderDraft['account'];
+  const mode = modeFromAccount(account);
+
+  let positions: Array<{ symbol: string; qty: number; avg_entry_price: number }> = [];
+  try {
+    const raw = await alpacaTrade<Array<{ symbol: string; qty: string; avg_entry_price: string }>>(
+      mode as any,
+      '/v2/positions',
+    );
+    positions = (raw ?? []).map((p) => ({
+      symbol: p.symbol,
+      qty: parseFloat(p.qty),
+      avg_entry_price: parseFloat(p.avg_entry_price),
+    }));
+  } catch {
+    positions = [];
+  }
+
+  const violations = await runRuleChecks(
+    {
+      asset_class: (draft.asset_class as 'stock' | 'option') ?? 'stock',
+      symbol: String(draft.symbol ?? ''),
+      qty: Number(draft.qty ?? 0),
+      account,
+      side: draft.side as any,
+      option_type: draft.option_type,
+      strike: draft.strike ?? null,
+      expiration: draft.expiration ?? null,
+      tags: Array.isArray(draft.tags) ? draft.tags : undefined,
+    },
+    { positions },
+  );
+
+  return res.status(200).json({ violations });
 }
 
 async function preview(req: VercelRequest, res: VercelResponse) {
