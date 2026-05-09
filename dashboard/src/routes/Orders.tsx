@@ -23,10 +23,16 @@ interface Order {
   filled_qty: string;
   limit_price: string | null;
   stop_price: string | null;
+  // status may be overridden server-side from "filled" → "expired" / "assigned"
+  // when an option activity (OPEXP/OPASN) closed the leg.
   status: string;
   submitted_at: string;
   filled_at: string | null;
   filled_avg_price: string | null;
+  // Realized P/L in dollars, signed. Set on closing legs (BTC orders, or
+  // openers stamped via assignment/expiration). null when not a closer or
+  // the opener is older than the 90-day pairing window.
+  realized_pl?: number | null;
 }
 
 function fmtIsoDateMDY(iso: string): string {
@@ -45,9 +51,21 @@ function fmtSubmitted(iso: string): string {
 function statusColor(status: string): string {
   const s = status.toLowerCase();
   if (s === 'filled') return 'text-hi';
-  if (s === 'canceled' || s === 'cancelled' || s === 'expired' || s === 'rejected') return 'text-red';
+  // expired/assigned are "filled with extra context" — kept the premium.
+  if (s === 'expired' || s === 'assigned') return 'text-cyan';
+  if (s === 'canceled' || s === 'cancelled' || s === 'rejected') return 'text-red';
   if (s === 'pending_new' || s === 'new' || s === 'accepted' || s === 'pending_cancel' || s === 'partially_filled') return 'text-amber';
   return 'text-fg';
+}
+
+function fmtPL(pl: number): string {
+  const sign = pl >= 0 ? '+' : '−';
+  const abs = Math.abs(pl);
+  // Show cents on small values, whole dollars on larger ones.
+  const formatted = abs < 100
+    ? abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return `${sign}$${formatted}`;
 }
 
 function sideColor(side: string): string {
@@ -125,6 +143,12 @@ function OrdersTable({
     : orders;
   const hiddenBySymbol = orders.length - filtered.length;
 
+  // Sub-total of realized P/L across visible (filtered) closing legs.
+  const subtotalPL = status === 'closed'
+    ? filtered.reduce((sum, o) => sum + (o.realized_pl ?? 0), 0)
+    : 0;
+  const showSubtotal = status === 'closed' && filtered.some((o) => typeof o.realized_pl === 'number');
+
   return (
     <article
       data-acct-key={acctKey}
@@ -148,10 +172,18 @@ function OrdersTable({
           <span className="text-dim">·</span>
           <span className="text-mid">{statusLabel}</span>
         </div>
-        <span className="text-mid text-[11px] ml-auto tnum">
-          <span className="text-dim">count</span> {filtered.length}
-          {hiddenBySymbol > 0 && (
-            <span className="text-dim"> · {hiddenBySymbol} hidden by filter</span>
+        <span className="text-mid text-[11px] ml-auto tnum flex items-baseline gap-3">
+          <span>
+            <span className="text-dim">count</span> {filtered.length}
+            {hiddenBySymbol > 0 && (
+              <span className="text-dim"> · {hiddenBySymbol} hidden by filter</span>
+            )}
+          </span>
+          {showSubtotal && (
+            <span>
+              <span className="text-dim">realized</span>{' '}
+              <span className={subtotalPL >= 0 ? 'text-hi' : 'text-red'}>{fmtPL(subtotalPL)}</span>
+            </span>
           )}
         </span>
       </header>
@@ -176,6 +208,7 @@ function OrdersTable({
                 <th className="text-right px-4 py-2 font-normal">price</th>
                 <th className="text-left px-4 py-2 font-normal">status</th>
                 <th className="text-right px-4 py-2 font-normal">DTE</th>
+                {status === 'closed' && <th className="text-right px-4 py-2 font-normal">P/L</th>}
                 {status === 'open' && <th className="text-right px-2 py-2 font-normal" />}
               </tr>
             </thead>
@@ -219,6 +252,22 @@ function OrdersTable({
                     <td className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
                       {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
                     </td>
+                    {status === 'closed' && (
+                      <td
+                        className={`px-4 py-1.5 text-right ${
+                          typeof o.realized_pl === 'number'
+                            ? o.realized_pl >= 0 ? 'text-hi' : 'text-red'
+                            : 'text-dim'
+                        }`}
+                        title={
+                          typeof o.realized_pl !== 'number'
+                            ? 'opener (or unpaired — original lot may be older than 90-day pairing window)'
+                            : undefined
+                        }
+                      >
+                        {typeof o.realized_pl === 'number' ? fmtPL(o.realized_pl) : '—'}
+                      </td>
+                    )}
                     {status === 'open' && (
                       <td className="px-2 py-1 text-right">
                         <span className="flex justify-end gap-1">
