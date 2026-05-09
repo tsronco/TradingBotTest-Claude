@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const params = {
           status,
           limit: 500,
-          direction: 'desc',
+          direction: 'desc' as const,
           ...(fetchAfter ? { after: fetchAfter } : {}),
           ...(until ? { until } : {}),
         } as unknown as Parameters<typeof client.getOrders>[0];

@@ -171,6 +171,13 @@ async function preview(req: VercelRequest, res: VercelResponse) {
 
 async function submit(req: VercelRequest, res: VercelResponse) {
   const draft = (req.body ?? {}) as OrderDraft;
+  // Phase 2 follow-up #2: server-side `live` account guard. The dashboard
+  // doesn't have wired live Alpaca creds; without this, an `account: 'live'`
+  // body silently routes to conservative paper. Reject explicitly unless the
+  // ops env var has been set to opt in.
+  if (draft.account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    return res.status(403).json({ error: 'live_trading_disabled' });
+  }
   const validation_errors = validate(draft);
   if (validation_errors.length) return res.status(400).json({ error: 'validation_failed', validation_errors });
 
