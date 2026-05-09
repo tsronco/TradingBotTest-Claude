@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST' && action === 'check') return check(req, res);
   if (req.method === 'GET' && action === 'list') return list(req, res);
   if (req.method === 'GET' && action === 'get') return getOne(req, res);
+  if (req.method === 'GET' && action === 'calendar') return calendar(req, res);
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
   if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
 
@@ -477,6 +478,69 @@ async function regrade(req: VercelRequest, res: VercelResponse) {
   const next = { ...grade, hindsight, history };
   await kv().set(gradeKey(id), next);
   return res.status(200).json({ grade: next });
+}
+
+async function calendar(req: VercelRequest, res: VercelResponse) {
+  const month = String(req.query.month ?? new Date().toISOString().slice(0, 7));
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'invalid_month_format' });
+  }
+  const account = req.query.account as string | undefined;
+  const symbol = req.query.symbol as string | undefined;
+  const tag = req.query.tag as string | undefined;
+  const asset_class = req.query.asset_class as string | undefined;
+
+  const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+  const records = (await Promise.all(ids.map((id) => kv().get<Trade>(tradeKey(id)))))
+    .filter((t): t is Trade => !!t)
+    .filter((t) => account ? t.account === account : true)
+    .filter((t) => symbol ? t.symbol === symbol : true)
+    .filter((t) => tag ? t.tags.includes(tag) : true)
+    .filter((t) => asset_class ? t.asset_class === asset_class : true);
+
+  // Open trades (across all months) need to be considered for the
+  // expiration overlay since their expiration may fall in this month
+  // even if they were opened earlier.
+  const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
+  const openTrades = (await Promise.all(openIds.map((id) => kv().get<Trade>(tradeKey(id)))))
+    .filter((t): t is Trade => !!t)
+    .filter((t) => account ? t.account === account : true)
+    .filter((t) => symbol ? t.symbol === symbol : true)
+    .filter((t) => tag ? t.tags.includes(tag) : true)
+    .filter((t) => asset_class ? t.asset_class === asset_class : true);
+
+  interface DayBucket {
+    realized_pnl: number;
+    trade_count: number;
+    closed_trade_ids: string[];
+    open_options_expiring: Array<{ trade_id: string; symbol: string; option_type: 'put' | 'call'; strike: number }>;
+  }
+  const days: Record<string, DayBucket> = {};
+
+  for (const t of records) {
+    if (t.closed_at) {
+      const day = t.closed_at.slice(0, 10);
+      const b = days[day] ??= { realized_pnl: 0, trade_count: 0, closed_trade_ids: [], open_options_expiring: [] };
+      b.realized_pnl += t.realized_pnl ?? 0;
+      b.trade_count += 1;
+      b.closed_trade_ids.push(t.id);
+    }
+  }
+  for (const t of openTrades) {
+    if (t.asset_class === 'option' && t.expiration && t.expiration.startsWith(month)) {
+      const day = t.expiration;
+      const b = days[day] ??= { realized_pnl: 0, trade_count: 0, closed_trade_ids: [], open_options_expiring: [] };
+      b.open_options_expiring.push({
+        trade_id: t.id,
+        symbol: t.symbol,
+        option_type: (t.contract_type ?? 'put') as 'put' | 'call',
+        strike: t.strike ?? 0,
+      });
+    }
+  }
+
+  const month_total = Object.values(days).reduce((s, d) => s + d.realized_pnl, 0);
+  return res.status(200).json({ days, month_total });
 }
 
 async function updateTrade(req: VercelRequest, res: VercelResponse) {

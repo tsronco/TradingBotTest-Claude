@@ -11,6 +11,8 @@ import Rules from './routes/Rules';
 import RulesEdit from './routes/RulesEdit';
 import TradeDetail from './routes/TradeDetail';
 import Trades from './routes/Trades';
+import Watchlist from './routes/Watchlist';
+import Calendar from './routes/Calendar';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="/trades" element={<Trades />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/rules/edit" element={<RulesEdit />} />
+            <Route path="/watchlist" element={<Watchlist />} />
+            <Route path="/calendar" element={<Calendar />} />
           </Route>
         </Routes>
       </BrowserRouter>
