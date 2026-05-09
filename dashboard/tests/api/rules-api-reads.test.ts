@@ -54,7 +54,7 @@ describe('rules tendencies handler', () => {
   });
 });
 
-describe('rules proposals handler (GET only — POST lands in M2.5)', () => {
+describe('rules proposals handler (GET)', () => {
   beforeEach(() => { kvGet.mockReset(); });
 
   it('GET returns open proposals', async () => {
@@ -97,18 +97,6 @@ describe('rules proposals handler (GET only — POST lands in M2.5)', () => {
     const res = mkRes();
     await handler(req, res);
     expect(res.json).toHaveBeenCalledWith({ proposals: [] });
-  });
-
-  it('POST returns 501 (filled in by M2.5)', async () => {
-    const handler = (await import('../../api/rules/[resource]')).default;
-    const req: any = {
-      method: 'POST',
-      query: { resource: 'proposals' },
-      body: { action: 'approve', proposal_id: 'p-1' },
-    };
-    const res = mkRes();
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(501);
   });
 
   it('returns 405 for PATCH/DELETE/PUT', async () => {

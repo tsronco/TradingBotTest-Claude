@@ -246,19 +246,90 @@ async function tendenciesHandler(req: VercelRequest, res: VercelResponse) {
 
 async function proposalsHandler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    const proposals = (await kv().get<Proposal[]>(rulesKey('proposals'))) ?? [];
+    const all = (await kv().get<Proposal[]>(rulesKey('proposals'))) ?? [];
     const cutoff = Date.now() - 30 * 86400000;
-    const visible = proposals.filter((p) => {
+    const visible = all.filter((p) => {
       if (p.status === 'open') return true;
       const ts = p.resolved_at ? Date.parse(p.resolved_at) : Date.parse(p.proposed_at);
       return Number.isFinite(ts) && ts >= cutoff;
     });
     return res.status(200).json({ proposals: visible });
   }
+
   if (req.method === 'POST') {
-    // approve / dismiss / edit-and-approve land in M2.5
-    return res.status(501).json({ error: 'not_implemented' });
+    const { action, proposal_id, edits } = (req.body ?? {}) as {
+      action?: string;
+      proposal_id?: string;
+      edits?: Partial<Proposal['proposed_rule']>;
+    };
+    if (!['approve', 'dismiss', 'edit-and-approve'].includes(action ?? '')) {
+      return res.status(400).json({ error: 'invalid_action' });
+    }
+    if (typeof proposal_id !== 'string') {
+      return res.status(400).json({ error: 'proposal_id_required' });
+    }
+
+    const proposals = (await kv().get<Proposal[]>(rulesKey('proposals'))) ?? [];
+    const idx = proposals.findIndex((p) => p.id === proposal_id);
+    if (idx === -1) return res.status(404).json({ error: 'proposal_not_found' });
+
+    const proposal = proposals[idx];
+    if (proposal.status !== 'open') {
+      return res.status(409).json({ error: 'proposal_already_resolved' });
+    }
+    if (action === 'edit-and-approve' && proposal.demote_target_rule_id) {
+      return res.status(400).json({ error: 'cannot_edit_demote_proposal' });
+    }
+
+    const now = new Date().toISOString();
+
+    if (action === 'dismiss') {
+      const updated = { ...proposal, status: 'dismissed' as const, resolved_at: now };
+      const next = proposals.map((p, i) => (i === idx ? updated : p));
+      await kv().set(rulesKey('proposals'), next);
+      return res.status(200).json({ proposal: updated });
+    }
+
+    // approve or edit-and-approve
+    const finalRule = action === 'edit-and-approve' && edits
+      ? { ...proposal.proposed_rule, ...edits }
+      : proposal.proposed_rule;
+
+    const manualList = (await kv().get<ManualRule[]>(rulesKey('manual'))) ?? [];
+
+    if (proposal.demote_target_rule_id) {
+      const targetIdx = manualList.findIndex((r) => r.id === proposal.demote_target_rule_id);
+      if (targetIdx === -1) {
+        return res.status(404).json({ error: 'demote_target_rule_not_found' });
+      }
+      const demoted: ManualRule = {
+        ...manualList[targetIdx],
+        severity: 'warn',
+        updated_at: now,
+      };
+      const nextManual = manualList.map((r, i) => (i === targetIdx ? demoted : r));
+      await kv().set(rulesKey('manual'), nextManual);
+    } else {
+      const newRule: ManualRule = {
+        id: newId('r'),
+        title: finalRule.title,
+        body: finalRule.body,
+        severity: finalRule.severity === 'block' ? 'block' : 'warn',
+        triggers: finalRule.triggers,
+        source: 'tendency',
+        created_at: now,
+        updated_at: now,
+      };
+      await kv().set(rulesKey('manual'), [...manualList, newRule]);
+    }
+
+    const updated = { ...proposal, status: 'approved' as const, resolved_at: now };
+    const nextProposals = proposals.map((p, i) => (i === idx ? updated : p));
+    await kv().set(rulesKey('proposals'), nextProposals);
+
+    return res.status(200).json({ proposal: updated });
   }
+
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'method_not_allowed' });
 }
