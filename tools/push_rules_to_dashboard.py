@@ -22,7 +22,7 @@ import strategy  # noqa: E402
 
 
 def _utcnow_iso() -> str:
-    return dt.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z'
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + 'Z'
 
 
 def build_payload(mode: str) -> Dict[str, Any]:
@@ -121,9 +121,9 @@ def push(mode: str) -> int:
         print('[push_rules] BOT_PUSH_TOKEN or DASHBOARD_URL missing; skipping', file=sys.stderr)
         return -1
 
-    payload = build_payload(mode)
-    body = {'key': f'bot:rules:{mode}', 'payload': payload}
     try:
+        payload = build_payload(mode)
+        body = {'key': f'bot:rules:{mode}', 'payload': payload}
         r = requests.post(
             f"{base.rstrip('/')}/api/bot-state",
             json=body,
@@ -136,8 +136,8 @@ def push(mode: str) -> int:
         if r.status_code >= 300:
             print(f"[push_rules] dashboard returned {r.status_code}: {r.text}", file=sys.stderr)
         return r.status_code
-    except Exception as exc:  # noqa: BLE001 — fail soft, must not crash the bot
-        print(f"[push_rules] error posting to dashboard: {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: must not crash the bot
+        print(f"[push_rules] error building/posting payload: {exc}", file=sys.stderr)
         return -1
 
 

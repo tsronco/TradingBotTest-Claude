@@ -100,3 +100,25 @@ def test_push_returns_minus_1_on_request_exception(mock_post):
     os.environ['DASHBOARD_URL'] = 'https://example.com'
     rc = push('conservative')
     assert rc == -1
+
+
+def test_build_payload_conservative_sizing_tier_infinity_sentinel():
+    """The last SIZING_TIERS entry uses Decimal('Infinity'); JSON has no Infinity,
+    so the wire format substitutes 1e18 as a sentinel for "unbounded"."""
+    from tools.push_rules_to_dashboard import build_payload
+    payload = build_payload('conservative')
+    last_tier = payload['congress']['sizing_tiers'][-1]
+    assert last_tier['max_disclosure_usd'] == 1e18
+    assert last_tier['alloc_usd'] == 5000.0  # the dollars-to-commit at the unbounded tier
+
+
+def test_build_payload_ladders_renamed_drop_to_trigger_pct():
+    """LADDERS in strategy.py uses 'drop'; wire format renames to 'trigger_pct'.
+    Ensures the renamed field is what reaches the dashboard."""
+    from tools.push_rules_to_dashboard import build_payload
+    payload = build_payload('conservative')
+    for ladder in payload['strategy']['ladders']:
+        assert 'trigger_pct' in ladder
+        assert 'qty' in ladder
+        assert 'drop' not in ladder  # the original key name must not leak
+        assert 'label' not in ladder  # cosmetic field shouldn't ship

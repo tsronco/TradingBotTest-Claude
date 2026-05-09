@@ -162,7 +162,12 @@ export interface BotRulesPayload {
     ladders: { trigger_pct: number; qty: number }[];
   };
   congress?: {                        // conservative only
-    /** One entry per disclosure-amount sizing tier, matching congress-copy/config.py SIZING_TIERS. */
+    /**
+     * One entry per disclosure-amount sizing tier, matching congress-copy/config.py SIZING_TIERS.
+     * The largest tier's `max_disclosure_usd` is the sentinel `1e18` to represent "unbounded"
+     * (the source uses `Decimal('Infinity')`, which has no JSON representation). UI should
+     * detect this sentinel and render as "no cap" or similar rather than displaying $1e18.
+     */
     sizing_tiers: { max_disclosure_usd: number; alloc_usd: number }[];
     politicians: { slug: string; name: string }[];
   };
