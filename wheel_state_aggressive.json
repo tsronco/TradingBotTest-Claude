@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-11T14:39:37.598404Z",
+    "last_checked": "2026-05-11T14:49:41.545542Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -81,7 +81,7 @@
     "total_premium_today": 152.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260515P00035000: $1.27 vs entry $1.79",
+    "last_action": "Monitoring SMCI260515P00035000: $1.26 vs entry $1.79",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 176.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260518P00205000: $0.89 vs entry $1.35",
+    "last_action": "Monitoring NVDA260518P00205000: $0.82 vs entry $1.35",
     "contract_qty": 1
   },
   "AMD": {
@@ -165,7 +165,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260520P00400000: $4.70 vs entry $3.75",
+    "last_action": "Monitoring TSLA260520P00400000: $4.13 vs entry $3.75",
     "contract_qty": 1
   },
   "BAC": {
@@ -192,7 +192,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring BAC260515P00050000: $0.33 vs entry $0.08",
+    "last_action": "Monitoring BAC260515P00050000: $0.32 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
@@ -211,7 +211,7 @@
     "total_premium_today": 29.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $1.59 vs entry $1.08",
+    "last_action": "Monitoring XOM260515P00145000: $1.38 vs entry $1.08",
     "contract_qty": 1
   },
   "KO": {
@@ -268,26 +268,26 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.36 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.38 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
-    "current_contract": "PFE260515P00025000",
-    "contract_order_id": "3e51e978-8d48-4677-895b-98eec8729f88",
-    "contract_entry_price": 0.06,
-    "contract_entry_date": "2026-05-07T13:39:39.955509Z",
-    "contract_expiration": "2026-05-15",
+    "current_contract": "PFE260522P00025000",
+    "contract_order_id": "6f4fe568-41ba-4022-9543-436f08c865b9",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-05-11T14:49:41.131190Z",
+    "contract_expiration": "2026-05-22",
     "contract_type": "put",
     "contract_strike": 25.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 13.0,
-    "total_premium_today": 13.0,
+    "total_premium_collected": 17.0,
+    "total_premium_today": 17.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260515P00025000: $0.04 vs entry $0.06",
+    "last_action": "Sold-to-open PFE260522P00025000 @ $0.11. Awaiting fill.",
     "contract_qty": 1
   }
 }
