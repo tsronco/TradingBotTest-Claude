@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-11T16:29:41.309268Z",
+    "last_checked": "2026-05-11T16:39:43.496023Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -81,7 +81,7 @@
     "total_premium_today": 152.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260515P00035000: $1.32 vs entry $1.79",
+    "last_action": "Monitoring SMCI260515P00035000: $1.30 vs entry $1.79",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 176.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260518P00205000: $0.70 vs entry $1.35",
+    "last_action": "Monitoring NVDA260518P00205000: $0.69 vs entry $1.35",
     "contract_qty": 1
   },
   "AMD": {
@@ -165,7 +165,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260520P00400000: $2.00 vs entry $3.75",
+    "last_action": "Monitoring TSLA260520P00400000: $1.93 vs entry $3.75",
     "contract_qty": 1
   },
   "BAC": {
@@ -192,7 +192,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring BAC260515P00050000: $0.51 vs entry $0.08",
+    "last_action": "Monitoring BAC260515P00050000: $0.45 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
@@ -211,7 +211,7 @@
     "total_premium_today": 29.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $1.26 vs entry $1.08",
+    "last_action": "Monitoring XOM260515P00145000: $1.25 vs entry $1.08",
     "contract_qty": 1
   },
   "KO": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.33 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.36 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
@@ -287,7 +287,7 @@
     "total_premium_today": 17.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.15 vs entry $0.11",
+    "last_action": "Monitoring PFE260522P00025000: $0.13 vs entry $0.11",
     "contract_qty": 1
   }
 }
