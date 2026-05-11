@@ -277,3 +277,6 @@
 {"timestamp": "2026-05-11T13:11:22.364345+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
 {"timestamp": "2026-05-11T13:11:22.629220+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["F"]}}
 {"timestamp": "2026-05-11T13:11:22.844280+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-11T13:21:22.685146+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-05-11T13:21:23.003267+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["F"]}}
+{"timestamp": "2026-05-11T13:21:23.233954+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
