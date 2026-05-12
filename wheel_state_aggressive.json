@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-12T19:19:30.604192Z",
+    "last_checked": "2026-05-12T19:29:41.542469Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 389.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $8.10 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $8.05 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -86,9 +86,9 @@
   },
   "NVDA": {
     "stage": 1,
-    "current_contract": "NVDA260518P00205000",
+    "current_contract": null,
     "contract_order_id": "13ae2268-70dd-4540-bd31-e11de2f45348",
-    "contract_entry_price": 1.35,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-08T13:49:27.213875Z",
     "contract_expiration": "2026-05-18",
     "contract_type": "put",
@@ -96,11 +96,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 176.0,
-    "total_premium_today": 176.0,
+    "total_premium_collected": 258.0,
+    "total_premium_today": 258.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260518P00205000: $0.57 vs entry $1.35",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "AMD": {
@@ -192,7 +192,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring BAC260515P00050000: $0.21 vs entry $0.08",
+    "last_action": "Monitoring BAC260515P00050000: $0.27 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $2.63 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $2.60 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.44 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.47 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
