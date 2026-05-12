@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-11T19:58:03.956174Z"
+    "last_checked": "2026-05-12T13:38:01.561941Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260529P00385000: $2.08 vs entry $3.40",
+    "last_action": "Monitoring TSLA260529P00385000: $2.01 vs entry $3.40",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 5.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.75 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $0.77 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -95,11 +95,11 @@
   },
   "KO": {
     "stage": 1,
-    "current_contract": "KO260529P00070000",
-    "contract_order_id": "1480ee9e-d6cb-4206-85d0-de615f5630e8",
+    "current_contract": "KO260605P00070000",
+    "contract_order_id": "ff4119a9-4555-4be4-ab01-037950140b65",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-11T19:08:13.537806Z",
-    "contract_expiration": "2026-05-29",
+    "contract_entry_date": "2026-05-12T13:37:59.757809Z",
+    "contract_expiration": "2026-06-05",
     "contract_type": "put",
     "contract_strike": 70.0,
     "cost_basis_per_share": null,
@@ -109,7 +109,7 @@
     "total_premium_today": 6.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on KO260529P00070000.",
+    "last_action": "Sold-to-open KO260605P00070000 @ $0.09. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -155,7 +155,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.18 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.19 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -174,7 +174,7 @@
     "total_premium_today": 16.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260529P00025000: $0.21 vs entry $0.22",
+    "last_action": "Monitoring PFE260529P00025000: $0.18 vs entry $0.22",
     "contract_qty": 1
   },
   "F": {
@@ -228,7 +228,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.55 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.49 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -247,7 +247,7 @@
     "total_premium_today": 384.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.13 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $4.60 vs entry $6.65",
     "contract_qty": 1
   }
 }
