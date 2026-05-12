@@ -6,11 +6,11 @@
   "avg_cost": 367.85,
   "high_water_mark": 447.615,
   "trailing_active": true,
-  "position_qty": 10,
-  "total_cost": 3678.5,
+  "position_qty": 0,
+  "total_cost": 0,
   "ladder_1_done": false,
   "ladder_2_done": false,
   "ladder_3_done": false,
-  "last_checked": "2026-05-12T15:47:59.276163Z",
-  "last_action": "Monitoring TSLA $428.46 vs avg $367.85 (PnL +16.48%). Stop $425.23, Trail ON."
+  "last_checked": "2026-05-12T15:57:59.927462Z",
+  "last_action": "Stop hit at $425.21. Closed 10 shares. Realized $+573.60."
 }
