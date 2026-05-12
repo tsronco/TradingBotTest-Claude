@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-12T15:11:32.497751Z"
+    "last_checked": "2026-05-12T15:21:34.392709Z"
   },
   "F": {
     "stage": 1,
@@ -20,5 +20,24 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring F260529P00011000: $0.07 vs entry $0.05"
+  },
+  "SNAP": {
+    "stage": 1,
+    "current_contract": "SNAP260515P00007500",
+    "contract_order_id": null,
+    "contract_entry_price": 1.8,
+    "contract_entry_date": "2026-05-12T15:21:32.948673Z",
+    "contract_expiration": "2026-05-15",
+    "contract_type": "put",
+    "contract_strike": 7.5,
+    "contract_qty": 1,
+    "cost_basis_per_share": null,
+    "shares_qty": 0,
+    "total_cost": null,
+    "total_premium_collected": 0.0,
+    "total_premium_today": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Monitoring SNAP260515P00007500: $1.85 vs entry $1.80"
   }
 }
