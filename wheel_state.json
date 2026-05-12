@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-12T17:28:06.006501Z"
+    "last_checked": "2026-05-12T17:38:05.704960Z"
   },
   "TSLA": {
     "stage": 1,
@@ -57,7 +57,7 @@
     "total_premium_today": 5.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.52 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $0.53 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -96,9 +96,9 @@
   "KO": {
     "stage": 1,
     "current_contract": "KO260605P00070000",
-    "contract_order_id": "ff4119a9-4555-4be4-ab01-037950140b65",
+    "contract_order_id": "86130d93-060f-4299-9d63-505b2b0503ac",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-12T13:37:59.757809Z",
+    "contract_entry_date": "2026-05-12T17:38:04.231560Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "put",
     "contract_strike": 70.0,
@@ -109,7 +109,7 @@
     "total_premium_today": 6.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on KO260605P00070000.",
+    "last_action": "Sold-to-open KO260605P00070000 @ $0.09. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -155,7 +155,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.28 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.27 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -247,7 +247,7 @@
     "total_premium_today": 384.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $8.21 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $7.71 vs entry $6.65",
     "contract_qty": 1
   }
 }
