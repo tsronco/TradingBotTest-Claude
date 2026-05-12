@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-12T18:11:42.100367Z"
+    "last_checked": "2026-05-12T18:21:30.319661Z"
   },
   "F": {
     "stage": 1,
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring F260529P00011000: $0.08 vs entry $0.05"
+    "last_action": "Monitoring F260529P00011000: $0.04 vs entry $0.05"
   },
   "SNAP": {
     "stage": 1,
