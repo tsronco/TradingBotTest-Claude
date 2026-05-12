@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-12T15:59:41.619156Z",
+    "last_checked": "2026-05-12T16:09:27.431455Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 389.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $7.91 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $7.93 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -62,7 +62,7 @@
     "total_premium_today": 184.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260522P00025000: $2.08 vs entry $1.21",
+    "last_action": "Monitoring RIOT260522P00025000: $2.24 vs entry $1.21",
     "contract_qty": 1
   },
   "SMCI": {
@@ -100,7 +100,7 @@
     "total_premium_today": 176.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260518P00205000: $0.93 vs entry $1.35",
+    "last_action": "Monitoring NVDA260518P00205000: $0.87 vs entry $1.35",
     "contract_qty": 1
   },
   "AMD": {
@@ -192,26 +192,26 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring BAC260515P00050000: $0.36 vs entry $0.08",
+    "last_action": "Monitoring BAC260515P00050000: $0.32 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
     "stage": 1,
-    "current_contract": "XOM260515P00145000",
-    "contract_order_id": "5145d765-887b-4d8b-b7cf-33209b775ab1",
-    "contract_entry_price": 1.08,
-    "contract_entry_date": "2026-05-05T18:19:37.745700Z",
-    "contract_expiration": "2026-05-15",
+    "current_contract": "XOM260522P00145000",
+    "contract_order_id": "4887d429-3540-4917-8162-fa6a06ddec14",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-05-12T16:09:26.171075Z",
+    "contract_expiration": "2026-05-22",
     "contract_type": "put",
     "contract_strike": 145.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 29.0,
-    "total_premium_today": 29.0,
+    "total_premium_collected": 96.0,
+    "total_premium_today": 96.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260515P00145000: $0.45 vs entry $1.08",
+    "last_action": "Sold-to-open XOM260522P00145000 @ $1.14. Awaiting fill.",
     "contract_qty": 1
   },
   "KO": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $2.58 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $2.62 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.52 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.49 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
