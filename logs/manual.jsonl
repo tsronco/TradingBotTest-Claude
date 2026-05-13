@@ -797,3 +797,10 @@
 {"timestamp": "2026-05-13T17:21:28.649805+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 1, "contract": "SNAP260515P00007500", "stock_price": 5.56}}
 {"timestamp": "2026-05-13T17:21:28.650681+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["F", "SNAP"]}}
 {"timestamp": "2026-05-13T17:21:29.128921+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-13T17:31:25.935839+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-05-13T17:31:28.628108+00:00", "script": "wheel_strategy.py", "action": "early_close_50pct", "result": "success", "symbol": "F260529P00011000", "details": {"underlying": "F", "entry": 0.05, "exit": 0.02, "premium": 3.0000000000000004, "contracts": 1}}
+{"timestamp": "2026-05-13T17:31:28.880964+00:00", "script": "wheel_strategy.py", "action": "manual_skip_new_put", "result": "skipped", "details": {"underlying": "F", "stock_price": 13.59}}
+{"timestamp": "2026-05-13T17:31:28.881112+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "F", "stage": 1, "contract": null, "stock_price": 13.59}}
+{"timestamp": "2026-05-13T17:31:29.671963+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 1, "contract": "SNAP260515P00007500", "stock_price": 5.56}}
+{"timestamp": "2026-05-13T17:31:29.672802+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["F", "SNAP"]}}
+{"timestamp": "2026-05-13T17:31:30.375342+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}

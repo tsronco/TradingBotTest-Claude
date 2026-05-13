@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "last_checked": "2026-05-13T17:21:28.650417Z"
+    "last_checked": "2026-05-13T17:31:29.672504Z"
   },
   "F": {
     "stage": 1,
-    "current_contract": "F260529P00011000",
+    "current_contract": null,
     "contract_order_id": null,
-    "contract_entry_price": 0.05,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-07T17:58:30.827319Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -15,11 +15,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 0.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 3.0,
+    "total_premium_today": 3.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring F260529P00011000: $0.04 vs entry $0.05"
+    "last_action": "Manual mode: not opening new puts (user-driven)."
   },
   "SNAP": {
     "stage": 1,
