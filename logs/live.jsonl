@@ -5,3 +5,6 @@
 {"timestamp": "2026-05-13T20:43:35.426913+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-05-13T20:43:35.776509+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-05-13T20:44:37.419123+00:00", "script": "daily_summary.py", "action": "daily_summary", "result": "success", "details": {"date": "2026-05-13", "mode": "live", "tsla_price": 446.19, "portfolio_value": 25.0, "equity": 25.0, "cash": 25.0, "strategy": {"available": false}, "wheel": {"available": true, "format": "multi_stock", "symbols": {}, "total_premium": 0.0, "total_today": 0.0, "total_cycles": 0}, "long_options": {"available": true, "count": 0, "positions": [], "total_pnl": 0.0}, "congress": {"available": false}}}
+{"timestamp": "2026-05-13T20:53:27.745340+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-05-13T20:53:28.447131+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-05-13T20:53:28.676649+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
