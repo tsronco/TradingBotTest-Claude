@@ -1,14 +1,17 @@
 name: Daily Summary
 
-# Four-step daily summary: conservative → aggressive → manual →
+# Five-step daily summary: conservative → aggressive → manual → live →
 # head-to-head comparison. Each step posts an embed to its corresponding
 # Discord channel:
 #   1. Daily summary (conservative) → #daily-summary
 #   2. Daily summary (aggressive)   → #aggressive-summary
 #   3. Daily summary (manual)       → #manual-summary  (no head-to-head)
-#   4. Head-to-head comparison      → #daily-summary AND #aggressive-summary
-#                                     (manual is excluded — different starting
-#                                      capital and a different operating model)
+#   4. Daily summary (live)         → #live-summary    (no head-to-head — real
+#                                     money, separate capital base, separate
+#                                     operating model from paper accounts)
+#   5. Head-to-head comparison      → #daily-summary AND #aggressive-summary
+#                                     (manual and live both excluded — different
+#                                      starting capital and operating model)
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch.
 
@@ -66,6 +69,16 @@ jobs:
           DISCORD_MANUAL_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_ACTIONS_WEBHOOK }}
         run: python daily_summary.py --mode manual --reset-counters
 
+      - name: Daily summary (live)
+        env:
+          ALPACA_LIVE_API_KEY:           ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:        ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:          ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          DISCORD_LIVE_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_LIVE_SUMMARY_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode live --reset-counters
+
       - name: Head-to-head comparison
         # Pulls both accounts' equity, premiums, etc. and posts a
         # side-by-side embed to BOTH summary channels.
@@ -89,7 +102,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add logs/ || true
-          git add wheel_state.json wheel_state_aggressive.json wheel_state_manual.json || true
+          git add wheel_state.json wheel_state_aggressive.json wheel_state_manual.json wheel_state_live.json || true
           if git diff --staged --quiet; then
             echo "No log changes to commit."
           else

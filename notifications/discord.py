@@ -22,6 +22,12 @@ Manual:
   - "manual_errors"  → DISCORD_MANUAL_ERRORS_WEBHOOK   (#manual-errors)
   - "manual_actions" → DISCORD_MANUAL_ACTIONS_WEBHOOK  (#manual-actions, firehose)
 
+Live (REAL MONEY):
+  - "live_trades"  → DISCORD_LIVE_TRADES_WEBHOOK   (#live-trades)
+  - "live_summary" → DISCORD_LIVE_SUMMARY_WEBHOOK  (#live-summary)
+  - "live_errors"  → DISCORD_LIVE_ERRORS_WEBHOOK   (#live-errors)
+  - "live_actions" → DISCORD_LIVE_ACTIONS_WEBHOOK  (#live-actions, firehose)
+
 If the webhook env var for a channel is unset, the call becomes a no-op so
 local dev runs don't fail. Errors talking to Discord are swallowed (logged
 to stderr) so a flaky webhook never breaks a trading bot.
@@ -70,6 +76,10 @@ CHANNEL_ENV_MAP = {
     "manual_summary": "DISCORD_MANUAL_SUMMARY_WEBHOOK",
     "manual_errors":  "DISCORD_MANUAL_ERRORS_WEBHOOK",
     "manual_actions": "DISCORD_MANUAL_ACTIONS_WEBHOOK",
+    "live_trades":    "DISCORD_LIVE_TRADES_WEBHOOK",
+    "live_summary":   "DISCORD_LIVE_SUMMARY_WEBHOOK",
+    "live_errors":    "DISCORD_LIVE_ERRORS_WEBHOOK",
+    "live_actions":   "DISCORD_LIVE_ACTIONS_WEBHOOK",
 }
 
 

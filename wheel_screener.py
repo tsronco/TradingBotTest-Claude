@@ -309,6 +309,8 @@ def run_screener():
             title_prefix = "Aggressive Wheel Screener"
         elif MODE == "manual":
             title_prefix = "Manual Wheel Screener (ideas only)"
+        elif MODE == "live":
+            title_prefix = "Live Wheel Screener (ideas only)"
         else:
             title_prefix = "Wheel Screener"
 

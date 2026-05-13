@@ -352,7 +352,7 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                     )
                 if lines:
                     fields.append({
-                        "name":  "Stocks (strategy.py — manual mode)",
+                        "name":  f"Stocks (strategy.py — {mode_name} mode)",
                         "value": "```\n" + "\n".join(lines) + "\n```",
                         "inline": False,
                     })

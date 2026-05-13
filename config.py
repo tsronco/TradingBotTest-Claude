@@ -1,11 +1,11 @@
 """Mode configuration for the multi paper-account architecture.
 
-Three paper accounts run side-by-side, fully isolated:
+Four accounts run side-by-side, fully isolated. Three are paper; one is live.
 
   conservative — original wheel, 10% OTM, 14-28 DTE puts, 50% early close
                  Symbols: large-caps + a few cheap names for small-account practice.
                  Discord: #tsla-trades, #daily-summary, #errors, #all-actions
-                 Alpaca:  ALPACA_API_KEY / ALPACA_API_SECRET
+                 Alpaca:  ALPACA_API_KEY / ALPACA_API_SECRET (paper)
 
   aggressive   — wheel cycling faster on higher-IV names. 5% OTM, 7-14 DTE puts,
                  60% early close. Mirrors the conservative architecture (also
@@ -13,7 +13,7 @@ Three paper accounts run side-by-side, fully isolated:
                  parameters and symbol mix differ.
                  Discord: #aggressive-trades, #aggressive-summary, #aggressive-errors,
                           #aggressive-actions
-                 Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET
+                 Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET (paper)
 
   manual       — bot manages whatever you buy by hand: trail/ladder/stop on every
                  stock you hold (auto-discovered from positions), and the wheel
@@ -22,10 +22,18 @@ Three paper accounts run side-by-side, fully isolated:
                  mirror conservative for managing positions.
                  Discord: #manual-trades, #manual-summary, #manual-errors,
                           #manual-actions
-                 Alpaca:  ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET
+                 Alpaca:  ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET (paper)
 
-Each script reads --mode {conservative|aggressive|manual} on its CLI; the mode
-picks the credentials, state files, log stream, Discord channels, and parameters.
+  live         — REAL MONEY. Identical behaviour to manual mode (auto-discover
+                 from positions, never open new puts, manage what the user opens
+                 by hand). Separate Alpaca live credentials, separate Discord
+                 channels, separate state files. Congress-copy never runs here.
+                 Discord: #live-trades, #live-summary, #live-errors, #live-actions
+                 Alpaca:  ALPACA_LIVE_API_KEY / ALPACA_LIVE_API_SECRET (live)
+
+Each script reads --mode {conservative|aggressive|manual|live} on its CLI; the
+mode picks the credentials, state files, log stream, Discord channels, and
+parameters.
 
 To add/remove a wheel symbol, edit CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS
 and that's the entire config change. Manual mode auto-discovers symbols from
@@ -206,6 +214,53 @@ MODES = {
 
         # Wheel parameters mirror conservative — used for the 50% close on
         # existing puts and for pricing the covered call when an assignment
+        # moves a position into Stage 2.
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+        "stale_after_hours":   4,
+
+        # Screener parameters mirror conservative. Bot doesn't auto-execute
+        # but the Sunday digest still surfaces wheel candidates as ideas.
+        "screener_universe":      None,
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
+    },
+
+    "live": {
+        # REAL MONEY. Behaviour identical to manual mode — bot only manages
+        # positions the user opens by hand and never opens new Stage 1 puts.
+        # Credentials, state files, log stream, and Discord channels are all
+        # independent of the three paper accounts.
+        "alpaca_key_env":    "ALPACA_LIVE_API_KEY",
+        "alpaca_secret_env": "ALPACA_LIVE_API_SECRET",
+        "alpaca_url_env":    "ALPACA_LIVE_BASE_URL",
+
+        "trades_channel":    "live_trades",
+        "summary_channel":   "live_summary",
+        "errors_channel":    "live_errors",
+        "actions_channel":   "live_actions",
+
+        "log_stream":        "live",
+
+        "wheel_state_file":     "wheel_state_live.json",
+        "strategy_state_file":  "strategy_state_live.json",
+
+        # Auto-discover symbols from live Alpaca positions (no static list).
+        "wheel_symbols":       [],
+        "auto_discover_symbols": True,
+
+        # Never open Stage 1 puts. Manage existing puts (50% close) and sell
+        # covered calls on assignment, same as manual mode.
+        "wheel_skip_new_puts": True,
+
+        # Wheel parameters mirror conservative/manual — used for the 50% close
+        # on existing puts and for pricing the covered call when an assignment
         # moves a position into Stage 2.
         "put_strike_pct":      0.10,
         "call_strike_pct":     0.10,

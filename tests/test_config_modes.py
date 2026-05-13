@@ -1,9 +1,9 @@
 """Tests for config.py and the mode-switching machinery.
 
 Verifies that:
-  - config.MODES has exactly the three expected modes
+  - config.MODES has exactly the four expected modes
   - Each mode's required keys are present
-  - Manual mode declares the auto-discover and skip-new-puts flags
+  - Manual + live modes declare the auto-discover and skip-new-puts flags
   - parse_mode_arg correctly extracts --mode from argv
   - apply_mode in each script switches the right module globals
 """
@@ -12,11 +12,14 @@ import pytest
 import config
 
 
+ALL_MODES = ("conservative", "aggressive", "manual", "live")
+
+
 # ── config.MODES sanity ───────────────────────────────────────────────────
 
 
 def test_modes_dict_has_expected_keys():
-    assert set(config.MODES.keys()) == {"conservative", "aggressive", "manual"}
+    assert set(config.MODES.keys()) == set(ALL_MODES)
 
 
 REQUIRED_MODE_KEYS = {
@@ -33,46 +36,70 @@ REQUIRED_MODE_KEYS = {
 }
 
 
-@pytest.mark.parametrize("mode_name", ["conservative", "aggressive", "manual"])
+@pytest.mark.parametrize("mode_name", list(ALL_MODES))
 def test_mode_has_all_required_keys(mode_name):
     cfg = config.MODES[mode_name]
     missing = REQUIRED_MODE_KEYS - set(cfg.keys())
     assert not missing, f"{mode_name} mode missing keys: {missing}"
 
 
-def test_manual_mode_declares_auto_discover_and_skip_new_puts():
-    """Manual mode is defined by these two flags — without them, it would
-    behave like a third static-symbol mode that auto-executes."""
-    cfg = config.MODES["manual"]
+@pytest.mark.parametrize("mode_name", ["manual", "live"])
+def test_user_driven_modes_declare_auto_discover_and_skip_new_puts(mode_name):
+    """Manual and live modes are defined by these two flags — without them
+    they would behave like static-symbol modes that auto-execute. Live
+    intentionally mirrors manual's behaviour on real-money credentials."""
+    cfg = config.MODES[mode_name]
     assert cfg.get("auto_discover_symbols") is True, \
-        "manual mode must set auto_discover_symbols=True"
+        f"{mode_name} mode must set auto_discover_symbols=True"
     assert cfg.get("wheel_skip_new_puts") is True, \
-        "manual mode must set wheel_skip_new_puts=True"
+        f"{mode_name} mode must set wheel_skip_new_puts=True"
+
+
+def test_auto_execute_modes_do_not_set_skip_flags():
+    """Conservative + aggressive must NOT carry the manual/live flags —
+    otherwise they would stop opening new puts."""
+    for m in ("conservative", "aggressive"):
+        cfg = config.MODES[m]
+        assert not cfg.get("auto_discover_symbols", False), \
+            f"{m} must not set auto_discover_symbols"
+        assert not cfg.get("wheel_skip_new_puts", False), \
+            f"{m} must not set wheel_skip_new_puts"
 
 
 def test_modes_use_distinct_alpaca_credentials():
-    """All three modes must hit DIFFERENT paper accounts."""
-    keys   = [config.MODES[m]["alpaca_key_env"]    for m in ("conservative", "aggressive", "manual")]
-    secrets = [config.MODES[m]["alpaca_secret_env"] for m in ("conservative", "aggressive", "manual")]
-    assert len(set(keys))    == 3, f"alpaca_key_env not unique across modes: {keys}"
-    assert len(set(secrets)) == 3, f"alpaca_secret_env not unique across modes: {secrets}"
+    """All four modes must hit DIFFERENT accounts (3 paper + 1 live)."""
+    keys    = [config.MODES[m]["alpaca_key_env"]    for m in ALL_MODES]
+    secrets = [config.MODES[m]["alpaca_secret_env"] for m in ALL_MODES]
+    assert len(set(keys))    == len(ALL_MODES), f"alpaca_key_env not unique: {keys}"
+    assert len(set(secrets)) == len(ALL_MODES), f"alpaca_secret_env not unique: {secrets}"
+
+
+def test_live_mode_uses_live_credentials_env():
+    """Live must read from ALPACA_LIVE_* env vars, NOT any of the paper vars.
+    A typo here would point the real-money bot at a paper account or vice
+    versa — both bad in their own ways."""
+    cfg = config.MODES["live"]
+    assert cfg["alpaca_key_env"]    == "ALPACA_LIVE_API_KEY"
+    assert cfg["alpaca_secret_env"] == "ALPACA_LIVE_API_SECRET"
+    assert cfg["alpaca_url_env"]    == "ALPACA_LIVE_BASE_URL"
 
 
 def test_modes_use_distinct_state_files():
-    """State files must differ so the three accounts don't share memory."""
-    wheel    = [config.MODES[m]["wheel_state_file"]    for m in ("conservative", "aggressive", "manual")]
-    strategy = [config.MODES[m]["strategy_state_file"] for m in ("conservative", "aggressive", "manual")]
-    streams  = [config.MODES[m]["log_stream"]          for m in ("conservative", "aggressive", "manual")]
-    assert len(set(wheel))    == 3, f"wheel_state_file not unique: {wheel}"
-    assert len(set(strategy)) == 3, f"strategy_state_file not unique: {strategy}"
-    assert len(set(streams))  == 3, f"log_stream not unique: {streams}"
+    """State files must differ so the four accounts don't share memory."""
+    wheel    = [config.MODES[m]["wheel_state_file"]    for m in ALL_MODES]
+    strategy = [config.MODES[m]["strategy_state_file"] for m in ALL_MODES]
+    streams  = [config.MODES[m]["log_stream"]          for m in ALL_MODES]
+    assert len(set(wheel))    == len(ALL_MODES), f"wheel_state_file not unique: {wheel}"
+    assert len(set(strategy)) == len(ALL_MODES), f"strategy_state_file not unique: {strategy}"
+    assert len(set(streams))  == len(ALL_MODES), f"log_stream not unique: {streams}"
 
 
 def test_modes_use_distinct_discord_channels():
-    """All four channel slots must differ across all three modes."""
+    """All four channel slots must differ across all four modes."""
     for slot in ("trades_channel", "summary_channel", "errors_channel", "actions_channel"):
-        values = [config.MODES[m][slot] for m in ("conservative", "aggressive", "manual")]
-        assert len(set(values)) == 3, f"{slot} not differentiated across modes: {values}"
+        values = [config.MODES[m][slot] for m in ALL_MODES]
+        assert len(set(values)) == len(ALL_MODES), \
+            f"{slot} not differentiated across modes: {values}"
 
 
 def test_aggressive_is_more_aggressive_than_conservative():
@@ -223,7 +250,8 @@ def test_wheel_strategy_apply_mode_manual_sets_skip_flags():
 
 
 def test_strategy_apply_mode_manual_enables_auto_discover():
-    """strategy.auto_discover_enabled() must report True only for manual."""
+    """strategy.auto_discover_enabled() must report True for manual and live
+    (the two user-driven modes), False for conservative and aggressive."""
     import strategy
     strategy.apply_mode("conservative")
     assert strategy.auto_discover_enabled() is False
@@ -235,3 +263,43 @@ def test_strategy_apply_mode_manual_enables_auto_discover():
     assert strategy.TRADES_CH == "manual_trades"
     assert strategy.auto_discover_enabled() is True
     strategy.apply_mode("conservative")
+
+
+def test_wheel_strategy_apply_mode_live_mirrors_manual_behaviour():
+    """Live must set the same two behaviour flags as manual, write to live
+    state files, and post to live Discord channels."""
+    import wheel_strategy as ws
+    ws.apply_mode("live")
+    assert ws.MODE == "live"
+    assert ws.WHEEL_SKIP_NEW_PUTS is True
+    assert ws.AUTO_DISCOVER_SYMBOLS is True
+    assert ws.STATE_FILE.endswith("wheel_state_live.json")
+    assert ws.TRADES_CH == "live_trades"
+    # Live mirrors conservative/manual wheel parameters
+    assert ws.PUT_STRIKE_PCT  == 0.10
+    assert ws.EARLY_CLOSE_PCT == 0.50
+    ws.apply_mode("conservative")
+
+
+def test_strategy_apply_mode_live_enables_auto_discover():
+    """Live, like manual, must auto-discover symbols and write to live state."""
+    import strategy
+    strategy.apply_mode("live")
+    assert strategy.MODE == "live"
+    assert strategy.STATE_FILE.endswith("strategy_state_live.json")
+    assert strategy.TRADES_CH == "live_trades"
+    assert strategy.auto_discover_enabled() is True
+    strategy.apply_mode("conservative")
+
+
+def test_each_mode_channel_names_are_wired_in_discord_channel_map():
+    """Every channel name referenced in config.MODES MUST have a matching
+    entry in notifications.discord.CHANNEL_ENV_MAP — otherwise messages get
+    silently dropped (the function falls back to a no-op when the channel
+    name isn't recognized)."""
+    from notifications.discord import CHANNEL_ENV_MAP
+    for mode_name, cfg in config.MODES.items():
+        for slot in ("trades_channel", "summary_channel", "errors_channel", "actions_channel"):
+            ch = cfg[slot]
+            assert ch in CHANNEL_ENV_MAP, \
+                f"{mode_name}.{slot}='{ch}' not in CHANNEL_ENV_MAP — messages would be dropped"

@@ -1,0 +1,101 @@
+name: TSLA Monitor (Live)
+
+# REAL MONEY. Mirror of tsla-monitor-manual.yml that runs the same scripts in
+# --mode live against the live Alpaca account (ALPACA_LIVE_*) and posts to the
+# #live-* Discord channels.
+#
+# Live mode behaves identically to manual: auto-discovers symbols from live
+# positions, never opens new Stage 1 puts, and only manages what the user
+# opens by hand (trail/ladder/stop on stocks, 50% close on existing puts,
+# covered call sale on assignment).
+#
+# Dashboard pushes (bot-state + rules) are intentionally OMITTED on live for
+# now — the dashboard's KV key whitelist and rules schema don't yet recognize
+# the live mode, and dashboard wiring is a deferred follow-up PR.
+#
+# Triggered exclusively by cron-job.org via workflow_dispatch on the same
+# every-10-minute schedule as the three paper monitors, offset by another :2
+# minutes (:3, :13, :23, ...) so all four accounts stagger evenly inside the
+# 10-min window. All four share the `bot-commits` concurrency group so
+# state-file commits never race.
+
+on:
+  workflow_dispatch: {}  # cron-job.org calls this; also allows manual trigger
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run strategy (live — multi-stock trail/ladder/stop)
+        env:
+          ALPACA_LIVE_API_KEY:           ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:        ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:          ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          DISCORD_LIVE_TRADES_WEBHOOK:   ${{ secrets.DISCORD_LIVE_TRADES_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python strategy.py --mode live once
+
+      - name: Run wheel strategy (live — manage existing, skip new puts)
+        env:
+          ALPACA_LIVE_API_KEY:           ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:        ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:          ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          DISCORD_LIVE_TRADES_WEBHOOK:   ${{ secrets.DISCORD_LIVE_TRADES_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python wheel_strategy.py --mode live once
+
+      - name: Run long-options manager (live)
+        env:
+          ALPACA_LIVE_API_KEY:           ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:        ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:          ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          DISCORD_LIVE_TRADES_WEBHOOK:   ${{ secrets.DISCORD_LIVE_TRADES_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python long_options_strategy.py --mode live once
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Add each pathspec INDEPENDENTLY so a missing file doesn't abort
+          # the whole `git add`. strategy_state_live.json and
+          # wheel_state_live.json may not exist on the very first run before
+          # any positions are held in the live account.
+          git add strategy_state_live.json 2>/dev/null || true
+          git add wheel_state_live.json 2>/dev/null || true
+          git add logs/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "tsla-monitor-live: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi

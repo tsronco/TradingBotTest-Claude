@@ -1,6 +1,6 @@
 # TradingBotTest-Claude
 
-Alpaca paper trading sandbox running scheduled bots on **GitHub Actions cron** across **three paper accounts in parallel** — a "conservative" and "aggressive" wheel that auto-execute, plus a "manual" account where the user opens trades by hand and the bot manages them (trail/ladder/stop on every stock you hold, 50% close on existing puts, covered call sale on assignment) but never opens new puts itself. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
+Alpaca trading sandbox running scheduled bots on **GitHub Actions cron** across **four accounts in parallel** — a "conservative" and "aggressive" paper wheel that auto-execute, a "manual" paper account where the user opens trades by hand and the bot manages them (trail/ladder/stop on every stock you hold, 50% close on existing puts, covered call sale on assignment) but never opens new puts itself, and a "live" REAL-MONEY account that behaves identically to manual on separate Alpaca live credentials. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
 
 A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, deployed to Vercel at https://tradingbot-dashboard-blue.vercel.app) sits alongside the bots — read-only-monitoring + manual lookup of any symbol. See [Dashboard subproject](#dashboard-subproject) below.
 
@@ -27,6 +27,25 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │  Discord: #aggressive-trades, #aggressive-summary,                │
 │           #aggressive-errors, #aggressive-actions                 │
 │  Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET              │
+└────────────────────────────────────────────────────────────────────┘
+
+┌─ Live REAL-MONEY account ─────────────────────────────────────────┐
+│  tsla-monitor-live.yml        (every 10 min, :13 offset)          │
+│    ├─ strategy.py --mode live                                      │
+│    │   auto-discovers stocks from positions; trail/ladder/stop    │
+│    │   on every name held (same behaviour as manual)              │
+│    ├─ wheel_strategy.py --mode live                                │
+│    │   wheel_skip_new_puts=True (never opens Stage 1); adopts     │
+│    │   user-opened puts/CCs and manages them with conservative    │
+│    │   wheel params (50% close, sells CC on assignment)           │
+│    └─ long_options_strategy.py --mode live                         │
+│  wheel-screener-live.yml      (Sundays 6:06pm ET — IDEAS only)    │
+│  Discord: #live-trades, #live-summary,                            │
+│           #live-errors, #live-actions                             │
+│  Alpaca:  ALPACA_LIVE_API_KEY / ALPACA_LIVE_API_SECRET            │
+│           (live endpoint, NOT paper)                              │
+│  Dashboard push steps INTENTIONALLY OMITTED — dashboard wiring    │
+│  for live is a deferred follow-up.                                │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌─ Manual paper account ────────────────────────────────────────────┐
@@ -57,13 +76,15 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │    1. Conservative summary  → #daily-summary                      │
 │    2. Aggressive summary    → #aggressive-summary                 │
 │    3. Manual summary        → #manual-summary  (no head-to-head)  │
-│    4. Head-to-head embed    → cons + agg summary channels         │
-│       (manual excluded — different starting capital and operating │
-│        model make a 3-way comparison apples-to-oranges)           │
+│    4. Live summary          → #live-summary    (no head-to-head — │
+│        real money, separate capital base & operating model)       │
+│    5. Head-to-head embed    → cons + agg summary channels         │
+│       (manual + live both excluded — different starting capital   │
+│        and operating model make a 4-way comparison meaningless)   │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The three accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Manual mode adds two extra flags (`auto_discover_symbols` and `wheel_skip_new_puts`) that change behaviour without forking the scripts. Tests cover that the three modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels) and that manual's behaviour flags fire correctly.
+The four accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Manual and live both carry two extra flags (`auto_discover_symbols` and `wheel_skip_new_puts`) that change behaviour without forking the scripts; live is configurationally identical to manual except for the credential set (real-money Alpaca live endpoint) and the Discord channels (`#live-*`). Tests cover that the four modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels) and that the manual/live behaviour flags fire correctly while conservative/aggressive don't.
 
 ## Environment
 
@@ -103,9 +124,20 @@ DISCORD_MANUAL_TRADES_WEBHOOK=...
 DISCORD_MANUAL_SUMMARY_WEBHOOK=...
 DISCORD_MANUAL_ERRORS_WEBHOOK=...
 DISCORD_MANUAL_ACTIONS_WEBHOOK=...
+
+# Live REAL-MONEY account (different endpoint — api.alpaca.markets, NOT paper)
+ALPACA_LIVE_API_KEY=...
+ALPACA_LIVE_API_SECRET=...
+ALPACA_LIVE_BASE_URL=https://api.alpaca.markets/v2
+
+# Discord webhooks — live side
+DISCORD_LIVE_TRADES_WEBHOOK=...
+DISCORD_LIVE_SUMMARY_WEBHOOK=...
+DISCORD_LIVE_ERRORS_WEBHOOK=...
+DISCORD_LIVE_ACTIONS_WEBHOOK=...
 ```
 
-**Paper trading only.** Base URL must stay as `paper-api.alpaca.markets`. The `paper_guard.py` module asserts this on every congress-copy invocation.
+**Paper-only for congress-copy.** `paper_guard.py` asserts the base URL is `paper-api.alpaca.markets` on every congress-copy invocation. Congress-copy runs **conservative-only**, so the guard never sees the live credentials. Do NOT add congress-copy to the live workflow — the guard would (correctly) reject it.
 
 ## Scheduled workflows
 
@@ -118,11 +150,13 @@ All eight workflows are triggered **exclusively by cron-job.org** via `workflow_
 | `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Conservative: strategy + wheel + long-options |
 | `tsla-monitor-aggressive.yml` | `9,19,29,39,49,59 13-20 * * 1-5` | every 10 min, :09 offset | every 10 min, :09 offset | Aggressive: strategy + wheel + long-options |
 | `tsla-monitor-manual.yml` | `1,11,21,31,41,51 13-20 * * 1-5` | every 10 min, :11 offset | every 10 min, :11 offset | Manual: strategy + wheel + long-options |
+| `tsla-monitor-live.yml` | `3,13,23,33,43,53 13-20 * * 1-5` | every 10 min, :13 offset | every 10 min, :13 offset | Live REAL-MONEY: strategy + wheel + long-options |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Conservative-only: scrape + monitor |
-| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 4-step: cons + agg + manual + head-to-head |
+| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 5-step: cons + agg + manual + live + head-to-head |
 | `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Conservative wheel-candidate digest |
 | `wheel-screener-aggressive.yml` | `2 22 * * 0` | 5:02 PM Sun | 6:02 PM Sun | Aggressive (high-IV) wheel-candidate digest |
 | `wheel-screener-manual.yml` | `4 22 * * 0` | 5:04 PM Sun | 6:04 PM Sun | Manual wheel-candidate digest (IDEAS only — bot doesn't execute) |
+| `wheel-screener-live.yml` | `6 22 * * 0` | 5:06 PM Sun | 6:06 PM Sun | Live wheel-candidate digest (IDEAS only — bot doesn't execute) |
 
 **Why not GitHub's native `schedule:` trigger?** Two reasons:
 1. **Reliability**: GitHub's cron didn't fire reliably on this repo's first day (multiple missed fires, even after going public and shifting off `:00`/`:30`).
@@ -167,7 +201,16 @@ Manual side:
 | `#manual-errors` | Manual-account errors / exceptions | All messages (push, with @mention) |
 | `#manual-actions` | Manual firehose for one-scroll review | Muted |
 
-**If `#errors`, `#aggressive-errors`, and `#manual-errors` all stay empty all day, the system worked.**
+Live side (REAL MONEY):
+
+| Channel | What lands there | Phone notification setting |
+|---|---|---|
+| `#live-trades` | Live-account trail/ladder/stop fires + wheel adoptions, 50% closes, CC sales | All messages (push, recommended for real money) |
+| `#live-summary` | 4:12 PM ET live summary (no head-to-head — separate capital and operating model) | All messages (push) |
+| `#live-errors` | Live-account errors / exceptions | All messages (push, with @mention) |
+| `#live-actions` | Live firehose for one-scroll review | Muted |
+
+**If `#errors`, `#aggressive-errors`, `#manual-errors`, and `#live-errors` all stay empty all day, the system worked.**
 
 ## Strategies in detail
 
@@ -244,14 +287,15 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 ## Daily summary
 
-`daily_summary.py` runs four steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
+`daily_summary.py` runs five steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
 
 1. **Conservative summary** (`--mode conservative`) — aggregates `strategy_state.json` + `wheel_state.json` + congress-copy SQLite + long-options positions. Posts an embed to `#daily-summary`.
 2. **Aggressive summary** (`--mode aggressive`) — aggregates `strategy_state_aggressive.json` + `wheel_state_aggressive.json` + long-options positions. Posts to `#aggressive-summary`. (Congress-copy is conservative-only, so it's omitted here.)
-3. **Manual summary** (`--mode manual`) — aggregates `strategy_state_manual.json` (multi-symbol format) + `wheel_state_manual.json` + long-options positions. Posts to `#manual-summary`. No head-to-head inclusion — different starting capital ($10k vs $100k) and a different operating model (user-driven entries) make a 3-way comparison apples-to-oranges.
-4. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from the conservative + aggressive Alpaca accounts, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
+3. **Manual summary** (`--mode manual`) — aggregates `strategy_state_manual.json` (multi-symbol format) + `wheel_state_manual.json` + long-options positions. Posts to `#manual-summary`. No head-to-head inclusion — different starting capital ($10k vs $100k) and a different operating model (user-driven entries) make a multi-way comparison apples-to-oranges.
+4. **Live summary** (`--mode live`) — aggregates `strategy_state_live.json` + `wheel_state_live.json` + long-options positions on the REAL-MONEY account. Posts to `#live-summary`. Also excluded from head-to-head for the same reason as manual.
+5. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from the conservative + aggressive Alpaca accounts only, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
 
-End result: 5 embed cards per day across the three summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary stays standalone).
+End result: 6 embed cards per day across the four summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary and live-summary stay standalone).
 
 ## Runbook — when something breaks
 
