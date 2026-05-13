@@ -96,8 +96,40 @@ def log(msg):
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}", flush=True)
 
 
+# Retry policy — mirrors wheel_strategy._alpaca_request. See that file for
+# the full rationale on which codes are retried.
+_ALPACA_RETRY_STATUS = {429, 500, 502, 503, 504}
+_ALPACA_RETRY_BACKOFFS = (2, 8)
+_ALPACA_MAX_ATTEMPTS = 3
+
+
+def _alpaca_request(method: str, url: str, **kwargs) -> requests.Response:
+    """HTTP request to Alpaca with bounded retry on transient failures."""
+    for attempt in range(_ALPACA_MAX_ATTEMPTS):
+        try:
+            resp = requests.request(method, url, **kwargs)
+            if (resp.status_code in _ALPACA_RETRY_STATUS
+                    and attempt + 1 < _ALPACA_MAX_ATTEMPTS):
+                wait = _ALPACA_RETRY_BACKOFFS[attempt]
+                log(f"alpaca {method} {resp.status_code} (attempt "
+                    f"{attempt+1}/{_ALPACA_MAX_ATTEMPTS}); retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            return resp
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as e:
+            if attempt + 1 < _ALPACA_MAX_ATTEMPTS:
+                wait = _ALPACA_RETRY_BACKOFFS[attempt]
+                log(f"alpaca {method} {type(e).__name__} (attempt "
+                    f"{attempt+1}/{_ALPACA_MAX_ATTEMPTS}); retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            raise
+
+
 def place_order(symbol, qty, side, order_type="market", time_in_force="day"):
-    resp = requests.post(
+    resp = _alpaca_request(
+        "POST",
         f"{BASE_URL}/orders",
         headers=HEADERS,
         json={"symbol": symbol, "qty": qty, "side": side,
@@ -108,13 +140,14 @@ def place_order(symbol, qty, side, order_type="market", time_in_force="day"):
 
 
 def get_order(order_id):
-    resp = requests.get(f"{BASE_URL}/orders/{order_id}", headers=HEADERS)
+    resp = _alpaca_request("GET", f"{BASE_URL}/orders/{order_id}", headers=HEADERS)
     resp.raise_for_status()
     return resp.json()
 
 
 def get_latest_price(symbol):
-    resp = requests.get(
+    resp = _alpaca_request(
+        "GET",
         f"{DATA_URL}/stocks/{symbol}/trades/latest",
         headers=HEADERS,
         params={"feed": "iex"},
@@ -129,13 +162,13 @@ def get_stock_positions():
     Filters to asset_class='us_equity' so options are excluded (those are
     managed by wheel_strategy.py and long_options_strategy.py separately).
     """
-    resp = requests.get(f"{BASE_URL}/positions", headers=HEADERS)
+    resp = _alpaca_request("GET", f"{BASE_URL}/positions", headers=HEADERS)
     resp.raise_for_status()
     return [p for p in resp.json() if p.get("asset_class") == "us_equity"]
 
 
 def close_all(symbol):
-    resp = requests.delete(f"{BASE_URL}/positions/{symbol}", headers=HEADERS)
+    resp = _alpaca_request("DELETE", f"{BASE_URL}/positions/{symbol}", headers=HEADERS)
     resp.raise_for_status()
     return resp.json()
 

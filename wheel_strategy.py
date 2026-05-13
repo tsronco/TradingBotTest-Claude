@@ -201,27 +201,75 @@ def save_state(state: dict) -> None:
 
 
 # ── Alpaca API wrappers ───────────────────────────────────────────────────
+#
+# Retry policy mirrors notifications/discord._post: transient network failures
+# from a flaky third-party endpoint shouldn't crash a single symbol's cycle.
+# We retry on:
+#   - 429 (rate-limit)
+#   - 500/502/503/504 (Alpaca's edge or upstream having a moment)
+#   - ConnectionError / Timeout (TCP reset, DNS hiccup, timeout)
+# We do NOT retry on:
+#   - 4xx other than 429 (real request errors — bad auth, bad path, etc.)
+#   - 403 specifically (the wheel uses 403 as its BP-exhaustion short-circuit
+#     signal; retrying would just delay the inevitable)
+
+_ALPACA_RETRY_STATUS = {429, 500, 502, 503, 504}
+_ALPACA_RETRY_BACKOFFS = (2, 8)   # seconds between attempts
+_ALPACA_MAX_ATTEMPTS = 3
+
+
+def _alpaca_request(method: str, url: str, **kwargs) -> requests.Response:
+    """HTTP request to Alpaca with bounded retry on transient failures.
+
+    Returns the final Response. Does NOT call raise_for_status — caller
+    decides what status codes are errors (cancel_order treats 404/422 as
+    success, for instance). If all attempts hit ConnectionError/Timeout,
+    the underlying exception propagates so the existing per-symbol
+    exception handler can log + isolate the failure.
+    """
+    for attempt in range(_ALPACA_MAX_ATTEMPTS):
+        try:
+            resp = requests.request(method, url, **kwargs)
+            if (resp.status_code in _ALPACA_RETRY_STATUS
+                    and attempt + 1 < _ALPACA_MAX_ATTEMPTS):
+                wait = _ALPACA_RETRY_BACKOFFS[attempt]
+                log(f"alpaca {method} {resp.status_code} (attempt "
+                    f"{attempt+1}/{_ALPACA_MAX_ATTEMPTS}); retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            return resp
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as e:
+            if attempt + 1 < _ALPACA_MAX_ATTEMPTS:
+                wait = _ALPACA_RETRY_BACKOFFS[attempt]
+                log(f"alpaca {method} {type(e).__name__} (attempt "
+                    f"{attempt+1}/{_ALPACA_MAX_ATTEMPTS}); retrying in {wait}s")
+                time.sleep(wait)
+                continue
+            raise  # exhausted — let caller's exception handler take over
+
 
 def api_get(path, params=None):
-    resp = requests.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+    resp = _alpaca_request("GET", f"{BASE_URL}{path}", headers=HEADERS, params=params)
     resp.raise_for_status()
     return resp.json()
 
 
 def api_post(path, body):
-    resp = requests.post(f"{BASE_URL}{path}", headers=HEADERS, json=body)
+    resp = _alpaca_request("POST", f"{BASE_URL}{path}", headers=HEADERS, json=body)
     resp.raise_for_status()
     return resp.json()
 
 
 def api_delete(path):
-    resp = requests.delete(f"{BASE_URL}{path}", headers=HEADERS)
+    resp = _alpaca_request("DELETE", f"{BASE_URL}{path}", headers=HEADERS)
     resp.raise_for_status()
     return resp.json()
 
 
 def get_latest_price(symbol):
-    resp = requests.get(
+    resp = _alpaca_request(
+        "GET",
         f"{DATA_URL}/stocks/{symbol}/trades/latest",
         headers=HEADERS,
         params={"feed": "iex"},
@@ -346,7 +394,8 @@ def cancel_order(order_id: str) -> bool:
             attempt a replacement (the old order might still be live).
     """
     try:
-        resp = requests.delete(
+        resp = _alpaca_request(
+            "DELETE",
             f"{BASE_URL}/orders/{order_id}",
             headers=HEADERS,
             timeout=15,
@@ -427,7 +476,8 @@ def get_option_quote(contract_symbol):
     Note: Alpaca options data lives under v1beta1, NOT v2 (stock data uses v2).
     """
     try:
-        resp = requests.get(
+        resp = _alpaca_request(
+            "GET",
             f"{OPTIONS_DATA_URL}/options/quotes/latest",
             headers=HEADERS,
             params={"symbols": contract_symbol, "feed": "indicative"},
@@ -529,7 +579,8 @@ def get_option_last_price(contract_symbol):
     Same v1beta1 path as get_option_quote (options data is NOT under v2).
     """
     try:
-        resp = requests.get(
+        resp = _alpaca_request(
+            "GET",
             f"{OPTIONS_DATA_URL}/options/trades/latest",
             headers=HEADERS,
             params={"symbols": contract_symbol, "feed": "indicative"},

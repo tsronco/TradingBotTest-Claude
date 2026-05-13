@@ -805,23 +805,21 @@ def test_cancel_order_returns_true_on_success(monkeypatch):
     class FakeResp:
         status_code = 204
         def raise_for_status(self): pass
-    monkeypatch.setattr(ws.requests, "delete",
-                        lambda url, headers=None, timeout=None: calls.append(url) or FakeResp())
+    monkeypatch.setattr(ws.requests, "request",
+                        lambda method, url, **kw: calls.append((method, url)) or FakeResp())
     assert ws.cancel_order("order-123") is True
-    assert any("order-123" in c for c in calls)
+    assert any("order-123" in url for _, url in calls)
 
 
 def test_cancel_order_returns_true_on_404_already_gone(monkeypatch):
     """If the order was already cancelled or never existed, treat as success.
     The caller's intent ('this order should not be open anymore') is satisfied
     either way."""
-    import requests as rq
     class FakeResp:
         status_code = 404
-        def raise_for_status(self):
-            raise rq.exceptions.HTTPError(response=self)
-    monkeypatch.setattr(ws.requests, "delete",
-                        lambda url, headers=None, timeout=None: FakeResp())
+        def raise_for_status(self): pass  # caller's status_code check catches 404 first
+    monkeypatch.setattr(ws.requests, "request",
+                        lambda method, url, **kw: FakeResp())
     assert ws.cancel_order("order-gone") is True
 
 
@@ -829,27 +827,31 @@ def test_cancel_order_returns_true_on_422_already_filled(monkeypatch):
     """Race condition: order filled between staleness check and cancel POST.
     Alpaca returns 422 'cannot cancel filled order'. Treat as success — the
     position now exists and next cycle picks it up via get_option_position."""
-    import requests as rq
     class FakeResp:
         status_code = 422
-        def raise_for_status(self):
-            raise rq.exceptions.HTTPError(response=self)
-    monkeypatch.setattr(ws.requests, "delete",
-                        lambda url, headers=None, timeout=None: FakeResp())
+        def raise_for_status(self): pass  # caller's status_code check catches 422 first
+    monkeypatch.setattr(ws.requests, "request",
+                        lambda method, url, **kw: FakeResp())
     assert ws.cancel_order("order-just-filled") is True
 
 
-def test_cancel_order_returns_false_on_5xx(monkeypatch):
+def test_cancel_order_returns_false_on_5xx_after_retry_exhausted(monkeypatch):
     """Real API failure (5xx, network down) returns False so caller knows
-    NOT to attempt a fresh order — the old one might still be live."""
+    NOT to attempt a fresh order — the old one might still be live. Now
+    retries _ALPACA_MAX_ATTEMPTS times before giving up."""
     import requests as rq
+    attempts = [0]
     class FakeResp:
         status_code = 503
         def raise_for_status(self):
             raise rq.exceptions.HTTPError(response=self)
-    monkeypatch.setattr(ws.requests, "delete",
-                        lambda url, headers=None, timeout=None: FakeResp())
+    def fake_request(method, url, **kw):
+        attempts[0] += 1
+        return FakeResp()
+    monkeypatch.setattr(ws.requests, "request", fake_request)
+    monkeypatch.setattr(ws.time, "sleep", lambda s: None)  # don't actually sleep
     assert ws.cancel_order("order-broken") is False
+    assert attempts[0] == ws._ALPACA_MAX_ATTEMPTS  # retried before giving up
 
 # ── _resolve_pending_contract "stale" branch ────────────────────────────
 

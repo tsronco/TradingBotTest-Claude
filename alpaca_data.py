@@ -17,6 +17,8 @@ Endpoints used:
 """
 
 import os
+import sys
+import time
 from datetime import date, timedelta
 
 import requests
@@ -29,6 +31,13 @@ STOCK_DATA_URL = "https://data.alpaca.markets/v2"
 OPT_DATA_URL = "https://data.alpaca.markets/v1beta1"
 
 DEFAULT_TIMEOUT = 15
+
+# Retry policy — mirrors wheel_strategy._alpaca_request and
+# notifications/discord._post. Transient network failures shouldn't crash
+# a lookup or a script. See wheel_strategy.py for the full rationale.
+_RETRY_STATUS = {429, 500, 502, 503, 504}
+_RETRY_BACKOFFS = (2, 8)
+_MAX_ATTEMPTS = 3
 
 
 def _credentials(mode: str) -> tuple[str, str]:
@@ -52,8 +61,40 @@ def _headers(mode: str = "conservative") -> dict:
     }
 
 
+def _request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """Make a request with bounded retry. Returns Response without raising
+    on any status code — caller decides what to do with the result. Used
+    by `_get` (which raises) and `get_position` (which treats 404 as
+    not-held)."""
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = requests.request(method, url, **kwargs)
+            if (resp.status_code in _RETRY_STATUS
+                    and attempt + 1 < _MAX_ATTEMPTS):
+                wait = _RETRY_BACKOFFS[attempt]
+                print(f"[alpaca_data] {method} {resp.status_code} (attempt "
+                      f"{attempt+1}/{_MAX_ATTEMPTS}); retrying in {wait}s",
+                      file=sys.stderr)
+                time.sleep(wait)
+                continue
+            return resp
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as e:
+            if attempt + 1 < _MAX_ATTEMPTS:
+                wait = _RETRY_BACKOFFS[attempt]
+                print(f"[alpaca_data] {method} {type(e).__name__} (attempt "
+                      f"{attempt+1}/{_MAX_ATTEMPTS}); retrying in {wait}s",
+                      file=sys.stderr)
+                time.sleep(wait)
+                continue
+            raise
+
+
 def _get(url: str, mode: str, params: dict | None = None) -> dict:
-    resp = requests.get(url, headers=_headers(mode), params=params, timeout=DEFAULT_TIMEOUT)
+    """GET an Alpaca endpoint with bounded retry. Raises HTTPError on 4xx/5xx
+    after retries are exhausted (existing contract — callers expect raise)."""
+    resp = _request_with_retry("GET", url, headers=_headers(mode),
+                                params=params, timeout=DEFAULT_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
 
@@ -106,7 +147,8 @@ def get_positions(mode: str = "conservative") -> list[dict]:
 
 def get_position(symbol: str, mode: str = "conservative") -> dict | None:
     """Return the position for `symbol`, or None if not held."""
-    resp = requests.get(
+    resp = _request_with_retry(
+        "GET",
         f"{TRADING_API_URL}/positions/{symbol}",
         headers=_headers(mode),
         timeout=DEFAULT_TIMEOUT,
