@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
-import { alpacaFor, modeFromQuery } from '../_lib/alpaca.js';
+import { modeFromQuery } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
@@ -43,15 +43,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return;
   const endpoint = String(req.query.endpoint ?? '');
   const mode = modeFromQuery(req.query.mode);
-  const client = alpacaFor(mode);
 
   try {
     if (endpoint === 'account') {
-      const account = await client.getAccount();
+      const account = await alpacaTrade<unknown>(mode, '/v2/account');
       return res.status(200).json({ mode, account });
     }
     if (endpoint === 'positions') {
-      const positions = await client.getPositions();
+      const positions = await alpacaTrade<unknown>(mode, '/v2/positions');
       return res.status(200).json({ mode, positions });
     }
     if (endpoint === 'orders') {
@@ -78,14 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let until: string | undefined = undefined;
       const MAX_PAGES = 20; // 20 * 500 = 10k orders ceiling — plenty for a year.
       for (let page = 0; page < MAX_PAGES; page++) {
-        const params = {
+        const pageOrders = await alpacaTrade<AlpacaOrder[]>(mode, '/v2/orders', {
           status,
           limit: 500,
-          direction: 'desc' as const,
+          direction: 'desc',
           ...(fetchAfter ? { after: fetchAfter } : {}),
           ...(until ? { until } : {}),
-        } as unknown as Parameters<typeof client.getOrders>[0];
-        const pageOrders = (await client.getOrders(params)) as unknown as AlpacaOrder[];
+        });
         if (!Array.isArray(pageOrders) || pageOrders.length === 0) break;
         allOrders.push(...pageOrders);
         if (pageOrders.length < 500) break; // last page
