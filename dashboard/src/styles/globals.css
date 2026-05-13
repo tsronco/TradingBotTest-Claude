@@ -147,6 +147,10 @@ body {
 #cards { min-width: 0; }
 #cards > * { min-width: 0; }
 
+/* Live spans the full top row in both-mode (3 cols → span 3).
+   In single-mode views the grid collapses to 1 col, where 1/-1 == 1/2 → no-op. */
+#cards article[data-acct-key='LIVE'] { grid-column: 1 / -1; }
+
 /* card visibility driven by data-mode attribute */
 #cards[data-mode='conservative'] article[data-acct-key='AGG'],
 #cards[data-mode='conservative'] article[data-acct-key='MAN'],

@@ -118,12 +118,13 @@ export default function Home() {
         <span className="text-dim">$ pnl --range <span className="text-fg">{periodFlag(period)}</span></span>
       </div>
 
-      {/* account cards */}
-      <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+      {/* account cards — live spans the full top row, cons/agg/manual share row 2.
+          The full-row span on LIVE is enforced via CSS in globals.css. */}
+      <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+        <AccountCard mode="live" label="Live $" acctKey="LIVE" />
         <AccountCard mode="conservative" label="Conservative" acctKey="CONS" />
         <AccountCard mode="aggressive" label="Aggressive" acctKey="AGG" />
         <AccountCard mode="manual" label="Manual" acctKey="MAN" />
-        <AccountCard mode="live" label="Live $" acctKey="LIVE" />
       </div>
 
       {/* footer ribbon */}
