@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "last_checked": "2026-05-13T15:28:10.087324Z"
+    "last_checked": "2026-05-13T15:38:06.547840Z"
   },
   "TSLA": {
     "stage": 1,
-    "current_contract": "TSLA260529P00385000",
+    "current_contract": null,
     "contract_order_id": "a4de7114-517f-4b87-81a5-008afa8ff214",
-    "contract_entry_price": 3.4,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-08T18:38:08.322284Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -14,8 +14,8 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 688.0,
-    "total_premium_today": 688.0,
+    "total_premium_collected": 859.0,
+    "total_premium_today": 859.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260529P00385000: $1.77 vs entry $3.40",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 5.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.64 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $0.66 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -128,7 +128,7 @@
     "total_premium_today": 244.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $7.18 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $6.93 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -155,7 +155,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.33 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.34 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -174,18 +174,18 @@
     "total_premium_today": 16.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260529P00025000: $0.18 vs entry $0.22",
+    "last_action": "Monitoring PFE260529P00025000: $0.19 vs entry $0.22",
     "contract_qty": 1
   },
   "F": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "7a218af6-5e4e-49eb-930c-2c28d1e14ab6",
+    "current_contract": "F260605P00012000",
+    "contract_order_id": "f1134845-b7de-4c39-a3bc-9e59ca757427",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-07T13:38:16.045751Z",
-    "contract_expiration": "2026-05-29",
+    "contract_entry_date": "2026-05-13T15:38:05.921732Z",
+    "contract_expiration": "2026-06-05",
     "contract_type": "put",
-    "contract_strike": 11.0,
+    "contract_strike": 12.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -201,7 +201,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open F260605P00012000 @ $0.15. Awaiting fill.",
     "contract_qty": 1
   },
   "T": {
@@ -228,7 +228,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.31 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.33 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -247,7 +247,7 @@
     "total_premium_today": 384.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.99 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $6.07 vs entry $6.65",
     "contract_qty": 1
   }
 }
