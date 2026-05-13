@@ -9,9 +9,9 @@ name: TSLA Monitor (Live)
 # opens by hand (trail/ladder/stop on stocks, 50% close on existing puts,
 # covered call sale on assignment).
 #
-# Dashboard pushes (bot-state + rules) are intentionally OMITTED on live for
-# now — the dashboard's KV key whitelist and rules schema don't yet recognize
-# the live mode, and dashboard wiring is a deferred follow-up PR.
+# Dashboard pushes (bot-state + rules) push to the dashboard's KV under
+# bot:state:live / bot:strategy:live / bot:rules:live (newly whitelisted
+# alongside the dashboard-live-mode wiring).
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch on the same
 # every-10-minute schedule as the three paper monitors, offset by another :2
@@ -72,6 +72,49 @@ jobs:
           DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
           DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
         run: python long_options_strategy.py --mode live once
+
+      - name: Push wheel state (live) to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f wheel_state_live.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p wheel_state_live.json \
+                         '{key: "bot:state:live", payload: $p[0]}')" \
+              || echo "Dashboard push for live wheel state failed (non-fatal)"
+          else
+            echo "wheel_state_live.json not present — skipping dashboard push"
+          fi
+
+      - name: Push strategy state (live) to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f strategy_state_live.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p strategy_state_live.json \
+                         '{key: "bot:strategy:live", payload: $p[0]}')" \
+              || echo "Dashboard push for live strategy state failed (non-fatal)"
+          else
+            echo "strategy_state_live.json not present — skipping dashboard push"
+          fi
+
+      - name: Push rules to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+          DASHBOARD_URL: https://tradingbot-dashboard-blue.vercel.app
+        run: |
+          python tools/push_rules_to_dashboard.py --mode live \
+            || echo "Dashboard push for rules failed (non-fatal)"
 
       - name: Commit state and logs
         run: |

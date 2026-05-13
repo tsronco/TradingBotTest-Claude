@@ -31,9 +31,10 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode: 'conservative' | 'aggressive' | 'manual' =
+  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
     account === 'aggressive_paper' ? 'aggressive'
     : account === 'manual_paper' ? 'manual'
+    : account === 'live' ? 'live'
     : 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['quote', symbol, mode],
@@ -124,11 +125,11 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           </button>
           <button
             type="button"
-            className="pbtn opacity-40 cursor-not-allowed"
-            disabled
-            title="live trading not enabled yet"
+            className={`pbtn ${account === 'live' ? 'active' : ''} text-red`}
+            onClick={() => setAccount('live')}
+            title="LIVE — real money. Orders above per-account threshold require TOTP."
           >
-            [live (disabled)]
+            [live ${account === 'live' ? '*' : ''}]
           </button>
         </div>
         <AccountBpIndicator mode={mode} assetClass="stock" exposure={liveExposure} />
@@ -240,7 +241,7 @@ function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange:
   );
 }
 
-function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' | 'manual' }) {
+function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' | 'manual' | 'live' }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),

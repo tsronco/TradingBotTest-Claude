@@ -2,13 +2,16 @@ export const BOT_STATE_KEYS = [
   'bot:state:conservative',
   'bot:state:aggressive',
   'bot:state:manual',
+  'bot:state:live',
   'bot:strategy:conservative',
   'bot:strategy:aggressive',
   'bot:strategy:manual',
+  'bot:strategy:live',
   'bot:congress',
   'bot:rules:conservative',
   'bot:rules:aggressive',
   'bot:rules:manual',
+  'bot:rules:live',
 ] as const;
 
 export type BotStateKey = (typeof BOT_STATE_KEYS)[number];
@@ -66,7 +69,7 @@ export function tradesCounterKey(yyyymmdd: string): string {
   return `trades:counter:${yyyymmdd}`;
 }
 
-export type Mode = 'conservative' | 'aggressive' | 'manual';
+export type Mode = 'conservative' | 'aggressive' | 'manual' | 'live';
 
 export function botRulesKey(mode: Mode): BotStateKey {
   return `bot:rules:${mode}` as BotStateKey;

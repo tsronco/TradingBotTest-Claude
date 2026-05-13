@@ -178,15 +178,16 @@ export interface BotRulesPayload {
 
 /**
  * Inbox entry for STO put assignments awaiting follow-on stock trade spawn.
- * `account` uses the AccountId paper-only subset so the cron knows which
- * Alpaca creds to use when fetching the resulting stock position.
+ * `account` is the full AccountId union — assignments on the live account
+ * stay on live so the bot manages the resulting shares with the same Stage 2
+ * covered-call flow as paper.
  */
 export interface AssignmentEntry {
   parent_trade_id: string;
   underlying: string;
   strike: number;
   qty: number;
-  account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper';
+  account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
   detected_at: string;
 }
 

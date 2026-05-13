@@ -5,6 +5,7 @@ const opts: { value: AccountMode; label: string }[] = [
   { value: 'conservative', label: 'Cons' },
   { value: 'aggressive', label: 'Agg' },
   { value: 'manual', label: 'Manual' },
+  { value: 'live', label: 'Live' },
 ];
 
 export default function AccountSelector() {

@@ -88,6 +88,7 @@ async function getQuote(symbol: string, asset_class: 'stock' | 'option', mode: s
 function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'live') return 'live';
   return 'conservative';
 }
 

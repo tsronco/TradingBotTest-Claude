@@ -5,10 +5,10 @@ import { fmtUsd, fmtPct } from '../../lib/format';
 import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
-import { selectModeFromAccountMode, modeToAccount, type PaperAccountId } from '../../lib/account-utils';
+import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../../lib/account-utils';
 import { GreekHeader } from '../GreekLabel';
 
-function accountForMode(mode: AccountMode): PaperAccountId {
+function accountForMode(mode: AccountMode): AnyAccountId {
   return modeToAccount(selectModeFromAccountMode(mode));
 }
 

@@ -1,10 +1,10 @@
 """Read config.MODES + strategy module + congress-copy config (when conservative)
 and POST a BotRulesPayload to the dashboard's /api/bot-state.
 
-Used by tsla-monitor.yml, tsla-monitor-aggressive.yml, tsla-monitor-manual.yml
-after each bot run. Idempotent (modulo `pushed_at`). Fail-soft: if the push
-fails, print to stderr but exit 0 — the bot must not be blocked by dashboard
-plumbing.
+Used by tsla-monitor.yml, tsla-monitor-aggressive.yml, tsla-monitor-manual.yml,
+and tsla-monitor-live.yml after each bot run. Idempotent (modulo `pushed_at`).
+Fail-soft: if the push fails, print to stderr but exit 0 — the bot must not
+be blocked by dashboard plumbing.
 """
 import argparse
 import datetime as dt
@@ -143,7 +143,7 @@ def push(mode: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', required=True, choices=['conservative', 'aggressive', 'manual'])
+    parser.add_argument('--mode', required=True, choices=['conservative', 'aggressive', 'manual', 'live'])
     args = parser.parse_args()
     push(args.mode)
 

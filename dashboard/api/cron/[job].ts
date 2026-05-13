@@ -38,6 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'live') return 'live';
   return 'conservative';
 }
 
@@ -90,9 +91,9 @@ async function gradeOpenTrades(res: VercelResponse) {
         underlying: closedTrade.symbol,
         strike: closedTrade.strike ?? closedTrade.filled_avg_price ?? 0,
         qty: closedTrade.qty * 100,        // 100 shares per contract
-        account: closedTrade.account === 'live'
-          ? 'conservative_paper'           // safety: live shouldn't get here on paper-only setup
-          : closedTrade.account,
+        // Live assignments stay on the live account — bot will manage the
+        // resulting shares with the same Stage 2 covered-call flow as paper.
+        account: closedTrade.account,
         detected_at: closeInfo.closed_at,
       });
     }

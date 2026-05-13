@@ -75,13 +75,14 @@ function sideColor(side: string): string {
   return 'text-fg';
 }
 
-type OrderMode = 'conservative' | 'aggressive' | 'manual';
-type OrderAcctKey = 'CONS' | 'AGG' | 'MAN';
+type OrderMode = 'conservative' | 'aggressive' | 'manual' | 'live';
+type OrderAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE';
 
 const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string }> = {
   CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
   AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
   MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+  LIVE: { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
 };
 
 interface OrdersTableProps {
@@ -325,6 +326,7 @@ export default function Orders() {
     if (mode === 'both' || mode === 'conservative') cards.push({ mode: 'conservative', acctKey: 'CONS', label: 'Conservative' });
     if (mode === 'both' || mode === 'aggressive') cards.push({ mode: 'aggressive', acctKey: 'AGG', label: 'Aggressive' });
     if (mode === 'both' || mode === 'manual') cards.push({ mode: 'manual', acctKey: 'MAN', label: 'Manual' });
+    if (mode === 'both' || mode === 'live') cards.push({ mode: 'live', acctKey: 'LIVE', label: 'Live $' });
     return cards;
   }, [mode]);
 

@@ -24,10 +24,12 @@ export default function EquityPanel({ dateRange, account }: Props) {
   const showCons = !account || account === 'conservative_paper';
   const showAgg  = !account || account === 'aggressive_paper';
   const showMan  = !account || account === 'manual_paper';
+  const showLive = !account || account === 'live';
 
   const cons = useEquityHistory('conservative', cfg, showCons);
   const agg  = useEquityHistory('aggressive',  cfg, showAgg);
   const man  = useEquityHistory('manual',      cfg, showMan);
+  const live = useEquityHistory('live',        cfg, showLive);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -51,9 +53,13 @@ export default function EquityPanel({ dateRange, account }: Props) {
       const s = chart.addSeries(LineSeries, { color: '#a78bfa', lineWidth: 2 });
       s.setData(toData(man.data.history));
     }
+    if (showLive && live.data?.history?.equity?.length) {
+      const s = chart.addSeries(LineSeries, { color: '#ef4444', lineWidth: 2 });
+      s.setData(toData(live.data.history));
+    }
     chart.timeScale().fitContent();
     return () => chart.remove();
-  }, [showCons, showAgg, showMan, cons.data, agg.data, man.data]);
+  }, [showCons, showAgg, showMan, showLive, cons.data, agg.data, man.data, live.data]);
 
   return (
     <div>
@@ -62,6 +68,7 @@ export default function EquityPanel({ dateRange, account }: Props) {
         {showCons && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#22d3ee' }} />conservative</span>}
         {showAgg && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#f59e0b' }} />aggressive</span>}
         {showMan && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#a78bfa' }} />manual</span>}
+        {showLive && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#ef4444' }} />live $</span>}
       </div>
     </div>
   );

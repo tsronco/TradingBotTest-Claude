@@ -28,13 +28,14 @@ interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
 }
 
-type PosMode = 'conservative' | 'aggressive' | 'manual';
-type PosAcctKey = 'CONS' | 'AGG' | 'MAN';
+type PosMode = 'conservative' | 'aggressive' | 'manual' | 'live';
+type PosAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE';
 
 const POS_ACCENT: Record<PosAcctKey, { text: string; bg: string; tag: string }> = {
   CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
   AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
   MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+  LIVE: { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
 };
 
 function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {
@@ -279,6 +280,7 @@ export default function Positions() {
   const showCons = mode === 'both' || mode === 'conservative';
   const showAgg = mode === 'both' || mode === 'aggressive';
   const showManual = mode === 'both' || mode === 'manual';
+  const showLive = mode === 'both' || mode === 'live';
   const cardCount = mode === 'both' ? 2 : 1;
 
   return (
@@ -325,6 +327,7 @@ export default function Positions() {
         {showCons && <PositionsTable mode="conservative" label="Conservative" acctKey="CONS" />}
         {showAgg && <PositionsTable mode="aggressive" label="Aggressive" acctKey="AGG" />}
         {showManual && <PositionsTable mode="manual" label="Manual" acctKey="MAN" />}
+        {showLive && <PositionsTable mode="live" label="Live $" acctKey="LIVE" />}
       </div>
 
       {/* footer */}

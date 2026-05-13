@@ -36,9 +36,10 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode: 'conservative' | 'aggressive' | 'manual' =
+  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
     account === 'aggressive_paper' ? 'aggressive'
     : account === 'manual_paper' ? 'manual'
+    : account === 'live' ? 'live'
     : 'conservative';
   const { data: quote } = useQuery({
     queryKey: ['option-quote', contractSymbol, mode],
@@ -137,11 +138,11 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
           </button>
           <button
             type="button"
-            className="pbtn opacity-40 cursor-not-allowed"
-            disabled
-            title="live trading not enabled yet"
+            className={`pbtn ${account === 'live' ? 'active' : ''} text-red`}
+            onClick={() => setAccount('live')}
+            title="LIVE — real money. Orders above per-account threshold require TOTP."
           >
-            [live (disabled)]
+            [live ${account === 'live' ? '*' : ''}]
           </button>
         </div>
         <AccountBpIndicator mode={mode} assetClass="option" exposure={liveExposure} />
@@ -253,7 +254,7 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   );
 }
 
-function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive' | 'manual'; bid: number; ask: number }) {
+function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive' | 'manual' | 'live'; bid: number; ask: number }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),

@@ -97,10 +97,11 @@ function sevRank(s: RuleSeverity): number {
   return s === 'block' ? 0 : s === 'warn' ? 1 : 2;
 }
 
-function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' {
+function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
-  return 'conservative';   // conservative_paper or live
+  if (account === 'live') return 'live';
+  return 'conservative';
 }
 
 function calcDTE(expiration: string): number {

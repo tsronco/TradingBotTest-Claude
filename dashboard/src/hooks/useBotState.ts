@@ -7,7 +7,7 @@ interface BotStateResponse {
   lastUpdate: string | null;
 }
 
-export function useBotWheelState(mode: 'conservative' | 'aggressive' | 'manual') {
+export function useBotWheelState(mode: 'conservative' | 'aggressive' | 'manual' | 'live') {
   const key = `bot:state:${mode}`;
   return useQuery({
     queryKey: ['bot-state', key],

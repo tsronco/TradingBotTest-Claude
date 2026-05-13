@@ -31,10 +31,10 @@ interface HistoryResp {
 }
 
 interface CardProps {
-  mode: 'conservative' | 'aggressive' | 'manual';
+  mode: 'conservative' | 'aggressive' | 'manual' | 'live';
   label: string;
   /** 'CONS', 'AGG', or 'MAN' — used for the data-acct-key attribute that drives the filter CSS. */
-  acctKey: 'CONS' | 'AGG' | 'MAN';
+  acctKey: 'CONS' | 'AGG' | 'MAN' | 'LIVE';
 }
 
 const STYLE_BY_KEY: Record<CardProps['acctKey'], {
@@ -44,6 +44,7 @@ const STYLE_BY_KEY: Record<CardProps['acctKey'], {
   CONS: { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail', ip: '10.0.0.1', textClass: 'text-hi',    bgClass: 'bg-hi' },
   AGG:  { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',  ip: '10.0.0.2', textClass: 'text-amber', bgClass: 'bg-amber' },
   MAN:  { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed', ip: '10.0.0.3', textClass: 'text-cyan',  bgClass: 'bg-cyan' },
+  LIVE: { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',    ip: '10.0.0.4', textClass: 'text-red',   bgClass: 'bg-red' },
 };
 
 export default function AccountCard({ mode, label, acctKey }: CardProps) {

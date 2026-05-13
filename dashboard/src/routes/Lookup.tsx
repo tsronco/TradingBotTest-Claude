@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
-import { selectModeFromAccountMode, modeToAccount, type PaperAccountId } from '../lib/account-utils';
+import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../lib/account-utils';
 import type { AccountMode } from '../hooks/useAccount';
 import QuotePanel from '../components/lookup/QuotePanel';
 import PositionContextPanel from '../components/lookup/PositionContextPanel';
@@ -16,7 +16,7 @@ import NewsPanel from '../components/lookup/NewsPanel';
 import FundamentalsPanel from '../components/lookup/FundamentalsPanel';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
-function accountForMode(mode: AccountMode): PaperAccountId {
+function accountForMode(mode: AccountMode): AnyAccountId {
   return modeToAccount(selectModeFromAccountMode(mode));
 }
 

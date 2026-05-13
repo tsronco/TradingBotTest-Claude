@@ -20,6 +20,7 @@ const acctOpts: { value: AccountMode; label: string; key: string }[] = [
   { value: 'conservative', label: 'conservative', key: 'c' },
   { value: 'aggressive', label: 'aggressive', key: 'g' },
   { value: 'manual', label: 'manual', key: 'm' },
+  { value: 'live', label: 'live $', key: 'l' },
 ];
 
 export default function Sidebar() {
@@ -70,7 +71,7 @@ export default function Sidebar() {
       <div className="mx-3 mt-2 mb-3 border border-border rounded-sm">
         <div className="px-3 py-1.5 text-[10px] tracking-[0.25em] text-dim border-b border-border flex items-center gap-2">
           <span>ACCOUNTS</span>
-          <span className="ml-auto text-hi tnum">{mode === 'both' ? '3/3' : '1/3'} ●</span>
+          <span className="ml-auto text-hi tnum">{mode === 'both' ? '4/4' : '1/4'} ●</span>
         </div>
         <div className="py-1 text-[11px]">
           {acctOpts.map((o) => {

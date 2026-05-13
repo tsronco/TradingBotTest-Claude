@@ -13,9 +13,10 @@ function toTs(iso: string): UTCTimestamp {
 
 export function TradeChart({ trade }: { trade: Trade }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const mode: 'conservative' | 'aggressive' | 'manual' =
+  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
     trade.account === 'aggressive_paper' ? 'aggressive'
     : trade.account === 'manual_paper' ? 'manual'
+    : trade.account === 'live' ? 'live'
     : 'conservative';
 
   // Pad an hour of pre-trade context so the chart is meaningful even for
