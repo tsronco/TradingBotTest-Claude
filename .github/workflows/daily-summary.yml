@@ -44,7 +44,7 @@ jobs:
           DISCORD_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
           DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
           DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode conservative
+        run: python daily_summary.py --mode conservative --reset-counters
 
       - name: Daily summary (aggressive)
         env:
@@ -54,7 +54,7 @@ jobs:
           DISCORD_AGG_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_AGG_SUMMARY_WEBHOOK }}
           DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
           DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode aggressive
+        run: python daily_summary.py --mode aggressive --reset-counters
 
       - name: Daily summary (manual)
         env:
@@ -64,7 +64,7 @@ jobs:
           DISCORD_MANUAL_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_SUMMARY_WEBHOOK }}
           DISCORD_MANUAL_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_MANUAL_ERRORS_WEBHOOK }}
           DISCORD_MANUAL_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_MANUAL_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode manual
+        run: python daily_summary.py --mode manual --reset-counters
 
       - name: Head-to-head comparison
         # Pulls both accounts' equity, premiums, etc. and posts a
@@ -89,6 +89,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add logs/ || true
+          git add wheel_state.json wheel_state_aggressive.json wheel_state_manual.json || true
           if git diff --staged --quiet; then
             echo "No log changes to commit."
           else

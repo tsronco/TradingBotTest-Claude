@@ -235,6 +235,41 @@ def _summarize_long_options(cfg: dict) -> dict:
     }
 
 
+def _reset_wheel_today_counters(cfg: dict) -> None:
+    """Zero `total_premium_today` for every symbol in the wheel state file.
+
+    Called by `run_daily_summary` when invoked with `--reset-counters` so the
+    daily counter rolls over after each end-of-day summary post. The actual
+    reset block in wheel_strategy.run_daily_summary() never fires in
+    production because the GitHub Actions workflow runs daily_summary.py,
+    not `python wheel_strategy.py summary`.
+
+    Skips underscore-prefixed top-level keys (e.g. `_meta`) and any non-dict
+    values. Handles both multi-stock (new) and legacy single-stock format.
+    Silent no-op if the state file doesn't exist.
+    """
+    state_path = ROOT / cfg["wheel_state_file"]
+    if not state_path.exists():
+        return
+
+    with open(state_path) as f:
+        state = json.load(f)
+
+    # Legacy single-stock format (top-level `stage` + counters)
+    if "stage" in state and "total_premium_today" in state:
+        state["total_premium_today"] = 0.0
+
+    # Multi-stock format (per-symbol dicts at top level)
+    for key, value in state.items():
+        if key.startswith("_") or not isinstance(value, dict):
+            continue
+        if "total_premium_today" in value:
+            value["total_premium_today"] = 0.0
+
+    with open(state_path, "w") as f:
+        json.dump(state, f, indent=2)
+
+
 def _summarize_congress() -> dict:
     """Conservative-only: read congress-copy SQLite state."""
     if not CONGRESS_STATE.exists():
@@ -267,8 +302,14 @@ def _summarize_congress() -> dict:
 # ── Per-mode daily summary ────────────────────────────────────────────────
 
 
-def run_daily_summary(mode_name: str) -> None:
-    """Post a daily summary embed for the given mode to its summary channel."""
+def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
+    """Post a daily summary embed for the given mode to its summary channel.
+
+    When `reset_counters` is True (CI/`--reset-counters` flag), zero out
+    every symbol's `total_premium_today` in the wheel state file AFTER the
+    embed has been posted, so tomorrow's "Premium today" starts from zero.
+    Local invocations omit the flag so they don't mutate state on read.
+    """
     cfg   = config.get_mode(mode_name)
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -404,6 +445,9 @@ def run_daily_summary(mode_name: str) -> None:
                       "congress":        congress,
                   })
 
+        if reset_counters:
+            _reset_wheel_today_counters(cfg)
+
     except Exception as e:
         send_embed(
             errors_ch, f"daily_summary.py crashed ({mode_name})",
@@ -521,8 +565,10 @@ def run_head_to_head() -> None:
 
 if __name__ == "__main__":
     args = sys.argv[1:]
+    reset_counters = "--reset-counters" in args
+    args = [a for a in args if a != "--reset-counters"]
     if "--head-to-head" in args:
         run_head_to_head()
     else:
         selected_mode, _remaining = config.parse_mode_arg(args)
-        run_daily_summary(selected_mode)
+        run_daily_summary(selected_mode, reset_counters=reset_counters)
