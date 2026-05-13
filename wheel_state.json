@@ -15,7 +15,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 859.0,
-    "total_premium_today": 859.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -54,7 +54,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 5.0,
-    "total_premium_today": 5.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring BAC260522P00050000: $0.94 vs entry $0.29"
@@ -72,7 +72,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 38.0,
-    "total_premium_today": 38.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -106,7 +106,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 6.0,
-    "total_premium_today": 6.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring KO260605P00070000: $0.05 vs entry $0.04",
@@ -125,7 +125,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 244.0,
-    "total_premium_today": 244.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring PLTR260522P00135000: $7.18 vs entry $3.55",
@@ -144,7 +144,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 16.0,
-    "total_premium_today": 16.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -171,7 +171,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 16.0,
-    "total_premium_today": 16.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring PFE260529P00025000: $0.15 vs entry $0.22",
@@ -190,7 +190,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 8.0,
-    "total_premium_today": 8.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -244,7 +244,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 384.0,
-    "total_premium_today": 384.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring INTC260529P00115000: $5.90 vs entry $6.65",

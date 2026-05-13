@@ -102,7 +102,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add logs/ || true
-          git add wheel_state.json wheel_state_aggressive.json wheel_state_manual.json wheel_state_live.json || true
+          # Glob wheel_state*.json so a missing live/manual file (e.g. before
+          # the first cycle on a fresh account creates it) doesn't abort.
+          git add wheel_state*.json || true
           if git diff --staged --quiet; then
             echo "No log changes to commit."
           else
@@ -113,7 +115,17 @@ jobs:
                 exit 0
               fi
               echo "Push attempt $attempt failed — rebasing and retrying"
-              git pull --rebase origin main
+              # Stash any uncommitted changes so pull --rebase can proceed.
+              # Concurrent bot workflows pushing state files to main during
+              # this step can leave the working tree dirty in subtle ways
+              # (line-ending normalization, stat-cache drift) that block
+              # rebase. Pop afterwards so committed state stays intact.
+              git stash --include-untracked --quiet || true
+              if ! git pull --rebase origin main; then
+                echo "Rebase failed on attempt $attempt"
+                git rebase --abort 2>/dev/null || true
+              fi
+              git stash pop --quiet 2>/dev/null || true
             done
             echo "Push failed after 3 attempts" >&2
             exit 1
