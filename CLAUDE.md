@@ -534,3 +534,22 @@ Lifecycle states (no explicit status field — derived from timestamps):
 - `earnings_during_hold` flag on closed trades: same — currently always false. Compute during grade-cron from cached `fundamentals-fetch.ts`
 - Final accessibility + performance audit
 - The `summary.calibration` count on `/trades` page already excludes inherited grades, but the `/trade/:id` GradePanel still shows inherited grades alongside the parent trade's calibration — UX could differentiate visually beyond just the "(grades inherited from parent)" caption
+
+### Deferred — possible v3-era settings page expansion (NOT committed)
+
+Discussed 2026-05-13, parked because the security tradeoffs feel heavier than the convenience win. Revisit later only if the friction of editing `config.py` becomes a real pain point. **Do not start without re-discussing.**
+
+The idea: move bot/dashboard config out of files and into the `/settings` page so it can be edited without opening `config.py`. Three storage tiers were considered:
+
+- **KV-backed** (Upstash): instant pickup, but adds a hard runtime dependency from bots → dashboard, no audit trail. Fine for dashboard-only prefs; weak for bot config; **unacceptable for credentials** (downgrade from GitHub Actions secrets, which are per-job isolated).
+- **GitHub API commits**: dashboard uses a PAT with `repo` write scope to commit changes to `config.py` or update repo secrets. Keeps bots' read path unchanged, gives a git audit trail, reversible via `git revert`. Cost: dashboard auth bypass = ability to push to main.
+- **Stay in files / GitHub Actions secrets** (current state): most secure, requires editor access to change.
+
+Tentative split if ever built:
+- Dashboard-only prefs (default account view, chart timeframe pref) → KV
+- Per-symbol manual/live override (turn on bot-opens-new-puts for one symbol on a manual or live account) → KV, **TOTP-gated on the live account**
+- Wheel params per mode (OTM %, DTE range, profit-close %) → KV with fallback to `config.MODES` defaults
+- Symbol lists (cons/agg), Discord webhooks, congress roster, politician sizing tiers → GitHub API commits
+- **API keys / Alpaca secrets** → stay in GitHub Actions secrets, do NOT move. Changed too rarely to justify the security downgrade.
+
+Other small ideas raised in the same conversation that don't need new architecture: Discord notification-level toggles, live deposit/withdrawal threshold (depends on the deposit-detection feature shipping first), auto-grade cron pause toggle, default Home equity timeframe, earnings-warning hard-block toggle for the wheel, chart timeframe preference on Lookup/TradeDetail.
