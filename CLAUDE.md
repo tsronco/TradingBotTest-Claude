@@ -44,8 +44,9 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │           #live-errors, #live-actions                             │
 │  Alpaca:  ALPACA_LIVE_API_KEY / ALPACA_LIVE_API_SECRET            │
 │           (live endpoint, NOT paper)                              │
-│  Dashboard push steps INTENTIONALLY OMITTED — dashboard wiring    │
-│  for live is a deferred follow-up.                                │
+│  Dashboard push steps wired (bot-state for wheel/strategy state). │
+│  Dashboard READ side: live cards populate end-to-end as of        │
+│  2026-05-13 (see "live dashboard fix" under Known quirks).        │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌─ Manual paper account ────────────────────────────────────────────┐
@@ -483,7 +484,7 @@ dashboard/
 
 ### Known quirks (worth knowing before touching the dashboard code)
 
-- **`@alpacahq/typescript-sdk@0.0.32-preview` ignores per-request `baseURL`.** Market data calls (snapshots, news, options snapshots, bars) bypass the SDK and use `alpacaData()` from `dashboard/api/_lib/data-api.ts`. The trading endpoints (account, positions, orders) use the SDK fine. The options-contracts endpoint is on the trading domain and uses `alpacaTrade()` (also bypasses SDK because the SDK strips `next_page_token`, breaking pagination). For non-GET trading calls (order placement, modify, cancel) use `alpacaTradeMutation()` — `alpacaTrade()` is GET-only.
+- **`@alpacahq/typescript-sdk@0.0.32-preview` does not honor `paper: false` for live mode** and ignores per-request `baseURL`. As of 2026-05-13, **all** dashboard Alpaca calls bypass the SDK: market data (snapshots, news, options snapshots, bars) uses `alpacaData()` from `dashboard/api/_lib/data-api.ts`; trading reads (account, positions, orders, options-contracts) use `alpacaTrade()`; trading mutations (order placement, modify, cancel) use `alpacaTradeMutation()`. The original "trading endpoints use the SDK fine" note was wrong for live — the SDK was silently routing live-mode requests to `paper-api.alpaca.markets`, which Alpaca rejected with `40110000 request is not authorized` (502 in the dashboard). Migrating to `alpacaTrade()` fixed it.
 - **TS strict-syntax rule:** `tsconfig.app.json` has `erasableSyntaxOnly: true` — no parameter properties (`constructor(public x: T)`), no enums, no value namespaces. Use explicit field declarations.
 - **Tailwind v4 syntax:** `@theme` block in CSS, not `theme()` calls. v4 also auto-detects `content` glob; explicit config still works.
 - **otplib v12** (NOT v13). v13 broke the `authenticator` namespace API.
