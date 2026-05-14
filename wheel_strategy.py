@@ -1761,12 +1761,13 @@ def _detect_spread_pairs(positions) -> dict:
     return pairs
 
 
-def _adopt_spread(state: dict, sp: SpreadPair) -> None:
+def _adopt_spread(state: dict, sp: SpreadPair) -> bool:
     """Seed state[ticker] for a discovered spread.
 
-    Idempotent: returns without touching state if the same spread is
-    already adopted (matching short_occ AND long_occ), preserving
-    cycle_count and cycle_history across cycles.
+    Idempotent: returns False without touching state if the same spread
+    is already adopted (matching short_occ AND long_occ), preserving
+    cycle_count and cycle_history across cycles. Returns True on first
+    adoption so the caller can fire a one-time notification.
     """
     existing = state.get(sp.ticker, {})
     already_adopted = (
@@ -1775,7 +1776,7 @@ def _adopt_spread(state: dict, sp: SpreadPair) -> None:
         and existing.get("long_leg",  {}).get("occ") == sp.long_occ
     )
     if already_adopted:
-        return
+        return False
 
     state[sp.ticker] = _empty_spread_state()
     sym = state[sp.ticker]
@@ -1797,6 +1798,7 @@ def _adopt_spread(state: dict, sp: SpreadPair) -> None:
         f"Adopted spread short=${sp.short_strike:.2f} "
         f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f}"
     )
+    return True
 
 
 def _discover_wheel_state(state: dict) -> set:
@@ -1822,10 +1824,13 @@ def _discover_wheel_state(state: dict) -> set:
     claimed_occs: set = set()
     for ticker, sp_list in spread_pairs.items():
         for sp in sp_list:
-            _adopt_spread(state, sp)
+            newly_adopted = _adopt_spread(state, sp)
             discovered.add(ticker)
             claimed_occs.add(sp.short_occ)
             claimed_occs.add(sp.long_occ)
+            if not newly_adopted:
+                # Already adopted on a prior cycle — don't re-announce.
+                continue
             send_embed(
                 TRADES_CH, f"Wheel: adopted spread {ticker}",
                 color=Color.BLUE,
