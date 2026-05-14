@@ -437,6 +437,95 @@ def _close_spread(state: dict, ticker: str, reason: str) -> None:
     del state[ticker]
 
 
+def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
+    """Resolve a spread half-state.
+
+    Called by handle_spread when state[ticker]["stage"] == "spread_active"
+    but Alpaca's positions show only one (or neither) leg.
+
+    Behaviors:
+      - Short missing, long present → STC the long; delete state.
+      - Long missing, short present → BTC the short; delete state.
+      - Both missing → delete state; no orders.
+      - Both present → no-op (caller should not have called this).
+    """
+    sym_state = state[ticker]
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+
+    occs_present = {p["symbol"] for p in positions
+                    if p.get("asset_class") == "us_option"}
+    short_present = short_occ in occs_present
+    long_present  = long_occ  in occs_present
+
+    if short_present and long_present:
+        return  # caller error; nothing to do here
+
+    def _mid_or_entry(occ: str, entry: float) -> float:
+        q = get_option_quote(occ)
+        if q:
+            return round((q["bid"] + q["ask"]) / 2, 2)
+        return entry
+
+    if short_present and not long_present:
+        # Long leg gone (expired alone, manually closed, etc.) — BTC the short
+        try:
+            place_buy_to_close(short_occ, _mid_or_entry(short_occ, sym_state["short_leg"]["entry_premium"]))
+            description = (
+                f"Long leg gone from Alpaca; bought-to-close remaining short "
+                f"`{short_occ}` to clean up the orphan."
+            )
+            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+                       color=Color.YELLOW, description=description,
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+                      symbol=ticker,
+                      details={"surviving_leg": "short", "occ": short_occ})
+            del state[ticker]
+        except Exception as e:
+            log(f"_handle_orphan_leg short BTC failed: {type(e).__name__}: {e}")
+            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                       color=Color.RED,
+                       description=f"BTC of {short_occ} failed: {e}. State left intact for retry.",
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+        return
+
+    if long_present and not short_present:
+        # Short leg gone (assigned overnight, etc.) — STC the long
+        try:
+            place_sell_to_close(long_occ, _mid_or_entry(long_occ, sym_state["long_leg"]["entry_premium"]))
+            description = (
+                f"Short leg gone from Alpaca; sold-to-close remaining long "
+                f"`{long_occ}` to clean up the orphan."
+            )
+            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+                       color=Color.YELLOW, description=description,
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+                      symbol=ticker,
+                      details={"surviving_leg": "long", "occ": long_occ})
+            del state[ticker]
+        except Exception as e:
+            log(f"_handle_orphan_leg long STC failed: {type(e).__name__}: {e}")
+            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                       color=Color.RED,
+                       description=f"STC of {long_occ} failed: {e}. State left intact for retry.",
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+        return
+
+    # Both missing — no orders, just clear state
+    send_embed(TRADES_CH, f"Wheel: spread {ticker} fully closed externally",
+               color=Color.YELLOW,
+               description=(
+                   f"Both legs of the spread on {ticker} are gone from Alpaca "
+                   f"(fully closed externally). State cleared; no orders placed."
+               ),
+               footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+    log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+              symbol=ticker, details={"surviving_leg": "none"})
+    del state[ticker]
+
+
 def _migrate_state(state: dict) -> dict:
     """Migrate legacy single-stock state to multi-stock format.
 

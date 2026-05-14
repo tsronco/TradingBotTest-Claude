@@ -325,3 +325,111 @@ def test_close_spread_embed_color_by_reason(monkeypatch):
         state = {"PLTR": _spread_state()}
         wheel_strategy._close_spread(state, "PLTR", reason=reason)
         assert expected_color in captured, f"reason={reason} missing color {expected_color}"
+
+
+def _stock_pos(symbol, qty):
+    return {"symbol": symbol, "asset_class": "us_equity",
+            "qty": str(qty), "avg_entry_price": "10.0"}
+
+
+def test_orphan_short_missing_closes_long(monkeypatch):
+    """Short leg gone from Alpaca, long leg still present → STC the
+    long, delete state, embed says 'short leg gone'."""
+    captured = []
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda sym, price, qty=None: captured.append(("stc", sym)) or {"id": "x"})
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda sym, price, qty=None: captured.append(("btc", sym)) or {"id": "x"})
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda sym: {"bid": 0.05, "ask": 0.07})
+    embeds = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda ch, title, **kw: embeds.append((title, kw.get("description", ""))))
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    positions = [
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option",
+         "qty": "1", "avg_entry_price": "0.11"},
+    ]
+
+    wheel_strategy._handle_orphan_leg(state, "PLTR", positions)
+
+    assert ("stc", "PLTR260619P00007000") in captured
+    assert ("btc", "PLTR260619P00008000") not in captured
+    assert "PLTR" not in state
+    assert any("short leg gone" in d.lower() for t, d in embeds)
+
+
+def test_orphan_long_missing_closes_short(monkeypatch):
+    """Long leg gone from Alpaca, short leg still present → BTC the
+    short, delete state, embed says 'long leg gone'."""
+    captured = []
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda sym, price, qty=None: captured.append(sym) or {"id": "x"})
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda sym, price, qty=None: captured.append(("BAD", sym)))
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda sym: {"bid": 0.30, "ask": 0.32})
+    embeds = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda ch, title, **kw: embeds.append((title, kw.get("description", ""))))
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    positions = [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option",
+         "qty": "-1", "avg_entry_price": "-0.33"},
+    ]
+
+    wheel_strategy._handle_orphan_leg(state, "PLTR", positions)
+
+    assert "PLTR260619P00008000" in captured
+    assert "PLTR" not in state
+    assert any("long leg gone" in d.lower() for t, d in embeds)
+
+
+def test_orphan_both_missing_clears_state(monkeypatch):
+    """Both legs gone (closed externally between cycles) → no orders,
+    delete state, embed says 'fully closed externally'."""
+    orders = []
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda *a, **kw: orders.append("btc"))
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda *a, **kw: orders.append("stc"))
+    embeds = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda ch, title, **kw: embeds.append((title, kw.get("description", ""))))
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    wheel_strategy._handle_orphan_leg(state, "PLTR", positions=[])
+
+    assert orders == []
+    assert "PLTR" not in state
+    assert any("fully closed externally" in d.lower() for t, d in embeds)
+
+
+def test_orphan_returns_early_when_both_legs_present(monkeypatch):
+    """Sanity: if both legs are still in positions, the orphan handler
+    must NOT do anything. (handle_spread is supposed to gate this, but
+    test the helper standalone.)"""
+    orders = []
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda *a, **kw: orders.append("btc"))
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda *a, **kw: orders.append("stc"))
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    positions = [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option",
+         "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option",
+         "qty": "1", "avg_entry_price": "0.11"},
+    ]
+    wheel_strategy._handle_orphan_leg(state, "PLTR", positions)
+
+    assert orders == []
+    assert "PLTR" in state, "state must not be touched when both legs present"
