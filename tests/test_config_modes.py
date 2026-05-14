@@ -307,16 +307,44 @@ def test_each_mode_channel_names_are_wired_in_discord_channel_map():
 
 def test_all_modes_declare_spread_management_flag():
     """Every mode must declare spread_management explicitly so future
-    handle_spread() logic has a deterministic toggle. Default is False —
-    enabling spread management is a deliberate future-plan decision."""
+    handle_spread() logic has a deterministic toggle. The per-mode value
+    is asserted by test_only_manual_has_spread_management_enabled below."""
     import config
     for mode_name, mode_cfg in config.MODES.items():
         assert "spread_management" in mode_cfg, (
             f"mode {mode_name} missing spread_management flag"
         )
-    # All modes default to False at this stage
+        assert isinstance(mode_cfg["spread_management"], bool), (
+            f"mode {mode_name} spread_management must be bool"
+        )
+
+
+def test_all_modes_declare_spread_thresholds():
+    """Every mode must declare the three spread management thresholds
+    consistently. Default values are: 50% early close, 50% stop loss,
+    DTE floor of 2."""
+    import config
+    expected = {
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
+    }
     for mode_name, mode_cfg in config.MODES.items():
-        assert mode_cfg["spread_management"] is False, (
-            f"mode {mode_name} should default spread_management=False until "
-            "handle_spread() ships in a follow-up plan"
+        for key, value in expected.items():
+            assert key in mode_cfg, f"mode {mode_name} missing {key}"
+            assert mode_cfg[key] == value, (
+                f"mode {mode_name} {key}={mode_cfg[key]!r}, "
+                f"expected {value!r}"
+            )
+
+
+def test_only_manual_has_spread_management_enabled():
+    """Phase 2 enables spread management on manual paper account only.
+    Other modes must keep spread_management=False until later plans
+    flip them deliberately."""
+    import config
+    assert config.MODES["manual"]["spread_management"] is True
+    for mode_name in ("conservative", "aggressive", "live"):
+        assert config.MODES[mode_name]["spread_management"] is False, (
+            f"mode {mode_name} should still have spread_management=False"
         )
