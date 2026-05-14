@@ -76,6 +76,7 @@ LOG_STREAM         = None
 MODE               = None
 WHEEL_SKIP_NEW_PUTS  = False  # manual mode: never open Stage 1 puts
 AUTO_DISCOVER_SYMBOLS = False  # manual mode: build SYMBOLS from Alpaca positions
+SPREAD_MANAGEMENT      = False  # manual mode (Phase 2): manage adopted spreads
 SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
 SPREAD_STOP_LOSS_PCT   = 0.50
 SPREAD_DTE_FLOOR       = 2
@@ -95,6 +96,7 @@ def apply_mode(mode_name: str) -> None:
     global EARLY_CLOSE_PCT, STALE_AFTER_HOURS
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
     global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
+    global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -127,6 +129,11 @@ def apply_mode(mode_name: str) -> None:
 
     WHEEL_SKIP_NEW_PUTS   = cfg.get("wheel_skip_new_puts", False)
     AUTO_DISCOVER_SYMBOLS = cfg.get("auto_discover_symbols", False)
+
+    SPREAD_MANAGEMENT      = cfg.get("spread_management", False)
+    SPREAD_EARLY_CLOSE_PCT = cfg.get("spread_early_close_pct", 0.50)
+    SPREAD_STOP_LOSS_PCT   = cfg.get("spread_stop_loss_pct", 0.50)
+    SPREAD_DTE_FLOOR       = cfg.get("spread_dte_floor", 2)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -1971,6 +1978,12 @@ def run_wheel():
                 stock_price = get_latest_price(symbol)
                 log(f"[{symbol}] ${stock_price:.2f} | Stage {sym_state['stage']} | premium ${sym_state['total_premium_collected']:.2f} | contract {sym_state.get('current_contract') or 'none'}")
 
+                if sym_state.get("stage") == "spread_active":
+                    if not SPREAD_MANAGEMENT:
+                        log(f"[{symbol}] spread_active but SPREAD_MANAGEMENT=False — skipping")
+                        continue
+                    handle_spread(state, symbol, account)
+                    continue
                 if sym_state["stage"] == 1:
                     handle_stage1(symbol, sym_state, stock_price, account)
                 elif sym_state["stage"] == 2:

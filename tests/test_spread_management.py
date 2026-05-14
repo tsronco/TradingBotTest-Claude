@@ -626,3 +626,78 @@ def test_handle_spread_profit_takes_priority_over_dte(monkeypatch):
 
     wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
     assert closes == [("PLTR", "early_close_50pct")]
+
+
+def test_apply_mode_manual_enables_spread_management():
+    """apply_mode('manual') sets SPREAD_MANAGEMENT to True and reads
+    the three threshold globals from config."""
+    import config
+    wheel_strategy.apply_mode("manual")
+    assert wheel_strategy.SPREAD_MANAGEMENT is True
+    assert wheel_strategy.SPREAD_EARLY_CLOSE_PCT == 0.50
+    assert wheel_strategy.SPREAD_STOP_LOSS_PCT == 0.50
+    assert wheel_strategy.SPREAD_DTE_FLOOR == 2
+
+
+def test_apply_mode_conservative_keeps_spread_management_off():
+    wheel_strategy.apply_mode("conservative")
+    assert wheel_strategy.SPREAD_MANAGEMENT is False
+
+
+def test_run_wheel_routes_spread_to_handle_spread(monkeypatch, tmp_path):
+    """Integration: when run_wheel sees a spread_active state entry on
+    manual mode, it calls handle_spread (and not handle_stage1/2)."""
+    import json
+    wheel_strategy.apply_mode("manual")
+    state = {"_meta": {}, "PLTR": _spread_state()}
+    state_file = tmp_path / "wheel_state_manual.json"
+    state_file.write_text(json.dumps(state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+
+    monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)
+    monkeypatch.setattr(wheel_strategy, "get_account",
+                        lambda: {"cash": "10000", "options_buying_power": "10000"})
+    # Stub auto-discovery so SYMBOLS stays as just PLTR
+    monkeypatch.setattr(wheel_strategy, "_discover_wheel_state",
+                        lambda state: {"PLTR"})
+
+    handled = []
+    monkeypatch.setattr(wheel_strategy, "handle_spread",
+                        lambda state, ticker, account: handled.append(ticker))
+    stage1_handled = []
+    stage2_handled = []
+    monkeypatch.setattr(wheel_strategy, "handle_stage1",
+                        lambda *a, **kw: stage1_handled.append(True))
+    monkeypatch.setattr(wheel_strategy, "handle_stage2",
+                        lambda *a, **kw: stage2_handled.append(True))
+
+    wheel_strategy.run_wheel()
+
+    assert handled == ["PLTR"]
+    assert stage1_handled == []
+    assert stage2_handled == []
+
+
+def test_run_wheel_with_spread_management_off_skips_spread(monkeypatch, tmp_path):
+    """If SPREAD_MANAGEMENT is False (e.g. on conservative mode), a
+    spread_active entry is left alone — log heartbeat only, no handler call."""
+    import json
+    wheel_strategy.apply_mode("conservative")
+    assert wheel_strategy.SPREAD_MANAGEMENT is False
+
+    state = {"_meta": {}, "PLTR": _spread_state()}
+    state_file = tmp_path / "wheel_state.json"
+    state_file.write_text(json.dumps(state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)
+    monkeypatch.setattr(wheel_strategy, "get_account",
+                        lambda: {"cash": "100000", "options_buying_power": "100000"})
+    monkeypatch.setattr(wheel_strategy, "_discover_wheel_state",
+                        lambda state: {"PLTR"})
+
+    handled = []
+    monkeypatch.setattr(wheel_strategy, "handle_spread",
+                        lambda state, ticker, account: handled.append(ticker))
+
+    wheel_strategy.run_wheel()
+    assert handled == [], "handle_spread must not be called when SPREAD_MANAGEMENT=False"
