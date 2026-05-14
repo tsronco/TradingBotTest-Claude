@@ -76,6 +76,10 @@ LOG_STREAM         = None
 MODE               = None
 WHEEL_SKIP_NEW_PUTS  = False  # manual mode: never open Stage 1 puts
 AUTO_DISCOVER_SYMBOLS = False  # manual mode: build SYMBOLS from Alpaca positions
+SPREAD_MANAGEMENT      = False  # manual mode (Phase 2): manage adopted spreads
+SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
+SPREAD_STOP_LOSS_PCT   = 0.50
+SPREAD_DTE_FLOOR       = 2
 
 
 def apply_mode(mode_name: str) -> None:
@@ -92,6 +96,7 @@ def apply_mode(mode_name: str) -> None:
     global EARLY_CLOSE_PCT, STALE_AFTER_HOURS
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
     global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
+    global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -124,6 +129,11 @@ def apply_mode(mode_name: str) -> None:
 
     WHEEL_SKIP_NEW_PUTS   = cfg.get("wheel_skip_new_puts", False)
     AUTO_DISCOVER_SYMBOLS = cfg.get("auto_discover_symbols", False)
+
+    SPREAD_MANAGEMENT      = cfg.get("spread_management", False)
+    SPREAD_EARLY_CLOSE_PCT = cfg.get("spread_early_close_pct", 0.50)
+    SPREAD_STOP_LOSS_PCT   = cfg.get("spread_stop_loss_pct", 0.50)
+    SPREAD_DTE_FLOOR       = cfg.get("spread_dte_floor", 2)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -217,6 +227,387 @@ def _empty_spread_state() -> dict:
         "cycle_history": [],
         "last_action": "",
     }
+
+
+# ── Spread management (Phase 2) ──────────────────────────────────────────
+
+def _compute_spread_pnl(sym_state: dict, short_mid: float, long_mid: float) -> dict:
+    """Compute spread P&L from current option mid prices.
+
+    Args:
+      sym_state: state dict with shape from _empty_spread_state, must have
+                 `net_credit` and `max_loss` populated.
+      short_mid: current mid price of the short leg (per share).
+      long_mid: current mid price of the long leg (per share).
+
+    Returns:
+      dict with keys:
+        current_value:  cost-to-close per share (short - long)
+        profit_pct:     fraction of credit captured. Positive when winning,
+                        negative when losing. 0.50 means half the credit
+                        has been captured (50% profit close trigger).
+        loss_per_share: current loss in $/share. Positive when losing,
+                        negative when winning. Compare against
+                        max_loss * stop_loss_pct for stop-out check.
+    """
+    net_credit = float(sym_state["net_credit"])
+    current_value = short_mid - long_mid
+    profit_pct = (net_credit - current_value) / net_credit if net_credit > 0 else 0.0
+    loss_per_share = current_value - net_credit
+    return {
+        "current_value": round(current_value, 4),
+        "profit_pct": round(profit_pct, 4),
+        "loss_per_share": round(loss_per_share, 4),
+    }
+
+
+def _close_spread_mleg(sym_state: dict) -> bool:
+    """Submit an Alpaca multi-leg buy-to-close order for the spread.
+
+    Returns True on success, False on any failure (rejection, network,
+    timeout). The caller (_close_spread) decides whether to fall back
+    to two individual orders.
+
+    qty is in spread units (number of spreads), not per-leg. ratio_qty
+    is the per-spread leg multiplier — always "1" for vertical spreads.
+    """
+    try:
+        short_occ = sym_state["short_leg"]["occ"]
+        long_occ  = sym_state["long_leg"]["occ"]
+        qty       = sym_state["short_leg"]["qty"]  # short and long match by definition
+        order = api_post("/orders", {
+            "order_class":   "mleg",
+            "qty":           str(qty),
+            "type":          "market",
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": short_occ, "side": "buy",  "ratio_qty": "1", "position_intent": "buy_to_close"},
+                {"symbol": long_occ,  "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_close"},
+            ],
+        })
+        log(f"Spread mleg close placed: short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')}")
+        return True
+    except Exception as e:
+        log(f"_close_spread_mleg failed: {type(e).__name__}: {e}")
+        return False
+
+
+def _close_spread_legs_individually(sym_state: dict) -> bool:
+    """Fallback close path: place two separate single-leg orders.
+
+    Order is critical:
+      1. Buy-to-close the SHORT leg first (eliminates assignment risk)
+      2. Sell-to-close the LONG leg
+
+    If step 1 fails, return False without touching state — next cycle
+    retries from handle_spread's top.
+
+    If step 1 succeeds but step 2 fails, the spread is in a half-closed
+    state: short is gone, long is orphaned. Mark short_leg.qty=0 so the
+    next cycle's _handle_orphan_leg sees "long present, short missing"
+    and closes the survivor.
+
+    Limit prices: midpoint from get_option_quote if available, otherwise
+    the entry premium as a fallback (better than no order at all).
+    """
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+    short_entry = sym_state["short_leg"]["entry_premium"]
+    long_entry  = sym_state["long_leg"]["entry_premium"]
+
+    def _mid_or_entry(occ: str, entry: float) -> float:
+        q = get_option_quote(occ)
+        if q:
+            return round((q["bid"] + q["ask"]) / 2, 2)
+        return entry
+
+    short_limit = _mid_or_entry(short_occ, short_entry)
+    long_limit  = _mid_or_entry(long_occ,  long_entry)
+
+    # Step 1: close the short leg
+    try:
+        place_buy_to_close(short_occ, short_limit)
+    except Exception as e:
+        log(f"_close_spread_legs_individually: BTC failed on {short_occ}: {type(e).__name__}: {e}")
+        send_embed(
+            ERRORS_CH, f"Spread close failed (short leg) {sym_state.get('spread_type', '?')}",
+            color=Color.RED,
+            description=(
+                f"BTC of short leg `{short_occ}` failed: {e}. "
+                f"Spread is intact; next cycle will retry."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        return False
+
+    # Step 2: close the long leg
+    try:
+        place_sell_to_close(long_occ, long_limit)
+    except Exception as e:
+        log(f"_close_spread_legs_individually: STC failed on {long_occ}: {type(e).__name__}: {e}")
+        # Half-closed: mark short as gone so orphan handler picks up the long
+        sym_state["short_leg"]["qty"] = 0
+        send_embed(
+            ERRORS_CH, f"Spread close ORPHANED",
+            color=Color.RED,
+            description=(
+                f"Short leg `{short_occ}` closed successfully, but STC of "
+                f"long leg `{long_occ}` failed: {e}. "
+                f"Next cycle's orphan handler will retry the long-leg close."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        return False
+
+    return True
+
+
+def _close_spread(state: dict, ticker: str, reason: str) -> None:
+    """Orchestrate a spread close: try mleg first, fall back to two singles.
+
+    On success:
+      - Delete state[ticker] entirely (clean removal; not preserved like
+        single-leg wheel cycles which keep cycle_history).
+      - Fire #trades embed (color depends on reason).
+      - Mirror to #actions.
+      - JSONL `spread_closed` event with reason and close details.
+
+    On failure of BOTH paths:
+      - Leave state intact (next cycle retries).
+      - Error embed already surfaced by _close_spread_legs_individually.
+
+    Reasons:
+      - "early_close_50pct" → green, "closed spread … at 50% profit"
+      - "stop_loss_50pct"   → yellow, "stopped out spread …"
+      - "dte_floor_itm"     → yellow, "closed spread … near expiration (ITM risk)"
+    """
+    sym_state = state[ticker]
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+
+    used_fallback = False
+    if _close_spread_mleg(sym_state):
+        success = True
+    else:
+        used_fallback = True
+        success = _close_spread_legs_individually(sym_state)
+
+    if not success:
+        # Error already surfaced by the fallback path; leave state alone.
+        return
+
+    # Map reason → presentation
+    title_map = {
+        "early_close_50pct": f"Wheel: closed spread {ticker} at 50% profit",
+        "stop_loss_50pct":   f"Wheel: stopped out spread {ticker}",
+        "dte_floor_itm":     f"Wheel: closed spread {ticker} near expiration (ITM risk)",
+    }
+    color_map = {
+        "early_close_50pct": Color.GREEN,
+        "stop_loss_50pct":   Color.YELLOW,
+        "dte_floor_itm":     Color.YELLOW,
+    }
+    title = title_map.get(reason, f"Wheel: closed spread {ticker}")
+    color = color_map.get(reason, Color.YELLOW)
+
+    description = (
+        f"{sym_state['spread_type'].replace('_', ' ')} on {ticker}: "
+        f"short={short_occ}, long={long_occ}, "
+        f"net_credit=${sym_state['net_credit']:.2f}, max_loss=${sym_state['max_loss']:.2f}."
+    )
+    footer = f"wheel_strategy.py · {MODE}"
+    send_embed(TRADES_CH, title, color=color, description=description,
+               footer=footer, actions_channel=ACTIONS_CH)
+
+    if used_fallback:
+        send_embed(
+            ACTIONS_CH, f"Spread close used fallback path ({ticker})",
+            color=Color.BLUE,
+            description=(
+                f"mleg order was rejected; used fallback path and closed "
+                f"legs individually. Spread on {ticker} is fully closed."
+            ),
+            footer=footer,
+        )
+
+    log_event(LOG_STREAM, "wheel_strategy.py", "spread_closed",
+              symbol=ticker,
+              details={
+                  "reason": reason,
+                  "spread_type": sym_state["spread_type"],
+                  "short_occ": short_occ,
+                  "long_occ":  long_occ,
+                  "net_credit": sym_state["net_credit"],
+                  "max_loss": sym_state["max_loss"],
+                  "fallback_used": used_fallback,
+              })
+
+    del state[ticker]
+
+
+def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
+    """Resolve a spread half-state.
+
+    Called by handle_spread when state[ticker]["stage"] == "spread_active"
+    but Alpaca's positions show only one (or neither) leg.
+
+    Behaviors:
+      - Short missing, long present → STC the long; delete state.
+      - Long missing, short present → BTC the short; delete state.
+      - Both missing → delete state; no orders.
+      - Both present → no-op (caller should not have called this).
+    """
+    sym_state = state[ticker]
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+
+    occs_present = {p["symbol"] for p in positions
+                    if p.get("asset_class") == "us_option"}
+    short_present = short_occ in occs_present
+    long_present  = long_occ  in occs_present
+
+    if short_present and long_present:
+        return  # caller error; nothing to do here
+
+    def _mid_or_entry(occ: str, entry: float) -> float:
+        q = get_option_quote(occ)
+        if q:
+            return round((q["bid"] + q["ask"]) / 2, 2)
+        return entry
+
+    if short_present and not long_present:
+        # Long leg gone (expired alone, manually closed, etc.) — BTC the short
+        try:
+            place_buy_to_close(short_occ, _mid_or_entry(short_occ, sym_state["short_leg"]["entry_premium"]))
+            description = (
+                f"Long leg gone from Alpaca; bought-to-close remaining short "
+                f"`{short_occ}` to clean up the orphan."
+            )
+            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+                       color=Color.YELLOW, description=description,
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+                      symbol=ticker,
+                      details={"surviving_leg": "short", "occ": short_occ})
+            del state[ticker]
+        except Exception as e:
+            log(f"_handle_orphan_leg short BTC failed: {type(e).__name__}: {e}")
+            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                       color=Color.RED,
+                       description=f"BTC of {short_occ} failed: {e}. State left intact for retry.",
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+        return
+
+    if long_present and not short_present:
+        # Short leg gone (assigned overnight, etc.) — STC the long
+        try:
+            place_sell_to_close(long_occ, _mid_or_entry(long_occ, sym_state["long_leg"]["entry_premium"]))
+            description = (
+                f"Short leg gone from Alpaca; sold-to-close remaining long "
+                f"`{long_occ}` to clean up the orphan."
+            )
+            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+                       color=Color.YELLOW, description=description,
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+                      symbol=ticker,
+                      details={"surviving_leg": "long", "occ": long_occ})
+            del state[ticker]
+        except Exception as e:
+            log(f"_handle_orphan_leg long STC failed: {type(e).__name__}: {e}")
+            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                       color=Color.RED,
+                       description=f"STC of {long_occ} failed: {e}. State left intact for retry.",
+                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+        return
+
+    # Both missing — no orders, just clear state
+    send_embed(TRADES_CH, f"Wheel: spread {ticker} fully closed externally",
+               color=Color.YELLOW,
+               description=(
+                   f"Both legs of the spread on {ticker} are gone from Alpaca "
+                   f"(fully closed externally). State cleared; no orders placed."
+               ),
+               footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+    log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
+              symbol=ticker, details={"surviving_leg": "none"})
+    del state[ticker]
+
+
+def handle_spread(state: dict, ticker: str, account: dict) -> None:
+    """Per-cycle decision function for an active spread.
+
+    Mirror of handle_stage1 / handle_stage2. Called by run_wheel when
+    state[ticker]["stage"] == "spread_active" and SPREAD_MANAGEMENT is True.
+
+    Decision order (first trigger wins):
+      1. Both legs gone or only one present → _handle_orphan_leg → return
+      2. profit_pct >= early_close_pct       → _close_spread early_close_50pct
+      3. loss >= max_loss * stop_loss_pct    → _close_spread stop_loss_50pct
+      4. DTE <= dte_floor AND short leg ITM  → _close_spread dte_floor_itm
+      5. otherwise                           → log heartbeat, no state change
+    """
+    sym_state = state[ticker]
+    positions = get_positions()
+
+    # 1. Orphan detection — before any snapshot fetch
+    occs_present = {p["symbol"] for p in positions
+                    if p.get("asset_class") == "us_option"}
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+    if not (short_occ in occs_present and long_occ in occs_present):
+        _handle_orphan_leg(state, ticker, positions)
+        return
+
+    # 2-4. Fetch current snapshots
+    short_q = get_option_quote(short_occ)
+    long_q  = get_option_quote(long_occ)
+    if not short_q or not long_q:
+        log(f"[{ticker}] spread heartbeat — missing quote, skipping cycle")
+        return
+    short_mid = round((short_q["bid"] + short_q["ask"]) / 2, 4)
+    long_mid  = round((long_q["bid"]  + long_q["ask"])  / 2, 4)
+
+    pnl = _compute_spread_pnl(sym_state, short_mid, long_mid)
+    max_loss = float(sym_state["max_loss"])
+
+    # 2. Profit trigger
+    if pnl["profit_pct"] >= SPREAD_EARLY_CLOSE_PCT:
+        log(f"[{ticker}] spread profit_pct={pnl['profit_pct']:.2%} >= "
+            f"{SPREAD_EARLY_CLOSE_PCT:.0%} — closing at profit")
+        _close_spread(state, ticker, reason="early_close_50pct")
+        return
+
+    # 3. Stop loss trigger
+    if pnl["loss_per_share"] >= max_loss * SPREAD_STOP_LOSS_PCT:
+        log(f"[{ticker}] spread loss=${pnl['loss_per_share']:.2f} >= "
+            f"{SPREAD_STOP_LOSS_PCT:.0%} of max_loss=${max_loss:.2f} — stopping out")
+        _close_spread(state, ticker, reason="stop_loss_50pct")
+        return
+
+    # 4. DTE floor with ITM check
+    from datetime import date as _date
+    expiry = _date.fromisoformat(sym_state["expiration"])
+    days_to_expiry = (expiry - _date.today()).days
+    if days_to_expiry <= SPREAD_DTE_FLOOR:
+        short_strike = float(sym_state["short_leg"]["strike"])
+        stock_price = get_latest_price(ticker)
+        spread_type = sym_state["spread_type"]
+        short_itm = (
+            (spread_type == "put_credit"  and stock_price < short_strike) or
+            (spread_type == "call_credit" and stock_price > short_strike)
+        )
+        if short_itm:
+            log(f"[{ticker}] spread DTE={days_to_expiry} <= floor AND short leg ITM "
+                f"(stock=${stock_price:.2f}, short_strike=${short_strike:.2f}) — closing")
+            _close_spread(state, ticker, reason="dte_floor_itm")
+            return
+
+    # 5. Hold heartbeat
+    log(f"[{ticker}] spread holding — profit {pnl['profit_pct']:.1%}, "
+        f"loss ${pnl['loss_per_share']:.2f}, DTE {days_to_expiry}")
 
 
 def _migrate_state(state: dict) -> dict:
@@ -501,6 +892,43 @@ def place_buy_to_close(option_symbol, limit_price, qty=None):
         "position_intent": "buy_to_close",
     })
     log(f"Buy-to-close placed: {option_symbol} qty={qty} @ ${limit_price:.2f} — order {order['id']}")
+    return order
+
+
+def place_sell_to_close(option_symbol, limit_price, qty=None):
+    """Sell-to-close a long option position.
+
+    Mirror of place_buy_to_close — used to close the long hedge leg of a
+    credit spread when the fallback close path runs (mleg rejected or
+    orphan-leg recovery).
+
+    qty: number of contracts to close. If None (default), looks up the
+    actual long position size on Alpaca and closes ALL of it.
+
+    Limit price is set slightly BELOW mid (subtract 0.05) to ensure a
+    quick fill — symmetric to place_buy_to_close's "add 0.05" tactic.
+    """
+    if qty is None:
+        pos = get_option_position(option_symbol)
+        if pos is None:
+            log(f"place_sell_to_close: no Alpaca position for {option_symbol} — skipping")
+            return None
+        qty = abs(int(float(pos.get("qty", 0))))
+        if qty == 0:
+            log(f"place_sell_to_close: position qty=0 for {option_symbol} — skipping")
+            return None
+
+    aggressive_limit = round(max(0.01, limit_price - 0.05), 2)
+    order = api_post("/orders", {
+        "symbol":          option_symbol,
+        "qty":             str(qty),
+        "side":            "sell",
+        "type":            "limit",
+        "limit_price":     str(aggressive_limit),
+        "time_in_force":   "day",
+        "position_intent": "sell_to_close",
+    })
+    log(f"Sell-to-close placed: {option_symbol} qty={qty} @ ${aggressive_limit:.2f} — order {order['id']}")
     return order
 
 
@@ -1245,8 +1673,8 @@ def _detect_spread_pairs(positions) -> dict:
     matches a credit-spread shape.
 
     If multiple shorts or longs exist on the same underlying/expiry/type
-    (e.g., a butterfly or a stack of two spreads), only the first
-    short+long pair with matching qty is consumed; remaining legs are
+    (e.g., a bare CSP plus a real spread at the same expiry), the
+    narrowest-width valid pair wins; remaining unpaired legs are
     returned to single-leg adoption by _discover_wheel_state.
     """
     by_key: dict = {}
@@ -1283,46 +1711,53 @@ def _detect_spread_pairs(positions) -> dict:
         longs  = bucket["longs"]
         if not shorts or not longs:
             continue
-        # Greedy pair: match each short with the long whose strike forms
-        # a credit spread (long below short strike for puts, above for calls)
-        # and whose qty matches. First match wins per short.
+        # Enumerate every valid (short, long) candidate pair, then claim
+        # narrowest-width first. This handles the case where the user
+        # holds a bare CSP and a real spread at the same expiry: the
+        # narrower pair is the real spread, and the wider "phantom" pair
+        # is rejected so the leftover short falls to single-leg adoption.
+        candidates = []
         for s in shorts:
             for l in longs:
-                if l.get("_paired"):
-                    continue
                 if l["qty"] != s["qty"]:
                     continue
                 if opt_type == "put":
                     if not (l["strike"] < s["strike"]):
                         continue
-                    spread_type = "put_credit"
                 else:  # call
                     if not (l["strike"] > s["strike"]):
                         continue
-                    spread_type = "call_credit"
                 width = abs(s["strike"] - l["strike"])
-                net_credit = round(s["entry"] - l["entry"], 4)
-                max_loss = round(width - net_credit, 4)
-                sp = SpreadPair(
-                    ticker=ticker,
-                    spread_type=spread_type,
-                    short_occ=s["occ"],
-                    long_occ=l["occ"],
-                    short_strike=s["strike"],
-                    long_strike=l["strike"],
-                    expiration=expiry,
-                    short_qty=s["qty"],
-                    long_qty=l["qty"],
-                    short_entry=s["entry"],
-                    long_entry=l["entry"],
-                    width=width,
-                    net_credit=net_credit,
-                    max_loss=max_loss,
-                )
-                pairs.setdefault(ticker, []).append(sp)
-                l["_paired"] = True
-                s["_paired"] = True
-                break
+                candidates.append((width, s, l))
+
+        # Sort by width ascending so narrowest-pair wins
+        candidates.sort(key=lambda c: c[0])
+
+        for width, s, l in candidates:
+            if s.get("_paired") or l.get("_paired"):
+                continue
+            spread_type = "put_credit" if opt_type == "put" else "call_credit"
+            net_credit = round(s["entry"] - l["entry"], 4)
+            max_loss = round(width - net_credit, 4)
+            sp = SpreadPair(
+                ticker=ticker,
+                spread_type=spread_type,
+                short_occ=s["occ"],
+                long_occ=l["occ"],
+                short_strike=s["strike"],
+                long_strike=l["strike"],
+                expiration=expiry,
+                short_qty=s["qty"],
+                long_qty=l["qty"],
+                short_entry=s["entry"],
+                long_entry=l["entry"],
+                width=width,
+                net_credit=net_credit,
+                max_loss=max_loss,
+            )
+            pairs.setdefault(ticker, []).append(sp)
+            s["_paired"] = True
+            l["_paired"] = True
     return pairs
 
 
@@ -1543,6 +1978,12 @@ def run_wheel():
                 stock_price = get_latest_price(symbol)
                 log(f"[{symbol}] ${stock_price:.2f} | Stage {sym_state['stage']} | premium ${sym_state['total_premium_collected']:.2f} | contract {sym_state.get('current_contract') or 'none'}")
 
+                if sym_state.get("stage") == "spread_active":
+                    if not SPREAD_MANAGEMENT:
+                        log(f"[{symbol}] spread_active but SPREAD_MANAGEMENT=False — skipping")
+                        continue
+                    handle_spread(state, symbol, account)
+                    continue
                 if sym_state["stage"] == 1:
                     handle_stage1(symbol, sym_state, stock_price, account)
                 elif sym_state["stage"] == 2:

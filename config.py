@@ -128,9 +128,13 @@ MODES = {
         "wheel_state_file":     "wheel_state.json",
         "strategy_state_file":  "strategy_state.json",
 
-        # Behaviour flags — stub for a future plan. handle_spread() does not
-        # exist yet; detection logging runs unconditionally.
-        "spread_management":   False,
+        # Spread management — gated off here; see manual mode (the only
+        # account where this is True). Threshold keys preserved so apply_mode
+        # reads succeed and so flipping to True is a one-line change.
+        "spread_management":      False,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
 
         # Wheel parameters
         "wheel_symbols":       CONSERVATIVE_SYMBOLS,
@@ -172,8 +176,11 @@ MODES = {
         "wheel_state_file":     "wheel_state_aggressive.json",
         "strategy_state_file":  "strategy_state_aggressive.json",
 
-        # Behaviour flags — stub for a future plan.
-        "spread_management":   False,
+        # Spread management — gated off here; see manual mode.
+        "spread_management":      False,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
 
         "wheel_symbols":       AGGRESSIVE_SYMBOLS,
         "put_strike_pct":      0.05,
@@ -219,8 +226,13 @@ MODES = {
         # covered call sales.
         "wheel_skip_new_puts": True,
 
-        # Stub for a future plan — handle_spread() does not exist yet.
-        "spread_management":   False,
+        # Spread management is enabled on the manual paper account so the
+        # bot manages user-opened credit/debit spreads (early close + stop
+        # loss + DTE floor). Conservative/aggressive/live stay False.
+        "spread_management":      True,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
 
         # Wheel parameters mirror conservative — used for the 50% close on
         # existing puts and for pricing the covered call when an assignment
@@ -269,8 +281,12 @@ MODES = {
         # covered calls on assignment, same as manual mode.
         "wheel_skip_new_puts": True,
 
-        # Stub for a future plan — handle_spread() does not exist yet.
-        "spread_management":   False,
+        # Spread management — gated off on live for now. Future plan flips
+        # this on after at least two weeks of manual paper validation.
+        "spread_management":      False,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
 
         # Wheel parameters mirror conservative/manual — used for the 50% close
         # on existing puts and for pricing the covered call when an assignment
