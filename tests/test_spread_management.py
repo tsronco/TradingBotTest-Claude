@@ -657,6 +657,7 @@ def test_run_wheel_routes_spread_to_handle_spread(monkeypatch, tmp_path):
     monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)
     monkeypatch.setattr(wheel_strategy, "get_account",
                         lambda: {"cash": "10000", "options_buying_power": "10000"})
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
     # Stub auto-discovery so SYMBOLS stays as just PLTR
     monkeypatch.setattr(wheel_strategy, "_discover_wheel_state",
                         lambda state: {"PLTR"})
@@ -692,6 +693,7 @@ def test_run_wheel_with_spread_management_off_skips_spread(monkeypatch, tmp_path
     monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)
     monkeypatch.setattr(wheel_strategy, "get_account",
                         lambda: {"cash": "100000", "options_buying_power": "100000"})
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
     monkeypatch.setattr(wheel_strategy, "_discover_wheel_state",
                         lambda state: {"PLTR"})
 
