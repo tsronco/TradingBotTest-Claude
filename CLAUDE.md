@@ -289,6 +289,11 @@ Manual mode runs the same `strategy.py`, `wheel_strategy.py`, and `long_options_
 - Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`).
 - Dashboard `rule-check.ts` ignores `stage: "spread_active"` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
 
+**Known limitations to be aware of:**
+- **Daily summary table will misalign** the first time a real spread is open — the format string `{info['stage']:<5}` is a *minimum* width and `"spread_active"` is 13 chars. Won't crash, but column alignment breaks. Cosmetic; fix when adding the spread summary section.
+- **Orphan half-state**: if you manually close ONE leg of an adopted spread via the Alpaca web UI between cycles, the other leg sits in `wheel_state` as `spread_active` but no logic actively manages it. The long leg is still protected from `long_options_strategy` via the skip guard, but the wheel won't trigger anything either. Resolution: manually edit `wheel_state_<mode>.json` to remove the entry, or wait for `handle_spread()` to land and add orphan-detection.
+- **Spread won't be detected if leg qtys don't match exactly**: e.g., 2× short put + two separate 1× long puts at the same strike (split fill) — the detector requires `short_qty == long_qty` and falls through to single-leg adoption. If you see "expected a spread, got a Stage 1 short put" in Discord, check the qty geometry on Alpaca.
+
 Tracking plan: [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md).
 
 ### Congress copy — `congress-copy/`
