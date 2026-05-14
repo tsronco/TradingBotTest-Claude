@@ -72,3 +72,52 @@ def test_compute_spread_pnl_max_loss_floor():
     result = wheel_strategy._compute_spread_pnl(sym_state, short_mid=1.50, long_mid=0.50)
     assert result["current_value"] == pytest.approx(1.00)
     assert result["loss_per_share"] == pytest.approx(0.78)
+
+
+def test_place_sell_to_close_calls_alpaca_with_correct_payload(monkeypatch):
+    captured = {}
+    def fake_api_post(path, body):
+        captured["path"] = path
+        captured["body"] = body
+        return {"id": "test-order-123", "symbol": body["symbol"]}
+    monkeypatch.setattr(wheel_strategy, "api_post", fake_api_post)
+
+    result = wheel_strategy.place_sell_to_close("PLTR260619P00007000", 0.10, qty=1)
+
+    assert captured["path"] == "/orders"
+    assert captured["body"]["symbol"] == "PLTR260619P00007000"
+    assert captured["body"]["qty"] == "1"
+    assert captured["body"]["side"] == "sell"
+    assert captured["body"]["type"] == "limit"
+    assert captured["body"]["position_intent"] == "sell_to_close"
+    assert captured["body"]["time_in_force"] == "day"
+    # Limit price should be slightly below mid to ensure fill — mirrors
+    # place_buy_to_close which adds 0.05 above mid for the same reason.
+    limit = float(captured["body"]["limit_price"])
+    assert 0.04 <= limit <= 0.06  # mid 0.10, "slightly aggressive" subtraction
+    assert result["id"] == "test-order-123"
+
+
+def test_place_sell_to_close_auto_lookup_qty(monkeypatch):
+    """When qty=None, the helper looks up the actual long position size."""
+    monkeypatch.setattr(wheel_strategy, "get_option_position",
+                        lambda sym: {"symbol": sym, "qty": "2"})
+    captured = {}
+    monkeypatch.setattr(wheel_strategy, "api_post",
+                        lambda path, body: captured.update(body) or {"id": "x"})
+
+    wheel_strategy.place_sell_to_close("PLTR260619P00007000", 0.10)
+    assert captured["qty"] == "2"
+
+
+def test_place_sell_to_close_skips_when_no_position(monkeypatch):
+    """If Alpaca shows no position, the helper logs and returns None
+    without placing an order."""
+    monkeypatch.setattr(wheel_strategy, "get_option_position", lambda sym: None)
+    placed = []
+    monkeypatch.setattr(wheel_strategy, "api_post",
+                        lambda path, body: placed.append(body))
+
+    result = wheel_strategy.place_sell_to_close("PLTR260619P00007000", 0.10)
+    assert result is None
+    assert placed == []
