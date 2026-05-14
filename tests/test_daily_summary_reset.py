@@ -171,7 +171,7 @@ def _stub_summary_dependencies(monkeypatch):
     monkeypatch.setattr(daily_summary, "_summarize_wheel",
                         lambda cfg: {"available": False})
     monkeypatch.setattr(daily_summary, "_summarize_long_options",
-                        lambda cfg: {"available": False, "count": 0})
+                        lambda cfg, exclude_occs=None: {"available": False, "count": 0})
     monkeypatch.setattr(daily_summary, "_summarize_held_stocks",
                         lambda cfg, tracked: {"available": False, "count": 0})
     monkeypatch.setattr(daily_summary, "_summarize_congress",
