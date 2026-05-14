@@ -166,8 +166,6 @@ def _stub_summary_dependencies(monkeypatch):
     exercise the reset_counters branch without hitting Alpaca/Discord/disk."""
     monkeypatch.setattr(daily_summary, "_get_account",
                         lambda cfg: {"cash": "0", "portfolio_value": "0", "equity": "0"})
-    monkeypatch.setattr(daily_summary, "_get_latest_price",
-                        lambda *a, **kw: 100.0)
     monkeypatch.setattr(daily_summary, "_summarize_strategy",
                         lambda cfg: {"available": False})
     monkeypatch.setattr(daily_summary, "_summarize_wheel",

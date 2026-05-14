@@ -38,8 +38,7 @@ from notifications import send_embed, log_event, Color
 
 load_dotenv()
 
-DATA_URL = "https://data.alpaca.markets/v2"
-ROOT     = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent
 
 # Conservative-only: congress-copy lives next to this script
 CONGRESS_STATE = ROOT / "congress-copy" / "data" / "state.db"
@@ -70,23 +69,6 @@ def _get_positions(cfg: dict) -> list[dict]:
     resp = requests.get(f"{_base_url_for(cfg)}/positions", headers=_headers_for(cfg), timeout=10)
     resp.raise_for_status()
     return resp.json()
-
-
-def _get_latest_price(symbol: str, cfg: dict | None = None):
-    """Fetch latest stock price. cfg optional — any account's data feed works."""
-    if cfg is None:
-        cfg = config.MODES["conservative"]
-    try:
-        resp = requests.get(
-            f"{DATA_URL}/stocks/{symbol}/trades/latest",
-            headers=_headers_for(cfg),
-            params={"feed": "iex"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return float(resp.json()["trade"]["p"])
-    except Exception:
-        return None
 
 
 # ── State summarizers (per mode) ──────────────────────────────────────────
@@ -383,8 +365,10 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
     embed has been posted, so tomorrow's "Premium today" starts from zero.
     Local invocations omit the flag so they don't mutate state on read.
     """
-    cfg   = config.get_mode(mode_name)
-    today = datetime.now().strftime("%Y-%m-%d")
+    cfg          = config.get_mode(mode_name)
+    now          = datetime.now()
+    today        = now.strftime("%Y-%m-%d")        # ISO — used in log_event details
+    today_pretty = now.strftime("%m/%d/%Y")        # American MM/DD/YYYY — shown in Discord
 
     summary_ch = cfg["summary_channel"]
     errors_ch  = cfg["errors_channel"]
@@ -393,7 +377,6 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
 
     try:
         account    = _get_account(cfg)
-        tsla_price = _get_latest_price("TSLA", cfg)
         strategy   = _summarize_strategy(cfg)
         wheel      = _summarize_wheel(cfg)
         long_opts  = _summarize_long_options(cfg)
@@ -404,11 +387,10 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         portfolio = float(account["portfolio_value"])
         equity    = float(account.get("equity", portfolio))
 
-        title = f"Daily Trading Summary ({mode_name}) — {today}"
+        title = f"Daily Trading Summary ({mode_name}) — {today_pretty}"
 
         fields = [
             {"name": "Mode",            "value": mode_name,                                         "inline": True},
-            {"name": "TSLA price",      "value": f"${tsla_price:.2f}" if tsla_price else "—",       "inline": True},
             {"name": "Portfolio value", "value": f"${portfolio:,.2f}",                              "inline": True},
             {"name": "Equity",          "value": f"${equity:,.2f}",                                 "inline": True},
             {"name": "Cash",            "value": f"${cash:,.2f}",                                   "inline": True},
@@ -458,8 +440,8 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                 })
             else:
                 fields.append({
-                    "name":  "Held Stocks (ground truth)",
-                    "value": "✅ All stocks tracked by bot",
+                    "name":  "Held Stocks",
+                    "value": "✅ All stocks tracked",
                     "inline": False,
                 })
 
@@ -531,7 +513,6 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                   details={
                       "date":            today,
                       "mode":            mode_name,
-                      "tsla_price":      tsla_price,
                       "portfolio_value": portfolio,
                       "equity":          equity,
                       "cash":            cash,
@@ -586,7 +567,9 @@ def _format_money(n: float) -> str:
 def run_head_to_head() -> None:
     """Read both accounts and post a side-by-side comparison embed to BOTH
     summary channels so each side sees the race."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    now          = datetime.now()
+    today        = now.strftime("%Y-%m-%d")        # ISO — used in log_event details
+    today_pretty = now.strftime("%m/%d/%Y")        # American MM/DD/YYYY — shown in Discord
     try:
         cons = _snapshot(config.MODES["conservative"])
         aggr = _snapshot(config.MODES["aggressive"])
@@ -624,7 +607,7 @@ def run_head_to_head() -> None:
             ("aggressive-summary", "agg_summary"),
         ):
             send_embed(
-                ch_value, f"Head-to-Head — {today}",
+                ch_value, f"Head-to-Head — {today_pretty}",
                 color=Color.BLUE,
                 description=description,
                 footer="daily_summary.py · head-to-head",
