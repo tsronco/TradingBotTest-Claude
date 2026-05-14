@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-14T15:31:27.850545Z"
+    "last_checked": "2026-05-14T15:41:26.444288Z"
   },
   "F": {
     "stage": 1,
@@ -64,5 +64,24 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Adopted spread short=$12.50 long=$11.50 credit=$0.25"
+  },
+  "NVTS": {
+    "stage": 1,
+    "current_contract": "NVTS260605P00020500",
+    "contract_order_id": null,
+    "contract_entry_price": 2.12,
+    "contract_entry_date": "2026-05-14T15:41:25.335137Z",
+    "contract_expiration": "2026-06-05",
+    "contract_type": "put",
+    "contract_strike": 20.5,
+    "contract_qty": 2,
+    "cost_basis_per_share": null,
+    "shares_qty": 0,
+    "total_cost": null,
+    "total_premium_collected": 0.0,
+    "total_premium_today": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Monitoring NVTS260605P00020500: $1.98 vs entry $2.12"
   }
 }
