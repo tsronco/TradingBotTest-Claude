@@ -35,6 +35,7 @@ import os
 import json
 import time
 import requests
+from dataclasses import dataclass
 from datetime import datetime, timedelta, date, timezone
 from dotenv import load_dotenv
 
@@ -156,6 +157,62 @@ def _empty_symbol_state() -> dict:
         "total_cost": None,
         "total_premium_collected": 0.0,
         "total_premium_today": 0.0,
+        "cycle_count": 0,
+        "cycle_history": [],
+        "last_action": "",
+    }
+
+
+# ── Spread support (Phase 1: detection + state schema only) ────────────
+# Future work: handle_spread() management logic, daily summary section,
+# dashboard order form, live-mode wiring. See
+# docs/superpowers/plans/2026-05-14-spread-detection-foundation.md.
+
+@dataclass(frozen=True)
+class SpreadPair:
+    """Two paired option legs identified at discovery time.
+
+    Identified by: same ticker, same expiration, same option type
+    (both puts or both calls), opposite sides (one short one long).
+    Strike geometry determines spread direction:
+      - put_credit:  short_strike > long_strike  (bullish)
+      - call_credit: short_strike < long_strike  (bearish)
+
+    Debit spreads (long strike inside short strike) are NOT detected here —
+    they're a different strategy and out of scope for this plan.
+    """
+    ticker: str
+    spread_type: str
+    short_occ: str
+    long_occ: str
+    short_strike: float
+    long_strike: float
+    expiration: date
+    short_qty: int
+    long_qty: int
+    short_entry: float
+    long_entry: float
+    width: float
+    net_credit: float
+    max_loss: float
+
+
+def _empty_spread_state() -> dict:
+    """Fresh state for a symbol whose wheel position is a spread, not single-leg."""
+    return {
+        # Intentional string sentinel — spread state is a separate FSM from
+        # single-leg wheel stages (1=CSP, 2=CC). Comparisons against 1 or 2
+        # naturally won't match.
+        "stage": "spread_active",
+        "spread_type": None,
+        "short_leg": {"occ": None, "strike": None, "entry_premium": None, "qty": 0},
+        "long_leg":  {"occ": None, "strike": None, "entry_premium": None, "qty": 0},
+        "expiration": None,
+        "net_credit": None,
+        "max_loss": None,
+        "width": None,
+        "opened_at": None,
+        "total_premium_collected": 0.0,
         "cycle_count": 0,
         "cycle_history": [],
         "last_action": "",
