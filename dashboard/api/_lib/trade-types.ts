@@ -55,6 +55,24 @@ export interface ModifyEvent {
   source: 'dashboard' | 'backfill';
 }
 
+export interface SpreadLeg {
+  occ: string;
+  strike: number;
+  entry_premium: number | null;   // null until fill
+  fill_price: number | null;      // null until fill; populated by syncFillData
+  qty: number;
+}
+
+export interface SpreadDetails {
+  spread_type: 'put_credit';      // call_credit / debit added later
+  short_leg: SpreadLeg;
+  long_leg: SpreadLeg;
+  expiration: string;             // ISO date "2026-05-29"
+  width: number;                  // |short_strike - long_strike|
+  net_credit: number;             // updated from order target to actual on fill
+  max_loss: number;               // width - net_credit
+}
+
 export interface Trade {
   id: string;
   account: AccountId;
@@ -91,6 +109,7 @@ export interface Trade {
   schema: 1;
   parent_id?: string;
   source?: 'manual' | 'assignment';
+  spread?: SpreadDetails;
   ai_grade_inherited?: boolean;
 }
 
