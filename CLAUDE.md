@@ -303,9 +303,11 @@ Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, 
 - Daily summary table will still misalign for `spread_active` rows (cosmetic, no crash).
 - Split-fill long legs (`short_qty != long_qty`) won't pair — falls through to single-leg adoption.
 
+**Live validation in progress.** First real spread adopted on manual paper 2026-05-14: AAL $12.50/$11.50 put credit, 5/29 expiry, $0.25 net credit, $75 max loss. Adoption embed fired cleanly in `#manual-trades`. Bot is now silently managing it — heartbeat each cycle, will fire a close embed at 50% profit, 50% max loss, or DTE ≤2 with short ITM. Target validation window before considering live enablement: ~2 weeks of real adoption + at least one full close cycle on paper.
+
 Tracking plans:
 - Phase 1 (foundation): [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md) (merged in [PR #9](https://github.com/tsronco/TradingBotTest-Claude/pull/9))
-- Phase 2 (management): [2026-05-14-spread-management.md](docs/superpowers/plans/2026-05-14-spread-management.md)
+- Phase 2 (management): [2026-05-14-spread-management.md](docs/superpowers/plans/2026-05-14-spread-management.md) (merged in [PR #11](https://github.com/tsronco/TradingBotTest-Claude/pull/11))
 - Spec: [2026-05-14-spread-management-design.md](docs/superpowers/specs/2026-05-14-spread-management-design.md)
 
 ### Congress copy — `congress-copy/`
