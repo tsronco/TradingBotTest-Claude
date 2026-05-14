@@ -277,6 +277,20 @@ Manual mode runs the same `strategy.py`, `wheel_strategy.py`, and `long_options_
 
 **Closed positions are pruned:** if a symbol disappears from Alpaca and the bot's stored qty is 0, it's removed from state on the next cycle.
 
+### Spread detection (foundation only — no management yet)
+
+`wheel_strategy.py` recognizes put credit spreads and call credit spreads at discovery time by pairing short+long option legs that share underlying, expiration, and option type. Paired legs are adopted into a dedicated `stage: "spread_active"` state shape with `short_leg` and `long_leg` blocks. `long_options_strategy.py` consults the wheel state file each cycle and skips any long option whose OCC is claimed by a spread — preventing the hedge from being sold independently. Detection runs unconditionally in every mode (it's purely defensive); opening flow is still gated by future work.
+
+**What's NOT yet implemented:**
+- `handle_spread()` management logic (early-close at 50% credit, stop-loss at 50% max loss, DTE-floor close on assignment risk). Spreads currently sit in state untouched until the next plan ships.
+- Daily summary section for open spreads.
+- Live-mode wiring — `spread_management: False` on every mode, including live.
+- Dashboard order form for opening multi-leg spreads through Alpaca's `mleg` order class.
+- Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`).
+- Dashboard `rule-check.ts` ignores `stage: "spread_active"` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
+
+Tracking plan: [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md).
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)
