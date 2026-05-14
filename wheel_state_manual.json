@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-14T14:11:28.869701Z"
+    "last_checked": "2026-05-14T14:21:35.343790Z"
   },
   "F": {
     "stage": 1,
@@ -39,5 +39,30 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring SNAP260515P00007500: $1.97 vs entry $1.80"
+  },
+  "AAL": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "AAL260529P00012500",
+      "strike": 12.5,
+      "entry_premium": 0.37,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "AAL260529P00011500",
+      "strike": 11.5,
+      "entry_premium": 0.12,
+      "qty": 1
+    },
+    "expiration": "2026-05-29",
+    "net_credit": 0.25,
+    "max_loss": 0.75,
+    "width": 1.0,
+    "opened_at": "2026-05-14T14:21:33.510770Z",
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Adopted spread short=$12.50 long=$11.50 credit=$0.25"
   }
 }
