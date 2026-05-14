@@ -53,3 +53,50 @@ def test_empty_spread_state_has_expected_keys():
     assert st["total_premium_collected"] == 0.0
     assert st["cycle_count"] == 0
     assert st["cycle_history"] == []
+
+
+def _opt_pos(symbol, qty, avg_entry):
+    """Mock Alpaca position dict for an option leg."""
+    return {
+        "symbol": symbol,
+        "asset_class": "us_option",
+        "qty": str(qty),
+        "avg_entry_price": str(avg_entry),
+    }
+
+
+def test_detect_spread_pairs_one_put_credit_spread():
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),  # short put @ $8
+        _opt_pos("PLTR260619P00007000",  1,  0.11),  # long put  @ $7
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert "PLTR" in pairs
+    assert len(pairs["PLTR"]) == 1
+    sp = pairs["PLTR"][0]
+    assert sp.spread_type == "put_credit"
+    assert sp.short_strike == 8.0
+    assert sp.long_strike == 7.0
+    assert sp.short_qty == 1
+    assert sp.long_qty == 1
+    assert sp.short_entry == pytest.approx(0.33)
+    assert sp.long_entry == pytest.approx(0.11)
+    assert sp.width == pytest.approx(1.0)
+    assert sp.net_credit == pytest.approx(0.22)
+    assert sp.max_loss == pytest.approx(0.78)
+    assert sp.expiration == date(2026, 6, 19)
+
+
+def test_detect_spread_pairs_skips_malformed_positions():
+    """Malformed position dicts (missing symbol or qty) must not raise — skip silently."""
+    positions = [
+        {"asset_class": "us_option"},  # missing symbol and qty entirely
+        {"asset_class": "us_option", "symbol": "PLTR260619P00008000"},  # missing qty
+        {"asset_class": "us_option", "symbol": "PLTR260619P00008000", "qty": "not-a-number"},
+        # And one valid spread to confirm we didn't bail early
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  1,  0.11),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert "PLTR" in pairs
+    assert len(pairs["PLTR"]) == 1

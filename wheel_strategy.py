@@ -1232,6 +1232,100 @@ def _parse_occ(occ: str):
     return ticker, "put" if side == "P" else "call", strike, expiry
 
 
+def _detect_spread_pairs(positions) -> dict:
+    """Group short+long option legs into SpreadPair records.
+
+    Returns dict[ticker] -> list[SpreadPair]. Only credit spreads are
+    detected:
+      - put_credit:  short put strike > long put strike
+      - call_credit: short call strike < long call strike
+
+    Legs are paired when they share underlying, expiration, and option
+    type (both P or both C), have opposite sides, and strike geometry
+    matches a credit-spread shape.
+
+    If multiple shorts or longs exist on the same underlying/expiry/type
+    (e.g., a butterfly or a stack of two spreads), only the first
+    short+long pair with matching qty is consumed; remaining legs are
+    returned to single-leg adoption by _discover_wheel_state.
+    """
+    by_key: dict = {}
+    for pos in positions:
+        if pos.get("asset_class") != "us_option":
+            continue
+        try:
+            symbol = pos["symbol"]
+            qty = int(float(pos["qty"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        parsed = _parse_occ(symbol)
+        if not parsed:
+            continue
+        ticker, opt_type, strike, expiry = parsed
+        if qty == 0:
+            continue
+        key = (ticker, opt_type, expiry)
+        bucket = by_key.setdefault(key, {"shorts": [], "longs": []})
+        leg = {
+            "occ": symbol,
+            "strike": strike,
+            "qty": abs(qty),
+            "entry": abs(float(pos.get("avg_entry_price", 0))),
+        }
+        if qty < 0:
+            bucket["shorts"].append(leg)
+        else:
+            bucket["longs"].append(leg)
+
+    pairs: dict = {}
+    for (ticker, opt_type, expiry), bucket in by_key.items():
+        shorts = bucket["shorts"]
+        longs  = bucket["longs"]
+        if not shorts or not longs:
+            continue
+        # Greedy pair: match each short with the long whose strike forms
+        # a credit spread (long below short strike for puts, above for calls)
+        # and whose qty matches. First match wins per short.
+        for s in shorts:
+            for l in longs:
+                if l.get("_paired"):
+                    continue
+                if l["qty"] != s["qty"]:
+                    continue
+                if opt_type == "put":
+                    if not (l["strike"] < s["strike"]):
+                        continue
+                    spread_type = "put_credit"
+                else:  # call
+                    if not (l["strike"] > s["strike"]):
+                        continue
+                    spread_type = "call_credit"
+                width = abs(s["strike"] - l["strike"])
+                net_credit = round(s["entry"] - l["entry"], 4)
+                max_loss = round(width - net_credit, 4)
+                sp = SpreadPair(
+                    ticker=ticker,
+                    spread_type=spread_type,
+                    short_occ=s["occ"],
+                    long_occ=l["occ"],
+                    short_strike=s["strike"],
+                    long_strike=l["strike"],
+                    expiration=expiry,
+                    short_qty=s["qty"],
+                    long_qty=l["qty"],
+                    short_entry=s["entry"],
+                    long_entry=l["entry"],
+                    width=width,
+                    net_credit=net_credit,
+                    max_loss=max_loss,
+                )
+                pairs.setdefault(ticker, []).append(sp)
+                l["_paired"] = True
+                s["_paired"] = True
+                break
+    return pairs
+
+
 def _discover_wheel_state(state: dict) -> set:
     """Build the set of underlyings the wheel should manage this cycle.
 
