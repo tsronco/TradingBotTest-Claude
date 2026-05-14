@@ -295,8 +295,15 @@ def _tracked_stock_symbols(strategy: dict, wheel: dict) -> set[str]:
     return tracked
 
 
-def _summarize_long_options(cfg: dict) -> dict:
-    """Pull all LONG option positions (qty > 0) for the given mode's account."""
+def _summarize_long_options(cfg: dict, exclude_occs: set | None = None) -> dict:
+    """Pull all LONG option positions (qty > 0) for the given mode's account.
+
+    `exclude_occs` is the set of OCC symbols already claimed by wheel spreads
+    (the long hedge legs). They get filtered out so the spread doesn't
+    double-count: the long leg shows as part of the spread row in the
+    'Open Spreads' section, not as a standalone long-options bet.
+    """
+    exclude_occs = exclude_occs or set()
     try:
         positions = _get_positions(cfg)
     except Exception as e:
@@ -306,6 +313,8 @@ def _summarize_long_options(cfg: dict) -> dict:
     total_pnl = 0.0
     for p in positions:
         if p.get("asset_class") != "us_option":
+            continue
+        if p.get("symbol") in exclude_occs:
             continue
         try:
             qty = float(p.get("qty", 0))
@@ -465,7 +474,14 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         account    = _get_account(cfg)
         strategy   = _summarize_strategy(cfg)
         wheel      = _summarize_wheel(cfg)
-        long_opts  = _summarize_long_options(cfg)
+        # Collect OCCs of long hedge legs claimed by wheel spreads so they're
+        # excluded from the long-options listing (they belong to the spread).
+        _spread_legs = {
+            sp["long_occ"]
+            for sp in (wheel.get("spreads") or {}).values()
+            if sp.get("long_occ")
+        }
+        long_opts  = _summarize_long_options(cfg, exclude_occs=_spread_legs)
         held_stocks = _summarize_held_stocks(cfg, _tracked_stock_symbols(strategy, wheel))
         congress   = _summarize_congress() if mode_name == "conservative" else {"available": False}
 
@@ -706,7 +722,12 @@ def _snapshot(cfg: dict) -> dict:
     """One-line comparable snapshot for a mode."""
     account = _get_account(cfg)
     wheel   = _summarize_wheel(cfg)
-    longs   = _summarize_long_options(cfg)
+    _spread_legs = {
+        sp["long_occ"]
+        for sp in (wheel.get("spreads") or {}).values()
+        if sp.get("long_occ")
+    }
+    longs   = _summarize_long_options(cfg, exclude_occs=_spread_legs)
     return {
         "equity":         float(account.get("equity", account.get("portfolio_value", 0))),
         "cash":           float(account.get("cash", 0)),

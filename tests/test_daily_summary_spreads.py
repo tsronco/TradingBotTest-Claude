@@ -94,6 +94,40 @@ def test_summarize_wheel_with_no_spreads_returns_empty_spreads(tmp_path):
     assert result["spreads"] == {}
 
 
+def test_summarize_long_options_excludes_wheel_spread_legs(monkeypatch):
+    """The long hedge leg of a spread must NOT appear in the long-options
+    listing — it's already shown inside the spread row. Real bug caught
+    2026-05-14: AAL $11.50 long put double-rendered both in 'Open Spreads'
+    AND as a standalone 'Long Options' position with -$2.00 P&L."""
+    monkeypatch.setattr(daily_summary, "_get_positions", lambda cfg: [
+        # Long leg of an AAL spread — should be excluded
+        {"symbol": "AAL260529P00011500", "asset_class": "us_option",
+         "qty": "1", "avg_entry_price": "0.12",
+         "current_price": "0.10", "market_value": "10"},
+        # Unrelated genuine long option — should remain
+        {"symbol": "NVDA260620C00500000", "asset_class": "us_option",
+         "qty": "1", "avg_entry_price": "5.20",
+         "current_price": "6.50", "market_value": "650"},
+    ])
+    result = daily_summary._summarize_long_options(
+        {}, exclude_occs={"AAL260529P00011500"}
+    )
+    assert result["count"] == 1
+    assert result["positions"][0]["symbol"] == "NVDA260620C00500000"
+
+
+def test_summarize_long_options_with_no_exclusion_keeps_all_longs(monkeypatch):
+    """Backwards-compat: omitting exclude_occs (or passing None / empty set)
+    keeps the previous behavior of listing every long option."""
+    monkeypatch.setattr(daily_summary, "_get_positions", lambda cfg: [
+        {"symbol": "NVDA260620C00500000", "asset_class": "us_option",
+         "qty": "1", "avg_entry_price": "5.20",
+         "current_price": "6.50", "market_value": "650"},
+    ])
+    assert daily_summary._summarize_long_options({})["count"] == 1
+    assert daily_summary._summarize_long_options({}, exclude_occs=set())["count"] == 1
+
+
 def test_fetch_spread_pnl_for_summary_computes_correctly(monkeypatch):
     """For a put credit spread: short_mid - long_mid = current_value,
     (net_credit - current_value) / net_credit = profit_pct."""
@@ -163,7 +197,7 @@ def test_embed_renders_spread_section(monkeypatch, tmp_path):
         {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
     ])
     monkeypatch.setattr(ds, "_summarize_strategy", lambda cfg: {"available": False})
-    monkeypatch.setattr(ds, "_summarize_long_options", lambda cfg: {"available": False, "count": 0})
+    monkeypatch.setattr(ds, "_summarize_long_options", lambda cfg, exclude_occs=None: {"available": False, "count": 0})
     monkeypatch.setattr(ds, "_summarize_held_stocks", lambda cfg, tracked: {"available": False})
     monkeypatch.setattr(ds, "_summarize_congress", lambda: {"available": False})
     import wheel_strategy
