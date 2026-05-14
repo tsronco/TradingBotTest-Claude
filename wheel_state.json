@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-13T19:58:03.449300Z"
+    "last_checked": "2026-05-14T13:38:06.667257Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260605P00405000: $6.27 vs entry $5.90",
+    "last_action": "Monitoring TSLA260605P00405000: $6.26 vs entry $5.90",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.94 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $0.98 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -128,7 +128,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $7.18 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $7.32 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -155,7 +155,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.31 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.33 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -179,13 +179,13 @@
   },
   "F": {
     "stage": 1,
-    "current_contract": "F260605P00012000",
-    "contract_order_id": "72851058-20bc-45fb-a030-3880bbb5e86e",
+    "current_contract": "F260605P00012500",
+    "contract_order_id": "f00468fe-3b88-491b-81b2-f1d7dc9ffe47",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-13T19:47:57.534416Z",
+    "contract_entry_date": "2026-05-14T13:38:05.698195Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "put",
-    "contract_strike": 12.0,
+    "contract_strike": 12.5,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -201,7 +201,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Awaiting fill on F260605P00012000.",
+    "last_action": "Sold-to-open F260605P00012500 @ $0.11. Awaiting fill.",
     "contract_qty": 1
   },
   "T": {
@@ -228,7 +228,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.45 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.52 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -247,7 +247,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.90 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $6.05 vs entry $6.65",
     "contract_qty": 1
   }
 }
