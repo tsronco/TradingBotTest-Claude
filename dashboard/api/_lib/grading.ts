@@ -60,7 +60,42 @@ Cheatsheets:
 ${ref.cheatsheets.length ? JSON.stringify(ref.cheatsheets, null, 2) : '(none)'}`;
 }
 
+function spreadTypeLabel(t: string): string {
+  switch (t) {
+    case 'put_credit': return 'put credit spread';
+    case 'call_credit': return 'call credit spread';
+    default: return `${t.replace(/_/g, ' ')} spread`;
+  }
+}
+
+function buildSpreadFreshBlock(trade: Trade, bars: Array<{ t: string; c: number }>): string {
+  const sp = trade.spread!;
+  const closeValue = trade.closed_avg_price ?? 0;
+  const profitDollars = (sp.net_credit - closeValue) * 100 * sp.short_leg.qty;
+  const label = spreadTypeLabel(sp.spread_type);
+  return `You are doing a hindsight review of a closed paper ${label}.
+
+Underlying: ${trade.symbol}
+Short ${sp.short_leg.strike.toFixed(2)} / Long ${sp.long_leg.strike.toFixed(2)}
+Expiration: ${sp.expiration}
+Net credit at open: $${sp.net_credit.toFixed(2)}
+Max loss at open: $${sp.max_loss.toFixed(2)}
+Cost to close: $${closeValue.toFixed(2)}
+Realized: $${profitDollars.toFixed(2)} (closed by ${trade.closed_by})
+
+Price bars during position lifetime (1-min closes on the underlying):
+${bars.length ? bars.slice(0, 240).map((b) => `${b.t}\t${b.c}`).join('\n') : '(no bars available)'}
+
+User's entry grade: ${trade.entry_grade}
+User's entry reasoning: "${trade.entry_reasoning}"
+
+With hindsight, grade the entry decision per the system rules, considering: (1) strike selection vs spot at entry, (2) DTE choice, (3) risk/reward (credit vs max loss), (4) whether the realized result confirms or undermines the entry thesis. Output JSON only.`;
+}
+
 function buildFreshBlock(trade: Trade, bars: Array<{ t: string; c: number }>): string {
+  if (trade.asset_class === 'spread' && trade.spread) {
+    return buildSpreadFreshBlock(trade, bars);
+  }
   const safeTrade = { ...trade, alpaca_order_id: undefined, alpaca_close_order_id: undefined };
   return `Trade record (id: ${trade.id}):
 ${JSON.stringify(safeTrade, null, 2)}
