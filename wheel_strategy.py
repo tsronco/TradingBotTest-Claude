@@ -1245,8 +1245,8 @@ def _detect_spread_pairs(positions) -> dict:
     matches a credit-spread shape.
 
     If multiple shorts or longs exist on the same underlying/expiry/type
-    (e.g., a butterfly or a stack of two spreads), only the first
-    short+long pair with matching qty is consumed; remaining legs are
+    (e.g., a bare CSP plus a real spread at the same expiry), the
+    narrowest-width valid pair wins; remaining unpaired legs are
     returned to single-leg adoption by _discover_wheel_state.
     """
     by_key: dict = {}
@@ -1283,46 +1283,53 @@ def _detect_spread_pairs(positions) -> dict:
         longs  = bucket["longs"]
         if not shorts or not longs:
             continue
-        # Greedy pair: match each short with the long whose strike forms
-        # a credit spread (long below short strike for puts, above for calls)
-        # and whose qty matches. First match wins per short.
+        # Enumerate every valid (short, long) candidate pair, then claim
+        # narrowest-width first. This handles the case where the user
+        # holds a bare CSP and a real spread at the same expiry: the
+        # narrower pair is the real spread, and the wider "phantom" pair
+        # is rejected so the leftover short falls to single-leg adoption.
+        candidates = []
         for s in shorts:
             for l in longs:
-                if l.get("_paired"):
-                    continue
                 if l["qty"] != s["qty"]:
                     continue
                 if opt_type == "put":
                     if not (l["strike"] < s["strike"]):
                         continue
-                    spread_type = "put_credit"
                 else:  # call
                     if not (l["strike"] > s["strike"]):
                         continue
-                    spread_type = "call_credit"
                 width = abs(s["strike"] - l["strike"])
-                net_credit = round(s["entry"] - l["entry"], 4)
-                max_loss = round(width - net_credit, 4)
-                sp = SpreadPair(
-                    ticker=ticker,
-                    spread_type=spread_type,
-                    short_occ=s["occ"],
-                    long_occ=l["occ"],
-                    short_strike=s["strike"],
-                    long_strike=l["strike"],
-                    expiration=expiry,
-                    short_qty=s["qty"],
-                    long_qty=l["qty"],
-                    short_entry=s["entry"],
-                    long_entry=l["entry"],
-                    width=width,
-                    net_credit=net_credit,
-                    max_loss=max_loss,
-                )
-                pairs.setdefault(ticker, []).append(sp)
-                l["_paired"] = True
-                s["_paired"] = True
-                break
+                candidates.append((width, s, l))
+
+        # Sort by width ascending so narrowest-pair wins
+        candidates.sort(key=lambda c: c[0])
+
+        for width, s, l in candidates:
+            if s.get("_paired") or l.get("_paired"):
+                continue
+            spread_type = "put_credit" if opt_type == "put" else "call_credit"
+            net_credit = round(s["entry"] - l["entry"], 4)
+            max_loss = round(width - net_credit, 4)
+            sp = SpreadPair(
+                ticker=ticker,
+                spread_type=spread_type,
+                short_occ=s["occ"],
+                long_occ=l["occ"],
+                short_strike=s["strike"],
+                long_strike=l["strike"],
+                expiration=expiry,
+                short_qty=s["qty"],
+                long_qty=l["qty"],
+                short_entry=s["entry"],
+                long_entry=l["entry"],
+                width=width,
+                net_credit=net_credit,
+                max_loss=max_loss,
+            )
+            pairs.setdefault(ticker, []).append(sp)
+            s["_paired"] = True
+            l["_paired"] = True
     return pairs
 
 

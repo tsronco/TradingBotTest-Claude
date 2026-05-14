@@ -383,3 +383,40 @@ def test_spread_active_state_does_not_crash_daily_summary(monkeypatch, tmp_path)
     # Reload through the wheel's own load_state to confirm migration doesn't choke
     loaded = wheel_strategy.load_state()
     assert loaded["PLTR"]["stage"] == "spread_active"
+
+
+def test_detect_picks_narrowest_spread_when_csp_and_spread_share_expiry():
+    """Bare CSP at $9 short + real spread at $8 short / $7 long, all
+    same expiry. Detector must pair $8/$7 (width $1, the real spread)
+    and leave $9 short to fall through to single-leg adoption."""
+    positions = [
+        _opt_pos("PLTR260619P00009000", -1, -0.50),  # bare CSP, deeper-OTM short
+        _opt_pos("PLTR260619P00008000", -1, -0.33),  # real spread short
+        _opt_pos("PLTR260619P00007000",  1,  0.11),  # real spread long
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert "PLTR" in pairs
+    assert len(pairs["PLTR"]) == 1
+    sp = pairs["PLTR"][0]
+    assert sp.short_strike == 8.0
+    assert sp.long_strike == 7.0
+    assert sp.width == pytest.approx(1.0)
+    # The $9 short must NOT be claimed by a spread — it should remain
+    # available for single-leg adoption (we verify that path below).
+
+
+def test_detect_picks_narrowest_with_call_credit_overlap():
+    """Mirror case for call credit spreads: short call $10 (real spread)
+    + short call $12 (bare CC) + long call $11 — narrowest pair is $10/$11
+    (width $1), leaving $12 short alone."""
+    positions = [
+        _opt_pos("PLTR260619C00010000", -1, -0.40),  # real spread short
+        _opt_pos("PLTR260619C00012000", -1, -0.20),  # bare short call
+        _opt_pos("PLTR260619C00011000",  1,  0.15),  # real spread long
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert len(pairs["PLTR"]) == 1
+    sp = pairs["PLTR"][0]
+    assert sp.short_strike == 10.0
+    assert sp.long_strike == 11.0
+    assert sp.spread_type == "call_credit"
