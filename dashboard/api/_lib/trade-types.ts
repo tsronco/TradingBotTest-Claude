@@ -1,5 +1,5 @@
 export type AccountId = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
-export type AssetClass = 'stock' | 'option';
+export type AssetClass = 'stock' | 'option' | 'spread';
 export type StockSide = 'buy' | 'sell' | 'sell_short';
 export type OptionSide = 'BTO' | 'STO' | 'BTC' | 'STC';
 export type OrderSide = StockSide | OptionSide;
