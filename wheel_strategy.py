@@ -1326,6 +1326,44 @@ def _detect_spread_pairs(positions) -> dict:
     return pairs
 
 
+def _adopt_spread(state: dict, sp: SpreadPair) -> None:
+    """Seed state[ticker] for a discovered spread.
+
+    Idempotent: returns without touching state if the same spread is
+    already adopted (matching short_occ AND long_occ), preserving
+    cycle_count and cycle_history across cycles.
+    """
+    existing = state.get(sp.ticker, {})
+    already_adopted = (
+        existing.get("stage") == "spread_active"
+        and existing.get("short_leg", {}).get("occ") == sp.short_occ
+        and existing.get("long_leg",  {}).get("occ") == sp.long_occ
+    )
+    if already_adopted:
+        return
+
+    state[sp.ticker] = _empty_spread_state()
+    sym = state[sp.ticker]
+    sym["spread_type"] = sp.spread_type
+    sym["short_leg"] = {
+        "occ": sp.short_occ, "strike": sp.short_strike,
+        "entry_premium": round(sp.short_entry, 4), "qty": sp.short_qty,
+    }
+    sym["long_leg"] = {
+        "occ": sp.long_occ, "strike": sp.long_strike,
+        "entry_premium": round(sp.long_entry, 4), "qty": sp.long_qty,
+    }
+    sym["expiration"] = sp.expiration.isoformat()
+    sym["net_credit"] = sp.net_credit
+    sym["max_loss"] = sp.max_loss
+    sym["width"] = sp.width
+    sym["opened_at"] = datetime.utcnow().isoformat() + "Z"
+    sym["last_action"] = (
+        f"Adopted spread short=${sp.short_strike:.2f} "
+        f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f}"
+    )
+
+
 def _discover_wheel_state(state: dict) -> set:
     """Build the set of underlyings the wheel should manage this cycle.
 

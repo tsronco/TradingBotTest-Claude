@@ -180,3 +180,60 @@ def test_detect_ignores_stock_positions():
 
 def test_detect_empty_positions_returns_empty_dict():
     assert wheel_strategy._detect_spread_pairs([]) == {}
+
+
+def test_adopt_spread_seeds_state_correctly():
+    sp = wheel_strategy.SpreadPair(
+        ticker="PLTR",
+        spread_type="put_credit",
+        short_occ="PLTR260619P00008000",
+        long_occ="PLTR260619P00007000",
+        short_strike=8.0,
+        long_strike=7.0,
+        expiration=date(2026, 6, 19),
+        short_qty=1,
+        long_qty=1,
+        short_entry=0.33,
+        long_entry=0.11,
+        width=1.0,
+        net_credit=0.22,
+        max_loss=0.78,
+    )
+    state = {}
+    wheel_strategy._adopt_spread(state, sp)
+
+    sym = state["PLTR"]
+    assert sym["stage"] == "spread_active"
+    assert sym["spread_type"] == "put_credit"
+    assert sym["short_leg"]["occ"] == "PLTR260619P00008000"
+    assert sym["short_leg"]["strike"] == 8.0
+    assert sym["short_leg"]["entry_premium"] == pytest.approx(0.33)
+    assert sym["short_leg"]["qty"] == 1
+    assert sym["long_leg"]["occ"] == "PLTR260619P00007000"
+    assert sym["long_leg"]["strike"] == 7.0
+    assert sym["long_leg"]["entry_premium"] == pytest.approx(0.11)
+    assert sym["expiration"] == "2026-06-19"
+    assert sym["net_credit"] == pytest.approx(0.22)
+    assert sym["max_loss"] == pytest.approx(0.78)
+    assert sym["width"] == pytest.approx(1.0)
+    assert sym["opened_at"] is not None
+    assert "Adopted spread" in sym["last_action"]
+
+
+def test_adopt_spread_is_idempotent():
+    """Calling adopt twice with same pair shouldn't reset cycle_count or history."""
+    sp = wheel_strategy.SpreadPair(
+        ticker="PLTR", spread_type="put_credit",
+        short_occ="PLTR260619P00008000", long_occ="PLTR260619P00007000",
+        short_strike=8.0, long_strike=7.0, expiration=date(2026, 6, 19),
+        short_qty=1, long_qty=1, short_entry=0.33, long_entry=0.11,
+        width=1.0, net_credit=0.22, max_loss=0.78,
+    )
+    state = {}
+    wheel_strategy._adopt_spread(state, sp)
+    state["PLTR"]["cycle_count"] = 5
+    state["PLTR"]["cycle_history"] = [{"foo": "bar"}]
+
+    wheel_strategy._adopt_spread(state, sp)
+    assert state["PLTR"]["cycle_count"] == 5
+    assert state["PLTR"]["cycle_history"] == [{"foo": "bar"}]
