@@ -298,6 +298,8 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 End result: 6 embed cards per day across the four summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary and live-summary stay standalone).
 
+**Held Stocks (ground-truth) section:** every per-mode summary also includes a "Held Stocks (not tracked by bot)" block that calls `/v2/positions` and lists any `us_equity` position whose symbol is NOT already in strategy state ∪ wheel state. Catches the gap where a stock would otherwise be invisible to the summary — e.g. a symbol removed from `config.MODES[*]['wheel_symbols']` that still has 100 shares from an old assignment, a manual buy made in the ~10-minute window between the last bot cycle and the 4:12 PM summary, or wheel/strategy state-file drift. The section only renders when at least one untracked stock exists, so on a clean day it stays out of the embed entirely.
+
 ## Runbook — when something breaks
 
 ### `#errors` or `#aggressive-errors` is pinging — what do I do?

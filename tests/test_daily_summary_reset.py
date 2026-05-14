@@ -174,6 +174,8 @@ def _stub_summary_dependencies(monkeypatch):
                         lambda cfg: {"available": False})
     monkeypatch.setattr(daily_summary, "_summarize_long_options",
                         lambda cfg: {"available": False, "count": 0})
+    monkeypatch.setattr(daily_summary, "_summarize_held_stocks",
+                        lambda cfg, tracked: {"available": False, "count": 0})
     monkeypatch.setattr(daily_summary, "_summarize_congress",
                         lambda: {"available": False})
     monkeypatch.setattr(daily_summary, "send_embed",

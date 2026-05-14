@@ -191,6 +191,79 @@ def _summarize_wheel(cfg: dict) -> dict:
     }
 
 
+def _summarize_held_stocks(cfg: dict, tracked_symbols: set[str]) -> dict:
+    """Pull stock (us_equity) positions from Alpaca that are NOT already
+    tracked by strategy.py or wheel_strategy.py.
+
+    Used as a "ground truth" check in the daily summary so a position that
+    slipped past the bot's symbol lists still shows up — e.g. a symbol
+    removed from config that still has shares, a manual buy made between
+    the last bot cycle and the 4:12 PM summary, or an old wheel assignment.
+
+    Symbols already in `tracked_symbols` (strategy state ∪ wheel state) are
+    filtered out so this section doesn't duplicate the strategy block.
+    """
+    try:
+        positions = _get_positions(cfg)
+    except Exception as e:
+        return {"available": False, "error": str(e)[:200]}
+
+    held = []
+    for p in positions:
+        if p.get("asset_class") != "us_equity":
+            continue
+        symbol = p.get("symbol")
+        if not symbol or symbol in tracked_symbols:
+            continue
+        try:
+            qty     = float(p.get("qty", 0))
+            entry   = float(p.get("avg_entry_price", 0))
+            current = float(p.get("current_price", 0))
+            mv      = float(p.get("market_value", 0))
+            pnl_d   = float(p.get("unrealized_pl", 0))
+            pnl_pct = float(p.get("unrealized_plpc", 0))
+        except (TypeError, ValueError):
+            continue
+        if qty == 0:
+            continue
+        held.append({
+            "symbol":       symbol,
+            "qty":          qty,
+            "entry":        entry,
+            "current":      current,
+            "market_value": round(mv, 2),
+            "pnl_dollars":  round(pnl_d, 2),
+            "pnl_pct":      pnl_pct,
+        })
+
+    return {
+        "available": True,
+        "count":     len(held),
+        "positions": held,
+    }
+
+
+def _tracked_stock_symbols(strategy: dict, wheel: dict) -> set[str]:
+    """Build the set of stock symbols the bot is already managing, so the
+    held-stocks ground-truth section can filter them out and avoid dupes."""
+    tracked: set[str] = set()
+    if strategy.get("available"):
+        if strategy.get("format") == "multi_stock":
+            tracked.update(strategy.get("symbols", {}).keys())
+        else:
+            # single_stock format on conservative/aggressive is always TSLA
+            tracked.add("TSLA")
+    if wheel.get("available"):
+        if wheel.get("format") == "legacy_single_stock":
+            tracked.add("TSLA")
+        else:
+            tracked.update(
+                k for k in wheel.get("symbols", {}).keys()
+                if not k.startswith("_")
+            )
+    return tracked
+
+
 def _summarize_long_options(cfg: dict) -> dict:
     """Pull all LONG option positions (qty > 0) for the given mode's account."""
     try:
@@ -324,6 +397,7 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         strategy   = _summarize_strategy(cfg)
         wheel      = _summarize_wheel(cfg)
         long_opts  = _summarize_long_options(cfg)
+        held_stocks = _summarize_held_stocks(cfg, _tracked_stock_symbols(strategy, wheel))
         congress   = _summarize_congress() if mode_name == "conservative" else {"available": False}
 
         cash      = float(account["cash"])
@@ -366,6 +440,21 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                     ),
                     "inline": False,
                 })
+
+        if held_stocks.get("available") and held_stocks.get("count", 0) > 0:
+            lines = []
+            for p in held_stocks["positions"]:
+                qty_str = f"{p['qty']:.0f}" if p['qty'] == int(p['qty']) else f"{p['qty']:.4f}"
+                lines.append(
+                    f"  {p['symbol']:<5} qty {qty_str:>6}  avg ${p['entry']:>7.2f}  "
+                    f"now ${p['current']:>7.2f}  MV ${p['market_value']:>10,.2f}  "
+                    f"P&L {p['pnl_pct']:+.1%} (${p['pnl_dollars']:+.2f})"
+                )
+            fields.append({
+                "name":  f"Held Stocks (not tracked by bot — {len(lines)})",
+                "value": "```\n" + "\n".join(lines) + "\n```",
+                "inline": False,
+            })
 
         if wheel["available"]:
             fields.append({
@@ -442,6 +531,7 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                       "strategy":        strategy,
                       "wheel":           wheel,
                       "long_options":    long_opts,
+                      "held_stocks":     held_stocks,
                       "congress":        congress,
                   })
 
