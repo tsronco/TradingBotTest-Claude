@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-14T17:29:45.482664Z",
+    "last_checked": "2026-05-14T17:39:25.500182Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $3.87 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $3.73 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260522P00013000: $0.52 vs entry $0.70",
+    "last_action": "Monitoring MARA260522P00013000: $0.55 vs entry $0.70",
     "contract_qty": 1
   },
   "RIOT": {
@@ -81,7 +81,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SMCI260515P00035000: $2.35 vs entry $1.79",
+    "last_action": "Monitoring SMCI260515P00035000: $2.45 vs entry $1.79",
     "contract_qty": 1
   },
   "NVDA": {
@@ -211,7 +211,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260522P00145000: $0.63 vs entry $1.13",
+    "last_action": "Monitoring XOM260522P00145000: $0.60 vs entry $1.13",
     "contract_qty": 1
   },
   "KO": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $2.61 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $2.51 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -268,7 +268,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SOFI260515P00016000: $0.37 vs entry $0.35",
+    "last_action": "Monitoring SOFI260515P00016000: $0.36 vs entry $0.35",
     "contract_qty": 1
   },
   "PFE": {
