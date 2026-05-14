@@ -20,6 +20,7 @@ closed-position events to logs/tsla.jsonl + post Discord cards on close.
 Designed to run on the same 30-min cadence as the wheel, after wheel.py.
 """
 
+import json
 import os
 import time
 from datetime import date, datetime, timedelta
@@ -127,6 +128,41 @@ def parse_occ_symbol(symbol: str) -> dict | None:
         "type": "call" if side == "C" else "put",
         "strike": strike_raw / 1000.0,
     }
+
+
+# ── Wheel-spread coordination ─────────────────────────────────────────────
+
+def _wheel_claimed_long_occs() -> set:
+    """OCC symbols of long option legs that wheel_strategy has claimed as
+    part of a spread. long_options_strategy MUST NOT touch these — selling
+    the hedge would leave the short leg naked and break the spread's risk
+    profile.
+
+    Reads wheel_strategy's state file directly (no import-time side effects)
+    so a stale dashboard or a partial cycle doesn't desync the two scripts.
+    Returns an empty set if the state file doesn't exist yet.
+    """
+    state_file = getattr(wheel_strategy, "STATE_FILE", None)
+    if not state_file or not os.path.exists(state_file):
+        return set()
+    try:
+        with open(state_file) as f:
+            state = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return set()
+    claimed = set()
+    for sym, ss in state.items():
+        if sym.startswith("_") or not isinstance(ss, dict):
+            continue
+        if ss.get("stage") != "spread_active":
+            continue
+        long_occ = (ss.get("long_leg") or {}).get("occ")
+        short_occ = (ss.get("short_leg") or {}).get("occ")
+        if long_occ:
+            claimed.add(long_occ)
+        if short_occ:
+            claimed.add(short_occ)
+    return claimed
 
 
 # ── Alpaca helpers specific to long-options ───────────────────────────────
@@ -366,8 +402,19 @@ def run_long_options_cycle():
         held = 0
         skipped = 0
 
+        # Hedge legs of wheel-managed credit spreads must never be touched
+        # here — selling the long put would leave the short leg naked.
+        claimed_by_wheel = _wheel_claimed_long_occs()
+
         for pos in positions:
             symbol = pos.get("symbol", "?")
+            if symbol in claimed_by_wheel:
+                skipped += 1
+                log(f"[{symbol}] skip_wheel_spread_leg — managed by wheel_strategy")
+                log_event(LOG_STREAM, "long_options_strategy.py", "skip_wheel_spread_leg",
+                          symbol=symbol,
+                          details={"reason": "managed_by_wheel_spread"})
+                continue
             try:
                 action, pnl_pct, info = evaluate_position(pos, today)
 

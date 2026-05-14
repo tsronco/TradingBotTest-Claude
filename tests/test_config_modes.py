@@ -303,3 +303,20 @@ def test_each_mode_channel_names_are_wired_in_discord_channel_map():
             ch = cfg[slot]
             assert ch in CHANNEL_ENV_MAP, \
                 f"{mode_name}.{slot}='{ch}' not in CHANNEL_ENV_MAP — messages would be dropped"
+
+
+def test_all_modes_declare_spread_management_flag():
+    """Every mode must declare spread_management explicitly so future
+    handle_spread() logic has a deterministic toggle. Default is False —
+    enabling spread management is a deliberate future-plan decision."""
+    import config
+    for mode_name, mode_cfg in config.MODES.items():
+        assert "spread_management" in mode_cfg, (
+            f"mode {mode_name} missing spread_management flag"
+        )
+    # All modes default to False at this stage
+    for mode_name, mode_cfg in config.MODES.items():
+        assert mode_cfg["spread_management"] is False, (
+            f"mode {mode_name} should default spread_management=False until "
+            "handle_spread() ships in a follow-up plan"
+        )

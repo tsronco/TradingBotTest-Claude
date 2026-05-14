@@ -35,6 +35,7 @@ import os
 import json
 import time
 import requests
+from dataclasses import dataclass
 from datetime import datetime, timedelta, date, timezone
 from dotenv import load_dotenv
 
@@ -156,6 +157,62 @@ def _empty_symbol_state() -> dict:
         "total_cost": None,
         "total_premium_collected": 0.0,
         "total_premium_today": 0.0,
+        "cycle_count": 0,
+        "cycle_history": [],
+        "last_action": "",
+    }
+
+
+# ── Spread support (Phase 1: detection + state schema only) ────────────
+# Future work: handle_spread() management logic, daily summary section,
+# dashboard order form, live-mode wiring. See
+# docs/superpowers/plans/2026-05-14-spread-detection-foundation.md.
+
+@dataclass(frozen=True)
+class SpreadPair:
+    """Two paired option legs identified at discovery time.
+
+    Identified by: same ticker, same expiration, same option type
+    (both puts or both calls), opposite sides (one short one long).
+    Strike geometry determines spread direction:
+      - put_credit:  short_strike > long_strike  (bullish)
+      - call_credit: short_strike < long_strike  (bearish)
+
+    Debit spreads (long strike inside short strike) are NOT detected here —
+    they're a different strategy and out of scope for this plan.
+    """
+    ticker: str
+    spread_type: str
+    short_occ: str
+    long_occ: str
+    short_strike: float
+    long_strike: float
+    expiration: date
+    short_qty: int
+    long_qty: int
+    short_entry: float
+    long_entry: float
+    width: float
+    net_credit: float
+    max_loss: float
+
+
+def _empty_spread_state() -> dict:
+    """Fresh state for a symbol whose wheel position is a spread, not single-leg."""
+    return {
+        # Intentional string sentinel — spread state is a separate FSM from
+        # single-leg wheel stages (1=CSP, 2=CC). Comparisons against 1 or 2
+        # naturally won't match.
+        "stage": "spread_active",
+        "spread_type": None,
+        "short_leg": {"occ": None, "strike": None, "entry_premium": None, "qty": 0},
+        "long_leg":  {"occ": None, "strike": None, "entry_premium": None, "qty": 0},
+        "expiration": None,
+        "net_credit": None,
+        "max_loss": None,
+        "width": None,
+        "opened_at": None,
+        "total_premium_collected": 0.0,
         "cycle_count": 0,
         "cycle_history": [],
         "last_action": "",
@@ -1175,6 +1232,138 @@ def _parse_occ(occ: str):
     return ticker, "put" if side == "P" else "call", strike, expiry
 
 
+def _detect_spread_pairs(positions) -> dict:
+    """Group short+long option legs into SpreadPair records.
+
+    Returns dict[ticker] -> list[SpreadPair]. Only credit spreads are
+    detected:
+      - put_credit:  short put strike > long put strike
+      - call_credit: short call strike < long call strike
+
+    Legs are paired when they share underlying, expiration, and option
+    type (both P or both C), have opposite sides, and strike geometry
+    matches a credit-spread shape.
+
+    If multiple shorts or longs exist on the same underlying/expiry/type
+    (e.g., a butterfly or a stack of two spreads), only the first
+    short+long pair with matching qty is consumed; remaining legs are
+    returned to single-leg adoption by _discover_wheel_state.
+    """
+    by_key: dict = {}
+    for pos in positions:
+        if pos.get("asset_class") != "us_option":
+            continue
+        try:
+            symbol = pos["symbol"]
+            qty = int(float(pos["qty"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        parsed = _parse_occ(symbol)
+        if not parsed:
+            continue
+        ticker, opt_type, strike, expiry = parsed
+        if qty == 0:
+            continue
+        key = (ticker, opt_type, expiry)
+        bucket = by_key.setdefault(key, {"shorts": [], "longs": []})
+        leg = {
+            "occ": symbol,
+            "strike": strike,
+            "qty": abs(qty),
+            "entry": abs(float(pos.get("avg_entry_price", 0))),
+        }
+        if qty < 0:
+            bucket["shorts"].append(leg)
+        else:
+            bucket["longs"].append(leg)
+
+    pairs: dict = {}
+    for (ticker, opt_type, expiry), bucket in by_key.items():
+        shorts = bucket["shorts"]
+        longs  = bucket["longs"]
+        if not shorts or not longs:
+            continue
+        # Greedy pair: match each short with the long whose strike forms
+        # a credit spread (long below short strike for puts, above for calls)
+        # and whose qty matches. First match wins per short.
+        for s in shorts:
+            for l in longs:
+                if l.get("_paired"):
+                    continue
+                if l["qty"] != s["qty"]:
+                    continue
+                if opt_type == "put":
+                    if not (l["strike"] < s["strike"]):
+                        continue
+                    spread_type = "put_credit"
+                else:  # call
+                    if not (l["strike"] > s["strike"]):
+                        continue
+                    spread_type = "call_credit"
+                width = abs(s["strike"] - l["strike"])
+                net_credit = round(s["entry"] - l["entry"], 4)
+                max_loss = round(width - net_credit, 4)
+                sp = SpreadPair(
+                    ticker=ticker,
+                    spread_type=spread_type,
+                    short_occ=s["occ"],
+                    long_occ=l["occ"],
+                    short_strike=s["strike"],
+                    long_strike=l["strike"],
+                    expiration=expiry,
+                    short_qty=s["qty"],
+                    long_qty=l["qty"],
+                    short_entry=s["entry"],
+                    long_entry=l["entry"],
+                    width=width,
+                    net_credit=net_credit,
+                    max_loss=max_loss,
+                )
+                pairs.setdefault(ticker, []).append(sp)
+                l["_paired"] = True
+                s["_paired"] = True
+                break
+    return pairs
+
+
+def _adopt_spread(state: dict, sp: SpreadPair) -> None:
+    """Seed state[ticker] for a discovered spread.
+
+    Idempotent: returns without touching state if the same spread is
+    already adopted (matching short_occ AND long_occ), preserving
+    cycle_count and cycle_history across cycles.
+    """
+    existing = state.get(sp.ticker, {})
+    already_adopted = (
+        existing.get("stage") == "spread_active"
+        and existing.get("short_leg", {}).get("occ") == sp.short_occ
+        and existing.get("long_leg",  {}).get("occ") == sp.long_occ
+    )
+    if already_adopted:
+        return
+
+    state[sp.ticker] = _empty_spread_state()
+    sym = state[sp.ticker]
+    sym["spread_type"] = sp.spread_type
+    sym["short_leg"] = {
+        "occ": sp.short_occ, "strike": sp.short_strike,
+        "entry_premium": round(sp.short_entry, 4), "qty": sp.short_qty,
+    }
+    sym["long_leg"] = {
+        "occ": sp.long_occ, "strike": sp.long_strike,
+        "entry_premium": round(sp.long_entry, 4), "qty": sp.long_qty,
+    }
+    sym["expiration"] = sp.expiration.isoformat()
+    sym["net_credit"] = sp.net_credit
+    sym["max_loss"] = sp.max_loss
+    sym["width"] = sp.width
+    sym["opened_at"] = datetime.utcnow().isoformat() + "Z"
+    sym["last_action"] = (
+        f"Adopted spread short=${sp.short_strike:.2f} "
+        f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f}"
+    )
+
+
 def _discover_wheel_state(state: dict) -> set:
     """Build the set of underlyings the wheel should manage this cycle.
 
@@ -1191,14 +1380,50 @@ def _discover_wheel_state(state: dict) -> set:
     discovered: set = set()
     positions = get_positions()
 
-    # Tracked-in-state symbols stay in scope so we don't drop a symbol
-    # mid-cycle just because Alpaca hasn't synced yet.
+    # ─ Phase 1: spread pairs ─
+    # Detect spreads BEFORE single-leg adoption so paired legs aren't
+    # double-claimed by Stage 1/Stage 2 logic.
+    spread_pairs = _detect_spread_pairs(positions)
+    claimed_occs: set = set()
+    for ticker, sp_list in spread_pairs.items():
+        for sp in sp_list:
+            _adopt_spread(state, sp)
+            discovered.add(ticker)
+            claimed_occs.add(sp.short_occ)
+            claimed_occs.add(sp.long_occ)
+            send_embed(
+                TRADES_CH, f"Wheel: adopted spread {ticker}",
+                color=Color.BLUE,
+                description=(
+                    f"{sp.spread_type.replace('_', ' ')} short=${sp.short_strike:.2f} "
+                    f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f} "
+                    f"max_loss=${sp.max_loss:.2f} ({sp.short_qty}× contracts)."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py", "adopted_spread",
+                      symbol=ticker,
+                      details={
+                          "spread_type": sp.spread_type,
+                          "short_occ": sp.short_occ, "long_occ": sp.long_occ,
+                          "short_strike": sp.short_strike, "long_strike": sp.long_strike,
+                          "expiration": sp.expiration.isoformat(),
+                          "qty": sp.short_qty,
+                          "net_credit": sp.net_credit, "max_loss": sp.max_loss,
+                      })
+
+    # ─ Phase 2: tracked-in-state symbols stay in scope ─
     for sym, ss in state.items():
         if sym.startswith("_"):
+            continue
+        if ss.get("stage") == "spread_active":
+            discovered.add(sym)
             continue
         if ss.get("current_contract") or int(ss.get("shares_qty", 0)) >= 100:
             discovered.add(sym)
 
+    # ─ Phase 3: single-leg adoption (puts/calls not claimed by a spread) ─
     for pos in positions:
         asset_class = pos.get("asset_class")
         symbol = pos["symbol"]
@@ -1212,7 +1437,11 @@ def _discover_wheel_state(state: dict) -> set:
         if asset_class != "us_option":
             continue
 
-        # Only short option positions are wheel material
+        # Skip any leg already claimed by a spread.
+        if symbol in claimed_occs:
+            continue
+
+        # Only short option positions are wheel material for single-leg adoption.
         qty_int = int(float(pos["qty"]))
         if qty_int >= 0:
             continue
@@ -1225,18 +1454,14 @@ def _discover_wheel_state(state: dict) -> set:
         discovered.add(ticker)
 
         sym_state = state.setdefault(ticker, _empty_symbol_state())
-        # If we've already adopted this OCC symbol, leave state alone.
         if sym_state.get("current_contract") == symbol:
             continue
 
-        # Adopt: seed state from the position so existing handlers can run.
-        # Premium received per share = abs(avg_entry_price). For options,
-        # Alpaca's avg_entry_price is the per-share fill (negative for shorts).
         entry_per_share = abs(float(pos.get("avg_entry_price", 0)))
         contracts = abs(qty_int)
 
         sym_state["current_contract"]     = symbol
-        sym_state["contract_order_id"]    = sym_state.get("contract_order_id")  # unknown for adopted
+        sym_state["contract_order_id"]    = sym_state.get("contract_order_id")
         sym_state["contract_entry_price"] = round(entry_per_share, 4)
         sym_state["contract_entry_date"]  = sym_state.get("contract_entry_date") or datetime.utcnow().isoformat() + "Z"
         sym_state["contract_expiration"]  = expiry.isoformat()
@@ -1248,7 +1473,6 @@ def _discover_wheel_state(state: dict) -> set:
             sym_state["stage"] = 1
             sym_state["last_action"] = f"Adopted manual put {symbol} @ ${entry_per_share:.2f} ({contracts}× contracts)"
         else:
-            # User pre-sold a covered call. Move to Stage 2 and capture cost basis.
             sym_state["stage"] = 2
             stock_pos = get_stock_position(ticker)
             if stock_pos:
