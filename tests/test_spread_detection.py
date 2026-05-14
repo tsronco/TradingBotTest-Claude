@@ -220,6 +220,49 @@ def test_adopt_spread_seeds_state_correctly():
     assert "Adopted spread" in sym["last_action"]
 
 
+def test_adopt_spread_returns_true_on_first_call_false_on_second():
+    """Return value drives the discovery loop's one-shot notification: True
+    when newly adopted, False when already-known."""
+    sp = wheel_strategy.SpreadPair(
+        ticker="PLTR", spread_type="put_credit",
+        short_occ="PLTR260619P00008000", long_occ="PLTR260619P00007000",
+        short_strike=8.0, long_strike=7.0, expiration=date(2026, 6, 19),
+        short_qty=1, long_qty=1, short_entry=0.33, long_entry=0.11,
+        width=1.0, net_credit=0.22, max_loss=0.78,
+    )
+    state = {}
+    assert wheel_strategy._adopt_spread(state, sp) is True
+    assert wheel_strategy._adopt_spread(state, sp) is False
+
+
+def test_discover_does_not_re_announce_already_adopted_spread(monkeypatch):
+    """Second discovery cycle with same spread already in state must NOT
+    fire send_embed or log_event again. Real bug seen on 2026-05-14
+    manual paper: bot announced AAL adoption every 10 minutes."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  1,  0.11),
+    ]
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: positions)
+
+    embeds = []
+    events = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda *a, **kw: embeds.append((a, kw)))
+    monkeypatch.setattr(wheel_strategy, "log_event",
+                        lambda *a, **kw: events.append((a, kw)))
+
+    state = {}
+    wheel_strategy._discover_wheel_state(state)
+    assert len(embeds) == 1, "first adoption must announce"
+    assert len(events) == 1
+    assert state["PLTR"]["stage"] == "spread_active"
+
+    wheel_strategy._discover_wheel_state(state)
+    assert len(embeds) == 1, "re-discovery must NOT re-announce"
+    assert len(events) == 1, "re-discovery must NOT re-log adopted_spread event"
+
+
 def test_adopt_spread_is_idempotent():
     """Calling adopt twice with same pair shouldn't reset cycle_count or history."""
     sp = wheel_strategy.SpreadPair(
