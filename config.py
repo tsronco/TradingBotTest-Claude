@@ -128,8 +128,9 @@ MODES = {
         "wheel_state_file":     "wheel_state.json",
         "strategy_state_file":  "strategy_state.json",
 
-        # Behaviour flags — stub for a future plan. handle_spread() does not
-        # exist yet; detection logging runs unconditionally.
+        # Spread management — gated off here; see manual mode (the only
+        # account where this is True). Threshold keys preserved so apply_mode
+        # reads succeed and so flipping to True is a one-line change.
         "spread_management":      False,
         "spread_early_close_pct": 0.50,
         "spread_stop_loss_pct":   0.50,
@@ -175,7 +176,7 @@ MODES = {
         "wheel_state_file":     "wheel_state_aggressive.json",
         "strategy_state_file":  "strategy_state_aggressive.json",
 
-        # Behaviour flags — stub for a future plan.
+        # Spread management — gated off here; see manual mode.
         "spread_management":      False,
         "spread_early_close_pct": 0.50,
         "spread_stop_loss_pct":   0.50,
@@ -280,7 +281,8 @@ MODES = {
         # covered calls on assignment, same as manual mode.
         "wheel_skip_new_puts": True,
 
-        # Stub for a future plan — handle_spread() does not exist yet.
+        # Spread management — gated off on live for now. Future plan flips
+        # this on after at least two weeks of manual paper validation.
         "spread_management":      False,
         "spread_early_close_pct": 0.50,
         "spread_stop_loss_pct":   0.50,
