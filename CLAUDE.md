@@ -277,24 +277,36 @@ Manual mode runs the same `strategy.py`, `wheel_strategy.py`, and `long_options_
 
 **Closed positions are pruned:** if a symbol disappears from Alpaca and the bot's stored qty is 0, it's removed from state on the next cycle.
 
-### Spread detection (foundation only — no management yet)
+### Spreads — detection (Phase 1) + management on manual (Phase 2)
 
-`wheel_strategy.py` recognizes put credit spreads and call credit spreads at discovery time by pairing short+long option legs that share underlying, expiration, and option type. Paired legs are adopted into a dedicated `stage: "spread_active"` state shape with `short_leg` and `long_leg` blocks. `long_options_strategy.py` consults the wheel state file each cycle and skips any long option whose OCC is claimed by a spread — preventing the hedge from being sold independently. Detection runs unconditionally in every mode (it's purely defensive); opening flow is still gated by future work.
+`wheel_strategy.py` recognizes put credit spreads and call credit spreads at discovery time by pairing short+long option legs that share underlying, expiration, and option type. When multiple pairings are possible (e.g. you hold a bare CSP AND a spread on the same expiry), the **narrowest-width pair wins** — so the real spread is identified correctly and the bare CSP falls through to single-leg Stage 1 adoption. Paired legs are adopted into a dedicated `stage: "spread_active"` state shape with `short_leg` and `long_leg` blocks. `long_options_strategy.py` consults the wheel state file each cycle and skips any long option whose OCC is claimed by a spread.
+
+**Management runs on manual paper only** (`config.MODES["manual"]["spread_management"] = True`). `handle_spread()` evaluates three close triggers in priority order, every cycle:
+
+1. **Profit close** — buy-to-close at 50% of credit captured (`spread_early_close_pct: 0.50`)
+2. **Stop loss** — buy-to-close at 50% of max loss (`spread_stop_loss_pct: 0.50`)
+3. **DTE floor** — buy-to-close at ≤2 days to expiration IF the short leg is ITM (`spread_dte_floor: 2`)
+
+Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, fall back to two individual orders (buy-to-close short, sell-to-close long). If the short closes but the long fails, state is marked half-closed so the next cycle's orphan handler picks up the survivor. State is **deleted** on successful close (not preserved like single-leg wheel state — spreads are one-shot positions, not the rotating Stage 1 ↔ Stage 2 cycle).
+
+**Orphan-leg handling**: if a tracked spread shows only one leg on Alpaca (manual close on the web UI, overnight assignment, expired alone, etc.), `_handle_orphan_leg` auto-closes the survivor at market and clears spread state.
 
 **What's NOT yet implemented:**
-- `handle_spread()` management logic (early-close at 50% credit, stop-loss at 50% max loss, DTE-floor close on assignment risk). Spreads currently sit in state untouched until the next plan ships.
-- Daily summary section for open spreads.
-- Live-mode wiring — `spread_management: False` on every mode, including live.
+- Live-mode wiring — `spread_management: False` on conservative, aggressive, AND live. A future plan flips live on after at least 2 weeks of manual paper validation.
+- Daily summary spread section — `daily_summary.py` continues to ignore `spread_active` entries (no crash, no rendering).
 - Dashboard order form for opening multi-leg spreads through Alpaca's `mleg` order class.
-- Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`).
-- Dashboard `rule-check.ts` ignores `stage: "spread_active"` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
+- Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`) — only matter for the future live small-account plan.
+- Auto-roll logic — Tim opted out; spreads close at trigger, no auto-rollover.
+- Dashboard `rule-check.ts` still ignores `spread_active` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
 
-**Known limitations to be aware of:**
-- **Daily summary table will misalign** the first time a real spread is open — the format string `{info['stage']:<5}` is a *minimum* width and `"spread_active"` is 13 chars. Won't crash, but column alignment breaks. Cosmetic; fix when adding the spread summary section.
-- **Orphan half-state**: if you manually close ONE leg of an adopted spread via the Alpaca web UI between cycles, the other leg sits in `wheel_state` as `spread_active` but no logic actively manages it. The long leg is still protected from `long_options_strategy` via the skip guard, but the wheel won't trigger anything either. Resolution: manually edit `wheel_state_<mode>.json` to remove the entry, or wait for `handle_spread()` to land and add orphan-detection.
-- **Spread won't be detected if leg qtys don't match exactly**: e.g., 2× short put + two separate 1× long puts at the same strike (split fill) — the detector requires `short_qty == long_qty` and falls through to single-leg adoption. If you see "expected a spread, got a Stage 1 short put" in Discord, check the qty geometry on Alpaca.
+**Known limitations:**
+- Daily summary table will still misalign for `spread_active` rows (cosmetic, no crash).
+- Split-fill long legs (`short_qty != long_qty`) won't pair — falls through to single-leg adoption.
 
-Tracking plan: [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md).
+Tracking plans:
+- Phase 1 (foundation): [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md) (merged in [PR #9](https://github.com/tsronco/TradingBotTest-Claude/pull/9))
+- Phase 2 (management): [2026-05-14-spread-management.md](docs/superpowers/plans/2026-05-14-spread-management.md)
+- Spec: [2026-05-14-spread-management-design.md](docs/superpowers/specs/2026-05-14-spread-management-design.md)
 
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
