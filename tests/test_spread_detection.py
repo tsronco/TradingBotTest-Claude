@@ -276,3 +276,81 @@ def test_discover_still_adopts_single_short_put_when_unpaired(monkeypatch):
     assert "PLTR" in discovered
     assert state["PLTR"]["stage"] == 1
     assert state["PLTR"]["current_contract"] == "PLTR260619P00008000"
+
+
+def test_long_options_skips_legs_claimed_by_wheel_spread(monkeypatch, tmp_path):
+    """The protective long put inside a put credit spread MUST NOT be
+    managed by long_options_strategy — that would sell the hedge and
+    leave the short leg naked."""
+    import json
+    import long_options_strategy
+    import wheel_strategy
+
+    # 1. Set up a wheel state file with one spread_active position
+    wheel_state = {
+        "_meta": {},
+        "PLTR": wheel_strategy._empty_spread_state(),
+    }
+    wheel_state["PLTR"].update({
+        "spread_type": "put_credit",
+        "short_leg": {"occ": "PLTR260619P00008000", "strike": 8.0, "entry_premium": 0.33, "qty": 1},
+        "long_leg":  {"occ": "PLTR260619P00007000", "strike": 7.0, "entry_premium": 0.11, "qty": 1},
+        "expiration": "2026-06-19",
+    })
+
+    state_file = tmp_path / "wheel_state.json"
+    state_file.write_text(json.dumps(wheel_state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+
+    # 2. Verify the helper returns the claimed OCC set
+    claimed = long_options_strategy._wheel_claimed_long_occs()
+    assert "PLTR260619P00007000" in claimed
+    # The short leg is NOT a long-options concern, but it's fine if it's
+    # also in the set (defensive)
+
+
+def test_long_options_run_does_not_touch_spread_long_leg(monkeypatch, tmp_path):
+    """End-to-end: long_options_strategy cycle must NOT evaluate/close a long
+    put whose OCC is claimed by a wheel spread."""
+    import json
+    import long_options_strategy
+    import wheel_strategy
+
+    wheel_state = {
+        "_meta": {},
+        "PLTR": {
+            "stage": "spread_active",
+            "spread_type": "put_credit",
+            "short_leg": {"occ": "PLTR260619P00008000", "strike": 8.0, "entry_premium": 0.33, "qty": 1},
+            "long_leg":  {"occ": "PLTR260619P00007000", "strike": 7.0, "entry_premium": 0.11, "qty": 1},
+            "expiration": "2026-06-19",
+        },
+    }
+    state_file = tmp_path / "wheel_state.json"
+    state_file.write_text(json.dumps(wheel_state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+
+    positions = [
+        _opt_pos("PLTR260619P00007000", 1, 0.11),
+    ]
+    monkeypatch.setattr(long_options_strategy, "list_long_option_positions",
+                        lambda: positions)
+    monkeypatch.setattr(long_options_strategy, "is_market_open", lambda: True)
+    monkeypatch.setattr(long_options_strategy, "log", lambda *a, **kw: None)
+    monkeypatch.setattr(long_options_strategy, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(long_options_strategy, "send_embed", lambda *a, **kw: None)
+
+    evaluated = []
+    executed = []
+    monkeypatch.setattr(long_options_strategy, "evaluate_position",
+                        lambda pos, today: (evaluated.append(pos), ("hold", 0.0, {}))[1])
+    monkeypatch.setattr(long_options_strategy, "execute_close",
+                        lambda *a, **kw: executed.append(a) or True)
+
+    long_options_strategy.run_long_options_cycle()
+
+    assert evaluated == [], (
+        "long_options_strategy evaluated a hedge leg claimed by a wheel spread — "
+        "the skip guard isn't wired into the main loop."
+    )
+    assert executed == [], "Hedge leg of a wheel spread must never be closed."
