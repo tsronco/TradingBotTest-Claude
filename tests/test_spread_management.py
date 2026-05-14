@@ -121,3 +121,63 @@ def test_place_sell_to_close_skips_when_no_position(monkeypatch):
     result = wheel_strategy.place_sell_to_close("PLTR260619P00007000", 0.10)
     assert result is None
     assert placed == []
+
+def test_close_spread_mleg_builds_correct_payload(monkeypatch):
+    """Multi-leg buy-to-close payload: order_class=mleg, two legs with
+    correct sides and position_intents, qty in spread units."""
+    captured = {}
+    def fake_api_post(path, body):
+        captured["path"] = path
+        captured["body"] = body
+        return {"id": "mleg-order-1", "status": "accepted"}
+    monkeypatch.setattr(wheel_strategy, "api_post", fake_api_post)
+
+    sym_state = _spread_state()
+    result = wheel_strategy._close_spread_mleg(sym_state)
+
+    assert result is True
+    assert captured["path"] == "/orders"
+    body = captured["body"]
+    assert body["order_class"] == "mleg"
+    assert body["qty"] == "1"
+    assert body["type"] == "market"
+    assert body["time_in_force"] == "day"
+    legs = body["legs"]
+    assert len(legs) == 2
+    # Find each leg by symbol
+    short_leg = next(l for l in legs if l["symbol"] == "PLTR260619P00008000")
+    long_leg  = next(l for l in legs if l["symbol"] == "PLTR260619P00007000")
+    assert short_leg["side"] == "buy"
+    assert short_leg["position_intent"] == "buy_to_close"
+    assert short_leg["ratio_qty"] == "1"
+    assert long_leg["side"] == "sell"
+    assert long_leg["position_intent"] == "sell_to_close"
+    assert long_leg["ratio_qty"] == "1"
+
+
+def test_close_spread_mleg_returns_false_on_rejection(monkeypatch):
+    """Alpaca rejection (any exception during api_post) returns False
+    so the caller can try the fallback path."""
+    def fake_api_post(path, body):
+        raise RuntimeError("422 multi-leg order rejected")
+    monkeypatch.setattr(wheel_strategy, "api_post", fake_api_post)
+
+    sym_state = _spread_state()
+    result = wheel_strategy._close_spread_mleg(sym_state)
+    assert result is False
+
+
+def test_close_spread_mleg_handles_multi_contract_spreads(monkeypatch):
+    """Spread with qty=2 → mleg payload qty='2', ratio_qty stays '1'
+    (ratio is per-spread, not per-contract count)."""
+    captured = {}
+    monkeypatch.setattr(wheel_strategy, "api_post",
+                        lambda path, body: captured.update(body) or {"id": "x"})
+
+    sym_state = _spread_state()
+    sym_state["short_leg"]["qty"] = 2
+    sym_state["long_leg"]["qty"] = 2
+
+    wheel_strategy._close_spread_mleg(sym_state)
+    assert captured["qty"] == "2"
+    assert all(leg["ratio_qty"] == "1" for leg in captured["legs"])

@@ -251,6 +251,37 @@ def _compute_spread_pnl(sym_state: dict, short_mid: float, long_mid: float) -> d
     }
 
 
+def _close_spread_mleg(sym_state: dict) -> bool:
+    """Submit an Alpaca multi-leg buy-to-close order for the spread.
+
+    Returns True on success, False on any failure (rejection, network,
+    timeout). The caller (_close_spread) decides whether to fall back
+    to two individual orders.
+
+    qty is in spread units (number of spreads), not per-leg. ratio_qty
+    is the per-spread leg multiplier — always "1" for vertical spreads.
+    """
+    try:
+        short_occ = sym_state["short_leg"]["occ"]
+        long_occ  = sym_state["long_leg"]["occ"]
+        qty       = sym_state["short_leg"]["qty"]  # short and long match by definition
+        order = api_post("/orders", {
+            "order_class":   "mleg",
+            "qty":           str(qty),
+            "type":          "market",
+            "time_in_force": "day",
+            "legs": [
+                {"symbol": short_occ, "side": "buy",  "ratio_qty": "1", "position_intent": "buy_to_close"},
+                {"symbol": long_occ,  "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_close"},
+            ],
+        })
+        log(f"Spread mleg close placed: short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')}")
+        return True
+    except Exception as e:
+        log(f"_close_spread_mleg failed: {type(e).__name__}: {e}")
+        return False
+
+
 def _migrate_state(state: dict) -> dict:
     """Migrate legacy single-stock state to multi-stock format.
 
