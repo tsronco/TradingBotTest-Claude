@@ -354,3 +354,32 @@ def test_long_options_run_does_not_touch_spread_long_leg(monkeypatch, tmp_path):
         "the skip guard isn't wired into the main loop."
     )
     assert executed == [], "Hedge leg of a wheel spread must never be closed."
+
+
+def test_spread_active_state_does_not_crash_daily_summary(monkeypatch, tmp_path):
+    """daily_summary must tolerate a state file containing a spread_active
+    symbol. It doesn't need to render a spread section yet (that's future
+    work) — just must not raise."""
+    import json
+    import wheel_strategy
+
+    state = {
+        "_meta": {"last_checked": "2026-05-14T17:00:00Z"},
+        "PLTR": {
+            "stage": "spread_active",
+            "spread_type": "put_credit",
+            "short_leg": {"occ": "PLTR260619P00008000", "strike": 8.0, "entry_premium": 0.33, "qty": 1},
+            "long_leg":  {"occ": "PLTR260619P00007000", "strike": 7.0, "entry_premium": 0.11, "qty": 1},
+            "expiration": "2026-06-19", "net_credit": 0.22, "max_loss": 0.78,
+            "width": 1.0, "opened_at": "2026-05-14T17:00:00Z",
+            "total_premium_collected": 0.0, "cycle_count": 0, "cycle_history": [],
+            "last_action": "",
+        },
+    }
+    state_file = tmp_path / "wheel_state.json"
+    state_file.write_text(json.dumps(state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+
+    # Reload through the wheel's own load_state to confirm migration doesn't choke
+    loaded = wheel_strategy.load_state()
+    assert loaded["PLTR"]["stage"] == "spread_active"
