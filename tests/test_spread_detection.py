@@ -237,3 +237,42 @@ def test_adopt_spread_is_idempotent():
     wheel_strategy._adopt_spread(state, sp)
     assert state["PLTR"]["cycle_count"] == 5
     assert state["PLTR"]["cycle_history"] == [{"foo": "bar"}]
+
+
+def test_discover_routes_spread_to_spread_state(monkeypatch):
+    """When positions contain a paired spread, _discover_wheel_state should
+    adopt it as spread_active state — NOT as a bare Stage 1 short put."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  1,  0.11),
+    ]
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: positions)
+    # Notification stubs so adoption doesn't try to hit Discord
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {}
+    discovered = wheel_strategy._discover_wheel_state(state)
+
+    assert "PLTR" in discovered
+    assert state["PLTR"]["stage"] == "spread_active"
+    # Critically: the short leg must NOT also be adopted as a Stage 1 single-leg put.
+    # If it were, current_contract would be set to the short OCC.
+    assert "current_contract" not in state["PLTR"] or state["PLTR"].get("current_contract") is None
+
+
+def test_discover_still_adopts_single_short_put_when_unpaired(monkeypatch):
+    """A bare short put (no long hedge) goes through the existing Stage 1 adoption."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+    ]
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: positions)
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {}
+    discovered = wheel_strategy._discover_wheel_state(state)
+
+    assert "PLTR" in discovered
+    assert state["PLTR"]["stage"] == 1
+    assert state["PLTR"]["current_contract"] == "PLTR260619P00008000"

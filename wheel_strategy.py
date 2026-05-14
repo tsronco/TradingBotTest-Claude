@@ -1380,14 +1380,50 @@ def _discover_wheel_state(state: dict) -> set:
     discovered: set = set()
     positions = get_positions()
 
-    # Tracked-in-state symbols stay in scope so we don't drop a symbol
-    # mid-cycle just because Alpaca hasn't synced yet.
+    # ─ Phase 1: spread pairs ─
+    # Detect spreads BEFORE single-leg adoption so paired legs aren't
+    # double-claimed by Stage 1/Stage 2 logic.
+    spread_pairs = _detect_spread_pairs(positions)
+    claimed_occs: set = set()
+    for ticker, sp_list in spread_pairs.items():
+        for sp in sp_list:
+            _adopt_spread(state, sp)
+            discovered.add(ticker)
+            claimed_occs.add(sp.short_occ)
+            claimed_occs.add(sp.long_occ)
+            send_embed(
+                TRADES_CH, f"Wheel: adopted spread {ticker}",
+                color=Color.BLUE,
+                description=(
+                    f"{sp.spread_type.replace('_', ' ')} short=${sp.short_strike:.2f} "
+                    f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f} "
+                    f"max_loss=${sp.max_loss:.2f} ({sp.short_qty}× contracts)."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py", "adopted_spread",
+                      symbol=ticker,
+                      details={
+                          "spread_type": sp.spread_type,
+                          "short_occ": sp.short_occ, "long_occ": sp.long_occ,
+                          "short_strike": sp.short_strike, "long_strike": sp.long_strike,
+                          "expiration": sp.expiration.isoformat(),
+                          "qty": sp.short_qty,
+                          "net_credit": sp.net_credit, "max_loss": sp.max_loss,
+                      })
+
+    # ─ Phase 2: tracked-in-state symbols stay in scope ─
     for sym, ss in state.items():
         if sym.startswith("_"):
+            continue
+        if ss.get("stage") == "spread_active":
+            discovered.add(sym)
             continue
         if ss.get("current_contract") or int(ss.get("shares_qty", 0)) >= 100:
             discovered.add(sym)
 
+    # ─ Phase 3: single-leg adoption (puts/calls not claimed by a spread) ─
     for pos in positions:
         asset_class = pos.get("asset_class")
         symbol = pos["symbol"]
@@ -1401,7 +1437,11 @@ def _discover_wheel_state(state: dict) -> set:
         if asset_class != "us_option":
             continue
 
-        # Only short option positions are wheel material
+        # Skip any leg already claimed by a spread.
+        if symbol in claimed_occs:
+            continue
+
+        # Only short option positions are wheel material for single-leg adoption.
         qty_int = int(float(pos["qty"]))
         if qty_int >= 0:
             continue
@@ -1414,18 +1454,14 @@ def _discover_wheel_state(state: dict) -> set:
         discovered.add(ticker)
 
         sym_state = state.setdefault(ticker, _empty_symbol_state())
-        # If we've already adopted this OCC symbol, leave state alone.
         if sym_state.get("current_contract") == symbol:
             continue
 
-        # Adopt: seed state from the position so existing handlers can run.
-        # Premium received per share = abs(avg_entry_price). For options,
-        # Alpaca's avg_entry_price is the per-share fill (negative for shorts).
         entry_per_share = abs(float(pos.get("avg_entry_price", 0)))
         contracts = abs(qty_int)
 
         sym_state["current_contract"]     = symbol
-        sym_state["contract_order_id"]    = sym_state.get("contract_order_id")  # unknown for adopted
+        sym_state["contract_order_id"]    = sym_state.get("contract_order_id")
         sym_state["contract_entry_price"] = round(entry_per_share, 4)
         sym_state["contract_entry_date"]  = sym_state.get("contract_entry_date") or datetime.utcnow().isoformat() + "Z"
         sym_state["contract_expiration"]  = expiry.isoformat()
@@ -1437,7 +1473,6 @@ def _discover_wheel_state(state: dict) -> set:
             sym_state["stage"] = 1
             sym_state["last_action"] = f"Adopted manual put {symbol} @ ${entry_per_share:.2f} ({contracts}× contracts)"
         else:
-            # User pre-sold a covered call. Move to Stage 2 and capture cost basis.
             sym_state["stage"] = 2
             stock_pos = get_stock_position(ticker)
             if stock_pos:
