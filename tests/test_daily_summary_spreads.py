@@ -130,3 +130,63 @@ def test_fetch_spread_pnl_for_summary_handles_missing_quote():
     assert result["current_value"] is None
     assert result["profit_pct"] is None
     assert result["pnl_dollars"] is None
+
+
+def test_embed_renders_spread_section(monkeypatch, tmp_path):
+    """When wheel state has one spread_active entry, the daily summary
+    embed includes a 'Wheel — Open Spreads' field with the spread details
+    and live P&L."""
+    state = {
+        "_meta": {},
+        "PLTR": {
+            "stage": "spread_active",
+            "spread_type": "put_credit",
+            "short_leg": {"occ": "PLTR260619P00008000", "strike": 8.0,
+                          "entry_premium": 0.33, "qty": 1},
+            "long_leg":  {"occ": "PLTR260619P00007000", "strike": 7.0,
+                          "entry_premium": 0.11, "qty": 1},
+            "expiration": "2026-06-19",
+            "net_credit": 0.22, "max_loss": 0.78, "width": 1.0,
+            "opened_at": "2026-05-14T17:00:00Z",
+            "total_premium_collected": 0.0, "cycle_count": 0,
+            "cycle_history": [], "last_action": "",
+        },
+    }
+    state_file = tmp_path / "wheel_state_manual.json"
+    state_file.write_text(json.dumps(state))
+
+    import daily_summary as ds
+    monkeypatch.setattr(ds, "ROOT", tmp_path)
+    monkeypatch.setattr(ds, "_get_account", lambda cfg: {"cash": "10000", "equity": "10000", "portfolio_value": "10000"})
+    monkeypatch.setattr(ds, "_get_positions", lambda cfg: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    monkeypatch.setattr(ds, "_summarize_strategy", lambda cfg: {"available": False})
+    monkeypatch.setattr(ds, "_summarize_long_options", lambda cfg: {"available": False, "count": 0})
+    monkeypatch.setattr(ds, "_summarize_held_stocks", lambda cfg, tracked: {"available": False})
+    monkeypatch.setattr(ds, "_summarize_congress", lambda: {"available": False})
+    import wheel_strategy
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda occ: {
+        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},
+        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},
+    }[occ])
+
+    captured = {}
+    monkeypatch.setattr(ds, "send_embed",
+                        lambda ch, title, **kw: captured.update({"title": title, **kw}))
+
+    import config
+    config.MODES["manual"]["wheel_state_file"] = "wheel_state_manual.json"
+
+    ds.run_daily_summary("manual")
+
+    fields = captured.get("fields", [])
+    spread_field = next((f for f in fields if "spread" in f["name"].lower()), None)
+    assert spread_field is not None, "no 'Open Spreads' field found in embed"
+    value = spread_field["value"]
+    assert "PLTR" in value
+    assert "$8" in value or "8.00" in value
+    assert "$7" in value or "7.00" in value
+    assert "50%" in value or "50.0%" in value or "0.50" in value, \
+        "expected 50% profit displayed for spread at half credit"

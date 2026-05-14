@@ -584,6 +584,47 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                         "inline": False,
                     })
 
+        if wheel.get("available") and wheel.get("spreads"):
+            from datetime import date as _date
+            spread_rows = []
+            for sym, sp in wheel["spreads"].items():
+                pnl = _fetch_spread_pnl_for_summary(sp)
+                try:
+                    expiry = _date.fromisoformat(sp["expiration"])
+                    dte = (expiry - _date.today()).days
+                except (ValueError, TypeError):
+                    dte = "?"
+                if pnl["profit_pct"] is None:
+                    profit_str = "—"
+                    pnl_str = "—"
+                else:
+                    profit_str = f"{pnl['profit_pct']*100:+.0f}%"
+                    pnl_str = f"${pnl['pnl_dollars']:+,.2f}"
+                spread_rows.append({
+                    "sym":     sym,
+                    "type":    (sp["spread_type"] or "").replace("_", " "),
+                    "strikes": f"${sp['short_strike']:.2f}/${sp['long_strike']:.2f}",
+                    "credit":  f"${sp['net_credit']:.2f}",
+                    "profit":  profit_str,
+                    "pnl":     pnl_str,
+                    "dte":     dte,
+                })
+            if spread_rows:
+                lines = [
+                    f"{'Sym':<5}  {'Type':<11}  {'Strikes':<13}  {'Credit':>7}  {'P&L%':>6}  {'P&L $':>9}  {'DTE':>4}",
+                    f"{'-'*5}  {'-'*11}  {'-'*13}  {'-'*7}  {'-'*6}  {'-'*9}  {'-'*4}",
+                ]
+                for r in spread_rows:
+                    lines.append(
+                        f"{r['sym']:<5}  {r['type']:<11}  {r['strikes']:<13}  "
+                        f"{r['credit']:>7}  {r['profit']:>6}  {r['pnl']:>9}  {str(r['dte']):>4}"
+                    )
+                fields.append({
+                    "name":  f"Wheel — Open Spreads ({len(spread_rows)})",
+                    "value": "```\n" + "\n".join(lines) + "\n```",
+                    "inline": False,
+                })
+
         if long_opts.get("available") and long_opts.get("count", 0) > 0:
             lines = []
             for p in long_opts["positions"]:
