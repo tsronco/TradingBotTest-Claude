@@ -5,7 +5,7 @@
 // `expiration_date`, and bid/ask sourced from `snapshots[symbol].latestQuote`)
 // rather than the plan's idealized fixture shape.
 import { useEffect, useMemo, useState } from 'react';
-import type { AccountId, GradeLetter } from '../../lib/trade-types';
+import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
 import { GRADE_LETTERS } from '../../lib/trade-types';
 
 interface ChainContractRaw {
@@ -36,8 +36,8 @@ interface NormalizedContract {
 interface PreviewResult {
   exposure: number;
   requires_totp: boolean;
-  rule_warnings: unknown[];
-  draft: unknown;
+  rule_warnings: RuleWarning[];
+  draft: any;
 }
 
 interface Props {

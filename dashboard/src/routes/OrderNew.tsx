@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { StockOrderForm } from '../components/order/StockOrderForm';
 import { OptionOrderForm } from '../components/order/OptionOrderForm';
+import { SpreadOrderForm } from '../components/order/SpreadOrderForm';
 import { ConfirmModal } from '../components/order/ConfirmModal';
 import type { RuleWarning } from '../lib/trade-types';
 
@@ -30,17 +31,27 @@ export default function OrderNew() {
     );
   }
 
-  const isOption = !!contract;
+  const spreadType = params.get('spread');
+  const isSpread = spreadType === 'put_credit';
+  const isOption = !isSpread && !!contract;
+
+  const flag = isSpread
+    ? `--spread=${spreadType} --symbol=${symbol}`
+    : isOption
+    ? `--contract=${contract} --action=${action}`
+    : `--symbol=${symbol} --type=${type}`;
 
   return (
     <div className="p-6 max-w-3xl">
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/order</span><span className="text-dim">$</span>{' '}
-        <span className="text-fg">new {isOption ? `--contract=${contract} --action=${action}` : `--symbol=${symbol} --type=${type}`}</span>
+        <span className="text-fg">new {flag}</span>
       </div>
       <div className="mt-6">
-        {isOption ? (
+        {isSpread ? (
+          <SpreadOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
+        ) : isOption ? (
           <OptionOrderForm contractSymbol={contract!} action={action ?? 'open'} account={account} setAccount={setAccount} onReview={setPreview} />
         ) : (
           <StockOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
