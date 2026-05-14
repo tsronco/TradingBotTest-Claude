@@ -76,6 +76,9 @@ LOG_STREAM         = None
 MODE               = None
 WHEEL_SKIP_NEW_PUTS  = False  # manual mode: never open Stage 1 puts
 AUTO_DISCOVER_SYMBOLS = False  # manual mode: build SYMBOLS from Alpaca positions
+SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
+SPREAD_STOP_LOSS_PCT   = 0.50
+SPREAD_DTE_FLOOR       = 2
 
 
 def apply_mode(mode_name: str) -> None:
@@ -524,6 +527,80 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
     log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
               symbol=ticker, details={"surviving_leg": "none"})
     del state[ticker]
+
+
+def handle_spread(state: dict, ticker: str, account: dict) -> None:
+    """Per-cycle decision function for an active spread.
+
+    Mirror of handle_stage1 / handle_stage2. Called by run_wheel when
+    state[ticker]["stage"] == "spread_active" and SPREAD_MANAGEMENT is True.
+
+    Decision order (first trigger wins):
+      1. Both legs gone or only one present → _handle_orphan_leg → return
+      2. profit_pct >= early_close_pct       → _close_spread early_close_50pct
+      3. loss >= max_loss * stop_loss_pct    → _close_spread stop_loss_50pct
+      4. DTE <= dte_floor AND short leg ITM  → _close_spread dte_floor_itm
+      5. otherwise                           → log heartbeat, no state change
+    """
+    sym_state = state[ticker]
+    positions = get_positions()
+
+    # 1. Orphan detection — before any snapshot fetch
+    occs_present = {p["symbol"] for p in positions
+                    if p.get("asset_class") == "us_option"}
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+    if not (short_occ in occs_present and long_occ in occs_present):
+        _handle_orphan_leg(state, ticker, positions)
+        return
+
+    # 2-4. Fetch current snapshots
+    short_q = get_option_quote(short_occ)
+    long_q  = get_option_quote(long_occ)
+    if not short_q or not long_q:
+        log(f"[{ticker}] spread heartbeat — missing quote, skipping cycle")
+        return
+    short_mid = round((short_q["bid"] + short_q["ask"]) / 2, 4)
+    long_mid  = round((long_q["bid"]  + long_q["ask"])  / 2, 4)
+
+    pnl = _compute_spread_pnl(sym_state, short_mid, long_mid)
+    max_loss = float(sym_state["max_loss"])
+
+    # 2. Profit trigger
+    if pnl["profit_pct"] >= SPREAD_EARLY_CLOSE_PCT:
+        log(f"[{ticker}] spread profit_pct={pnl['profit_pct']:.2%} >= "
+            f"{SPREAD_EARLY_CLOSE_PCT:.0%} — closing at profit")
+        _close_spread(state, ticker, reason="early_close_50pct")
+        return
+
+    # 3. Stop loss trigger
+    if pnl["loss_per_share"] >= max_loss * SPREAD_STOP_LOSS_PCT:
+        log(f"[{ticker}] spread loss=${pnl['loss_per_share']:.2f} >= "
+            f"{SPREAD_STOP_LOSS_PCT:.0%} of max_loss=${max_loss:.2f} — stopping out")
+        _close_spread(state, ticker, reason="stop_loss_50pct")
+        return
+
+    # 4. DTE floor with ITM check
+    from datetime import date as _date
+    expiry = _date.fromisoformat(sym_state["expiration"])
+    days_to_expiry = (expiry - _date.today()).days
+    if days_to_expiry <= SPREAD_DTE_FLOOR:
+        short_strike = float(sym_state["short_leg"]["strike"])
+        stock_price = get_latest_price(ticker)
+        spread_type = sym_state["spread_type"]
+        short_itm = (
+            (spread_type == "put_credit"  and stock_price < short_strike) or
+            (spread_type == "call_credit" and stock_price > short_strike)
+        )
+        if short_itm:
+            log(f"[{ticker}] spread DTE={days_to_expiry} <= floor AND short leg ITM "
+                f"(stock=${stock_price:.2f}, short_strike=${short_strike:.2f}) — closing")
+            _close_spread(state, ticker, reason="dte_floor_itm")
+            return
+
+    # 5. Hold heartbeat
+    log(f"[{ticker}] spread holding — profit {pnl['profit_pct']:.1%}, "
+        f"loss ${pnl['loss_per_share']:.2f}, DTE {days_to_expiry}")
 
 
 def _migrate_state(state: dict) -> dict:

@@ -433,3 +433,196 @@ def test_orphan_returns_early_when_both_legs_present(monkeypatch):
 
     assert orders == []
     assert "PLTR" in state, "state must not be touched when both legs present"
+
+
+from datetime import date as _date_type, timedelta as _timedelta
+
+
+def _far_expiry_state(**kwargs):
+    """Spread state with expiration well in the future (no DTE trigger risk)."""
+    s = _spread_state(**kwargs)
+    far = _date_type.today() + _timedelta(days=30)
+    s["expiration"] = far.isoformat()
+    return s
+
+
+def _near_expiry_state(days_to_expiry=2, **kwargs):
+    s = _spread_state(**kwargs)
+    near = _date_type.today() + _timedelta(days=days_to_expiry)
+    s["expiration"] = near.isoformat()
+    return s
+
+
+def test_handle_spread_profit_50pct_triggers_close(monkeypatch):
+    """Spread at 50% profit → _close_spread called with early_close_50pct."""
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},  # mid 0.18
+        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},  # mid 0.07
+    }[sym])
+    # Profit calc: current_value = 0.18 - 0.07 = 0.11, credit was 0.22 → 50% profit
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [("PLTR", "early_close_50pct")]
+
+
+def test_handle_spread_stop_loss_triggers_close(monkeypatch):
+    """Loss per share >= 50% of max_loss → stop_loss_50pct."""
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # current_value = 0.70 - 0.09 = 0.61. loss = 0.61 - 0.22 = 0.39 = 50% of 0.78
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.69, "ask": 0.71},
+        "PLTR260619P00007000": {"bid": 0.08, "ask": 0.10},
+    }[sym])
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [("PLTR", "stop_loss_50pct")]
+
+
+def test_handle_spread_dte_floor_with_itm_triggers_close(monkeypatch):
+    """DTE <=2 AND short put ITM → dte_floor_itm close."""
+    state = {"PLTR": _near_expiry_state(days_to_expiry=2)}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # Not at profit, not at stop loss — pure DTE close case
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.30, "ask": 0.32},
+        "PLTR260619P00007000": {"bid": 0.10, "ask": 0.12},
+    }[sym])
+    # Stock price 7.50 < short strike 8.0 → ITM (put credit short ITM)
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 7.50)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [("PLTR", "dte_floor_itm")]
+
+
+def test_handle_spread_dte_floor_when_otm_holds(monkeypatch):
+    """DTE <=2 but short put OTM → hold, no close."""
+    state = {"PLTR": _near_expiry_state(days_to_expiry=2)}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.30, "ask": 0.32},
+        "PLTR260619P00007000": {"bid": 0.10, "ask": 0.12},
+    }[sym])
+    # Stock price 9.0 > short strike 8.0 → OTM (safe)
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == []
+
+
+def test_handle_spread_call_credit_dte_itm(monkeypatch):
+    """For call_credit spreads, ITM means stock > short_strike."""
+    state = {"PLTR": _near_expiry_state(days_to_expiry=2)}
+    state["PLTR"]["spread_type"] = "call_credit"
+    state["PLTR"]["short_leg"] = {"occ": "PLTR260619C00010000", "strike": 10.0,
+                                   "entry_premium": 0.40, "qty": 1}
+    state["PLTR"]["long_leg"]  = {"occ": "PLTR260619C00011000", "strike": 11.0,
+                                   "entry_premium": 0.15, "qty": 1}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619C00010000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.40"},
+        {"symbol": "PLTR260619C00011000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.15"},
+    ])
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619C00010000": {"bid": 0.40, "ask": 0.42},
+        "PLTR260619C00011000": {"bid": 0.15, "ask": 0.17},
+    }[sym])
+    # Stock 10.50 > short strike 10.0 → ITM for short call
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 10.50)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [("PLTR", "dte_floor_itm")]
+
+
+def test_handle_spread_no_triggers_holds(monkeypatch):
+    """All triggers negative → hold, no close, no state change."""
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # Profit ~20%, not at 50%
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.25, "ask": 0.27},
+        "PLTR260619P00007000": {"bid": 0.08, "ask": 0.10},
+    }[sym])
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == []
+    assert "PLTR" in state
+
+
+def test_handle_spread_orphan_routes_to_handler(monkeypatch):
+    """Only one leg present on Alpaca → _handle_orphan_leg fires, NOT _close_spread."""
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        # only the long leg present
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    orphan_calls = []
+    close_calls = []
+    monkeypatch.setattr(wheel_strategy, "_handle_orphan_leg",
+                        lambda state, ticker, positions: orphan_calls.append(ticker))
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: close_calls.append(ticker))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert orphan_calls == ["PLTR"]
+    assert close_calls == []
+
+
+def test_handle_spread_profit_takes_priority_over_dte(monkeypatch):
+    """If a spread is BOTH at 50% profit AND at DTE <=2 with ITM short,
+    profit takes priority (better outcome for the trader)."""
+    state = {"PLTR": _near_expiry_state(days_to_expiry=1)}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # current_value = 0.11 = 50% of credit
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},
+        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},
+    }[sym])
+    # Stock 7.5 < short strike 8.0 → ITM, but profit trigger fires first
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 7.5)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [("PLTR", "early_close_50pct")]
