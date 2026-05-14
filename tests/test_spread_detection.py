@@ -100,3 +100,83 @@ def test_detect_spread_pairs_skips_malformed_positions():
     pairs = wheel_strategy._detect_spread_pairs(positions)
     assert "PLTR" in pairs
     assert len(pairs["PLTR"]) == 1
+
+
+def test_detect_call_credit_spread():
+    positions = [
+        _opt_pos("PLTR260619C00010000", -1, -0.40),  # short call @ $10
+        _opt_pos("PLTR260619C00011000",  1,  0.15),  # long call  @ $11
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    sp = pairs["PLTR"][0]
+    assert sp.spread_type == "call_credit"
+    assert sp.short_strike == 10.0
+    assert sp.long_strike == 11.0
+    assert sp.net_credit == pytest.approx(0.25)
+
+
+def test_detect_no_spread_when_only_short_leg():
+    """A bare short put without a paired long is NOT a spread."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert pairs == {}
+
+
+def test_detect_no_spread_when_expiries_differ():
+    """Different expiries → not a vertical spread → ignored."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260717P00007000",  1,  0.20),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert pairs == {}
+
+
+def test_detect_no_spread_when_qty_mismatched():
+    """1× short paired with 2× long — qty mismatch, leave alone."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  2,  0.11),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert pairs == {}
+
+
+def test_detect_no_spread_when_strikes_form_debit_spread():
+    """Long put strike ABOVE short put strike = put debit spread, not credit.
+    Out of scope for this plan — must NOT be detected."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.10),  # short @ $8
+        _opt_pos("PLTR260619P00009000",  1,  0.50),  # long  @ $9 (debit)
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert pairs == {}
+
+
+def test_detect_two_separate_spreads_same_underlying():
+    """Two 1× put credit spreads on PLTR at different expiries."""
+    positions = [
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  1,  0.11),
+        _opt_pos("PLTR260717P00008000", -1, -0.55),
+        _opt_pos("PLTR260717P00007000",  1,  0.20),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert len(pairs["PLTR"]) == 2
+
+
+def test_detect_ignores_stock_positions():
+    positions = [
+        {"symbol": "PLTR", "asset_class": "us_equity", "qty": "100", "avg_entry_price": "8.50"},
+        _opt_pos("PLTR260619P00008000", -1, -0.33),
+        _opt_pos("PLTR260619P00007000",  1,  0.11),
+    ]
+    pairs = wheel_strategy._detect_spread_pairs(positions)
+    assert "PLTR" in pairs
+    assert len(pairs["PLTR"]) == 1
+
+
+def test_detect_empty_positions_returns_empty_dict():
+    assert wheel_strategy._detect_spread_pairs([]) == {}
