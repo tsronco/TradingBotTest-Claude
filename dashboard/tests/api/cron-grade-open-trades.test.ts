@@ -262,6 +262,92 @@ describe('POST /api/cron/grade-open-trades', () => {
     }));
   });
 
+  it('syncFillData populates both leg fills for an mleg spread order', async () => {
+    const trade = {
+      id: 'T-2026-05-15-001', account: 'manual_paper', symbol: 'AAL', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: null,
+      strike: null, expiration: '2026-05-29', contract_type: null,
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'alpaca-mleg-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-15T14:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.40, fill_price: null, qty: 1 },
+        long_leg: { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.15, fill_price: null, qty: 1 },
+        expiration: '2026-05-29',
+        width: 1.0,
+        net_credit: 0.25,
+        max_loss: 0.75,
+      },
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockResolvedValue({
+      id: 'alpaca-mleg-1', status: 'filled',
+      filled_at: '2026-05-15T14:05:00Z',
+      legs: [
+        { symbol: 'AAL260529P00012500', side: 'sell', filled_avg_price: '0.37', filled_qty: '1' },
+        { symbol: 'AAL260529P00011500', side: 'buy', filled_avg_price: '0.12', filled_qty: '1' },
+      ],
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: '2026-05-15T14:05:00Z',
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ fill_price: 0.37 }),
+        long_leg: expect.objectContaining({ fill_price: 0.12 }),
+        net_credit: expect.closeTo(0.25, 5),
+        max_loss: expect.closeTo(0.75, 5),
+      }),
+      filled_avg_price: expect.closeTo(0.25, 5),
+    }));
+  });
+
+  it('syncFillData no-ops for a not-yet-filled mleg spread order', async () => {
+    const trade = {
+      id: 'T-2026-05-15-002', account: 'manual_paper', symbol: 'AAL', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: null,
+      strike: null, expiration: '2026-05-29', contract_type: null,
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'alpaca-mleg-2', alpaca_close_order_id: null,
+      submitted_at: '2026-05-15T14:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.40, fill_price: null, qty: 1 },
+        long_leg: { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.15, fill_price: null, qty: 1 },
+        expiration: '2026-05-29',
+        width: 1.0,
+        net_credit: 0.25,
+        max_loss: 0.75,
+      },
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockResolvedValue({
+      id: 'alpaca-mleg-2', status: 'new', filled_at: null,
+      legs: [
+        { symbol: 'AAL260529P00012500', side: 'sell', filled_avg_price: null, filled_qty: '0' },
+        { symbol: 'AAL260529P00011500', side: 'buy', filled_avg_price: null, filled_qty: '0' },
+      ],
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    // Neither fill-sync nor close-detect should write
+    expect(kvSet).not.toHaveBeenCalled();
+    expect(kvLrem).not.toHaveBeenCalled();
+  });
+
   it('syncFillData no-ops on still-pending entry orders', async () => {
     const trade = {
       id: 'T-2026-05-07-002', account: 'manual_paper', symbol: 'F', asset_class: 'option',
