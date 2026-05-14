@@ -171,7 +171,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 27.0,
-    "total_premium_today": 11.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring PFE260605P00025000: $0.24 vs entry $0.18",
