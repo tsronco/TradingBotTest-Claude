@@ -166,6 +166,7 @@ def _summarize_wheel(cfg: dict) -> dict:
                 "cycle_count": state.get("cycle_count", 0),
                 "cost_basis": state.get("cost_basis_per_share"),
             },
+            "spreads": {},
             "total_premium": state.get("total_premium_collected", 0),
             "total_today":   state.get("total_premium_today", 0),
             "total_cycles":  state.get("cycle_count", 0),
@@ -173,11 +174,27 @@ def _summarize_wheel(cfg: dict) -> dict:
 
     # Multi-stock format
     per_symbol = {}
+    spreads    = {}
     total_premium = 0.0
     total_today   = 0.0
     total_cycles  = 0
     for sym, sym_state in state.items():
         if sym.startswith("_") or not isinstance(sym_state, dict):
+            continue
+        if sym_state.get("stage") == "spread_active":
+            spreads[sym] = {
+                "spread_type":  sym_state.get("spread_type"),
+                "short_occ":    (sym_state.get("short_leg") or {}).get("occ"),
+                "long_occ":     (sym_state.get("long_leg")  or {}).get("occ"),
+                "short_strike": (sym_state.get("short_leg") or {}).get("strike"),
+                "long_strike":  (sym_state.get("long_leg")  or {}).get("strike"),
+                "short_qty":    (sym_state.get("short_leg") or {}).get("qty"),
+                "net_credit":   sym_state.get("net_credit"),
+                "max_loss":     sym_state.get("max_loss"),
+                "width":        sym_state.get("width"),
+                "expiration":   sym_state.get("expiration"),
+                "opened_at":    sym_state.get("opened_at"),
+            }
             continue
         per_symbol[sym] = {
             "stage": sym_state.get("stage", 1),
@@ -195,6 +212,7 @@ def _summarize_wheel(cfg: dict) -> dict:
         "available": True,
         "format": "multi_stock",
         "symbols": per_symbol,
+        "spreads": spreads,
         "total_premium": round(total_premium, 2),
         "total_today":   round(total_today, 2),
         "total_cycles":  total_cycles,
@@ -318,6 +336,43 @@ def _summarize_long_options(cfg: dict) -> dict:
         "count":     len(longs),
         "positions": longs,
         "total_pnl": round(total_pnl, 2),
+    }
+
+
+def _fetch_spread_pnl_for_summary(spread: dict, quote_fn=None) -> dict:
+    """Compute live P&L for one spread from Alpaca option quotes.
+
+    Args:
+        spread: dict shape from _summarize_wheel's `spreads` block.
+        quote_fn: callable(occ) -> {"bid": float, "ask": float} or None.
+                  Defaults to wheel_strategy.get_option_quote when None.
+
+    Returns:
+        dict with keys:
+            current_value:  cost-to-close per share (None if quote missing)
+            profit_pct:     0.0–1.0 fraction of credit captured (None if quote missing)
+            pnl_dollars:    dollars captured = (net_credit - current_value) * 100 (None if quote missing)
+    """
+    if quote_fn is None:
+        import wheel_strategy
+        quote_fn = wheel_strategy.get_option_quote
+
+    short_q = quote_fn(spread["short_occ"])
+    long_q  = quote_fn(spread["long_occ"])
+    if not short_q or not long_q:
+        return {"current_value": None, "profit_pct": None, "pnl_dollars": None}
+
+    short_mid = (short_q["bid"] + short_q["ask"]) / 2
+    long_mid  = (long_q["bid"]  + long_q["ask"])  / 2
+    current_value = short_mid - long_mid
+    net_credit = float(spread["net_credit"])
+    profit_pct = (net_credit - current_value) / net_credit if net_credit > 0 else 0.0
+    pnl_dollars = (net_credit - current_value) * 100 * int(spread.get("short_qty", 1))
+
+    return {
+        "current_value": round(current_value, 4),
+        "profit_pct": round(profit_pct, 4),
+        "pnl_dollars": round(pnl_dollars, 2),
     }
 
 
@@ -528,6 +583,47 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                         "value": "```\n" + "\n".join(lines) + "\n```",
                         "inline": False,
                     })
+
+        if wheel.get("available") and wheel.get("spreads"):
+            from datetime import date as _date
+            spread_rows = []
+            for sym, sp in wheel["spreads"].items():
+                pnl = _fetch_spread_pnl_for_summary(sp)
+                try:
+                    expiry = _date.fromisoformat(sp["expiration"])
+                    dte = (expiry - _date.today()).days
+                except (ValueError, TypeError):
+                    dte = "?"
+                if pnl["profit_pct"] is None:
+                    profit_str = "—"
+                    pnl_str = "—"
+                else:
+                    profit_str = f"{pnl['profit_pct']*100:+.0f}%"
+                    pnl_str = f"${pnl['pnl_dollars']:+,.2f}"
+                spread_rows.append({
+                    "sym":     sym,
+                    "type":    (sp["spread_type"] or "").replace("_", " "),
+                    "strikes": f"${sp['short_strike']:.2f}/${sp['long_strike']:.2f}",
+                    "credit":  f"${sp['net_credit']:.2f}",
+                    "profit":  profit_str,
+                    "pnl":     pnl_str,
+                    "dte":     dte,
+                })
+            if spread_rows:
+                lines = [
+                    f"{'Sym':<5}  {'Type':<11}  {'Strikes':<13}  {'Credit':>7}  {'P&L%':>6}  {'P&L $':>9}  {'DTE':>4}",
+                    f"{'-'*5}  {'-'*11}  {'-'*13}  {'-'*7}  {'-'*6}  {'-'*9}  {'-'*4}",
+                ]
+                for r in spread_rows:
+                    lines.append(
+                        f"{r['sym']:<5}  {r['type']:<11}  {r['strikes']:<13}  "
+                        f"{r['credit']:>7}  {r['profit']:>6}  {r['pnl']:>9}  {str(r['dte']):>4}"
+                    )
+                fields.append({
+                    "name":  f"Wheel — Open Spreads ({len(spread_rows)})",
+                    "value": "```\n" + "\n".join(lines) + "\n```",
+                    "inline": False,
+                })
 
         if long_opts.get("available") and long_opts.get("count", 0) > 0:
             lines = []

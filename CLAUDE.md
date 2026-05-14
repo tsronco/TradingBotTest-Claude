@@ -291,16 +291,16 @@ Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, 
 
 **Orphan-leg handling**: if a tracked spread shows only one leg on Alpaca (manual close on the web UI, overnight assignment, expired alone, etc.), `_handle_orphan_leg` auto-closes the survivor at market and clears spread state.
 
+**Daily summary visibility (Phase 3)**: `daily_summary.py` now renders a `Wheel — Open Spreads` field with one row per `spread_active` entry, showing symbol, spread type, strikes, net credit, live P&L %, P&L $, and DTE. Live P&L is computed from the current mid of each leg via `wheel_strategy.get_option_quote`. If a quote is unavailable, P&L cells show `—`. Field is omitted when no spreads are open. Applies to all four per-mode summaries; non-manual modes hold zero spreads today so the field naturally doesn't render.
+
 **What's NOT yet implemented:**
 - Live-mode wiring — `spread_management: False` on conservative, aggressive, AND live. A future plan flips live on after at least 2 weeks of manual paper validation.
-- Daily summary spread section — `daily_summary.py` continues to ignore `spread_active` entries (no crash, no rendering).
 - Dashboard order form for opening multi-leg spreads through Alpaca's `mleg` order class.
 - Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`) — only matter for the future live small-account plan.
 - Auto-roll logic — Tim opted out; spreads close at trigger, no auto-rollover.
 - Dashboard `rule-check.ts` still ignores `spread_active` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
 
 **Known limitations:**
-- Daily summary table will still misalign for `spread_active` rows (cosmetic, no crash).
 - Split-fill long legs (`short_qty != long_qty`) won't pair — falls through to single-leg adoption.
 
 **Live validation in progress.** First real spread adopted on manual paper 2026-05-14: AAL $12.50/$11.50 put credit, 5/29 expiry, $0.25 net credit, $75 max loss. Adoption embed fired cleanly in `#manual-trades`. Bot is now silently managing it — heartbeat each cycle, will fire a close embed at 50% profit, 50% max loss, or DTE ≤2 with short ITM. Target validation window before considering live enablement: ~2 weeks of real adoption + at least one full close cycle on paper.
