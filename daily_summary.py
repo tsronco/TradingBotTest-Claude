@@ -166,6 +166,7 @@ def _summarize_wheel(cfg: dict) -> dict:
                 "cycle_count": state.get("cycle_count", 0),
                 "cost_basis": state.get("cost_basis_per_share"),
             },
+            "spreads": {},
             "total_premium": state.get("total_premium_collected", 0),
             "total_today":   state.get("total_premium_today", 0),
             "total_cycles":  state.get("cycle_count", 0),
@@ -173,11 +174,27 @@ def _summarize_wheel(cfg: dict) -> dict:
 
     # Multi-stock format
     per_symbol = {}
+    spreads    = {}
     total_premium = 0.0
     total_today   = 0.0
     total_cycles  = 0
     for sym, sym_state in state.items():
         if sym.startswith("_") or not isinstance(sym_state, dict):
+            continue
+        if sym_state.get("stage") == "spread_active":
+            spreads[sym] = {
+                "spread_type":  sym_state.get("spread_type"),
+                "short_occ":    (sym_state.get("short_leg") or {}).get("occ"),
+                "long_occ":     (sym_state.get("long_leg")  or {}).get("occ"),
+                "short_strike": (sym_state.get("short_leg") or {}).get("strike"),
+                "long_strike":  (sym_state.get("long_leg")  or {}).get("strike"),
+                "short_qty":    (sym_state.get("short_leg") or {}).get("qty"),
+                "net_credit":   sym_state.get("net_credit"),
+                "max_loss":     sym_state.get("max_loss"),
+                "width":        sym_state.get("width"),
+                "expiration":   sym_state.get("expiration"),
+                "opened_at":    sym_state.get("opened_at"),
+            }
             continue
         per_symbol[sym] = {
             "stage": sym_state.get("stage", 1),
@@ -195,6 +212,7 @@ def _summarize_wheel(cfg: dict) -> dict:
         "available": True,
         "format": "multi_stock",
         "symbols": per_symbol,
+        "spreads": spreads,
         "total_premium": round(total_premium, 2),
         "total_today":   round(total_today, 2),
         "total_cycles":  total_cycles,
