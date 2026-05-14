@@ -259,3 +259,69 @@ def test_close_spread_legs_individually_handles_missing_quote(monkeypatch):
     # Fallback uses entry_premium values
     assert calls[0] == pytest.approx(0.33)
     assert calls[1] == pytest.approx(0.11)
+
+
+def test_close_spread_mleg_success_deletes_state(monkeypatch):
+    """mleg succeeds → state[ticker] deleted, single trades-channel embed."""
+    monkeypatch.setattr(wheel_strategy, "_close_spread_mleg", lambda ss: True)
+    embeds = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda ch, title, **kw: embeds.append((ch, title, kw)))
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    wheel_strategy._close_spread(state, "PLTR", reason="early_close_50pct")
+
+    assert "PLTR" not in state, "state entry must be deleted on successful close"
+    assert any("closed spread" in title.lower() for ch, title, kw in embeds)
+
+
+def test_close_spread_falls_back_to_singles_on_mleg_failure(monkeypatch):
+    """mleg fails → fallback path tried. If fallback succeeds, state is
+    deleted and the trades embed footer notes the fallback."""
+    monkeypatch.setattr(wheel_strategy, "_close_spread_mleg", lambda ss: False)
+    monkeypatch.setattr(wheel_strategy, "_close_spread_legs_individually", lambda ss: True)
+    embeds = []
+    monkeypatch.setattr(wheel_strategy, "send_embed",
+                        lambda ch, title, **kw: embeds.append((ch, title, kw)))
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    wheel_strategy._close_spread(state, "PLTR", reason="stop_loss_50pct")
+
+    assert "PLTR" not in state
+    # An info embed about the fallback should land in #actions
+    assert any("fallback" in (kw.get("description") or "").lower()
+               for ch, title, kw in embeds)
+
+
+def test_close_spread_both_paths_fail_leaves_state_alone(monkeypatch):
+    """Both mleg AND fallback fail → state untouched, error already
+    surfaced by the fallback path. Next cycle retries."""
+    monkeypatch.setattr(wheel_strategy, "_close_spread_mleg", lambda ss: False)
+    monkeypatch.setattr(wheel_strategy, "_close_spread_legs_individually", lambda ss: False)
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    state = {"PLTR": _spread_state()}
+    wheel_strategy._close_spread(state, "PLTR", reason="stop_loss_50pct")
+
+    assert "PLTR" in state, "state must remain so next cycle can retry"
+
+
+def test_close_spread_embed_color_by_reason(monkeypatch):
+    """Profit close → green; stop loss / DTE close → yellow."""
+    monkeypatch.setattr(wheel_strategy, "_close_spread_mleg", lambda ss: True)
+    monkeypatch.setattr(wheel_strategy, "log_event", lambda *a, **kw: None)
+
+    for reason, expected_color in (
+        ("early_close_50pct", wheel_strategy.Color.GREEN),
+        ("stop_loss_50pct",   wheel_strategy.Color.YELLOW),
+        ("dte_floor_itm",     wheel_strategy.Color.YELLOW),
+    ):
+        captured = []
+        monkeypatch.setattr(wheel_strategy, "send_embed",
+                            lambda ch, title, **kw: captured.append(kw.get("color")))
+        state = {"PLTR": _spread_state()}
+        wheel_strategy._close_spread(state, "PLTR", reason=reason)
+        assert expected_color in captured, f"reason={reason} missing color {expected_color}"

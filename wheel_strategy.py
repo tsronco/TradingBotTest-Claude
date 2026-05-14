@@ -354,6 +354,89 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
     return True
 
 
+def _close_spread(state: dict, ticker: str, reason: str) -> None:
+    """Orchestrate a spread close: try mleg first, fall back to two singles.
+
+    On success:
+      - Delete state[ticker] entirely (clean removal; not preserved like
+        single-leg wheel cycles which keep cycle_history).
+      - Fire #trades embed (color depends on reason).
+      - Mirror to #actions.
+      - JSONL `spread_closed` event with reason and close details.
+
+    On failure of BOTH paths:
+      - Leave state intact (next cycle retries).
+      - Error embed already surfaced by _close_spread_legs_individually.
+
+    Reasons:
+      - "early_close_50pct" → green, "closed spread … at 50% profit"
+      - "stop_loss_50pct"   → yellow, "stopped out spread …"
+      - "dte_floor_itm"     → yellow, "closed spread … near expiration (ITM risk)"
+    """
+    sym_state = state[ticker]
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+
+    used_fallback = False
+    if _close_spread_mleg(sym_state):
+        success = True
+    else:
+        used_fallback = True
+        success = _close_spread_legs_individually(sym_state)
+
+    if not success:
+        # Error already surfaced by the fallback path; leave state alone.
+        return
+
+    # Map reason → presentation
+    title_map = {
+        "early_close_50pct": f"Wheel: closed spread {ticker} at 50% profit",
+        "stop_loss_50pct":   f"Wheel: stopped out spread {ticker}",
+        "dte_floor_itm":     f"Wheel: closed spread {ticker} near expiration (ITM risk)",
+    }
+    color_map = {
+        "early_close_50pct": Color.GREEN,
+        "stop_loss_50pct":   Color.YELLOW,
+        "dte_floor_itm":     Color.YELLOW,
+    }
+    title = title_map.get(reason, f"Wheel: closed spread {ticker}")
+    color = color_map.get(reason, Color.YELLOW)
+
+    description = (
+        f"{sym_state['spread_type'].replace('_', ' ')} on {ticker}: "
+        f"short={short_occ}, long={long_occ}, "
+        f"net_credit=${sym_state['net_credit']:.2f}, max_loss=${sym_state['max_loss']:.2f}."
+    )
+    footer = f"wheel_strategy.py · {MODE}"
+    send_embed(TRADES_CH, title, color=color, description=description,
+               footer=footer, actions_channel=ACTIONS_CH)
+
+    if used_fallback:
+        send_embed(
+            ACTIONS_CH, f"Spread close used fallback path ({ticker})",
+            color=Color.BLUE,
+            description=(
+                f"mleg order was rejected; used fallback path and closed "
+                f"legs individually. Spread on {ticker} is fully closed."
+            ),
+            footer=footer,
+        )
+
+    log_event(LOG_STREAM, "wheel_strategy.py", "spread_closed",
+              symbol=ticker,
+              details={
+                  "reason": reason,
+                  "spread_type": sym_state["spread_type"],
+                  "short_occ": short_occ,
+                  "long_occ":  long_occ,
+                  "net_credit": sym_state["net_credit"],
+                  "max_loss": sym_state["max_loss"],
+                  "fallback_used": used_fallback,
+              })
+
+    del state[ticker]
+
+
 def _migrate_state(state: dict) -> dict:
     """Migrate legacy single-stock state to multi-stock format.
 
