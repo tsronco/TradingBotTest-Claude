@@ -219,6 +219,38 @@ def _empty_spread_state() -> dict:
     }
 
 
+# ── Spread management (Phase 2) ──────────────────────────────────────────
+
+def _compute_spread_pnl(sym_state: dict, short_mid: float, long_mid: float) -> dict:
+    """Compute spread P&L from current option mid prices.
+
+    Args:
+      sym_state: state dict with shape from _empty_spread_state, must have
+                 `net_credit` and `max_loss` populated.
+      short_mid: current mid price of the short leg (per share).
+      long_mid: current mid price of the long leg (per share).
+
+    Returns:
+      dict with keys:
+        current_value:  cost-to-close per share (short - long)
+        profit_pct:     fraction of credit captured. Positive when winning,
+                        negative when losing. 0.50 means half the credit
+                        has been captured (50% profit close trigger).
+        loss_per_share: current loss in $/share. Positive when losing,
+                        negative when winning. Compare against
+                        max_loss * stop_loss_pct for stop-out check.
+    """
+    net_credit = float(sym_state["net_credit"])
+    current_value = short_mid - long_mid
+    profit_pct = (net_credit - current_value) / net_credit if net_credit > 0 else 0.0
+    loss_per_share = current_value - net_credit
+    return {
+        "current_value": round(current_value, 4),
+        "profit_pct": round(profit_pct, 4),
+        "loss_per_share": round(loss_per_share, 4),
+    }
+
+
 def _migrate_state(state: dict) -> dict:
     """Migrate legacy single-stock state to multi-stock format.
 
