@@ -536,6 +536,43 @@ def place_buy_to_close(option_symbol, limit_price, qty=None):
     return order
 
 
+def place_sell_to_close(option_symbol, limit_price, qty=None):
+    """Sell-to-close a long option position.
+
+    Mirror of place_buy_to_close — used to close the long hedge leg of a
+    credit spread when the fallback close path runs (mleg rejected or
+    orphan-leg recovery).
+
+    qty: number of contracts to close. If None (default), looks up the
+    actual long position size on Alpaca and closes ALL of it.
+
+    Limit price is set slightly BELOW mid (subtract 0.05) to ensure a
+    quick fill — symmetric to place_buy_to_close's "add 0.05" tactic.
+    """
+    if qty is None:
+        pos = get_option_position(option_symbol)
+        if pos is None:
+            log(f"place_sell_to_close: no Alpaca position for {option_symbol} — skipping")
+            return None
+        qty = abs(int(float(pos.get("qty", 0))))
+        if qty == 0:
+            log(f"place_sell_to_close: position qty=0 for {option_symbol} — skipping")
+            return None
+
+    aggressive_limit = round(max(0.01, limit_price - 0.05), 2)
+    order = api_post("/orders", {
+        "symbol":          option_symbol,
+        "qty":             str(qty),
+        "side":            "sell",
+        "type":            "limit",
+        "limit_price":     str(aggressive_limit),
+        "time_in_force":   "day",
+        "position_intent": "sell_to_close",
+    })
+    log(f"Sell-to-close placed: {option_symbol} qty={qty} @ ${aggressive_limit:.2f} — order {order['id']}")
+    return order
+
+
 def strike_increment(reference_price: float) -> float:
     """Standard option-chain strike spacing for a given stock price level.
 
