@@ -92,3 +92,41 @@ def test_summarize_wheel_with_no_spreads_returns_empty_spreads(tmp_path):
         ds.ROOT = original_root
 
     assert result["spreads"] == {}
+
+
+def test_fetch_spread_pnl_for_summary_computes_correctly(monkeypatch):
+    """For a put credit spread: short_mid - long_mid = current_value,
+    (net_credit - current_value) / net_credit = profit_pct."""
+    spread = {
+        "short_occ": "PLTR260619P00008000",
+        "long_occ":  "PLTR260619P00007000",
+        "net_credit": 0.22,
+        "max_loss":   0.78,
+        "short_qty":  1,
+    }
+    quotes = {
+        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},  # mid 0.18
+        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},  # mid 0.07
+    }
+    # current_value = 0.18 - 0.07 = 0.11, profit_pct = (0.22 - 0.11) / 0.22 = 0.50
+    result = daily_summary._fetch_spread_pnl_for_summary(spread, quote_fn=lambda occ: quotes[occ])
+    assert result["current_value"] == pytest.approx(0.11)
+    assert result["profit_pct"] == pytest.approx(0.50)
+    assert result["pnl_dollars"] == pytest.approx(11.0)
+
+
+def test_fetch_spread_pnl_for_summary_handles_missing_quote():
+    """If either quote is None (no live quote), helper returns Nones."""
+    spread = {
+        "short_occ": "PLTR260619P00008000",
+        "long_occ":  "PLTR260619P00007000",
+        "net_credit": 0.22,
+        "max_loss":   0.78,
+        "short_qty":  1,
+    }
+    result = daily_summary._fetch_spread_pnl_for_summary(
+        spread, quote_fn=lambda occ: None if occ.endswith("P00008000") else {"bid": 0.06, "ask": 0.08}
+    )
+    assert result["current_value"] is None
+    assert result["profit_pct"] is None
+    assert result["pnl_dollars"] is None

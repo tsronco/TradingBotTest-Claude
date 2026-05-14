@@ -339,6 +339,43 @@ def _summarize_long_options(cfg: dict) -> dict:
     }
 
 
+def _fetch_spread_pnl_for_summary(spread: dict, quote_fn=None) -> dict:
+    """Compute live P&L for one spread from Alpaca option quotes.
+
+    Args:
+        spread: dict shape from _summarize_wheel's `spreads` block.
+        quote_fn: callable(occ) -> {"bid": float, "ask": float} or None.
+                  Defaults to wheel_strategy.get_option_quote when None.
+
+    Returns:
+        dict with keys:
+            current_value:  cost-to-close per share (None if quote missing)
+            profit_pct:     0.0–1.0 fraction of credit captured (None if quote missing)
+            pnl_dollars:    dollars captured = (net_credit - current_value) * 100 (None if quote missing)
+    """
+    if quote_fn is None:
+        import wheel_strategy
+        quote_fn = wheel_strategy.get_option_quote
+
+    short_q = quote_fn(spread["short_occ"])
+    long_q  = quote_fn(spread["long_occ"])
+    if not short_q or not long_q:
+        return {"current_value": None, "profit_pct": None, "pnl_dollars": None}
+
+    short_mid = (short_q["bid"] + short_q["ask"]) / 2
+    long_mid  = (long_q["bid"]  + long_q["ask"])  / 2
+    current_value = short_mid - long_mid
+    net_credit = float(spread["net_credit"])
+    profit_pct = (net_credit - current_value) / net_credit if net_credit > 0 else 0.0
+    pnl_dollars = (net_credit - current_value) * 100 * int(spread.get("short_qty", 1))
+
+    return {
+        "current_value": round(current_value, 4),
+        "profit_pct": round(profit_pct, 4),
+        "pnl_dollars": round(pnl_dollars, 2),
+    }
+
+
 def _reset_wheel_today_counters(cfg: dict) -> None:
     """Zero `total_premium_today` for every symbol in the wheel state file.
 
