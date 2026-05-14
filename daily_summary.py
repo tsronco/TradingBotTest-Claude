@@ -441,20 +441,27 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
                     "inline": False,
                 })
 
-        if held_stocks.get("available") and held_stocks.get("count", 0) > 0:
-            lines = []
-            for p in held_stocks["positions"]:
-                qty_str = f"{p['qty']:.0f}" if p['qty'] == int(p['qty']) else f"{p['qty']:.4f}"
-                lines.append(
-                    f"  {p['symbol']:<5} qty {qty_str:>6}  avg ${p['entry']:>7.2f}  "
-                    f"now ${p['current']:>7.2f}  MV ${p['market_value']:>10,.2f}  "
-                    f"P&L {p['pnl_pct']:+.1%} (${p['pnl_dollars']:+.2f})"
-                )
-            fields.append({
-                "name":  f"Held Stocks (not tracked by bot — {len(lines)})",
-                "value": "```\n" + "\n".join(lines) + "\n```",
-                "inline": False,
-            })
+        if held_stocks.get("available"):
+            if held_stocks.get("count", 0) > 0:
+                lines = []
+                for p in held_stocks["positions"]:
+                    qty_str = f"{p['qty']:.0f}" if p['qty'] == int(p['qty']) else f"{p['qty']:.4f}"
+                    lines.append(
+                        f"  {p['symbol']:<5} qty {qty_str:>6}  avg ${p['entry']:>7.2f}  "
+                        f"now ${p['current']:>7.2f}  MV ${p['market_value']:>10,.2f}  "
+                        f"P&L {p['pnl_pct']:+.1%} (${p['pnl_dollars']:+.2f})"
+                    )
+                fields.append({
+                    "name":  f"Held Stocks (not tracked by bot — {len(lines)})",
+                    "value": "```\n" + "\n".join(lines) + "\n```",
+                    "inline": False,
+                })
+            else:
+                fields.append({
+                    "name":  "Held Stocks (ground truth)",
+                    "value": "✅ All stocks tracked by bot",
+                    "inline": False,
+                })
 
         if wheel["available"]:
             fields.append({
