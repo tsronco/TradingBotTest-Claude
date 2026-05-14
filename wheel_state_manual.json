@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-14T15:11:26.322473Z"
+    "last_checked": "2026-05-14T15:21:30.896071Z"
   },
   "F": {
     "stage": 1,
@@ -38,7 +38,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring SNAP260515P00007500: $2.20 vs entry $1.80"
+    "last_action": "Monitoring SNAP260515P00007500: $2.17 vs entry $1.80"
   },
   "AAL": {
     "stage": "spread_active",
