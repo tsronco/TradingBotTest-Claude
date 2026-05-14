@@ -128,6 +128,10 @@ MODES = {
         "wheel_state_file":     "wheel_state.json",
         "strategy_state_file":  "strategy_state.json",
 
+        # Behaviour flags — stub for a future plan. handle_spread() does not
+        # exist yet; detection logging runs unconditionally.
+        "spread_management":   False,
+
         # Wheel parameters
         "wheel_symbols":       CONSERVATIVE_SYMBOLS,
         "put_strike_pct":      0.10,
@@ -167,6 +171,9 @@ MODES = {
 
         "wheel_state_file":     "wheel_state_aggressive.json",
         "strategy_state_file":  "strategy_state_aggressive.json",
+
+        # Behaviour flags — stub for a future plan.
+        "spread_management":   False,
 
         "wheel_symbols":       AGGRESSIVE_SYMBOLS,
         "put_strike_pct":      0.05,
@@ -211,6 +218,9 @@ MODES = {
         # still managed (50% close) and assignments still trigger Stage 2
         # covered call sales.
         "wheel_skip_new_puts": True,
+
+        # Stub for a future plan — handle_spread() does not exist yet.
+        "spread_management":   False,
 
         # Wheel parameters mirror conservative — used for the 50% close on
         # existing puts and for pricing the covered call when an assignment
@@ -258,6 +268,9 @@ MODES = {
         # Never open Stage 1 puts. Manage existing puts (50% close) and sell
         # covered calls on assignment, same as manual mode.
         "wheel_skip_new_puts": True,
+
+        # Stub for a future plan — handle_spread() does not exist yet.
+        "spread_management":   False,
 
         # Wheel parameters mirror conservative/manual — used for the 50% close
         # on existing puts and for pricing the covered call when an assignment
