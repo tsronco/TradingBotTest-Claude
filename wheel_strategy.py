@@ -282,6 +282,78 @@ def _close_spread_mleg(sym_state: dict) -> bool:
         return False
 
 
+def _close_spread_legs_individually(sym_state: dict) -> bool:
+    """Fallback close path: place two separate single-leg orders.
+
+    Order is critical:
+      1. Buy-to-close the SHORT leg first (eliminates assignment risk)
+      2. Sell-to-close the LONG leg
+
+    If step 1 fails, return False without touching state — next cycle
+    retries from handle_spread's top.
+
+    If step 1 succeeds but step 2 fails, the spread is in a half-closed
+    state: short is gone, long is orphaned. Mark short_leg.qty=0 so the
+    next cycle's _handle_orphan_leg sees "long present, short missing"
+    and closes the survivor.
+
+    Limit prices: midpoint from get_option_quote if available, otherwise
+    the entry premium as a fallback (better than no order at all).
+    """
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+    short_entry = sym_state["short_leg"]["entry_premium"]
+    long_entry  = sym_state["long_leg"]["entry_premium"]
+
+    def _mid_or_entry(occ: str, entry: float) -> float:
+        q = get_option_quote(occ)
+        if q:
+            return round((q["bid"] + q["ask"]) / 2, 2)
+        return entry
+
+    short_limit = _mid_or_entry(short_occ, short_entry)
+    long_limit  = _mid_or_entry(long_occ,  long_entry)
+
+    # Step 1: close the short leg
+    try:
+        place_buy_to_close(short_occ, short_limit)
+    except Exception as e:
+        log(f"_close_spread_legs_individually: BTC failed on {short_occ}: {type(e).__name__}: {e}")
+        send_embed(
+            ERRORS_CH, f"Spread close failed (short leg) {sym_state.get('spread_type', '?')}",
+            color=Color.RED,
+            description=(
+                f"BTC of short leg `{short_occ}` failed: {e}. "
+                f"Spread is intact; next cycle will retry."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        return False
+
+    # Step 2: close the long leg
+    try:
+        place_sell_to_close(long_occ, long_limit)
+    except Exception as e:
+        log(f"_close_spread_legs_individually: STC failed on {long_occ}: {type(e).__name__}: {e}")
+        # Half-closed: mark short as gone so orphan handler picks up the long
+        sym_state["short_leg"]["qty"] = 0
+        send_embed(
+            ERRORS_CH, f"Spread close ORPHANED",
+            color=Color.RED,
+            description=(
+                f"Short leg `{short_occ}` closed successfully, but STC of "
+                f"long leg `{long_occ}` failed: {e}. "
+                f"Next cycle's orphan handler will retry the long-leg close."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        return False
+
+    return True
+
+
 def _migrate_state(state: dict) -> dict:
     """Migrate legacy single-stock state to multi-stock format.
 

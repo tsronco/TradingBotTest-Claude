@@ -181,3 +181,81 @@ def test_close_spread_mleg_handles_multi_contract_spreads(monkeypatch):
     wheel_strategy._close_spread_mleg(sym_state)
     assert captured["qty"] == "2"
     assert all(leg["ratio_qty"] == "1" for leg in captured["legs"])
+
+
+def test_close_spread_legs_individually_both_succeed(monkeypatch):
+    """Happy path: buy-to-close short, then sell-to-close long. Both succeed."""
+    calls = []
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda sym, price, qty=None: calls.append(("btc", sym, qty)) or {"id": "a"})
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda sym, price, qty=None: calls.append(("stc", sym, qty)) or {"id": "b"})
+    # Mock get_option_quote so the helper can compute limit prices
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda sym: {"bid": 0.30, "ask": 0.32})
+
+    sym_state = _spread_state()
+    result = wheel_strategy._close_spread_legs_individually(sym_state)
+
+    assert result is True
+    assert calls[0][0] == "btc"  # short closed first
+    assert calls[0][1] == "PLTR260619P00008000"
+    assert calls[1][0] == "stc"
+    assert calls[1][1] == "PLTR260619P00007000"
+
+
+def test_close_spread_legs_individually_short_fails(monkeypatch):
+    """Short BTC fails → return False, do NOT attempt long STC.
+    State is unchanged so next cycle retries from the top."""
+    stc_called = []
+    def failing_btc(sym, price, qty=None):
+        raise RuntimeError("buy-to-close rejected")
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close", failing_btc)
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda sym, price, qty=None: stc_called.append(sym) or {"id": "b"})
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda sym: {"bid": 0.30, "ask": 0.32})
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+
+    sym_state = _spread_state()
+    result = wheel_strategy._close_spread_legs_individually(sym_state)
+    assert result is False
+    assert stc_called == [], "long leg STC must not run when short BTC fails"
+
+
+def test_close_spread_legs_individually_long_fails_marks_orphan(monkeypatch):
+    """Short closes successfully, but long STC fails → return False AND
+    mark short_leg.qty=0 in state so the next cycle's orphan handler
+    closes the surviving long."""
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda sym, price, qty=None: {"id": "btc-1"})
+    def failing_stc(sym, price, qty=None):
+        raise RuntimeError("sell-to-close rejected")
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close", failing_stc)
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda sym: {"bid": 0.30, "ask": 0.32})
+    monkeypatch.setattr(wheel_strategy, "send_embed", lambda *a, **kw: None)
+
+    sym_state = _spread_state()
+    result = wheel_strategy._close_spread_legs_individually(sym_state)
+    assert result is False
+    # Half-closed marker so orphan handler picks up the long next cycle
+    assert sym_state["short_leg"]["qty"] == 0
+    assert sym_state["long_leg"]["qty"] == 1  # untouched
+
+
+def test_close_spread_legs_individually_handles_missing_quote(monkeypatch):
+    """If get_option_quote returns None (no live quote), use the entry
+    premium as a fallback limit reference so we still attempt the close."""
+    calls = []
+    monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
+                        lambda sym, price, qty=None: calls.append(price) or {"id": "a"})
+    monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
+                        lambda sym, price, qty=None: calls.append(price) or {"id": "b"})
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: None)
+
+    sym_state = _spread_state()  # short_entry 0.33, long_entry 0.11
+    wheel_strategy._close_spread_legs_individually(sym_state)
+    # Fallback uses entry_premium values
+    assert calls[0] == pytest.approx(0.33)
+    assert calls[1] == pytest.approx(0.11)
