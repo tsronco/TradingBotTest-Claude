@@ -151,7 +151,47 @@ def test_held_returns_empty_when_no_stocks(monkeypatch):
     result = daily_summary._summarize_held_stocks({}, set())
     assert result["available"] is True
     assert result["count"] == 0
+    assert result["total_held"] == 0
     assert result["positions"] == []
+
+
+def test_held_counts_total_held_even_when_all_tracked(monkeypatch):
+    """total_held counts ALL stock positions regardless of tracked status.
+
+    Distinguishes 'no stocks at all' from 'stocks all tracked elsewhere' —
+    the daily summary uses this to pick the right empty-state message.
+    """
+    monkeypatch.setattr(
+        daily_summary, "_get_positions",
+        lambda cfg: [_equity_pos("F"), _equity_pos("TSLA")],
+    )
+    result = daily_summary._summarize_held_stocks({}, {"F", "TSLA"})
+    assert result["count"] == 0           # nothing untracked
+    assert result["total_held"] == 2      # but 2 stocks held in Alpaca
+    assert result["positions"] == []
+
+
+def test_held_total_excludes_zero_qty(monkeypatch):
+    """Stale zero-qty rows must not inflate total_held."""
+    monkeypatch.setattr(
+        daily_summary, "_get_positions",
+        lambda cfg: [_equity_pos("F", qty=0), _equity_pos("BAC", qty=5)],
+    )
+    result = daily_summary._summarize_held_stocks({}, set())
+    assert result["total_held"] == 1
+
+
+def test_held_total_excludes_options(monkeypatch):
+    """Options must not inflate the stock count even if asset_class is loose."""
+    monkeypatch.setattr(
+        daily_summary, "_get_positions",
+        lambda cfg: [
+            _equity_pos("F"),
+            {"symbol": "TSLA250620C00280000", "asset_class": "us_option", "qty": "1"},
+        ],
+    )
+    result = daily_summary._summarize_held_stocks({}, set())
+    assert result["total_held"] == 1
 
 
 def test_held_graceful_on_alpaca_error(monkeypatch):
