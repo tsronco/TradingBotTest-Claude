@@ -126,7 +126,7 @@ jsdom has no layout engine — we **cannot** assert horizontal scroll, pixel wid
 
 ## Rollout
 
-1. Branch `claude/mobile-dashboard-spread-automation-pn4qt` (already set).
+1. Branch `claude/mobile-dashboard` (already set).
 2. Implement per companion plan; `npm test` green (352) before deploy.
 3. Deploy: `cd dashboard && npx vercel --prod` (git push does **not** auto-deploy). If deploying from a worktree, `npx vercel link --yes --project tradingbot-dashboard` first (CLAUDE.md worktree gotcha).
 4. Manual device checklist on the production URL.

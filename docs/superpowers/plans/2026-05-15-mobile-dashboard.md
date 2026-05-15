@@ -10,7 +10,7 @@
 
 **Spec:** [2026-05-15-mobile-dashboard-design.md](docs/superpowers/specs/2026-05-15-mobile-dashboard-design.md)
 
-**Branch:** `claude/mobile-dashboard-spread-automation-pn4qt`
+**Branch:** `claude/mobile-dashboard`
 
 ---
 
@@ -481,7 +481,7 @@ Run in responsive devtools (or a real phone) at **375×667**, **390×844**, and 
 - [ ] `npx vercel --prod` (git push does NOT auto-deploy).
 - [ ] Re-run a trimmed E2 pass against the production URL on a real phone.
 - [ ] Update `CLAUDE.md` "Dashboard subproject" section: add a short "Mobile responsiveness shipped 2026-05-15 — drawer nav, stacked-card tables, one `md`=768px breakpoint" note + test count bump.
-- [ ] Commit on `claude/mobile-dashboard-spread-automation-pn4qt`, push with `git push -u origin claude/mobile-dashboard-spread-automation-pn4qt`. Do NOT open a PR unless asked.
+- [ ] Commit on `claude/mobile-dashboard`, push with `git push -u origin claude/mobile-dashboard`. Do NOT open a PR unless asked.
 
 ---
 
