@@ -114,18 +114,18 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
       {/* account selector */}
       <Section label="━━━ account ─────────">
         <div className="flex gap-1 flex-wrap">
-          <button type="button" className={`pbtn ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
             [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
           </button>
-          <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
             [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
           </button>
-          <button type="button" className={`pbtn ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
             [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
-            className={`pbtn ${account === 'live' ? 'active' : ''} text-red`}
+            className={`pbtn max-md:min-h-[44px] ${account === 'live' ? 'active' : ''} text-red`}
             onClick={() => setAccount('live')}
             title="LIVE — real money. Orders above per-account threshold require TOTP."
           >
@@ -138,7 +138,7 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
       <Section label="━━━ side ──────────────">
         <div className="flex gap-1">
           {(['buy', 'sell', 'sell_short'] as StockSide[]).map((s) => (
-            <button key={s} type="button" className={`pbtn ${side === s ? 'active' : ''}`} onClick={() => setSide(s)}>
+            <button key={s} type="button" className={`pbtn max-md:min-h-[44px] ${side === s ? 'active' : ''}`} onClick={() => setSide(s)}>
               [{s}{side === s ? '*' : ''}]
             </button>
           ))}
@@ -148,7 +148,7 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
       <Section label="━━━ type ──────────────">
         <div className="flex gap-1 flex-wrap">
           {(['limit', 'market', 'stop', 'stop_limit', 'trailing'] as OrderType[]).map((t) => (
-            <button key={t} type="button" className={`pbtn ${orderType === t ? 'active' : ''}`} onClick={() => setOrderType(t)}>
+            <button key={t} type="button" className={`pbtn max-md:min-h-[44px] ${orderType === t ? 'active' : ''}`} onClick={() => setOrderType(t)}>
               [{t}{orderType === t ? '*' : ''}]
             </button>
           ))}
@@ -171,7 +171,7 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
         <Row label="tif">
           <div className="flex gap-1">
             {(['day', 'gtc'] as Tif[]).map((t) => (
-              <button key={t} type="button" className={`pbtn ${tif === t ? 'active' : ''}`} onClick={() => setTif(t)}>
+              <button key={t} type="button" className={`pbtn max-md:min-h-[44px] ${tif === t ? 'active' : ''}`} onClick={() => setTif(t)}>
                 [{t}{tif === t ? '*' : ''}]
               </button>
             ))}
@@ -202,8 +202,8 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           last <span className="text-fg">{fmtUsd(last)}</span> · bid {fmtUsd(bid)} · ask {fmtUsd(ask)}
         </span>
         <div className="flex gap-2">
-          <a href="/orders" className="pbtn">[cancel]</a>
-          <button type="button" className="pbtn active" disabled={previewing} onClick={review}>
+          <a href="/orders" className="pbtn max-md:min-h-[44px]">[cancel]</a>
+          <button type="button" className="pbtn max-md:min-h-[44px] active" disabled={previewing} onClick={review}>
             [{previewing ? 'previewing…' : 'review*'}]
           </button>
         </div>

@@ -243,8 +243,8 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
       <div className="pt-3 border-t border-dashed border-border flex justify-between items-center">
         <span className="text-mid text-[12px]">bid {fmtUsd(bid)} · ask {fmtUsd(ask)}</span>
         <div className="flex gap-2">
-          <a href="/orders" className="pbtn">[cancel]</a>
-          <button type="button" className="pbtn active" disabled={previewing} onClick={review}>
+          <a href="/orders" className="pbtn max-md:min-h-[44px]">[cancel]</a>
+          <button type="button" className="pbtn max-md:min-h-[44px] active" disabled={previewing} onClick={review}>
             [{previewing ? 'previewing…' : 'review*'}]
           </button>
         </div>

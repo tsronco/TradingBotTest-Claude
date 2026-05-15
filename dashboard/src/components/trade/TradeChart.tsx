@@ -55,9 +55,11 @@ export function TradeChart({ trade }: { trade: Trade }) {
     if (!ref.current || !data?.bars?.length) return;
 
     const containerEl = ref.current;
+    // read once at chart-create; rotation keeps the initial height (acceptable — width tracks via the ResizeObserver below)
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
     const chart = createChart(containerEl, {
       width: containerEl.clientWidth,
+      // 180 mobile / 200 desktop — compact chart on phones
       height: isMobile ? 180 : 200,
       layout: {
         background: { type: ColorType.Solid, color: '#05080a' },
