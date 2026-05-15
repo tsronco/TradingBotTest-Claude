@@ -297,3 +297,8 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
     font-size: 13px;
   }
 }
+
+/* payoff scrubber: invisible ≥44px touch hitbox around the visual handle */
+.payoff-scrub { cursor: ew-resize; touch-action: none; }
+.payoff-scrub-hit { fill: transparent; }
+@media (max-width: 767px) { .payoff-scrub-hit { /* widened in component via width prop */ } }
