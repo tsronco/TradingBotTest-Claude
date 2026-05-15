@@ -268,8 +268,6 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
   border-top: 1px solid var(--color-hi);
   border-bottom: 1px solid var(--color-hi);
 }
-.chain-spot { transition: transform 220ms ease; }
-
 /* Responsive table → stacked cards below md (768px).
    Markup stays a <table>; cells need data-label="…" for the row labels.
    Desktop (>=768px): no effect, normal table. */

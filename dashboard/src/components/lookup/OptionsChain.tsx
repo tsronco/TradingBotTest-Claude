@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fmtUsd, fmtPct } from '../../lib/format';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
 import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../../lib/account-utils';
@@ -84,6 +85,14 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   // Pull current price from the same query the QuotePanel uses — React Query
   // dedupes, so this is free. refetchInterval keeps the spot divider live as
   // the underlying ticks; React Query auto-pauses when the component unmounts.
+  //
+  // NOTE — shared-query interval dominance: the ['quote', symbol] key is shared
+  // with QuotePanel and WheelabilityPanel. React Query uses the shortest active
+  // interval across all observers, so while OptionsChain is mounted on
+  // /lookup/:symbol this 5 s interval dominates the shared query and those
+  // panels also refetch/re-render at 5 s (overriding QuotePanel's own 15 s).
+  // This is intentional — timelier spot-price for the divider is worth the
+  // extra polling while the chain is visible.
   const quoteQ = useQuery({
     queryKey: ['quote', symbol],
     queryFn: () => api<any>(`/api/alpaca/quote?symbol=${symbol}`),
@@ -256,7 +265,7 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
               }
             }
 
-            const elements: React.ReactNode[] = [];
+            const elements: ReactNode[] = [];
             let dividerInserted = false;
 
             // If spot is below all visible strikes, insert divider first.
