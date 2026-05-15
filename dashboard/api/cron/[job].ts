@@ -392,6 +392,60 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
     }
   }
 
+  // Path 2b: spread past expiration with no close order = resolve by spot vs strikes.
+  // The bot (Phase 2 handle_spread) clears the legs on Alpaca's side at expiry, but
+  // the dashboard's trade record stays pinned to trades:index:open with closed_at=null
+  // unless we resolve it here. Three outcomes:
+  //   • spot >= short_strike  → both legs worthless OTM, keep full net credit (win)
+  //   • spot <  long_strike   → both legs deep ITM, full max loss
+  //   • between strikes       → partial loss, leave for manual resolution
+  if (trade.asset_class === 'spread' && trade.spread) {
+    const exp = trade.spread.expiration;
+    const expDate = new Date(exp + 'T20:00:00Z'); // ~4 PM ET = 20:00 UTC during EDT
+    if (Date.now() > expDate.getTime()) {
+      // Fetch latest trade price for the underlying
+      let spot = 0;
+      try {
+        const latest = await alpacaData<any>(mode, `/v2/stocks/${trade.symbol}/trades/latest`, { feed: 'iex' });
+        spot = parseFloat(latest?.trade?.p ?? '0');
+      } catch (e) {
+        console.error('detectClose spread spot fetch failed', trade.id, trade.symbol, e);
+        return null;
+      }
+      if (!Number.isFinite(spot) || spot <= 0) {
+        console.error('detectClose spread spot unavailable', trade.id, trade.symbol);
+        return null;
+      }
+
+      const { short_leg, long_leg, net_credit, max_loss, width } = trade.spread;
+      const qty = short_leg.qty;
+
+      if (spot >= short_leg.strike) {
+        // Worthless OTM — keep full credit
+        return {
+          closed_at: expDate.toISOString(),
+          closed_avg_price: 0,
+          realized_pnl: Math.round(net_credit * 100 * qty * 100) / 100,
+          closed_by: 'expired',
+        };
+      }
+      if (spot < long_leg.strike) {
+        // Deep ITM — full max loss
+        return {
+          closed_at: expDate.toISOString(),
+          closed_avg_price: width,
+          realized_pnl: Math.round(-max_loss * 100 * qty * 100) / 100,
+          closed_by: 'expired',
+        };
+      }
+      // Between strikes — partial loss, leave for manual close
+      console.warn(
+        `[${trade.id}] spread expired between strikes (spot=${spot}, short=${short_leg.strike}, long=${long_leg.strike}) — leaving for manual close`,
+      );
+      return null;
+    }
+  }
+
   // Path 3: stock — match a later opposite-side fill against the same symbol
   // (Phase 2 keeps this simple — the user is expected to attach a close order via the modify/cancel UI
   // in milestone 6. Skipping fancy FIFO stock matching here.)

@@ -348,6 +348,146 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
+  // ---- detectClose spread expiry branch ------------------------------------
+
+  function makeFilledSpreadTrade(overrides: any = {}) {
+    return {
+      id: 'T-2026-05-29-001', account: 'manual_paper', symbol: 'AAL', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: null,
+      strike: null, expiration: '2026-05-29', contract_type: null,
+      filled_avg_price: 0.25, filled_at: '2026-05-15T14:05:00Z',
+      alpaca_order_id: 'alpaca-mleg-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-15T14:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      // non-empty modify_history short-circuits syncFillData
+      modify_history: [{ ts: 'x', prev_order_id: 'x', new_order_id: 'x', limit_price: null, stop_price: null, source: 'dashboard' as const }],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.40, fill_price: 0.37, qty: 1 },
+        long_leg: { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.15, fill_price: 0.12, qty: 1 },
+        expiration: '2026-05-29',
+        width: 1.0,
+        net_credit: 0.25,
+        max_loss: 0.75,
+      },
+      ...overrides,
+    } as any;
+  }
+
+  it('detectClose: marks spread expired worthless when spot >= short strike at expiry', async () => {
+    const trade = makeFilledSpreadTrade();
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Spot $13.00 > short strike $12.5 → worthless OTM
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '13.00' } });
+      return Promise.resolve({ bars: { AAL: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'on', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+    // Freeze time after expiration
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-30T01:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+    // net_credit * 100 * qty = 0.25 * 100 * 1 = 25
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: expect.any(String),
+      closed_avg_price: 0,
+      realized_pnl: 25,
+      closed_by: 'expired',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  it('detectClose: marks spread max-loss expired when spot < long strike at expiry', async () => {
+    const trade = makeFilledSpreadTrade({ id: 'T-2026-05-29-002' });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Spot $11.00 < long strike $11.5 → deep ITM, full max loss
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '11.00' } });
+      return Promise.resolve({ bars: { AAL: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'F', review: 'r', calibration: 'under', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-30T01:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+    // -max_loss * 100 * qty = -0.75 * 100 * 1 = -75; closed_avg_price = width = 1.0
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_avg_price: 1.0,
+      realized_pnl: -75,
+      closed_by: 'expired',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  it('detectClose: leaves spread untouched when spot is between strikes (partial loss)', async () => {
+    const trade = makeFilledSpreadTrade({ id: 'T-2026-05-29-003' });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    // Spot $12.00 — between long $11.5 and short $12.5 → partial loss, leave for manual
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '12.00' } });
+      return Promise.resolve({ bars: { AAL: [] } });
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-30T01:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+    // No write, no removal from open index
+    expect(kvSet).not.toHaveBeenCalled();
+    expect(kvLrem).not.toHaveBeenCalled();
+  });
+
+  it('detectClose: does NOT fire on spreads with future expiration', async () => {
+    const trade = makeFilledSpreadTrade({ id: 'T-2026-05-29-004', expiration: '2026-06-26', spread: {
+      spread_type: 'put_credit',
+      short_leg: { occ: 'AAL260626P00012500', strike: 12.5, entry_premium: 0.40, fill_price: 0.37, qty: 1 },
+      long_leg: { occ: 'AAL260626P00011500', strike: 11.5, entry_premium: 0.15, fill_price: 0.12, qty: 1 },
+      expiration: '2026-06-26',
+      width: 1.0,
+      net_credit: 0.25,
+      max_loss: 0.75,
+    } });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-30T01:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+    expect(kvSet).not.toHaveBeenCalled();
+    expect(kvLrem).not.toHaveBeenCalled();
+    // No spot fetch should have happened either
+    expect(dataMock).not.toHaveBeenCalled();
+  });
+
   it('syncFillData no-ops on still-pending entry orders', async () => {
     const trade = {
       id: 'T-2026-05-07-002', account: 'manual_paper', symbol: 'F', asset_class: 'option',
