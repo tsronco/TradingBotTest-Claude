@@ -257,6 +257,17 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
 .chain-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-mid); }
 .chain-scroll { scrollbar-width: thin; scrollbar-color: var(--color-dim) transparent; }
 
+/* spot-price divider row in the options chain strike ladder */
+.chain-spot td {
+  background: color-mix(in oklab, var(--color-hi) 14%, var(--color-bg));
+  color: var(--color-hi);
+  text-align: center;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  padding: 4px 0;
+  border-top: 1px solid var(--color-hi);
+  border-bottom: 1px solid var(--color-hi);
+}
 /* Responsive table → stacked cards below md (768px).
    Markup stays a <table>; cells need data-label="…" for the row labels.
    Desktop (>=768px): no effect, normal table. */
@@ -297,3 +308,7 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
     font-size: 13px;
   }
 }
+
+/* payoff scrubber: invisible ≥44px touch hitbox around the visual handle */
+.payoff-scrub { cursor: ew-resize; touch-action: none; }
+.payoff-scrub-hit { fill: transparent; }

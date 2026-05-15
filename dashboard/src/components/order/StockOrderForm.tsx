@@ -7,6 +7,9 @@ import { TagPicker } from './TagPicker';
 import { fmtUsd } from '../../lib/format';
 import type { GradeLetter, RuleWarning, StockSide, OrderType, Tif } from '../../lib/trade-types';
 import { AccountBpIndicator } from './AccountBpIndicator';
+import PayoffChart from './PayoffChart';
+import FillHint from './FillHint';
+import type { Leg } from '../../lib/payoff';
 
 type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
 
@@ -160,7 +163,18 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           <NumInput value={qty} onChange={(n) => setQty(n === '' ? 0 : n)} />
         </Row>
         {(orderType === 'limit' || orderType === 'stop_limit') && (
-          <Row label="limit price"><NumInput value={limitPrice} onChange={setLimitPrice} step={0.01} /></Row>
+          <>
+            {bid > 0 && ask > 0 && (
+              <FillHint
+                side={side === 'buy' ? 'buy' : 'sell'}
+                bid={bid}
+                ask={ask}
+                last={last || undefined}
+                onPick={(p) => setLimitPrice(p)}
+              />
+            )}
+            <Row label="limit price"><NumInput value={limitPrice} onChange={setLimitPrice} step={0.01} /></Row>
+          </>
         )}
         {(orderType === 'stop' || orderType === 'stop_limit') && (
           <Row label="stop price"><NumInput value={stopPrice} onChange={setStopPrice} step={0.01} /></Row>
@@ -178,6 +192,18 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           </div>
         </Row>
       </Section>
+
+      {/* payoff chart — buy/sell_short only; sell (closing) shows a note */}
+      {side === 'sell' ? (
+        <div className="text-dim text-[11px] italic">payoff diagram n/a for a position-closing sell</div>
+      ) : (() => {
+        const px = limitPrice !== '' ? Number(limitPrice) : (ask + bid) / 2 || last || 0;
+        const q = qty || 0;
+        if (!px || !q) return null;
+        const leg: Leg = { kind: 'stock', dir: side === 'buy' ? 'long' : 'short', entry: px, shares: q };
+        const liveLast = last || (ask + bid) / 2 || px;
+        return <PayoffChart legs={[leg]} currentPrice={liveLast} />;
+      })()}
 
       <Section label="━━━ entry grade ───────">
         <GradePicker value={grade} onChange={setGrade} />

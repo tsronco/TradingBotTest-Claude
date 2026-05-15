@@ -5,8 +5,14 @@
 // `expiration_date`, and bid/ask sourced from `snapshots[symbol].latestQuote`)
 // rather than the plan's idealized fixture shape.
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api';
 import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
-import { GRADE_LETTERS } from '../../lib/trade-types';
+import { GradePicker } from './GradePicker';
+import { TagPicker } from './TagPicker';
+import PayoffChart from './PayoffChart';
+import FillHint from './FillHint';
+import type { Leg } from '../../lib/payoff';
 
 interface ChainContractRaw {
   symbol: string;
@@ -48,14 +54,32 @@ interface Props {
 }
 
 export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props) {
+  // Derive mode from selected account, same pattern as StockOrderForm.
+  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
+    account === 'aggressive_paper' ? 'aggressive'
+    : account === 'manual_paper' ? 'manual'
+    : account === 'live' ? 'live'
+    : 'conservative';
+
+  // Spot price for the underlying (used by PayoffChart)
+  const { data: spotData } = useQuery({
+    queryKey: ['quote', symbol, mode],
+    queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=${mode}`),
+    staleTime: 10_000,
+  });
+  const spotSnap = spotData?.snapshot?.[symbol];
+  const spotPrice: number =
+    spotSnap?.latestTrade?.p ?? spotSnap?.dailyBar?.c ?? 0;
+
   const [chain, setChain] = useState<ChainResponse | null>(null);
   const [expiration, setExpiration] = useState<string>('');
   const [shortStrike, setShortStrike] = useState<number | null>(null);
   const [longStrike, setLongStrike] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [limitCredit, setLimitCredit] = useState<number>(0);
-  const [grade, setGrade] = useState<GradeLetter>('B');
+  const [grade, setGrade] = useState<GradeLetter | null>(null);
   const [reasoning, setReasoning] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -157,8 +181,9 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           expiration,
           qty,
           limit_price: -limitCredit,
-          entry_grade: grade,
+          entry_grade: grade ?? '',
           entry_reasoning: reasoning,
+          tags,
         }),
       });
       const data = (await res.json()) as PreviewResult;
@@ -175,27 +200,45 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
   return (
     <div className="space-y-4 text-[12px]">
-      <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="account" className="text-mid md:mr-2">Account</label>
-        <select
-          id="account"
-          value={account}
-          onChange={(e) => setAccount(e.target.value as AccountId)}
-          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
-        >
-          <option value="manual_paper">manual_paper</option>
-          <option
-            value="live"
-            disabled
-            title="spread_management: False on live — enable in a future plan"
+      {/* account selector — cons/agg/manual all enabled; live stays disabled (real-money/bot-only) */}
+      <div className="flex flex-col gap-1">
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
+        <div className="flex gap-1 flex-wrap">
+          <button
+            type="button"
+            className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('conservative_paper')}
           >
-            live (disabled)
-          </option>
-        </select>
+            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('aggressive_paper')}
+          >
+            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('manual_paper')}
+          >
+            [manual_paper{account === 'manual_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            disabled
+            className="pbtn max-md:min-h-[44px] text-red opacity-40"
+            title="Live spreads are bot-managed only — not available for manual entry"
+          >
+            [live]
+          </button>
+        </div>
       </div>
 
+      {/* data-driven list — intentionally a select, not chips (see order-form-upgrades spec) */}
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="expiration" className="text-mid md:mr-2">Expiration</label>
+        <label htmlFor="expiration" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Expiration</label>
         <select
           id="expiration"
           value={expiration}
@@ -219,7 +262,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
       <div className="flex flex-col gap-3 md:flex-row md:gap-4">
         <div className="flex flex-col gap-1 flex-1">
-          <label htmlFor="short-strike" className="text-mid">Short Strike</label>
+          <label htmlFor="short-strike" className="text-dim text-[10px] tracking-[0.25em] mb-2">Short Strike</label>
           <select
             id="short-strike"
             value={shortStrike ?? ''}
@@ -241,7 +284,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </div>
 
         <div className="flex flex-col gap-1 flex-1">
-          <label htmlFor="long-strike" className="text-mid">Long Strike</label>
+          <label htmlFor="long-strike" className="text-dim text-[10px] tracking-[0.25em] mb-2">Long Strike</label>
           <select
             id="long-strike"
             value={longStrike ?? ''}
@@ -263,7 +306,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
       </div>
 
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="qty" className="text-mid md:mr-2">Qty (spreads)</label>
+        <label htmlFor="qty" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Qty (spreads)</label>
         <input
           id="qty"
           type="number"
@@ -274,8 +317,24 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         />
       </div>
 
+      {shortContract && longContract && (() => {
+        const netBid = shortContract.bid - longContract.ask;
+        const netAsk = shortContract.ask - longContract.bid;
+        if (netBid > 0 && netAsk > 0 && netBid < netAsk) {
+          return (
+            <FillHint
+              side="sell"
+              bid={netBid}
+              ask={netAsk}
+              onPick={(p) => setLimitCredit(p)}
+            />
+          );
+        }
+        return null;
+      })()}
+
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="limit-credit" className="text-mid md:mr-2">Limit Credit ($)</label>
+        <label htmlFor="limit-credit" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Limit Credit ($)</label>
         <input
           id="limit-credit"
           type="number"
@@ -285,6 +344,29 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-24 max-md:min-h-[44px]"
         />
       </div>
+
+      {/* payoff chart — rendered above the live-mid/max-loss text when both legs are selected */}
+      {shortContract && longContract && qty > 0 && shortMid > 0 && spotPrice > 0 && (() => {
+        const legs: Leg[] = [
+          {
+            kind: 'option',
+            dir: 'short',
+            type: 'put',
+            strike: shortContract.strike,
+            premium: shortMid,
+            contracts: qty,
+          },
+          {
+            kind: 'option',
+            dir: 'long',
+            type: 'put',
+            strike: longContract.strike,
+            premium: longMid,
+            contracts: qty,
+          },
+        ];
+        return <PayoffChart legs={legs} currentPrice={spotPrice} />;
+      })()}
 
       {shortContract && longContract && (
         <div className="text-mid">
@@ -299,31 +381,28 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </div>
       )}
 
-      <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="grade" className="text-mid md:mr-2">Entry Grade</label>
-        <select
-          id="grade"
-          value={grade}
-          onChange={(e) => setGrade(e.target.value as GradeLetter)}
-          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
-        >
-          {GRADE_LETTERS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
+      {/* entry grade — pbtn chips via GradePicker, mirrors StockOrderForm */}
+      <div className="flex flex-col gap-1">
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ entry grade ───────</div>
+        <GradePicker value={grade} onChange={setGrade} />
       </div>
 
       <div>
-        <label htmlFor="reasoning" className="text-mid block">Reasoning</label>
+        <label htmlFor="reasoning" className="text-dim text-[10px] tracking-[0.25em] mb-2 block">━━━ reasoning (required) ──</label>
         <textarea
           id="reasoning"
           value={reasoning}
           onChange={(e) => setReasoning(e.target.value)}
           rows={3}
-          className="w-full mt-1 bg-panel-2 border border-border px-2 py-1 text-fg"
+          className="w-full mt-1 bg-panel-2 border border-border px-2 py-1 text-fg text-[12px]"
+          placeholder="why are you taking this trade?"
         />
+      </div>
+
+      {/* tags — same TagPicker as StockOrderForm */}
+      <div className="flex flex-col gap-1">
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ tags ──────────────</div>
+        <TagPicker value={tags} onChange={setTags} />
       </div>
 
       <button
