@@ -59,7 +59,7 @@ export default function Home() {
   const cardCount = mode === 'both' ? 4 : 1;
 
   return (
-    <div className="p-6 max-w-[1480px]">
+    <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
         <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
@@ -80,7 +80,7 @@ export default function Home() {
       <div className="flex flex-wrap items-end justify-between gap-y-3 gap-x-6 mb-5">
         <div>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="text-hi text-[44px] font-bold leading-none tracking-tight">Today</h1>
+            <h1 className="text-hi text-[28px] md:text-[44px] font-bold leading-none tracking-tight">Today</h1>
             <span className="text-dim text-[12px]">// snapshot @ {today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' })} ET</span>
           </div>
           <div className="mt-2 text-mid text-[12px]">

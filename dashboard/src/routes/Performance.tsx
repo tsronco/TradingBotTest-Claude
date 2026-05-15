@@ -39,13 +39,13 @@ export default function Performance() {
   const inputCls = 'bg-panel-2 border border-border focus:border-cyan rounded-sm px-2 py-1 text-fg text-[11px] outline-none';
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px] mb-4">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/performance</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">stat --range={dateRange}</span>
       </div>
-      <h1 className="text-[44px] font-bold tracking-tight text-hi mt-2">Performance</h1>
+      <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Performance</h1>
 
       <div className="flex flex-wrap gap-2 mt-4 mb-4 text-[11px]">
         <label className="flex items-center gap-1 text-dim">
