@@ -11,6 +11,7 @@ import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types'
 import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
 import PayoffChart from './PayoffChart';
+import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
 
 interface ChainContractRaw {
@@ -313,6 +314,22 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-20 max-md:min-h-[44px]"
         />
       </div>
+
+      {shortContract && longContract && (() => {
+        const netBid = shortContract.bid - longContract.ask;
+        const netAsk = shortContract.ask - longContract.bid;
+        if (netBid > 0 && netAsk > 0 && netBid < netAsk) {
+          return (
+            <FillHint
+              side="sell"
+              bid={netBid}
+              ask={netAsk}
+              onPick={(p) => setLimitCredit(p)}
+            />
+          );
+        }
+        return null;
+      })()}
 
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
         <label htmlFor="limit-credit" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Limit Credit ($)</label>

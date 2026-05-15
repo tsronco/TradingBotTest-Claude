@@ -10,6 +10,7 @@ import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../..
 import { GREEK_DEFS } from '../GreekLabel';
 import { AccountBpIndicator } from './AccountBpIndicator';
 import PayoffChart from './PayoffChart';
+import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
 
 type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
@@ -206,12 +207,22 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
                  className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]" />
         </div>
         {orderType === 'limit' && (
-          <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
-            <span className="text-mid text-[12px]">limit price</span>
-            <input type="number" step={0.01} value={limitPrice}
-                   onChange={(e) => setLimitPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                   className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]" />
-          </div>
+          <>
+            {bid > 0 && ask > 0 && (
+              <FillHint
+                side={(side === 'STO' || side === 'STC') ? 'sell' : 'buy'}
+                bid={bid}
+                ask={ask}
+                onPick={(p) => setLimitPrice(p)}
+              />
+            )}
+            <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
+              <span className="text-mid text-[12px]">limit price</span>
+              <input type="number" step={0.01} value={limitPrice}
+                     onChange={(e) => setLimitPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                     className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]" />
+            </div>
+          </>
         )}
         <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
           <span className="text-mid text-[12px]">tif</span>
