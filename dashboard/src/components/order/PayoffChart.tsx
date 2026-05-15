@@ -21,6 +21,8 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
     [JSON.stringify(legs), currentPrice]
   );
 
+  if (result.points.length === 0) return null;
+
   const { points, maxProfit, maxLoss, breakevens, window: win } = result;
 
   const [scrubPrice, setScrubPrice] = useState<number>(currentPrice);
@@ -103,8 +105,9 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
     setScrubPrice(clientXToPrice(e.clientX));
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: React.PointerEvent<SVGGElement>) {
     dragging.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
   }
 
   const step = priceRange / 96;
@@ -136,7 +139,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
             x2={VIEW_W - PAD_X}
             y1={zeroY}
             y2={zeroY}
-            stroke="#3d6650"
+            stroke="var(--color-dim)"
             strokeWidth="1"
             strokeDasharray="3 3"
           />
@@ -146,7 +149,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
             <path
               d={greenPath}
               fill="none"
-              stroke="#22ff88"
+              stroke="var(--color-hi)"
               strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -158,7 +161,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
             <path
               d={redPath}
               fill="none"
-              stroke="#ff5c6c"
+              stroke="var(--color-red)"
               strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -171,7 +174,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
             x2={xAt(currentPrice)}
             y1={PAD_Y}
             y2={VIEW_H - PAD_Y}
-            stroke="#6f9c83"
+            stroke="var(--color-mid)"
             strokeWidth="1"
             strokeDasharray="2 4"
           />
@@ -184,7 +187,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
               x2={xAt(be)}
               y1={PAD_Y}
               y2={VIEW_H - PAD_Y}
-              stroke="#ffb454"
+              stroke="var(--color-amber)"
               strokeWidth="1"
               strokeDasharray="4 3"
               strokeOpacity="0.7"
@@ -201,7 +204,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
                 x2={xAt(l.strike)}
                 y1={VIEW_H - PAD_Y}
                 y2={VIEW_H - PAD_Y + 5}
-                stroke="#6f9c83"
+                stroke="var(--color-mid)"
                 strokeWidth="1.5"
               />
             ))}
@@ -213,6 +216,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
             aria-valuemin={win.lo}
             aria-valuemax={win.hi}
             aria-valuenow={scrubPrice}
+            aria-valuetext={`Underlying ${fmtUsd(scrubPrice)}, P/L ${fmtUsd(scrubPL)}`}
             tabIndex={0}
             className="payoff-scrub"
             onPointerDown={onPointerDown}
@@ -235,7 +239,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
               x2={scrubX}
               y1={PAD_Y}
               y2={VIEW_H - PAD_Y}
-              stroke="#a7e0c2"
+              stroke="var(--color-fg)"
               strokeWidth="1.5"
             />
             {/* handle dot */}
@@ -243,8 +247,8 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
               cx={scrubX}
               cy={zeroY}
               r="5"
-              fill="#a7e0c2"
-              stroke="#05080a"
+              fill="var(--color-fg)"
+              stroke="var(--color-bg)"
               strokeWidth="1.5"
             />
           </g>
@@ -255,7 +259,7 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
       <div
         data-testid="payoff-readout"
         className="text-[11px] tnum text-center py-1"
-        style={{ color: scrubPL >= 0 ? '#22ff88' : '#ff5c6c' }}
+        style={{ color: scrubPL >= 0 ? 'var(--color-hi)' : 'var(--color-red)' }}
       >
         Underlying {fmtUsd(scrubPrice)} · P/L {fmtUsd(scrubPL)}
       </div>

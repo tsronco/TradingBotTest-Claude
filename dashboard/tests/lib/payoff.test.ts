@@ -60,4 +60,45 @@ describe('buildPayoff', () => {
     expect(r.maxLoss).toBe(-500);
     expect(r.breakevens).toEqual([50]);
   });
+  it('window containment: CSP currentPrice is within window', () => {
+    const r = buildPayoff([{ kind: 'option', dir: 'short', type: 'put', strike: 100, premium: 2, contracts: 1 }], 101);
+    expect(r.window.lo).toBeLessThanOrEqual(r.currentPrice);
+    expect(r.window.hi).toBeGreaterThanOrEqual(r.currentPrice);
+  });
+});
+
+describe('buildPayoff robustness', () => {
+  it('contracts=0: maxProfit/maxLoss are 0, no phantom breakevens', () => {
+    const r = buildPayoff([{ kind: 'option', dir: 'short', type: 'put', strike: 100, premium: 2, contracts: 0 }], 101);
+    expect(r.maxProfit).toBe(0);
+    expect(r.maxLoss).toBe(0);
+    expect(r.breakevens).toEqual([]);
+  });
+
+  it('empty legs: points length 0, extrema null, breakevens []', () => {
+    const r = buildPayoff([], 100);
+    expect(r.points.length).toBe(0);
+    expect(r.maxProfit).toBeNull();
+    expect(r.maxLoss).toBeNull();
+    expect(r.breakevens).toEqual([]);
+  });
+
+  it('NaN premium: finite-guard returns empty result', () => {
+    const r = buildPayoff([{ kind: 'option', dir: 'short', type: 'put', strike: 100, premium: NaN, contracts: 1 }], 101);
+    expect(r.points.length).toBe(0);
+    expect(r.maxProfit).toBeNull();
+    expect(r.maxLoss).toBeNull();
+  });
+
+  it('iron condor: exactly 2 breakevens', () => {
+    // short call 110 premium 2, long call 115 premium 0.5, short put 90 premium 2, long put 85 premium 0.5
+    // net credit = (2 - 0.5) + (2 - 0.5) = 3.0 per share
+    const r = buildPayoff([
+      { kind: 'option', dir: 'short', type: 'call', strike: 110, premium: 2,   contracts: 1 },
+      { kind: 'option', dir: 'long',  type: 'call', strike: 115, premium: 0.5, contracts: 1 },
+      { kind: 'option', dir: 'short', type: 'put',  strike: 90,  premium: 2,   contracts: 1 },
+      { kind: 'option', dir: 'long',  type: 'put',  strike: 85,  premium: 0.5, contracts: 1 },
+    ], 100);
+    expect(r.breakevens.length).toBe(2);
+  });
 });

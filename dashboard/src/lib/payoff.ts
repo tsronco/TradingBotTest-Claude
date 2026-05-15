@@ -39,6 +39,16 @@ export function totalPL(s: number, legs: Leg[]): number {
 }
 
 export function buildPayoff(legs: Leg[], currentPrice: number, samples = 96): PayoffResult {
+  const empty: PayoffResult = { points: [], maxProfit: null, maxLoss: null, breakevens: [], currentPrice, window: { lo: 0, hi: 0 } };
+  if (legs.length === 0 || !isFinite(currentPrice)) return empty;
+  for (const l of legs) {
+    if (l.kind === 'stock') {
+      if (!isFinite(l.entry) || !isFinite(l.shares)) return empty;
+    } else {
+      if (!isFinite(l.strike) || !isFinite(l.premium) || !isFinite(l.contracts)) return empty;
+    }
+  }
+
   const strikes = legs.filter((l): l is OptionLeg => l.kind === 'option').map((l) => l.strike);
   const refs = strikes.length ? strikes : [currentPrice];
   const maxRef = Math.max(currentPrice, ...refs);
@@ -87,8 +97,9 @@ export function buildPayoff(legs: Leg[], currentPrice: number, samples = 96): Pa
     const b = xs[i + 1];
     const fa = totalPL(a, legs);
     const fb = totalPL(b, legs);
-    if (fa === 0) bes.push(a);
-    else if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) bes.push(a + (fa / (fa - fb)) * (b - a));
+    // Only record a breakeven on a genuine sign change (both beyond ±epsilon).
+    if (fa < -1e-9 && fb > 1e-9) bes.push(a + (fa / (fa - fb)) * (b - a));
+    else if (fa > 1e-9 && fb < -1e-9) bes.push(a + (fa / (fa - fb)) * (b - a));
   }
   const breakevens = Array.from(new Set(bes.map((x) => Math.round(x * 100) / 100))).sort((a, b) => a - b);
 

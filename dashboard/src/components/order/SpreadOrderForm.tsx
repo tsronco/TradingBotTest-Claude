@@ -327,7 +327,7 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
       </div>
 
       {/* payoff chart — rendered above the live-mid/max-loss text when both legs are selected */}
-      {shortContract && longContract && qty > 0 && shortMid > 0 && (() => {
+      {shortContract && longContract && qty > 0 && shortMid > 0 && spotPrice > 0 && (() => {
         const legs: Leg[] = [
           {
             kind: 'option',
@@ -346,8 +346,7 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
             contracts: qty,
           },
         ];
-        const cp = spotPrice > 0 ? spotPrice : shortContract.strike * 1.05;
-        return <PayoffChart legs={legs} currentPrice={cp} />;
+        return <PayoffChart legs={legs} currentPrice={spotPrice} />;
       })()}
 
       {shortContract && longContract && (
