@@ -159,7 +159,7 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
           <span className="text-dim">total 0 — no open positions</span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rtable">
           <table className="w-full text-[12px] tnum">
             <thead className="text-dim uppercase tracking-[0.15em] text-[10px]">
               <tr className="border-t border-b border-border">
@@ -202,7 +202,7 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
 
                 return (
                   <tr key={p.symbol} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
-                    <td className="px-4 py-1.5 text-fg">
+                    <td data-primary className="px-4 py-1.5 text-fg">
                       <Link to={lookupHref} className="hover:text-hi">
                         {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
                         {p.symbol}
@@ -216,8 +216,8 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
                         )}
                       </Link>
                     </td>
-                    <td className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(p.qty))}</td>
-                    <td className="px-4 py-1.5 text-right text-fg">
+                    <td data-label="qty" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(p.qty))}</td>
+                    <td data-label="avg cost" className="px-4 py-1.5 text-right text-fg">
                       {fmtUsd(Number(p.avg_entry_price))}
                       {isOption && (
                         <span className="text-dim text-[10px] ml-1">
@@ -225,16 +225,16 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.current_price))}</td>
-                    <td className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.market_value))}</td>
-                    <td className={`px-4 py-1.5 text-right ${klass}`}>
+                    <td data-label="current" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.current_price))}</td>
+                    <td data-label="mkt value" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.market_value))}</td>
+                    <td data-label="unrealized P/L" className={`px-4 py-1.5 text-right ${klass}`}>
                       {pl >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(pl), { sign: false }).replace('-$', '$')}{' '}
                       <span className="text-dim">({fmtPct(plpc, { sign: true }).replace('-', '−')})</span>
                     </td>
-                    <td className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
+                    <td data-label="DTE" className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
                       {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
                     </td>
-                    <td className="px-4 py-1.5 text-right">
+                    <td data-label="wheel close" className="px-4 py-1.5 text-right">
                       {closeProgress == null ? (
                         <span className="text-dim">—</span>
                       ) : (
@@ -284,7 +284,7 @@ export default function Positions() {
   const cardCount = mode === 'both' ? 2 : 1;
 
   return (
-    <div className="p-6 max-w-[1480px]">
+    <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
         <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
@@ -299,7 +299,7 @@ export default function Positions() {
       <div className="flex flex-wrap items-end justify-between gap-y-3 gap-x-6 mb-5">
         <div>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="text-hi text-[44px] font-bold leading-none tracking-tight">Positions</h1>
+            <h1 className="text-hi text-[28px] md:text-[44px] font-bold leading-none tracking-tight">Positions</h1>
             <span className="text-dim text-[12px]">// open contracts &amp; shares</span>
           </div>
           <div className="mt-2 text-mid text-[12px]">

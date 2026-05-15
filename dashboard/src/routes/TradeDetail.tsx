@@ -17,11 +17,11 @@ export default function TradeDetail() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useTrade(id);
 
-  if (isLoading) return <div className="p-6 text-mid">loading…</div>;
-  if (error || !data) return <div className="p-6 text-red">trade not found.</div>;
+  if (isLoading) return <div className="p-3 md:p-6 text-mid">loading…</div>;
+  if (error || !data) return <div className="p-3 md:p-6 text-red">trade not found.</div>;
 
   return (
-    <div className="p-6 max-w-5xl space-y-4">
+    <div className="p-3 md:p-6 max-w-5xl space-y-4">
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash:~/portfolio/trade$</span>{' '}
         <span className="text-fg">show --id={id}</span>

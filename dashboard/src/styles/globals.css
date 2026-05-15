@@ -234,9 +234,16 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
 @media (max-width: 900px) {
   .shell-grid { grid-template-columns: 180px 1fr !important; }
 }
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .shell-grid { grid-template-columns: 1fr !important; }
-  aside.term-sidebar { display: none; }
+  /* sidebar visibility is now driven by the drawer transform in AppShell,
+     NOT display:none — see .term-sidebar mobile rules below */
+}
+
+/* off-canvas drawer needs a solid backing on mobile */
+@media (max-width: 767px) {
+  .term-sidebar-wrap { background: var(--color-bg); box-shadow: 2px 0 12px rgba(0,0,0,0.6); }
+  .term-sidebar-wrap aside.term-sidebar { min-height: 100vh; }
 }
 
 /* slim phosphor scrollbar — used by .chain-scroll on the OptionsChain table.
@@ -249,3 +256,44 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
 }
 .chain-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-mid); }
 .chain-scroll { scrollbar-width: thin; scrollbar-color: var(--color-dim) transparent; }
+
+/* Responsive table → stacked cards below md (768px).
+   Markup stays a <table>; cells need data-label="…" for the row labels.
+   Desktop (>=768px): no effect, normal table. */
+@media (max-width: 767px) {
+  .rtable table, .rtable tbody, .rtable tr, .rtable td { display: block; width: 100%; }
+  .rtable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rtable tr {
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: rgba(8, 13, 16, 0.6);
+  }
+  .rtable td {
+    border: 0 !important;
+    padding: 3px 0 !important;
+    text-align: left !important;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .rtable td::before {
+    content: attr(data-label);
+    color: var(--color-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10px;
+    flex: 0 0 auto;
+    align-self: center;
+  }
+  /* primary cell (symbol) → card header, no label */
+  .rtable td[data-primary] { display: block; }
+  .rtable td[data-primary]::before { content: none; }
+  .rtable td[data-primary] {
+    border-bottom: 1px solid var(--color-border) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+}

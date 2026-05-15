@@ -9,7 +9,7 @@ export default function Settings() {
   const [tab, setTab] = useState<Tab>('thresholds');
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-3 md:p-6 max-w-4xl">
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash</span>
         <span className="text-dim">:</span>
@@ -17,10 +17,10 @@ export default function Settings() {
         <span className="text-dim">$</span>{' '}
         <span className="text-fg">edit --tab={tab}</span>
       </div>
-      <h1 className="text-[44px] font-bold tracking-tight text-hi mt-2">Settings</h1>
+      <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Settings</h1>
       <div className="text-mid text-[12px]"><span className="text-dim">// preferences · thresholds · recovery</span></div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {(['thresholds', 'tags', 'recovery'] as Tab[]).map((t) => (
           <button
             key={t}

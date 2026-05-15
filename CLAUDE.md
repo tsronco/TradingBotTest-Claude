@@ -395,7 +395,7 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 pytest + 121 vitest as of 2026-05-07.
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 pytest + **395 vitest** as of 2026-05-15 (dashboard suite; was mislabeled "121/351" in earlier revisions).
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
@@ -563,6 +563,10 @@ Lifecycle states (no explicit status field — derived from timestamps):
 - Vercel function count: 9 → 10 of 12 Hobby cap (added `api/rules/[resource].ts`)
 - Test count: 146 → 351 vitest (+205) plus +9 pytest (`tools/test_push_rules_to_dashboard.py`)
 - Smoke test playbook: `dashboard/docs/PHASE3_SMOKE.md`
+
+### Mobile responsiveness (shipped 2026-05-15)
+
+Phone-usable pass over the whole dashboard — **not** a redesign. One breakpoint (`md` = 768px); terminal aesthetic preserved; frontend + CSS only (no API/data-model/Vercel-function change). Slide-in nav drawer (`AppShell` owns `drawerOpen`; `<Sidebar>` reused verbatim via an `onNavigate` close callback; closes on route/Escape/backdrop/nav-tap; body-scroll-lock); a shared `.rtable` CSS primitive reflows 5 tables to stacked cards `< md` via `data-label`/`data-primary` (OptionsChain stays horizontal-scroll, Calendar stays a heat-dot grid — documented exceptions); modals/order-forms/charts fitted to narrow viewports (≥44px tap targets, `flex-col md:flex-row`, TradeChart `ResizeObserver`); per-route `p-3 md:p-6` / title / filter-wrap scale sweep. Everything `≥ 768px` is byte-for-byte the old desktop layout except one plan-sanctioned widening of the modify-order modal (`max-w-sm`→`max-w-md`). New `dashboard/tests/components/AppShell.test.tsx` (drawer state machine). Spec/plan: `docs/superpowers/{specs,plans}/2026-05-15-mobile-dashboard*.md`.
 
 ### Phase 4 (next) — known follow-ups from Phase 3
 

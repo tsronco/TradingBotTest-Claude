@@ -54,7 +54,7 @@ export default function Rules() {
   }
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-3 md:p-6 max-w-5xl">
       <div className="text-mid text-[12px] mb-4">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/rules</span><span className="text-dim">$</span>{' '}

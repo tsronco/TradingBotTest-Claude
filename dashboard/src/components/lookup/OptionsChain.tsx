@@ -53,6 +53,7 @@ function fmtUSDate(iso: string): string {
 type SideFilter = 'puts' | 'calls' | 'both';
 
 export default function OptionsChain({ symbol }: { symbol: string }) {
+  // Greeks default OFF (both desktop and mobile) — keeps the mobile chain narrow.
   const [showAllGreeks, setShowAllGreeks] = useState(false);
   const [selectedExp, setSelectedExp] = useState<string | null>(null);
   const [showAllStrikes, setShowAllStrikes] = useState(false);
@@ -213,7 +214,7 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
       {/* Sticky-header scrollable container so the strike/type/bid/ask row stays
           visible when "show all" expands to 100+ rows. max-h sized so the table
           doesn't push the page-level layout (Earnings, News, etc.) below the fold. */}
-      <div className="max-h-[60vh] overflow-y-auto chain-scroll">
+      <div className="max-h-[60vh] max-w-full overflow-x-auto overflow-y-auto chain-scroll">
       <table className="w-full text-[12px] tnum">
         <thead className="text-dim uppercase tracking-[0.15em] text-[10px] sticky top-0 bg-panel z-10">
           <tr className="border-t border-b border-border">

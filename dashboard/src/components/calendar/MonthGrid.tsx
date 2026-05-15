@@ -64,17 +64,21 @@ export default function MonthGrid({ year, month, days, monthTotal, onDayClick }:
               type="button"
               onClick={() => onDayClick(cell.date)}
               title={info ? `${info.trade_count} trade${info.trade_count === 1 ? '' : 's'}, ${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}` : ''}
-              className={`aspect-square border border-border rounded-sm p-1 hover:border-cyan transition-colors relative ${pnlClass(pnl)}`}
+              className={`aspect-square border border-border rounded-sm p-1 max-md:p-0.5 hover:border-cyan transition-colors relative ${pnlClass(pnl)}`}
             >
-              <div className="absolute top-1 left-1.5 text-[10px] text-fg/80">{cell.day}</div>
+              <div className="absolute top-1 left-1.5 max-md:top-0.5 max-md:left-1 text-[10px] max-md:text-[8px] text-fg/80">{cell.day}</div>
               {pnl !== 0 && (
-                <div className={`absolute bottom-1 right-1.5 text-[10px] tnum ${pnl >= 0 ? 'text-hi' : 'text-red'}`}>
-                  {pnl >= 0 ? '+' : '-'}$
-                  {Math.abs(pnl) >= 1000 ? `${(Math.abs(pnl) / 1000).toFixed(1)}k` : Math.abs(pnl).toFixed(0)}
-                </div>
+                <>
+                  {/* Desktop: dollar amount. Mobile (max-md): colored heat dot — detail still in day-drawer on tap. */}
+                  <div className={`absolute bottom-1 right-1.5 text-[10px] tnum ${pnl >= 0 ? 'text-hi' : 'text-red'} max-md:hidden`}>
+                    {pnl >= 0 ? '+' : '-'}$
+                    {Math.abs(pnl) >= 1000 ? `${(Math.abs(pnl) / 1000).toFixed(1)}k` : Math.abs(pnl).toFixed(0)}
+                  </div>
+                  <div className={`absolute bottom-1 right-1 text-[10px] hidden max-md:block ${pnl >= 0 ? 'text-hi' : 'text-red'}`}>●</div>
+                </>
               )}
               {expiring.length > 0 && (
-                <div className="absolute top-1 right-1.5 text-[9px] text-cyan">
+                <div className="absolute top-1 right-1.5 max-md:top-0.5 max-md:right-1 text-[9px] max-md:text-[7px] text-cyan">
                   ○ {expiring.length}
                 </div>
               )}

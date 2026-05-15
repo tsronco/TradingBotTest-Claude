@@ -23,7 +23,7 @@ const acctOpts: { value: AccountMode; label: string; key: string }[] = [
   { value: 'live', label: 'live $', key: 'l' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useLogout();
   const [mode, setMode] = useAccount();
 
@@ -50,8 +50,9 @@ export default function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={onNavigate}
             className={({ isActive }) =>
-              `navrow flex items-center gap-2 px-4 py-1.5 border-l-2 ${
+              `navrow max-md:py-2.5 flex items-center gap-2 px-4 py-1.5 border-l-2 ${
                 isActive ? 'active border-hi' : 'border-transparent text-fg'
               }`
             }
@@ -80,8 +81,8 @@ export default function Sidebar() {
               <button
                 key={o.value}
                 type="button"
-                onClick={() => setMode(o.value)}
-                className={`acct-btn px-3 py-1 flex items-center gap-2 ${isActive ? 'active' : 'text-fg'}`}
+                onClick={() => { setMode(o.value); onNavigate?.(); }}
+                className={`acct-btn max-md:py-2 px-3 py-1 flex items-center gap-2 ${isActive ? 'active' : 'text-fg'}`}
               >
                 <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
                 <span>{o.label}</span>

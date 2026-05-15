@@ -23,7 +23,7 @@ export default function OrderNew() {
 
   if (!symbol && !contract) {
     return (
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         <div className="text-mid text-[12px]">
           <span className="text-cyan">tim@dash:~/portfolio$</span> pick a symbol → /lookup/SYM
         </div>
@@ -42,7 +42,7 @@ export default function OrderNew() {
     : `--symbol=${symbol} --type=${type}`;
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-3 md:p-6 max-w-3xl">
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/order</span><span className="text-dim">$</span>{' '}

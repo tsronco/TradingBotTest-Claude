@@ -196,7 +196,7 @@ function OrdersTable({
           <span className="text-dim">total 0 — {symbolFilter ? `no ${symbolFilter} ${statusLabel} orders in window` : 'none'}</span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rtable">
           <table className="w-full text-[12px] tnum">
             <thead className="text-dim uppercase tracking-[0.15em] text-[10px]">
               <tr className="border-t border-b border-border">
@@ -221,8 +221,8 @@ function OrdersTable({
                 const isOption = !!parsed;
                 return (
                   <tr key={o.id} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
-                    <td className="px-4 py-1.5 text-mid text-[11px]">{fmtSubmitted(o.submitted_at)}</td>
-                    <td className="px-4 py-1.5 text-fg">
+                    <td data-label="submitted" className="px-4 py-1.5 text-mid text-[11px]">{fmtSubmitted(o.submitted_at)}</td>
+                    <td data-primary className="px-4 py-1.5 text-fg">
                       <Link to={`/lookup/${lookupSymbol}`} className="hover:text-hi">
                         {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
                         {o.symbol}
@@ -236,11 +236,11 @@ function OrdersTable({
                         )}
                       </Link>
                     </td>
-                    <td className={`px-4 py-1.5 ${sideColor(o.side)}`}>{o.side}</td>
-                    <td className="px-4 py-1.5 text-mid">{o.type}</td>
-                    <td className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.qty))}</td>
-                    <td className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.filled_qty))}</td>
-                    <td className="px-4 py-1.5 text-right text-fg">
+                    <td data-label="side" className={`px-4 py-1.5 ${sideColor(o.side)}`}>{o.side}</td>
+                    <td data-label="type" className="px-4 py-1.5 text-mid">{o.type}</td>
+                    <td data-label="qty" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.qty))}</td>
+                    <td data-label="filled" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.filled_qty))}</td>
+                    <td data-label="price" className="px-4 py-1.5 text-right text-fg">
                       {o.filled_avg_price
                         ? fmtUsd(Number(o.filled_avg_price))
                         : o.limit_price
@@ -249,12 +249,13 @@ function OrdersTable({
                         ? <><span className="text-dim">stp </span>{fmtUsd(Number(o.stop_price))}</>
                         : <span className="text-dim">—</span>}
                     </td>
-                    <td className={`px-4 py-1.5 ${statusColor(o.status)}`}>{o.status}</td>
-                    <td className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
+                    <td data-label="status" className={`px-4 py-1.5 ${statusColor(o.status)}`}>{o.status}</td>
+                    <td data-label="DTE" className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
                       {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
                     </td>
                     {status === 'closed' && (
                       <td
+                        data-label="P/L"
                         className={`px-4 py-1.5 text-right ${
                           typeof o.realized_pl === 'number'
                             ? o.realized_pl >= 0 ? 'text-hi' : 'text-red'
@@ -270,18 +271,18 @@ function OrdersTable({
                       </td>
                     )}
                     {status === 'open' && (
-                      <td className="px-2 py-1 text-right">
+                      <td data-label="action" className="px-2 py-1 text-right">
                         <span className="flex justify-end gap-1">
                           <button
                             type="button"
-                            className="pbtn"
+                            className="pbtn max-md:min-h-[40px] max-md:px-3"
                             onClick={() => setEditing(o)}
                           >
                             [modify]
                           </button>
                           <button
                             type="button"
-                            className="pbtn"
+                            className="pbtn max-md:min-h-[40px] max-md:px-3"
                             disabled={cancel.isPending}
                             onClick={() => {
                               if (window.confirm('cancel this order?')) cancel.mutate(o.id);
@@ -371,7 +372,7 @@ export default function Orders() {
   };
 
   return (
-    <div className="p-6 max-w-[1480px]">
+    <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
         <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
@@ -388,7 +389,7 @@ export default function Orders() {
       <div className="flex flex-wrap items-end justify-between gap-y-3 gap-x-6 mb-5">
         <div>
           <div className="flex items-baseline gap-3 flex-wrap">
-            <h1 className="text-hi text-[44px] font-bold leading-none tracking-tight">Orders</h1>
+            <h1 className="text-hi text-[28px] md:text-[44px] font-bold leading-none tracking-tight">Orders</h1>
             <span className="text-dim text-[12px]">// open queue &amp; today&apos;s fills</span>
           </div>
           <div className="mt-2 text-mid text-[12px]">
