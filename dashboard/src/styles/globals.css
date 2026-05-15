@@ -234,9 +234,16 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
 @media (max-width: 900px) {
   .shell-grid { grid-template-columns: 180px 1fr !important; }
 }
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .shell-grid { grid-template-columns: 1fr !important; }
-  aside.term-sidebar { display: none; }
+  /* sidebar visibility is now driven by the drawer transform in AppShell,
+     NOT display:none — see .term-sidebar mobile rules below */
+}
+
+/* off-canvas drawer needs a solid backing on mobile */
+@media (max-width: 767px) {
+  .term-sidebar-wrap { background: var(--color-bg); box-shadow: 2px 0 12px rgba(0,0,0,0.6); }
+  .term-sidebar-wrap aside.term-sidebar { min-height: 100vh; }
 }
 
 /* slim phosphor scrollbar — used by .chain-scroll on the OptionsChain table.

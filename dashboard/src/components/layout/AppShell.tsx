@@ -30,11 +30,38 @@ export default function AppShell() {
   const location = useLocation();
   const activeIdx = TMUX_WINDOWS.find((w) => w.match(location.pathname))?.idx ?? 1;
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // close on route change
+  useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
+
+  // close on Escape; lock body scroll while open
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [drawerOpen]);
+
   return (
     <div className="crt vignette dotgrid relative min-h-screen">
       {/* tmux-style top bar */}
-      <div className="above-crt border-b border-border bg-panel/70 backdrop-blur-[1px]">
+      <div className="above-crt sticky top-0 z-30 border-b border-border bg-panel/70 backdrop-blur-[1px]">
         <div className="flex items-stretch h-7 px-3 gap-3 text-[11px]">
+          <button
+            type="button"
+            aria-label="Toggle navigation"
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((o) => !o)}
+            className="md:hidden flex items-center px-1 -ml-1 text-mid hover:text-hi"
+          >
+            <span className="text-[14px] leading-none">{drawerOpen ? '✕' : '≡'}</span>
+          </button>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red/70" />
             <span className="w-2 h-2 rounded-full bg-amber/70" />
@@ -73,7 +100,20 @@ export default function AppShell() {
       </div>
 
       <div className="above-crt grid shell-grid" style={{ gridTemplateColumns: '220px minmax(0, 1fr)' }}>
-        <Sidebar />
+        {drawerOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/60 z-40"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+        <div
+          className={`term-sidebar-wrap z-50 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:w-[264px] max-md:transition-transform max-md:duration-200 ${
+            drawerOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
+          }`}
+        >
+          <Sidebar onNavigate={() => setDrawerOpen(false)} />
+        </div>
         <main className="relative min-w-0 overflow-hidden">
           <Outlet />
         </main>
