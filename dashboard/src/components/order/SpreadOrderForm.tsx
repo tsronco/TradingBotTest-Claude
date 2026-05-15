@@ -140,28 +140,25 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          action: 'preview',
-          payload: {
-            kind: 'spread',
-            account,
-            symbol,
-            spread_type: 'put_credit',
-            short_leg: {
-              occ: shortContract.symbol,
-              strike: shortContract.strike,
-              entry_premium: shortMid,
-            },
-            long_leg: {
-              occ: longContract.symbol,
-              strike: longContract.strike,
-              entry_premium: longMid,
-            },
-            expiration,
-            qty,
-            limit_price: -limitCredit,
-            entry_grade: grade,
-            entry_reasoning: reasoning,
+          kind: 'spread',
+          account,
+          symbol,
+          spread_type: 'put_credit',
+          short_leg: {
+            occ: shortContract.symbol,
+            strike: shortContract.strike,
+            entry_premium: shortMid,
           },
+          long_leg: {
+            occ: longContract.symbol,
+            strike: longContract.strike,
+            entry_premium: longMid,
+          },
+          expiration,
+          qty,
+          limit_price: -limitCredit,
+          entry_grade: grade,
+          entry_reasoning: reasoning,
         }),
       });
       const data = (await res.json()) as PreviewResult;

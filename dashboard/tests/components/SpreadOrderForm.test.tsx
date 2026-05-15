@@ -68,6 +68,53 @@ describe('SpreadOrderForm', () => {
     expect(longOptions).not.toContain('12.5');
   });
 
+  it('submits a FLAT spread payload (no {action, payload} wrapper) so the server-side isSpreadPayload check works', async () => {
+    const onReview = vi.fn();
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
+        capturedBody = JSON.parse(init?.body as string);
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ exposure: 75, requires_totp: false, rule_warnings: [], draft: capturedBody }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+    });
+
+    render(
+      <SpreadOrderForm
+        symbol="AAL"
+        account="manual_paper"
+        setAccount={vi.fn()}
+        onReview={onReview}
+      />
+    );
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+    fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
+    fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
+    fireEvent.change(screen.getByLabelText(/grade/i), { target: { value: 'B+' } });
+    fireEvent.change(screen.getByLabelText(/reasoning/i), {
+      target: { value: 'Bullish AAL above $12.50' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /review/i }));
+
+    await waitFor(() => expect(onReview).toHaveBeenCalled());
+
+    expect(capturedBody).not.toBeNull();
+    // The body must be FLAT — not wrapped in {action, payload}
+    expect(capturedBody.kind).toBe('spread');
+    expect(capturedBody.action).toBeUndefined();
+    expect(capturedBody.payload).toBeUndefined();
+    expect(capturedBody.symbol).toBe('AAL');
+    expect(capturedBody.short_leg.strike).toBe(12.5);
+    expect(capturedBody.long_leg.strike).toBe(11.5);
+    expect(capturedBody.limit_price).toBeLessThan(0); // negative = credit
+  });
+
   it('submits the spread payload to /api/trades/preview when Review is clicked', async () => {
     const onReview = vi.fn();
     render(
