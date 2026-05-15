@@ -197,25 +197,25 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
 
       <div>
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ size & price ──────</div>
-        <div className="flex justify-between items-center py-1 gap-3">
+        <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
           <span className="text-mid text-[12px]">contracts</span>
           <input type="number" step={1} min={1} value={qty}
                  onChange={(e) => setQty(Number(e.target.value))}
-                 className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-28 text-right" />
+                 className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]" />
         </div>
         {orderType === 'limit' && (
-          <div className="flex justify-between items-center py-1 gap-3">
+          <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
             <span className="text-mid text-[12px]">limit price</span>
             <input type="number" step={0.01} value={limitPrice}
                    onChange={(e) => setLimitPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                   className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-28 text-right" />
+                   className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]" />
           </div>
         )}
-        <div className="flex justify-between items-center py-1 gap-3">
+        <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
           <span className="text-mid text-[12px]">tif</span>
           <div className="flex gap-1">
             {(['day', 'gtc'] as Tif[]).map((t) => (
-              <button key={t} type="button" className={`pbtn ${tif === t ? 'active' : ''}`} onClick={() => setTif(t)}>
+              <button key={t} type="button" className={`pbtn max-md:min-h-[44px] ${tif === t ? 'active' : ''}`} onClick={() => setTif(t)}>
                 [{t}{tif === t ? '*' : ''}]
               </button>
             ))}

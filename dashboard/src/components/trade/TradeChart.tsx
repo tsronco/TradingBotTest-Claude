@@ -54,9 +54,11 @@ export function TradeChart({ trade }: { trade: Trade }) {
   useEffect(() => {
     if (!ref.current || !data?.bars?.length) return;
 
-    const chart = createChart(ref.current, {
-      width: ref.current.clientWidth,
-      height: 200,
+    const containerEl = ref.current;
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const chart = createChart(containerEl, {
+      width: containerEl.clientWidth,
+      height: isMobile ? 180 : 200,
       layout: {
         background: { type: ColorType.Solid, color: '#05080a' },
         textColor: '#a7e0c2',
@@ -114,7 +116,15 @@ export function TradeChart({ trade }: { trade: Trade }) {
       });
     }
 
-    return () => chart.remove();
+    const ro = new ResizeObserver(() => {
+      chart.applyOptions({ width: containerEl.clientWidth });
+    });
+    ro.observe(containerEl);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+    };
   }, [data, trade]);
 
   return (

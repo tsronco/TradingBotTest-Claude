@@ -72,7 +72,7 @@ export function ConfirmModal({ preview, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-bg/85 flex items-center justify-center p-4 z-50">
-      <div className={`relative bg-panel border ${overlayBorder} max-w-md w-full max-h-[90vh] overflow-y-auto`}>
+      <div className={`relative bg-panel border ${overlayBorder} max-w-md w-full mx-3 max-h-[90vh] overflow-y-auto`}>
         <div className="absolute -top-3 left-3 px-2 bg-panel text-[10px] tracking-[0.25em]">
           <span className="text-dim">┌──</span>{' '}
           <span className={titleColor}>{titleText}</span>{' '}

@@ -223,7 +223,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-center py-1 gap-3">
+    <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center py-1 md:gap-3">
       <span className="text-mid text-[12px]">{label}</span>
       <span>{children}</span>
     </div>
@@ -236,7 +236,7 @@ function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange:
       step={step}
       value={value}
       onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-      className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-28 text-right"
+      className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]"
     />
   );
 }

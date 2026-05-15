@@ -175,13 +175,13 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
   return (
     <div className="space-y-4 text-[12px]">
-      <div>
-        <label htmlFor="account" className="text-mid">Account</label>
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <label htmlFor="account" className="text-mid md:mr-2">Account</label>
         <select
           id="account"
           value={account}
           onChange={(e) => setAccount(e.target.value as AccountId)}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg"
+          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
         >
           <option value="manual_paper">manual_paper</option>
           <option
@@ -194,8 +194,8 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </select>
       </div>
 
-      <div>
-        <label htmlFor="expiration" className="text-mid">Expiration</label>
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <label htmlFor="expiration" className="text-mid md:mr-2">Expiration</label>
         <select
           id="expiration"
           value={expiration}
@@ -206,7 +206,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
             setLongStrike(null);
             setLimitCredit(0);
           }}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg"
+          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
         >
           <option value="">pick…</option>
           {expirations.map((e) => (
@@ -217,70 +217,72 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </select>
       </div>
 
-      <div>
-        <label htmlFor="short-strike" className="text-mid">Short Strike</label>
-        <select
-          id="short-strike"
-          value={shortStrike ?? ''}
-          onChange={(e) => {
-            setShortStrike(e.target.value ? Number(e.target.value) : null);
-            setLongStrike(null);
-            setLimitCredit(0);
-          }}
-          disabled={!expiration}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg"
-        >
-          <option value="">pick…</option>
-          {strikesAtExpiry.map((c) => (
-            <option key={c.strike} value={c.strike}>
-              ${c.strike.toFixed(2)}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-3 md:flex-row md:gap-4">
+        <div className="flex flex-col gap-1 flex-1">
+          <label htmlFor="short-strike" className="text-mid">Short Strike</label>
+          <select
+            id="short-strike"
+            value={shortStrike ?? ''}
+            onChange={(e) => {
+              setShortStrike(e.target.value ? Number(e.target.value) : null);
+              setLongStrike(null);
+              setLimitCredit(0);
+            }}
+            disabled={!expiration}
+            className="bg-panel-2 border border-border px-2 py-1 text-fg w-full max-md:min-h-[44px]"
+          >
+            <option value="">pick…</option>
+            {strikesAtExpiry.map((c) => (
+              <option key={c.strike} value={c.strike}>
+                ${c.strike.toFixed(2)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1 flex-1">
+          <label htmlFor="long-strike" className="text-mid">Long Strike</label>
+          <select
+            id="long-strike"
+            value={longStrike ?? ''}
+            onChange={(e) => {
+              setLongStrike(e.target.value ? Number(e.target.value) : null);
+              setLimitCredit(0);
+            }}
+            disabled={shortStrike == null}
+            className="bg-panel-2 border border-border px-2 py-1 text-fg w-full max-md:min-h-[44px]"
+          >
+            <option value="">pick…</option>
+            {longStrikeOptions.map((c) => (
+              <option key={c.strike} value={c.strike}>
+                ${c.strike.toFixed(2)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label htmlFor="long-strike" className="text-mid">Long Strike</label>
-        <select
-          id="long-strike"
-          value={longStrike ?? ''}
-          onChange={(e) => {
-            setLongStrike(e.target.value ? Number(e.target.value) : null);
-            setLimitCredit(0);
-          }}
-          disabled={shortStrike == null}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg"
-        >
-          <option value="">pick…</option>
-          {longStrikeOptions.map((c) => (
-            <option key={c.strike} value={c.strike}>
-              ${c.strike.toFixed(2)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor="qty" className="text-mid">Qty (spreads)</label>
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <label htmlFor="qty" className="text-mid md:mr-2">Qty (spreads)</label>
         <input
           id="qty"
           type="number"
           min={1}
           value={qty}
           onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg w-20"
+          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-20 max-md:min-h-[44px]"
         />
       </div>
 
-      <div>
-        <label htmlFor="limit-credit" className="text-mid">Limit Credit ($)</label>
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <label htmlFor="limit-credit" className="text-mid md:mr-2">Limit Credit ($)</label>
         <input
           id="limit-credit"
           type="number"
           step={0.01}
           value={limitCredit}
           onChange={(e) => setLimitCredit(Number(e.target.value))}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg w-24"
+          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-24 max-md:min-h-[44px]"
         />
       </div>
 
@@ -297,13 +299,13 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </div>
       )}
 
-      <div>
-        <label htmlFor="grade" className="text-mid">Entry Grade</label>
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <label htmlFor="grade" className="text-mid md:mr-2">Entry Grade</label>
         <select
           id="grade"
           value={grade}
           onChange={(e) => setGrade(e.target.value as GradeLetter)}
-          className="ml-2 bg-panel-2 border border-border px-2 py-1 text-fg"
+          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
         >
           {GRADE_LETTERS.map((g) => (
             <option key={g} value={g}>
@@ -327,7 +329,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
       <button
         onClick={handleReview}
         disabled={submitting}
-        className="border border-border px-3 py-1 text-fg hover:bg-mid/10"
+        className="border border-border px-3 py-1 text-fg hover:bg-mid/10 w-full md:w-auto max-md:min-h-[44px]"
       >
         {submitting ? 'reviewing…' : 'Review'}
       </button>

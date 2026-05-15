@@ -46,7 +46,7 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-bg/85 flex items-center justify-center p-4 z-50">
-      <div className="relative bg-panel border border-amber max-w-sm w-full">
+      <div className="relative bg-panel border border-amber max-w-md w-full mx-3 max-h-[90vh] overflow-y-auto">
         <div className="absolute -top-3 left-3 px-2 bg-panel text-[10px] tracking-[0.25em]">
           <span className="text-dim">┌──</span>{' '}
           <span className="text-amber">MODIFY ORDER</span>{' '}
@@ -67,7 +67,7 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
                 min={1}
                 step={1}
                 onChange={(e) => setQty(Number(e.target.value))}
-                className="bg-panel-2 border border-border px-2 py-0.5 w-24 text-right tnum text-fg text-[12px]"
+                className="bg-panel-2 border border-border px-2 py-0.5 w-full md:w-24 text-right tnum text-fg text-[12px] max-md:min-h-[44px]"
               />
             </Row>
             <Row label="limit price">
@@ -79,7 +79,7 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
                 onChange={(e) =>
                   setLimitPrice(e.target.value === '' ? '' : Number(e.target.value))
                 }
-                className="bg-panel-2 border border-border px-2 py-0.5 w-24 text-right tnum text-fg text-[12px]"
+                className="bg-panel-2 border border-border px-2 py-0.5 w-full md:w-24 text-right tnum text-fg text-[12px] max-md:min-h-[44px]"
               />
             </Row>
             {order.stop_price && (
@@ -92,7 +92,7 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
                   onChange={(e) =>
                     setStopPrice(e.target.value === '' ? '' : Number(e.target.value))
                   }
-                  className="bg-panel-2 border border-border px-2 py-0.5 w-24 text-right tnum text-fg text-[12px]"
+                  className="bg-panel-2 border border-border px-2 py-0.5 w-full md:w-24 text-right tnum text-fg text-[12px] max-md:min-h-[44px]"
                 />
               </Row>
             )}
@@ -101,12 +101,12 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
           {error && <div className="text-red text-[10px] mt-2">{error}</div>}
 
           <div className="mt-5 flex justify-end gap-2">
-            <button type="button" className="pbtn" onClick={onClose}>
+            <button type="button" className="pbtn max-md:min-h-[44px]" onClick={onClose}>
               [cancel]
             </button>
             <button
               type="button"
-              className="pbtn active"
+              className="pbtn active max-md:min-h-[44px]"
               onClick={handleSave}
               disabled={save.isPending}
             >
@@ -121,7 +121,7 @@ export function OrderEditModal({ order, mode, onClose }: Props) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-1 md:flex-row md:justify-between md:items-center">
       <span className="text-mid">{label}</span>
       {children}
     </div>
