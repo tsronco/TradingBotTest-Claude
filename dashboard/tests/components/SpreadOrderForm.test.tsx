@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SpreadOrderForm } from '../../src/components/order/SpreadOrderForm';
 
 // Matches the real /api/alpaca/chain response shape:
@@ -21,41 +22,74 @@ const chainResponse = {
   },
 };
 
-beforeEach(() => {
-  globalThis.fetch = vi.fn().mockResolvedValue(
-    new Response(JSON.stringify(chainResponse), { status: 200 })
+// TagPicker calls /api/settings/tags via useQuery — mock it to return a list so
+// the component can render without a live server.
+const tagsResponse = { tags: ['bullish', 'wheel', 'test-tag'] };
+
+function makeQc() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+}
+
+function renderForm(props: Partial<Parameters<typeof SpreadOrderForm>[0]> = {}) {
+  const qc = makeQc();
+  const defaults = {
+    symbol: 'AAL',
+    account: 'manual_paper' as const,
+    setAccount: vi.fn(),
+    onReview: vi.fn(),
+  };
+  return render(
+    <QueryClientProvider client={qc}>
+      <SpreadOrderForm {...defaults} {...props} />
+    </QueryClientProvider>
   );
+}
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+    if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+      return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+    }
+    return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+  });
 });
 
 describe('SpreadOrderForm', () => {
-  it('renders expiration + both strike dropdowns + grade + reasoning', async () => {
-    const setAccount = vi.fn();
-    const onReview = vi.fn();
-    render(
-      <SpreadOrderForm
-        symbol="AAL"
-        account="manual_paper"
-        setAccount={setAccount}
-        onReview={onReview}
-      />
-    );
+  it('renders expiration + both strike dropdowns + grade chips + reasoning', async () => {
+    renderForm();
     await waitFor(() => screen.getByLabelText(/expiration/i));
     expect(screen.getByLabelText(/expiration/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/short strike/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/long strike/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/grade/i)).toBeInTheDocument();
+    // grade is now a chip row (GradePicker) — no label element; verify chips render
+    expect(screen.getByRole('button', { name: /^A\+$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^B$/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/reasoning/i)).toBeInTheDocument();
   });
 
+  it('renders account chips for conservative_paper, aggressive_paper, manual_paper and a disabled live chip', async () => {
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    expect(screen.getByRole('button', { name: /conservative_paper/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /aggressive_paper/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /manual_paper/i })).toBeInTheDocument();
+    const liveBtn = screen.getByRole('button', { name: /\[live/i });
+    expect(liveBtn).toBeDisabled();
+    expect(liveBtn).toHaveAttribute('title', 'Live spreads are bot-managed');
+  });
+
+  it('calls setAccount when an account chip is clicked', async () => {
+    const setAccount = vi.fn();
+    renderForm({ setAccount });
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.click(screen.getByRole('button', { name: /conservative_paper/i }));
+    expect(setAccount).toHaveBeenCalledWith('conservative_paper');
+    fireEvent.click(screen.getByRole('button', { name: /aggressive_paper/i }));
+    expect(setAccount).toHaveBeenCalledWith('aggressive_paper');
+  });
+
   it('filters long-strike options to strikes below the selected short strike', async () => {
-    render(
-      <SpreadOrderForm
-        symbol="AAL"
-        account="manual_paper"
-        setAccount={vi.fn()}
-        onReview={vi.fn()}
-      />
-    );
+    renderForm();
     await waitFor(() => screen.getByLabelText(/expiration/i));
     fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
     fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
@@ -72,6 +106,9 @@ describe('SpreadOrderForm', () => {
     const onReview = vi.fn();
     let capturedBody: any = null;
     globalThis.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+        return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+      }
       if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
         capturedBody = JSON.parse(init?.body as string);
         return Promise.resolve(
@@ -84,19 +121,13 @@ describe('SpreadOrderForm', () => {
       return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
     });
 
-    render(
-      <SpreadOrderForm
-        symbol="AAL"
-        account="manual_paper"
-        setAccount={vi.fn()}
-        onReview={onReview}
-      />
-    );
+    renderForm({ onReview });
     await waitFor(() => screen.getByLabelText(/expiration/i));
     fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
     fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
     fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
-    fireEvent.change(screen.getByLabelText(/grade/i), { target: { value: 'B+' } });
+    // grade is now chips — click the B+ chip
+    fireEvent.click(screen.getByRole('button', { name: /^B\+$/ }));
     fireEvent.change(screen.getByLabelText(/reasoning/i), {
       target: { value: 'Bullish AAL above $12.50' },
     });
@@ -113,23 +144,62 @@ describe('SpreadOrderForm', () => {
     expect(capturedBody.short_leg.strike).toBe(12.5);
     expect(capturedBody.long_leg.strike).toBe(11.5);
     expect(capturedBody.limit_price).toBeLessThan(0); // negative = credit
+    // entry_grade must reflect the chip selection (was formerly set via select)
+    expect(capturedBody.entry_grade).toBe('B+');
+    // tags field must be present in the payload (new in Phase 1)
+    expect(Array.isArray(capturedBody.tags)).toBe(true);
+  });
+
+  it('includes selected tags in the spread payload', async () => {
+    const onReview = vi.fn();
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+        return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+      }
+      if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
+        capturedBody = JSON.parse(init?.body as string);
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ exposure: 75, requires_totp: false, rule_warnings: [], draft: capturedBody }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+    });
+
+    renderForm({ onReview });
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+    fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
+    fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
+    fireEvent.click(screen.getByRole('button', { name: /^A$/ }));
+    fireEvent.change(screen.getByLabelText(/reasoning/i), {
+      target: { value: 'Tagged spread entry' },
+    });
+
+    // Wait for tag chips to appear then click one
+    await waitFor(() => screen.getByRole('button', { name: /^bullish$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^bullish$/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: /review/i }));
+    await waitFor(() => expect(onReview).toHaveBeenCalled());
+
+    expect(capturedBody.tags).toContain('bullish');
   });
 
   it('submits the spread payload to /api/trades/preview when Review is clicked', async () => {
     const onReview = vi.fn();
-    render(
-      <SpreadOrderForm
-        symbol="AAL"
-        account="manual_paper"
-        setAccount={vi.fn()}
-        onReview={onReview}
-      />
-    );
+    renderForm({ onReview });
     await waitFor(() => screen.getByLabelText(/expiration/i));
 
     // Swap the fetch mock now to return chain again on any subsequent chain calls,
     // and the preview payload on /api/trades/preview.
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+        return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+      }
       if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
         return Promise.resolve(
           new Response(
@@ -144,7 +214,8 @@ describe('SpreadOrderForm', () => {
     fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
     fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
     fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
-    fireEvent.change(screen.getByLabelText(/grade/i), { target: { value: 'B+' } });
+    // grade is now chips — click the B+ chip
+    fireEvent.click(screen.getByRole('button', { name: /^B\+$/ }));
     fireEvent.change(screen.getByLabelText(/reasoning/i), {
       target: { value: 'Bullish AAL above $12.50' },
     });

@@ -6,7 +6,8 @@
 // rather than the plan's idealized fixture shape.
 import { useEffect, useMemo, useState } from 'react';
 import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
-import { GRADE_LETTERS } from '../../lib/trade-types';
+import { GradePicker } from './GradePicker';
+import { TagPicker } from './TagPicker';
 
 interface ChainContractRaw {
   symbol: string;
@@ -54,8 +55,9 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
   const [longStrike, setLongStrike] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [limitCredit, setLimitCredit] = useState<number>(0);
-  const [grade, setGrade] = useState<GradeLetter>('B');
+  const [grade, setGrade] = useState<GradeLetter | null>(null);
   const [reasoning, setReasoning] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -159,6 +161,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           limit_price: -limitCredit,
           entry_grade: grade,
           entry_reasoning: reasoning,
+          tags,
         }),
       });
       const data = (await res.json()) as PreviewResult;
@@ -175,25 +178,31 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
   return (
     <div className="space-y-4 text-[12px]">
-      <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="account" className="text-mid md:mr-2">Account</label>
-        <select
-          id="account"
-          value={account}
-          onChange={(e) => setAccount(e.target.value as AccountId)}
-          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
-        >
-          <option value="manual_paper">manual_paper</option>
-          <option
-            value="live"
+      {/* account selector — pbtn chips, mirrors StockOrderForm exactly */}
+      <div className="flex flex-col gap-1">
+        <span className="text-mid">━━━ account ─────────</span>
+        <div className="flex gap-1 flex-wrap">
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
+            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
+            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
+          </button>
+          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
+            [manual_paper{account === 'manual_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
             disabled
-            title="spread_management: False on live — enable in a future plan"
+            className={`pbtn max-md:min-h-[44px] ${account === 'live' ? 'active' : ''} text-red`}
+            title="Live spreads are bot-managed"
           >
-            live (disabled)
-          </option>
-        </select>
+            [live{account === 'live' ? '*' : ''}]
+          </button>
+        </div>
       </div>
 
+      {/* data-driven list — intentionally a select, not chips (see order-form-upgrades spec) */}
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
         <label htmlFor="expiration" className="text-mid md:mr-2">Expiration</label>
         <select
@@ -299,31 +308,28 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </div>
       )}
 
-      <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="grade" className="text-mid md:mr-2">Entry Grade</label>
-        <select
-          id="grade"
-          value={grade}
-          onChange={(e) => setGrade(e.target.value as GradeLetter)}
-          className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
-        >
-          {GRADE_LETTERS.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
+      {/* entry grade — pbtn chips via GradePicker, mirrors StockOrderForm */}
+      <div className="flex flex-col gap-1">
+        <span className="text-mid">━━━ entry grade ───────</span>
+        <GradePicker value={grade} onChange={setGrade} />
       </div>
 
       <div>
-        <label htmlFor="reasoning" className="text-mid block">Reasoning</label>
+        <label htmlFor="reasoning" className="text-mid block">━━━ reasoning (required) ──</label>
         <textarea
           id="reasoning"
           value={reasoning}
           onChange={(e) => setReasoning(e.target.value)}
           rows={3}
-          className="w-full mt-1 bg-panel-2 border border-border px-2 py-1 text-fg"
+          className="w-full mt-1 bg-panel-2 border border-border px-2 py-1 text-fg text-[12px]"
+          placeholder="why are you taking this trade?"
         />
+      </div>
+
+      {/* tags — same TagPicker as StockOrderForm */}
+      <div className="flex flex-col gap-1">
+        <span className="text-mid">━━━ tags ──────────────</span>
+        <TagPicker value={tags} onChange={setTags} />
       </div>
 
       <button
