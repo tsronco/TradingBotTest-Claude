@@ -209,7 +209,7 @@ Pure TS + React + CSS only. No `dashboard/api/**` change. No new Vercel function
 
 ## Open decisions / accepted compromises
 
-- **Branch base.** Built on `claude/mobile-dashboard` (unmerged) rather than `main`, so the forms keep their responsive treatment and the two efforts don't conflict on the same files. Consequence: mobile should land on `main` before or alongside this. **Flagged for Tim — he may prefer to merge mobile first and rebase.**
+- **Branch base.** RESOLVED 2026-05-15: Tim chose to merge mobile to `main` first (PR #18, merged) and rebase this branch onto fresh `main`. `claude/order-form-upgrades` is now `main` + the plan docs only; mobile is no longer a stacked dependency. The forms here already carry the mobile responsive treatment (it's in `main`).
 - **Fill helper is heuristic, not ML.** Accepted with Tim 2026-05-15. Transparent and labelled "estimate."
 - **Expiration/strike stay `<select>`.** Deliberate; chips don't scale to data-driven lists.
 - **`sell`-to-close stock orders show no payoff diagram.** A position-closing sell has no forward payoff shape; the chart is suppressed with a one-line note rather than drawn misleadingly.

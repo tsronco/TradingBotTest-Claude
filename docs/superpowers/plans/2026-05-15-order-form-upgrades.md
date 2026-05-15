@@ -10,7 +10,7 @@
 
 **Spec:** [2026-05-15-order-form-upgrades-design.md](docs/superpowers/specs/2026-05-15-order-form-upgrades-design.md)
 
-**Branch:** `claude/order-form-upgrades` (off `claude/mobile-dashboard` HEAD)
+**Branch:** `claude/order-form-upgrades` (rebased onto `main` after the mobile work merged via PR #18 — mobile is now in `main`, no longer a stacked dependency)
 
 **Test command (sandbox):** `npx vitest run --pool=threads` from `dashboard/` (`npm test`'s default forks pool times out in this sandbox). Typecheck: `npx tsc -p tsconfig.app.json --noEmit`. Baseline before this work: **395 vitest green, 0 tsc errors** — keep green after every task.
 
