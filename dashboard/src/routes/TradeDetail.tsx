@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrade } from '../hooks/useTrade';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { TradeHeader } from '../components/trade/TradeHeader';
+import { SpreadMetadata } from '../components/trade/SpreadMetadata';
 import { TradeChart } from '../components/trade/TradeChart';
 import { Timeline } from '../components/trade/Timeline';
 import { GradePanel } from '../components/trade/GradePanel';
@@ -39,6 +40,7 @@ export default function TradeDetail() {
         />
       )}
       <TradeHeader trade={data.trade} />
+      <ErrorBoundary><SpreadMetadata trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><TradeChart trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><Timeline trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><RuleViolationsPanel trade={data.trade} /></ErrorBoundary>
