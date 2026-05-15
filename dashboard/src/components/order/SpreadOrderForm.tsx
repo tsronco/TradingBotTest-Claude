@@ -48,7 +48,10 @@ interface Props {
   onReview: (preview: PreviewResult) => void;
 }
 
-export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props) {
+export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
+  // Spreads are only bot-managed on manual_paper; coerce any incoming account to manual_paper.
+  const effectiveAccount: AccountId = 'manual_paper';
+
   const [chain, setChain] = useState<ChainResponse | null>(null);
   const [expiration, setExpiration] = useState<string>('');
   const [shortStrike, setShortStrike] = useState<number | null>(null);
@@ -143,7 +146,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           kind: 'spread',
-          account,
+          account: effectiveAccount,
           symbol,
           spread_type: 'put_credit',
           short_leg: {
@@ -159,7 +162,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           expiration,
           qty,
           limit_price: -limitCredit,
-          entry_grade: grade,
+          entry_grade: grade ?? '',
           entry_reasoning: reasoning,
           tags,
         }),
@@ -178,33 +181,47 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
   return (
     <div className="space-y-4 text-[12px]">
-      {/* account selector — pbtn chips, mirrors StockOrderForm exactly */}
+      {/* account selector — spread management is ONLY on manual paper; cons/agg/live disabled */}
       <div className="flex flex-col gap-1">
-        <span className="text-mid">━━━ account ─────────</span>
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
-          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
-            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
-          </button>
-          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
-            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
-          </button>
-          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
-            [manual_paper{account === 'manual_paper' ? '*' : ''}]
+          <button
+            type="button"
+            disabled
+            className="pbtn max-md:min-h-[44px] opacity-40"
+            title="Spreads are bot-managed on manual paper only"
+          >
+            [conservative_paper]
           </button>
           <button
             type="button"
             disabled
-            className={`pbtn max-md:min-h-[44px] ${account === 'live' ? 'active' : ''} text-red`}
-            title="Live spreads are bot-managed"
+            className="pbtn max-md:min-h-[44px] opacity-40"
+            title="Spreads are bot-managed on manual paper only"
           >
-            [live{account === 'live' ? '*' : ''}]
+            [aggressive_paper]
+          </button>
+          <button
+            type="button"
+            className={`pbtn max-md:min-h-[44px] ${effectiveAccount === 'manual_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('manual_paper')}
+          >
+            [manual_paper{effectiveAccount === 'manual_paper' ? '*' : ''}]
+          </button>
+          <button
+            type="button"
+            disabled
+            className="pbtn max-md:min-h-[44px] text-red opacity-40"
+            title="Spreads are bot-managed on manual paper only"
+          >
+            [live]
           </button>
         </div>
       </div>
 
       {/* data-driven list — intentionally a select, not chips (see order-form-upgrades spec) */}
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="expiration" className="text-mid md:mr-2">Expiration</label>
+        <label htmlFor="expiration" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Expiration</label>
         <select
           id="expiration"
           value={expiration}
@@ -228,7 +245,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
       <div className="flex flex-col gap-3 md:flex-row md:gap-4">
         <div className="flex flex-col gap-1 flex-1">
-          <label htmlFor="short-strike" className="text-mid">Short Strike</label>
+          <label htmlFor="short-strike" className="text-dim text-[10px] tracking-[0.25em] mb-2">Short Strike</label>
           <select
             id="short-strike"
             value={shortStrike ?? ''}
@@ -250,7 +267,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
         </div>
 
         <div className="flex flex-col gap-1 flex-1">
-          <label htmlFor="long-strike" className="text-mid">Long Strike</label>
+          <label htmlFor="long-strike" className="text-dim text-[10px] tracking-[0.25em] mb-2">Long Strike</label>
           <select
             id="long-strike"
             value={longStrike ?? ''}
@@ -272,7 +289,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
       </div>
 
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="qty" className="text-mid md:mr-2">Qty (spreads)</label>
+        <label htmlFor="qty" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Qty (spreads)</label>
         <input
           id="qty"
           type="number"
@@ -284,7 +301,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
       </div>
 
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
-        <label htmlFor="limit-credit" className="text-mid md:mr-2">Limit Credit ($)</label>
+        <label htmlFor="limit-credit" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Limit Credit ($)</label>
         <input
           id="limit-credit"
           type="number"
@@ -310,12 +327,12 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
       {/* entry grade — pbtn chips via GradePicker, mirrors StockOrderForm */}
       <div className="flex flex-col gap-1">
-        <span className="text-mid">━━━ entry grade ───────</span>
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ entry grade ───────</div>
         <GradePicker value={grade} onChange={setGrade} />
       </div>
 
       <div>
-        <label htmlFor="reasoning" className="text-mid block">━━━ reasoning (required) ──</label>
+        <label htmlFor="reasoning" className="text-dim text-[10px] tracking-[0.25em] mb-2 block">━━━ reasoning (required) ──</label>
         <textarea
           id="reasoning"
           value={reasoning}
@@ -328,7 +345,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
       {/* tags — same TagPicker as StockOrderForm */}
       <div className="flex flex-col gap-1">
-        <span className="text-mid">━━━ tags ──────────────</span>
+        <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ tags ──────────────</div>
         <TagPicker value={tags} onChange={setTags} />
       </div>
 

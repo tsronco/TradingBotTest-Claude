@@ -67,25 +67,36 @@ describe('SpreadOrderForm', () => {
     expect(screen.getByLabelText(/reasoning/i)).toBeInTheDocument();
   });
 
-  it('renders account chips for conservative_paper, aggressive_paper, manual_paper and a disabled live chip', async () => {
+  it('renders account chips: only manual_paper enabled; conservative_paper, aggressive_paper, live are disabled', async () => {
     renderForm();
     await waitFor(() => screen.getByLabelText(/expiration/i));
-    expect(screen.getByRole('button', { name: /conservative_paper/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /aggressive_paper/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /manual_paper/i })).toBeInTheDocument();
+
+    // manual_paper is the only enabled chip
+    const manualBtn = screen.getByRole('button', { name: /manual_paper/i });
+    expect(manualBtn).toBeInTheDocument();
+    expect(manualBtn).not.toBeDisabled();
+
+    // conservative_paper and aggressive_paper are disabled with the spread-only title
+    const consBtn = screen.getByRole('button', { name: /conservative_paper/i });
+    expect(consBtn).toBeDisabled();
+    expect(consBtn).toHaveAttribute('title', 'Spreads are bot-managed on manual paper only');
+
+    const aggBtn = screen.getByRole('button', { name: /aggressive_paper/i });
+    expect(aggBtn).toBeDisabled();
+    expect(aggBtn).toHaveAttribute('title', 'Spreads are bot-managed on manual paper only');
+
+    // live chip is also disabled
     const liveBtn = screen.getByRole('button', { name: /\[live/i });
     expect(liveBtn).toBeDisabled();
-    expect(liveBtn).toHaveAttribute('title', 'Live spreads are bot-managed');
+    expect(liveBtn).toHaveAttribute('title', 'Spreads are bot-managed on manual paper only');
   });
 
-  it('calls setAccount when an account chip is clicked', async () => {
+  it('calls setAccount with manual_paper when the manual_paper chip is clicked', async () => {
     const setAccount = vi.fn();
     renderForm({ setAccount });
     await waitFor(() => screen.getByLabelText(/expiration/i));
-    fireEvent.click(screen.getByRole('button', { name: /conservative_paper/i }));
-    expect(setAccount).toHaveBeenCalledWith('conservative_paper');
-    fireEvent.click(screen.getByRole('button', { name: /aggressive_paper/i }));
-    expect(setAccount).toHaveBeenCalledWith('aggressive_paper');
+    fireEvent.click(screen.getByRole('button', { name: /manual_paper/i }));
+    expect(setAccount).toHaveBeenCalledWith('manual_paper');
   });
 
   it('filters long-strike options to strikes below the selected short strike', async () => {
@@ -148,6 +159,41 @@ describe('SpreadOrderForm', () => {
     expect(capturedBody.entry_grade).toBe('B+');
     // tags field must be present in the payload (new in Phase 1)
     expect(Array.isArray(capturedBody.tags)).toBe(true);
+  });
+
+  it('sends entry_grade as empty string when no grade chip is picked', async () => {
+    const onReview = vi.fn();
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+        return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+      }
+      if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
+        capturedBody = JSON.parse(init?.body as string);
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ exposure: 75, requires_totp: false, rule_warnings: [], draft: capturedBody }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+    });
+
+    renderForm({ onReview });
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+    fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
+    fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
+    // intentionally skip picking a grade chip
+    fireEvent.change(screen.getByLabelText(/reasoning/i), {
+      target: { value: 'No grade selected on purpose' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /review/i }));
+
+    await waitFor(() => expect(onReview).toHaveBeenCalled());
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody.entry_grade).toBe('');
   });
 
   it('includes selected tags in the spread payload', async () => {
