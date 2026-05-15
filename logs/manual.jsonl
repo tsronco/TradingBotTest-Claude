@@ -1119,3 +1119,8 @@
 {"timestamp": "2026-05-15T14:01:25.648966+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "NVTS", "SNAP"]}}
 {"timestamp": "2026-05-15T14:01:25.953588+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "AAL260529P00011500", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-15T14:01:25.953714+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
+{"timestamp": "2026-05-15T14:11:35.271291+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "NVTS", "stage": 1, "contract": "NVTS260605P00020500", "stock_price": 19.82}}
+{"timestamp": "2026-05-15T14:11:35.878005+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 1, "contract": "SNAP260515P00007500", "stock_price": 5.415}}
+{"timestamp": "2026-05-15T14:11:35.879054+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "NVTS", "SNAP"]}}
+{"timestamp": "2026-05-15T14:11:36.507493+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "AAL260529P00011500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-15T14:11:36.507627+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
