@@ -49,14 +49,14 @@ export default function Calendar() {
   const selected = selectedDate ? q.data?.days[selectedDate] : null;
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px] mb-4">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/calendar</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">show {monthStr}</span>
       </div>
       <div className="flex justify-between items-center mb-3">
-        <h1 className="text-[44px] font-bold tracking-tight text-hi">Calendar</h1>
+        <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi">Calendar</h1>
         <div className="flex items-center gap-2 text-[11px]">
           <button type="button" onClick={prevMonth} className="pbtn">[‹]</button>
           <span className="font-mono text-fg w-20 text-center">{monthStr}</span>

@@ -34,7 +34,7 @@ export default function PnLBySymbolTable({ data }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rtable">
       <table className="w-full text-[11px] tnum">
         <thead className="text-dim border-b border-border">
           <tr>
@@ -53,13 +53,13 @@ export default function PnLBySymbolTable({ data }: Props) {
         <tbody>
           {sorted.map((r) => (
             <tr key={r.symbol} className="border-b border-border/50">
-              <td className="px-3 py-1.5 text-left font-mono text-cyan">{r.symbol}</td>
-              <td className="px-3 py-1.5 text-right text-fg">{r.trades}</td>
-              <td className="px-3 py-1.5 text-right text-fg">{((r.wins / Math.max(1, r.trades)) * 100).toFixed(0)}%</td>
-              <td className={`px-3 py-1.5 text-right ${r.total_pnl >= 0 ? 'text-hi' : 'text-red'}`}>
+              <td data-primary className="px-3 py-1.5 text-left font-mono text-cyan">{r.symbol}</td>
+              <td data-label="trades" className="px-3 py-1.5 text-right text-fg">{r.trades}</td>
+              <td data-label="win %" className="px-3 py-1.5 text-right text-fg">{((r.wins / Math.max(1, r.trades)) * 100).toFixed(0)}%</td>
+              <td data-label="total p&amp;l" className={`px-3 py-1.5 text-right ${r.total_pnl >= 0 ? 'text-hi' : 'text-red'}`}>
                 {r.total_pnl >= 0 ? '+' : '-'}{fmtUsd(Math.abs(r.total_pnl))}
               </td>
-              <td className="px-3 py-1.5 text-right text-fg">{r.avg_grade.toFixed(1)}</td>
+              <td data-label="avg grade" className="px-3 py-1.5 text-right text-fg">{r.avg_grade.toFixed(1)}</td>
             </tr>
           ))}
         </tbody>

@@ -41,13 +41,13 @@ export default function Watchlist() {
   }
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-3 md:p-6 max-w-4xl">
       <div className="text-mid text-[12px] mb-4">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/watchlist</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">cat symbols</span>
       </div>
-      <h1 className="text-[44px] font-bold tracking-tight text-hi mt-2">Watchlist</h1>
+      <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Watchlist</h1>
 
       <div className="flex gap-2 mt-4">
         <input
@@ -71,7 +71,7 @@ export default function Watchlist() {
         <div className="mt-4 text-dim text-[11px]">empty — add a symbol above</div>
       )}
       {list.data && list.data.watchlist.length > 0 && (
-        <div className="mt-4 border border-border bg-panel/60">
+        <div className="mt-4 border border-border bg-panel/60 overflow-x-auto rtable">
           <table className="w-full text-[11px]">
             <thead className="text-dim text-[10px] uppercase tracking-[0.15em]">
               <tr className="border-b border-border">
@@ -126,19 +126,19 @@ function WatchlistRow({ symbol, onRemove }: { symbol: string; onRemove: () => vo
 
   return (
     <tr className="border-b border-border/50 hover:bg-panel-2/30">
-      <td className="px-3 py-2 font-mono">
+      <td data-primary className="px-3 py-2 font-mono">
         <Link to={`/lookup/${symbol}`} className="text-cyan hover:underline">{symbol}</Link>
       </td>
-      <td className="px-3 py-2 text-right tnum text-fg">
+      <td data-label="price" className="px-3 py-2 text-right tnum text-fg">
         {last != null ? fmtUsd(last) : <span className="text-dim">—</span>}
       </td>
-      <td className={`px-3 py-2 text-right tnum ${dayChangePct == null ? 'text-dim' : dayChangePct >= 0 ? 'text-hi' : 'text-red'}`}>
+      <td data-label="day %" className={`px-3 py-2 text-right tnum ${dayChangePct == null ? 'text-dim' : dayChangePct >= 0 ? 'text-hi' : 'text-red'}`}>
         {dayChangePct == null ? '—' : `${dayChangePct >= 0 ? '+' : ''}${dayChangePct.toFixed(2)}%`}
       </td>
-      <td className="px-3 py-2">
+      <td data-label="30d" className="px-3 py-2">
         {closes.length > 0 ? <Sparkline values={closes} width={120} height={24} /> : <span className="text-dim text-[10px]">—</span>}
       </td>
-      <td className="px-3 py-2 text-right">
+      <td data-label="action" className="px-3 py-2 text-right">
         <button onClick={onRemove} className="text-red text-[10px] hover:underline">[×]</button>
       </td>
     </tr>

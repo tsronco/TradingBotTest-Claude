@@ -17,13 +17,13 @@ export default function Trades() {
   const summary = data?.summary;
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px]">
         <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'}</span>
       </div>
-      <h1 className="text-[44px] font-bold tracking-tight text-hi mt-2">Trades</h1>
+      <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Trades</h1>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         <SummaryCard label="count" value={summary ? String(summary.count) : '—'} />
@@ -38,7 +38,7 @@ export default function Trades() {
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2 flex-wrap">
         <FilterPbtn
           label="account"
           value={filters.account}
@@ -50,7 +50,7 @@ export default function Trades() {
         <FilterPbtn label="status" value={filters.status} options={STATUSES} onChange={(v) => setFilters({ ...filters, status: v as 'open' | 'closed' | undefined, offset: 0 })} />
       </div>
 
-      <div className="mt-4 border border-border bg-panel/60">
+      <div className="mt-4 border border-border bg-panel/60 overflow-x-auto rtable">
         <table className="w-full text-[10px] tnum">
           <thead className="text-dim">
             <tr className="border-b border-border">
@@ -144,10 +144,10 @@ function TradeRow({ trade, gradeSummary }: { trade: Trade; gradeSummary: { ai_le
     : 'text-dim';
   return (
     <tr className="border-b border-border hover:bg-panel-2">
-      <td className="px-3 py-1.5 text-mid">
+      <td data-label="date" className="px-3 py-1.5 text-mid">
         <Link to={`/trade/${trade.id}`} className="hover:text-hi">{date}</Link>
       </td>
-      <td className="px-3 py-1.5 text-cyan">
+      <td data-primary className="px-3 py-1.5 text-cyan">
         {trade.asset_class === 'spread' && trade.spread ? (
           <Link to={`/trade/${trade.id}`}>
             {trade.symbol} {trade.spread.spread_type.replace(/_/g, ' ')}{' '}
@@ -157,14 +157,14 @@ function TradeRow({ trade, gradeSummary }: { trade: Trade; gradeSummary: { ai_le
           <Link to={`/trade/${trade.id}`}>{trade.symbol}</Link>
         )}
       </td>
-      <td className="px-3 py-1.5">{trade.side}</td>
-      <td className="px-3 py-1.5 text-right">{trade.qty}</td>
-      <td className="px-3 py-1.5 text-right">{trade.filled_avg_price != null ? fmtUsd(trade.filled_avg_price) : <span className="text-dim">—</span>}</td>
-      <td className="px-3 py-1.5 text-right">{trade.closed_avg_price != null ? fmtUsd(trade.closed_avg_price) : <span className="text-dim">—</span>}</td>
-      <td className="px-3 py-1.5 text-right">{pnlEl}</td>
-      <td className="px-3 py-1.5 text-center text-hi">{trade.entry_grade}</td>
-      <td className={`px-3 py-1.5 text-center ${aiColor}`}>{gradeSummary?.ai_letter ?? '—'}</td>
-      <td className="px-3 py-1.5">
+      <td data-label="side" className="px-3 py-1.5">{trade.side}</td>
+      <td data-label="qty" className="px-3 py-1.5 text-right">{trade.qty}</td>
+      <td data-label="entry" className="px-3 py-1.5 text-right">{trade.filled_avg_price != null ? fmtUsd(trade.filled_avg_price) : <span className="text-dim">—</span>}</td>
+      <td data-label="exit" className="px-3 py-1.5 text-right">{trade.closed_avg_price != null ? fmtUsd(trade.closed_avg_price) : <span className="text-dim">—</span>}</td>
+      <td data-label="P&amp;L" className="px-3 py-1.5 text-right">{pnlEl}</td>
+      <td data-label="grade" className="px-3 py-1.5 text-center text-hi">{trade.entry_grade}</td>
+      <td data-label="ai" className={`px-3 py-1.5 text-center ${aiColor}`}>{gradeSummary?.ai_letter ?? '—'}</td>
+      <td data-label="tags" className="px-3 py-1.5">
         {trade.tags.slice(0, 3).map((t) => <span key={t} className="text-cyan mr-2">{t}</span>)}
       </td>
     </tr>
