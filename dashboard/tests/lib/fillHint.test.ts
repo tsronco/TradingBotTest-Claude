@@ -28,4 +28,13 @@ describe('computeFillHint', () => {
     expect(computeFillHint({ side: 'sell', bid: 0, ask: 0 })).toBeNull();
     expect(computeFillHint({ side: 'buy', bid: 2.5, ask: 2.4 })).toBeNull();
   });
+  it('sub-penny option (bid < tick) returns null instead of zero/negative tiers', () => {
+    expect(computeFillHint({ side: 'sell', bid: 0.001, ask: 0.002 })).toBeNull();
+  });
+  it('all tier prices are clean (no floating-point tails)', () => {
+    const h = computeFillHint({ side: 'sell', bid: 2.30, ask: 2.40 })!;
+    for (const t of [h.fast, h.balanced, h.patient, { price: h.mid }]) {
+      expect(t.price.toString()).not.toMatch(/\d{6,}/);
+    }
+  });
 });

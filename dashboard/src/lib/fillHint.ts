@@ -16,7 +16,8 @@ export interface FillHint {
 }
 
 function rnd(x: number, tick: number): number {
-  return Math.round(x / tick) * tick;
+  const decimals = tick < 1 ? Math.ceil(-Math.log10(tick)) : 0;
+  return parseFloat((Math.round(x / tick) * tick).toFixed(decimals));
 }
 
 export function computeFillHint(input: FillHintInput): FillHint | null {
@@ -24,6 +25,7 @@ export function computeFillHint(input: FillHintInput): FillHint | null {
   const { bid, ask, side } = input;
   if (!(bid > 0) || !(ask > 0) || bid >= ask) return null;
   const mid = rnd((bid + ask) / 2, tick);
+  if (mid <= 0) return null;
   const step = Math.max(tick, rnd((ask - bid) / 4, tick));
   let fast: number;
   let patient: number;
