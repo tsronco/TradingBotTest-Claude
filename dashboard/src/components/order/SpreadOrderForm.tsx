@@ -5,9 +5,13 @@
 // `expiration_date`, and bid/ask sourced from `snapshots[symbol].latestQuote`)
 // rather than the plan's idealized fixture shape.
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api';
 import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
 import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
+import PayoffChart from './PayoffChart';
+import type { Leg } from '../../lib/payoff';
 
 interface ChainContractRaw {
   symbol: string;
@@ -51,6 +55,16 @@ interface Props {
 export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
   // Spreads are only bot-managed on manual_paper; coerce any incoming account to manual_paper.
   const effectiveAccount: AccountId = 'manual_paper';
+
+  // Spot price for the underlying (used by PayoffChart)
+  const { data: spotData } = useQuery({
+    queryKey: ['quote', symbol, 'manual'],
+    queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=manual`),
+    staleTime: 10_000,
+  });
+  const spotSnap = spotData?.snapshot?.[symbol];
+  const spotPrice: number =
+    spotSnap?.latestTrade?.p ?? spotSnap?.dailyBar?.c ?? 0;
 
   const [chain, setChain] = useState<ChainResponse | null>(null);
   const [expiration, setExpiration] = useState<string>('');
@@ -311,6 +325,30 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-24 max-md:min-h-[44px]"
         />
       </div>
+
+      {/* payoff chart — rendered above the live-mid/max-loss text when both legs are selected */}
+      {shortContract && longContract && qty > 0 && shortMid > 0 && (() => {
+        const legs: Leg[] = [
+          {
+            kind: 'option',
+            dir: 'short',
+            type: 'put',
+            strike: shortContract.strike,
+            premium: shortMid,
+            contracts: qty,
+          },
+          {
+            kind: 'option',
+            dir: 'long',
+            type: 'put',
+            strike: longContract.strike,
+            premium: longMid,
+            contracts: qty,
+          },
+        ];
+        const cp = spotPrice > 0 ? spotPrice : shortContract.strike * 1.05;
+        return <PayoffChart legs={legs} currentPrice={cp} />;
+      })()}
 
       {shortContract && longContract && (
         <div className="text-mid">

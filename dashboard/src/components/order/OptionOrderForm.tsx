@@ -9,6 +9,8 @@ import { parseOptionSymbol } from '../../lib/option-symbol';
 import type { GradeLetter, OptionSide, OrderType, Tif, RuleWarning } from '../../lib/trade-types';
 import { GREEK_DEFS } from '../GreekLabel';
 import { AccountBpIndicator } from './AccountBpIndicator';
+import PayoffChart from './PayoffChart';
+import type { Leg } from '../../lib/payoff';
 
 type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
 
@@ -222,6 +224,25 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
           </div>
         </div>
       </div>
+
+      {/* payoff chart */}
+      {(() => {
+        const px = limitPrice !== '' ? Number(limitPrice) : (ask + bid) / 2 || 0;
+        const q = qty || 0;
+        if (!px || !q) return null;
+        // STO / STC = short; BTO / BTC = long
+        const dir: 'long' | 'short' = (side === 'STO' || side === 'STC') ? 'short' : 'long';
+        const leg: Leg = {
+          kind: 'option',
+          dir,
+          type: parsed.type,
+          strike: parsed.strike,
+          premium: px,
+          contracts: q,
+        };
+        const liveMid = (ask + bid) / 2 || ask || bid || parsed.strike;
+        return <PayoffChart legs={[leg]} currentPrice={liveMid} />;
+      })()}
 
       <div>
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ entry grade ───────</div>
