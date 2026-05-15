@@ -211,6 +211,7 @@ Pure TS + React + CSS only. No `dashboard/api/**` change. No new Vercel function
 
 - **Branch base.** RESOLVED 2026-05-15: Tim chose to merge mobile to `main` first (PR #18, merged) and rebase this branch onto fresh `main`. `claude/order-form-upgrades` is now `main` + the plan docs only; mobile is no longer a stacked dependency. The forms here already carry the mobile responsive treatment (it's in `main`).
 - **Fill helper is heuristic, not ML.** Accepted with Tim 2026-05-15. Transparent and labelled "estimate."
+- **Spread account selection.** RESOLVED 2026-05-15: per Tim, spread orders are allowed on `conservative_paper` / `aggressive_paper` / `manual_paper` (all three chips enabled). `live` stays disabled (real-money/bot-only). Tim accepts that the bot does not manage spreads on conservative/aggressive (`spread_management` is manual-only) — these are intentionally hand-managed there.
 - **Expiration/strike stay `<select>`.** Deliberate; chips don't scale to data-driven lists.
 - **`sell`-to-close stock orders show no payoff diagram.** A position-closing sell has no forward payoff shape; the chart is suppressed with a one-line note rather than drawn misleadingly.
 - **Scrubber/visual correctness is manual-tested.** jsdom can't lay out SVG or truly drag; unit tests cover state, a person covers the feel.

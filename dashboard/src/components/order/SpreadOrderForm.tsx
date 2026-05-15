@@ -53,14 +53,18 @@ interface Props {
   onReview: (preview: PreviewResult) => void;
 }
 
-export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
-  // Spreads are only bot-managed on manual_paper; coerce any incoming account to manual_paper.
-  const effectiveAccount: AccountId = 'manual_paper';
+export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props) {
+  // Derive mode from selected account, same pattern as StockOrderForm.
+  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
+    account === 'aggressive_paper' ? 'aggressive'
+    : account === 'manual_paper' ? 'manual'
+    : account === 'live' ? 'live'
+    : 'conservative';
 
   // Spot price for the underlying (used by PayoffChart)
   const { data: spotData } = useQuery({
-    queryKey: ['quote', symbol, 'manual'],
-    queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=manual`),
+    queryKey: ['quote', symbol, mode],
+    queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=${mode}`),
     staleTime: 10_000,
   });
   const spotSnap = spotData?.snapshot?.[symbol];
@@ -161,7 +165,7 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           kind: 'spread',
-          account: effectiveAccount,
+          account,
           symbol,
           spread_type: 'put_credit',
           short_leg: {
@@ -196,38 +200,36 @@ export function SpreadOrderForm({ symbol, setAccount, onReview }: Props) {
 
   return (
     <div className="space-y-4 text-[12px]">
-      {/* account selector — spread management is ONLY on manual paper; cons/agg/live disabled */}
+      {/* account selector — cons/agg/manual all enabled; live stays disabled (real-money/bot-only) */}
       <div className="flex flex-col gap-1">
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
           <button
             type="button"
-            disabled
-            className="pbtn max-md:min-h-[44px] opacity-40"
-            title="Spreads are bot-managed on manual paper only"
+            className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('conservative_paper')}
           >
-            [conservative_paper]
+            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
-            disabled
-            className="pbtn max-md:min-h-[44px] opacity-40"
-            title="Spreads are bot-managed on manual paper only"
+            className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`}
+            onClick={() => setAccount('aggressive_paper')}
           >
-            [aggressive_paper]
+            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
-            className={`pbtn max-md:min-h-[44px] ${effectiveAccount === 'manual_paper' ? 'active' : ''}`}
+            className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`}
             onClick={() => setAccount('manual_paper')}
           >
-            [manual_paper{effectiveAccount === 'manual_paper' ? '*' : ''}]
+            [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
           <button
             type="button"
             disabled
             className="pbtn max-md:min-h-[44px] text-red opacity-40"
-            title="Spreads are bot-managed on manual paper only"
+            title="Live spreads are bot-managed only — not available for manual entry"
           >
             [live]
           </button>
