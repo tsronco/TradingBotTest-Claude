@@ -27,6 +27,7 @@ export interface RuleCheckInput {
   strike?: number | null;
   expiration?: string | null;        // YYYY-MM-DD
   tags?: string[];
+  spread?: { width: number; net_credit: number; max_loss: number };
 }
 
 export interface RuleCheckCtx {
@@ -147,6 +148,11 @@ async function evaluateTrigger(
       return input.strike < stock.avg_entry_price;
     }
     case 'tag_present':     return (input.tags ?? []).includes(t.tag);
+    case 'max_risk_per_spread': {
+      if (!input.spread) return false;
+      const risk_dollars = input.spread.max_loss * 100 * input.qty;
+      return risk_dollars > t.max_dollars;
+    }
     default:                return false;
   }
 }

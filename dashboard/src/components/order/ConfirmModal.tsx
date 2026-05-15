@@ -85,8 +85,14 @@ export function ConfirmModal({ preview, onClose }: Props) {
           </div>
 
           <div className="text-dim text-[10px] tracking-[0.25em] mt-4 mb-1">━━━ order ─────────────</div>
-          <Row k="action" v={`${draft.side.toUpperCase()} ${draft.qty} ${draft.symbol}${draft.contract_symbol ? ` ${draft.contract_type?.toUpperCase()} $${draft.strike} ${draft.expiration}` : ''}`} />
-          <Row k="type" v={`${draft.order_type}${draft.limit_price ? ' @ ' + fmtUsd(draft.limit_price) : ''} · ${draft.tif}`} />
+          {draft.kind === 'spread' ? (
+            <SpreadOrderSummary draft={draft} />
+          ) : (
+            <>
+              <Row k="action" v={`${draft.side.toUpperCase()} ${draft.qty} ${draft.symbol}${draft.contract_symbol ? ` ${draft.contract_type?.toUpperCase()} $${draft.strike} ${draft.expiration}` : ''}`} />
+              <Row k="type" v={`${draft.order_type}${draft.limit_price ? ' @ ' + fmtUsd(draft.limit_price) : ''} · ${draft.tif}`} />
+            </>
+          )}
           <Row k="account" v={draft.account} />
           <Row k="exposure" v={<span className={preview.requires_totp ? 'text-amber font-semibold' : 'text-fg'}>{fmtUsd(preview.exposure)}</span>} />
 
@@ -152,5 +158,25 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
       <span className="text-mid">{k}</span>
       <span>{v}</span>
     </div>
+  );
+}
+
+function SpreadOrderSummary({ draft }: { draft: any }) {
+  const credit = Math.abs(draft.limit_price ?? 0);
+  const width = Math.abs(draft.short_leg.strike - draft.long_leg.strike);
+  const maxLoss = width - credit;
+  const qty = draft.qty ?? 1;
+  const typeLabel = String(draft.spread_type ?? '').replace(/_/g, ' ');
+  return (
+    <>
+      <Row
+        k="action"
+        v={`${draft.symbol} ${typeLabel} $${draft.short_leg.strike.toFixed(2)} / $${draft.long_leg.strike.toFixed(2)} × ${qty}`}
+      />
+      <Row k="expiration" v={draft.expiration} />
+      <Row k="net credit" v={`${fmtUsd(credit)} (${fmtUsd(credit * 100 * qty)})`} />
+      <Row k="max loss" v={`${fmtUsd(maxLoss)} (${fmtUsd(maxLoss * 100 * qty)})`} />
+      <Row k="collateral" v={fmtUsd(maxLoss * 100 * qty)} />
+    </>
   );
 }

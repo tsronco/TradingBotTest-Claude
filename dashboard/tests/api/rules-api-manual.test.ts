@@ -193,6 +193,49 @@ describe('rules manual CRUD', () => {
     // Still wrote the (unchanged) list — that's fine. The test should be permissive.
   });
 
+  it('GET seeds a default max_risk_per_spread rule with $500 warn on first read', async () => {
+    kvGet.mockResolvedValueOnce(null);
+    const handler = (await import('../../api/rules/[resource]')).default;
+    const req: any = { method: 'GET', query: { resource: 'manual' } };
+    const res = mkRes();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    // Persisted the seeded list back to KV
+    expect(kvSet).toHaveBeenCalledTimes(1);
+    const written = kvSet.mock.calls[0][1];
+    expect(written).toHaveLength(1);
+    expect(written[0].severity).toBe('warn');
+    expect(written[0].source).toBe('manual');
+    expect(written[0].triggers).toHaveLength(1);
+    expect(written[0].triggers[0].type).toBe('max_risk_per_spread');
+    expect(written[0].triggers[0].max_dollars).toBe(500);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.rules).toHaveLength(1);
+    expect(body.rules[0].triggers[0].type).toBe('max_risk_per_spread');
+    expect(body.rules[0].triggers[0].max_dollars).toBe(500);
+  });
+
+  it('GET does not overwrite an existing user-edited max_risk_per_spread rule', async () => {
+    const userRule = {
+      id: 'r-user', title: 'My cap', body: 'tight cap', severity: 'block',
+      triggers: [{ type: 'max_risk_per_spread', max_dollars: 250 }],
+      source: 'manual', created_at: '2026-04-01T00:00:00Z', updated_at: '2026-04-01T00:00:00Z',
+    };
+    kvGet.mockResolvedValueOnce([userRule]);
+    const handler = (await import('../../api/rules/[resource]')).default;
+    const req: any = { method: 'GET', query: { resource: 'manual' } };
+    const res = mkRes();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    // Should NOT write — rule already exists
+    expect(kvSet).not.toHaveBeenCalled();
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.rules).toHaveLength(1);
+    expect(body.rules[0].id).toBe('r-user');
+    expect(body.rules[0].severity).toBe('block');
+    expect(body.rules[0].triggers[0].max_dollars).toBe(250);
+  });
+
   it('returns 405 for unsupported method', async () => {
     kvGet.mockResolvedValueOnce([]);
     const handler = (await import('../../api/rules/[resource]')).default;

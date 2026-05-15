@@ -122,12 +122,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+async function ensureDefaultSpreadRiskRule(rules: ManualRule[]): Promise<ManualRule[]> {
+  const hasRule = rules.some((r) =>
+    r.triggers?.some((t) => t.type === 'max_risk_per_spread'),
+  );
+  if (hasRule) return rules;
+  const now = new Date().toISOString();
+  const seeded: ManualRule = {
+    id: newId('r'),
+    title: 'Max risk per spread',
+    body: 'Cap defined risk per spread at $500. Warn when a trade exceeds this so I have to acknowledge it explicitly.',
+    severity: 'warn',
+    triggers: [{ type: 'max_risk_per_spread', max_dollars: 500 }],
+    source: 'manual',
+    created_at: now,
+    updated_at: now,
+  };
+  const updated = [...rules, seeded];
+  await kv().set(rulesKey('manual'), updated);
+  return updated;
+}
+
 async function manualHandler(req: VercelRequest, res: VercelResponse) {
-  const list = (await kv().get<ManualRule[]>(rulesKey('manual'))) ?? [];
+  const stored = (await kv().get<ManualRule[]>(rulesKey('manual'))) ?? [];
 
   if (req.method === 'GET') {
+    const list = await ensureDefaultSpreadRiskRule(stored);
     return res.status(200).json({ rules: list });
   }
+
+  const list = stored;
 
   if (req.method === 'POST') {
     const body = (req.body ?? {}) as Partial<ManualRule>;

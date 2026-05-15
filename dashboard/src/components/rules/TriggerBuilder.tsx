@@ -17,6 +17,7 @@ const DEFAULTS: Record<TriggerType, Trigger> = {
   earnings_within_days:     { type: 'earnings_within_days', value: 7 },
   strike_below_cost_basis:  { type: 'strike_below_cost_basis' },
   tag_present:              { type: 'tag_present', tag: '' },
+  max_risk_per_spread:      { type: 'max_risk_per_spread', max_dollars: 500 },
 };
 
 export default function TriggerBuilder({ triggers, onChange }: Props) {
@@ -148,6 +149,18 @@ function TriggerValueInput({ trigger, onChange }: { trigger: Trigger; onChange: 
           value={trigger.tag}
           onChange={(e) => onChange({ ...trigger, tag: e.target.value })}
           className={inputCls}
+        />
+      );
+    case 'max_risk_per_spread':
+      return (
+        <input
+          type="number"
+          min={0}
+          step={50}
+          aria-label="max dollars per spread"
+          value={trigger.max_dollars}
+          onChange={(e) => onChange({ ...trigger, max_dollars: parseInt(e.target.value || '0', 10) })}
+          className={`${inputCls} w-24`}
         />
       );
   }

@@ -46,7 +46,7 @@ describe('api/rules/[resource] dispatch', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('GET manual returns empty array when KV has no entry', async () => {
+  it('GET manual seeds default spread-risk rule when KV has no entry', async () => {
     requireAuth.mockReturnValue({ user: 'tim' });
     kvGet.mockResolvedValueOnce(null);
     const handler = (await import('../../api/rules/[resource]')).default;
@@ -54,13 +54,15 @@ describe('api/rules/[resource] dispatch', () => {
     const res = mkRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ rules: [] });
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.rules).toHaveLength(1);
+    expect(body.rules[0].triggers[0].type).toBe('max_risk_per_spread');
   });
 
-  it('GET manual returns stored array when KV has entries', async () => {
+  it('GET manual returns stored array (plus default seed if not yet present)', async () => {
     requireAuth.mockReturnValue({ user: 'tim' });
     kvGet.mockResolvedValueOnce([
-      { id: 'r-1', title: 'No earnings week', severity: 'block' },
+      { id: 'r-1', title: 'No earnings week', severity: 'block', triggers: [] },
     ]);
     const handler = (await import('../../api/rules/[resource]')).default;
     const req: any = { method: 'GET', query: { resource: 'manual' } };
@@ -68,8 +70,10 @@ describe('api/rules/[resource] dispatch', () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
     const body = (res.json as any).mock.calls[0][0];
-    expect(body.rules).toHaveLength(1);
+    // r-1 has no max_risk_per_spread trigger, so the default gets appended.
+    expect(body.rules).toHaveLength(2);
     expect(body.rules[0].id).toBe('r-1');
+    expect(body.rules[1].triggers[0].type).toBe('max_risk_per_spread');
   });
 
 });

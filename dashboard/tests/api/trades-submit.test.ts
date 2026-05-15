@@ -11,6 +11,7 @@ const ruleCheckMock = vi.fn();
 const dataMock = vi.fn();
 const verifyTotpMock = vi.fn();
 const alpacaCreateOrder = vi.fn();
+const alpacaTradeMutationMock = vi.fn();
 vi.mock('../../api/_lib/kv', () => ({
   kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, lpush: kvLpush, rpush: kvRpush, sadd: vi.fn(), lrange: vi.fn(), lrem: vi.fn() }),
 }));
@@ -24,6 +25,7 @@ vi.mock('../../api/_lib/rule-check', () => ({
 vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: (...a: any[]) => dataMock(...a),
   alpacaTrade: vi.fn().mockResolvedValue([]),
+  alpacaTradeMutation: (...a: any[]) => alpacaTradeMutationMock(...a),
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...a: any[]) => verifyTotpMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
@@ -34,6 +36,7 @@ vi.mock('../../api/_lib/alpaca', () => ({
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvIncr.mockReset(); kvLpush.mockReset(); kvRpush.mockReset();
   ruleCheckMock.mockReset(); dataMock.mockReset(); verifyTotpMock.mockReset(); alpacaCreateOrder.mockReset();
+  alpacaTradeMutationMock.mockReset();
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
 });
 
@@ -171,6 +174,73 @@ describe('POST /api/trades/submit', () => {
     expect(json.alpaca_order_id).toBe('alp-abc-123');
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^trade:T-/), expect.any(Object));
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^grade:T-/), expect.any(Object));
+    expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
+  });
+
+  it('submits a spread payload, builds mleg order, writes trade record', async () => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    kvIncr.mockResolvedValue(99);
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alpaca-mleg-1', status: 'new', submitted_at: '2026-05-14T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      kind: 'spread',
+      account: 'manual_paper',
+      symbol: 'AAL',
+      spread_type: 'put_credit',
+      short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+      long_leg:  { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+      expiration: '2026-05-29',
+      qty: 1,
+      limit_price: -0.25,
+      entry_grade: 'B+',
+      entry_reasoning: 'Bullish AAL above $12.50',
+    }), res);
+
+    // Response shape
+    const json = (res.json as any).mock.calls[0][0];
+    expect(json.trade_id ?? json.id).toMatch(/^T-\d{4}-\d{2}-\d{2}-\d{3}$/);
+    expect(json.alpaca_order_id).toBe('alpaca-mleg-1');
+
+    // Alpaca mleg order body
+    expect(alpacaTradeMutationMock).toHaveBeenCalledTimes(1);
+    const [, path, opts] = alpacaTradeMutationMock.mock.calls[0];
+    expect(path).toBe('/v2/orders');
+    expect(opts.method).toBe('POST');
+    expect(opts.body.order_class).toBe('mleg');
+    expect(opts.body.qty).toBe('1');
+    expect(opts.body.type).toBe('limit');
+    expect(opts.body.legs).toHaveLength(2);
+    expect(opts.body.legs[0]).toMatchObject({
+      symbol: 'AAL260529P00012500',
+      side: 'sell',
+      position_intent: 'sell_to_open',
+    });
+    expect(opts.body.legs[1]).toMatchObject({
+      symbol: 'AAL260529P00011500',
+      side: 'buy',
+      position_intent: 'buy_to_open',
+    });
+
+    // Trade record written to KV
+    const tradeWrite = kvSet.mock.calls.find((c: any[]) => typeof c[0] === 'string' && c[0].startsWith('trade:T-'));
+    expect(tradeWrite).toBeDefined();
+    const tradeRecord = tradeWrite![1];
+    expect(tradeRecord.asset_class).toBe('spread');
+    expect(tradeRecord.filled_at).toBeNull();
+    expect(tradeRecord.spread.short_leg.strike).toBe(12.5);
+    expect(tradeRecord.spread.long_leg.strike).toBe(11.5);
+    expect(tradeRecord.spread.net_credit).toBeCloseTo(0.25, 6);
+    expect(tradeRecord.spread.max_loss).toBeCloseTo(0.75, 6);
+    expect(tradeRecord.spread.width).toBeCloseTo(1, 6);
+
+    // Open index push
     expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
   });
 });

@@ -4,7 +4,7 @@ import { kv } from '../_lib/kv.js';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { computeExposure } from '../_lib/exposure.js';
 import { runStubRuleChecks, runRuleChecks } from '../_lib/rule-check.js';
-import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
+import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { GRADE_LETTERS, type GradeLetter, type Trade } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
@@ -37,6 +37,40 @@ interface OrderDraft {
 }
 
 const DEFAULT_THRESHOLDS = { conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 };
+
+interface SpreadLegPayload {
+  occ: string;
+  strike: number;
+  entry_premium: number | null;
+}
+
+interface SpreadPayload {
+  kind: 'spread';
+  account: OrderDraft['account'];
+  symbol: string;
+  spread_type: 'put_credit';
+  short_leg: SpreadLegPayload;
+  long_leg: SpreadLegPayload;
+  expiration: string;
+  qty: number;
+  limit_price: number;            // negative for credit spreads
+  entry_grade: string;
+  entry_reasoning: string;
+  tags?: string[];
+  totp_code?: string;
+  rule_warnings_at_entry?: any[];
+}
+
+function isSpreadPayload(body: any): body is SpreadPayload {
+  return body && body.kind === 'spread';
+}
+
+function spreadMath(p: SpreadPayload) {
+  const width = Math.abs(p.short_leg.strike - p.long_leg.strike);
+  const net_credit = Math.abs(p.limit_price);
+  const max_loss = width - net_credit;
+  return { width, net_credit, max_loss };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return;
@@ -137,6 +171,7 @@ async function check(req: VercelRequest, res: VercelResponse) {
 }
 
 async function preview(req: VercelRequest, res: VercelResponse) {
+  if (isSpreadPayload(req.body)) return previewSpread(req, res);
   const draft = (req.body ?? {}) as OrderDraft;
   const validation_errors = validate(draft);
 
@@ -170,7 +205,217 @@ async function preview(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({ exposure, requires_totp, rule_warnings, validation_errors });
 }
 
+async function previewSpread(req: VercelRequest, res: VercelResponse) {
+  const p = req.body as SpreadPayload;
+  const { width, net_credit, max_loss } = spreadMath(p);
+  const thresholds = (await kv().get<typeof DEFAULT_THRESHOLDS>(KV_KEYS.totpThresholds)) ?? DEFAULT_THRESHOLDS;
+
+  const exposure = computeExposure({
+    asset_class: 'spread',
+    side: 'STO',
+    qty: p.qty,
+    order_type: 'limit',
+    limit_price: p.limit_price,
+    spread: { width, net_credit, max_loss },
+  });
+  const threshold = thresholds[p.account] ?? Number.POSITIVE_INFINITY;
+  const requires_totp = exposure >= threshold;
+  const rule_warnings = await runStubRuleChecks({
+    asset_class: 'spread',
+    symbol: p.symbol,
+    qty: p.qty,
+    account: p.account,
+    expiration: p.expiration,
+    spread: { width, net_credit, max_loss },
+  });
+  return res.status(200).json({
+    exposure,
+    requires_totp,
+    rule_warnings,
+    validation_errors: [],
+    draft: p,
+  });
+}
+
+async function submitSpread(req: VercelRequest, res: VercelResponse) {
+  const p = req.body as SpreadPayload;
+  if (p.account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    return res.status(403).json({ error: 'live_trading_disabled' });
+  }
+
+  const { width, net_credit, max_loss } = spreadMath(p);
+  const thresholds = (await kv().get<typeof DEFAULT_THRESHOLDS>(KV_KEYS.totpThresholds)) ?? DEFAULT_THRESHOLDS;
+  const exposure = computeExposure({
+    asset_class: 'spread',
+    side: 'STO',
+    qty: p.qty,
+    order_type: 'limit',
+    limit_price: p.limit_price,
+    spread: { width, net_credit, max_loss },
+  });
+  const threshold = thresholds[p.account] ?? Number.POSITIVE_INFINITY;
+  if (exposure >= threshold) {
+    if (!p.totp_code || !verifyTotp(p.totp_code, process.env.TOTP_SECRET ?? '')) {
+      return res.status(401).json({ error: 'invalid_totp' });
+    }
+  }
+
+  // Re-run rule checks server-side
+  let positions: Array<{ symbol: string; qty: number; avg_entry_price: number }> = [];
+  try {
+    const raw = await alpacaTrade<Array<{ symbol: string; qty: string; avg_entry_price: string }>>(
+      modeFromAccount(p.account) as any,
+      '/v2/positions',
+    );
+    positions = (raw ?? []).map((pos) => ({
+      symbol: pos.symbol,
+      qty: parseFloat(pos.qty),
+      avg_entry_price: parseFloat(pos.avg_entry_price),
+    }));
+  } catch {
+    positions = [];
+  }
+  const rule_warnings = await runRuleChecks(
+    {
+      asset_class: 'spread',
+      symbol: p.symbol,
+      qty: p.qty,
+      account: p.account,
+      expiration: p.expiration,
+      tags: Array.isArray(p.tags) ? p.tags : undefined,
+      spread: { width, net_credit, max_loss },
+    },
+    { positions },
+  );
+
+  const submittedOverrides = (req.body as any)?.rule_violations as
+    | Array<{ rule: string; severity?: string; override_reason?: string }>
+    | undefined;
+  const overrideByRule = new Map<string, string>();
+  for (const v of submittedOverrides ?? []) {
+    if (typeof v?.rule === 'string' && typeof v?.override_reason === 'string') {
+      overrideByRule.set(v.rule, v.override_reason);
+    }
+  }
+  for (const v of rule_warnings) {
+    if (v.severity === 'block') {
+      const reason = (overrideByRule.get(v.rule) ?? '').trim();
+      if (reason.length < 20) {
+        return res.status(400).json({
+          error: 'block_severity_requires_override_reason',
+          rule: v.rule,
+          rule_message: v.message,
+        });
+      }
+      (v as any).override_reason = reason;
+    }
+  }
+
+  // Build the mleg order. Alpaca's multi-leg order endpoint expects
+  // order_class:'mleg' with a `legs` array carrying side + position_intent
+  // per leg. The top-level `limit_price` is the net debit/credit (negative
+  // for credit spreads, which is what the form sends).
+  const alpacaBody = {
+    order_class: 'mleg',
+    qty: String(p.qty),
+    type: 'limit',
+    limit_price: String(p.limit_price),
+    time_in_force: 'day',
+    legs: [
+      { symbol: p.short_leg.occ, side: 'sell', ratio_qty: '1', position_intent: 'sell_to_open' },
+      { symbol: p.long_leg.occ,  side: 'buy',  ratio_qty: '1', position_intent: 'buy_to_open'  },
+    ],
+  };
+  let alpacaOrder: any;
+  try {
+    alpacaOrder = await alpacaTradeMutation<any>(
+      modeFromAccount(p.account) as any,
+      '/v2/orders',
+      { method: 'POST', body: alpacaBody },
+    );
+  } catch (err) {
+    return res.status(502).json({
+      error: 'alpaca_order_failed',
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  const id = await allocateTradeId();
+  const now = new Date();
+  const trade: Trade = {
+    id,
+    account: p.account,
+    asset_class: 'spread',
+    symbol: p.symbol,
+    side: 'STO',
+    qty: p.qty,
+    order_type: 'limit',
+    limit_price: p.limit_price,
+    stop_price: null,
+    trail_pct: null,
+    tif: 'day',
+    contract_symbol: p.short_leg.occ,
+    strike: p.short_leg.strike,
+    expiration: p.expiration,
+    contract_type: 'put',
+    greeks_at_entry: null,
+    alpaca_order_id: alpacaOrder.id,
+    alpaca_close_order_id: null,
+    submitted_at: alpacaOrder.submitted_at ?? now.toISOString(),
+    filled_at: null,
+    filled_avg_price: null,
+    closed_at: null,
+    closed_avg_price: null,
+    realized_pnl: null,
+    closed_by: null,
+    tags: p.tags ?? [],
+    entry_grade: p.entry_grade as GradeLetter,
+    entry_reasoning: p.entry_reasoning,
+    journal: '',
+    exposure_at_submit: exposure,
+    rule_warnings_at_entry: rule_warnings,
+    modify_history: [],
+    schema: 1,
+    spread: {
+      spread_type: 'put_credit',
+      short_leg: {
+        occ: p.short_leg.occ,
+        strike: p.short_leg.strike,
+        entry_premium: p.short_leg.entry_premium,
+        fill_price: null,
+        qty: p.qty,
+      },
+      long_leg: {
+        occ: p.long_leg.occ,
+        strike: p.long_leg.strike,
+        entry_premium: p.long_leg.entry_premium,
+        fill_price: null,
+        qty: p.qty,
+      },
+      expiration: p.expiration,
+      width,
+      net_credit,
+      max_loss,
+    },
+  };
+
+  await kv().set(tradeKey(id), trade);
+  await kv().set(gradeKey(id), {
+    trade_id: id,
+    entry: { letter: trade.entry_grade, reasoning: trade.entry_reasoning, ts: now.toISOString() },
+    hindsight: null,
+    history: [],
+  });
+  await kv().rpush(KV_KEYS.tradesIndexOpen, id);
+  const monthKey = tradesIndexMonthKey(currentMonth(now));
+  const monthList = (await kv().get<string[]>(monthKey)) ?? [];
+  await kv().set(monthKey, [...monthList, id]);
+
+  return res.status(200).json({ id, trade_id: id, alpaca_order_id: alpacaOrder.id });
+}
+
 async function submit(req: VercelRequest, res: VercelResponse) {
+  if (isSpreadPayload(req.body)) return submitSpread(req, res);
   const draft = (req.body ?? {}) as OrderDraft;
   // Phase 2 follow-up #2: server-side `live` account guard. The dashboard
   // doesn't have wired live Alpaca creds; without this, an `account: 'live'`

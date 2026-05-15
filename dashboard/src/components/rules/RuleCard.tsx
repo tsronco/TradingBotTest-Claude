@@ -19,6 +19,7 @@ function summarizeTrigger(t: Trigger): string {
     case 'earnings_within_days':     return `earnings ≤ ${t.value} days`;
     case 'strike_below_cost_basis':  return `strike < cost basis`;
     case 'tag_present':              return `tag = "${t.tag}"`;
+    case 'max_risk_per_spread':      return `max risk per spread ≤ $${t.max_dollars}`;
   }
 }
 

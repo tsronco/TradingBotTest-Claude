@@ -9,6 +9,7 @@ export const TRIGGER_TYPES = [
   'option_type', 'option_dte_lt', 'option_dte_gt',
   'open_position_count_gt', 'earnings_within_days',
   'strike_below_cost_basis', 'tag_present',
+  'max_risk_per_spread',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];
 
@@ -23,7 +24,8 @@ export type Trigger =
   | { type: 'open_position_count_gt'; value: number }
   | { type: 'earnings_within_days'; value: number }
   | { type: 'strike_below_cost_basis' }
-  | { type: 'tag_present'; tag: string };
+  | { type: 'tag_present'; tag: string }
+  | { type: 'max_risk_per_spread'; max_dollars: number };
 
 /**
  * Runtime validator for Trigger payloads coming from the wire (e.g., POST
@@ -54,6 +56,8 @@ export function isTrigger(x: unknown): x is Trigger {
       return true;
     case 'tag_present':
       return typeof o.tag === 'string';
+    case 'max_risk_per_spread':
+      return typeof o.max_dollars === 'number';
     default:
       return false;
   }

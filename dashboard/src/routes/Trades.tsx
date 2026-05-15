@@ -147,7 +147,16 @@ function TradeRow({ trade, gradeSummary }: { trade: Trade; gradeSummary: { ai_le
       <td className="px-3 py-1.5 text-mid">
         <Link to={`/trade/${trade.id}`} className="hover:text-hi">{date}</Link>
       </td>
-      <td className="px-3 py-1.5 text-cyan"><Link to={`/trade/${trade.id}`}>{trade.symbol}</Link></td>
+      <td className="px-3 py-1.5 text-cyan">
+        {trade.asset_class === 'spread' && trade.spread ? (
+          <Link to={`/trade/${trade.id}`}>
+            {trade.symbol} {trade.spread.spread_type.replace(/_/g, ' ')}{' '}
+            ${trade.spread.short_leg.strike.toFixed(2)} / ${trade.spread.long_leg.strike.toFixed(2)}
+          </Link>
+        ) : (
+          <Link to={`/trade/${trade.id}`}>{trade.symbol}</Link>
+        )}
+      </td>
       <td className="px-3 py-1.5">{trade.side}</td>
       <td className="px-3 py-1.5 text-right">{trade.qty}</td>
       <td className="px-3 py-1.5 text-right">{trade.filled_avg_price != null ? fmtUsd(trade.filled_avg_price) : <span className="text-dim">—</span>}</td>

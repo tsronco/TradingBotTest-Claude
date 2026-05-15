@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
@@ -31,6 +31,16 @@ export default function Lookup() {
   const addToWatchlist = useMutation({
     mutationFn: () => api('/api/kv/watchlist', { method: 'POST', body: JSON.stringify({ symbol: sym }) }),
   });
+
+  // Probe the option chain so we can show the spread builder link only when
+  // the symbol actually has options. Cash-only / non-optionable names hide it.
+  const chainProbe = useQuery({
+    queryKey: ['chain-probe', sym],
+    queryFn: () => api<{ contracts: unknown[] }>(`/api/alpaca/chain?symbol=${sym}`),
+    enabled: !!sym,
+    staleTime: 60_000,
+  });
+  const hasOptions = !!chainProbe.data && Array.isArray(chainProbe.data.contracts) && chainProbe.data.contracts.length > 0;
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -144,6 +154,14 @@ export default function Lookup() {
                   </button>
                 )}
               </div>
+              {sym && hasOptions && (
+                <Link
+                  to={`/order/new?spread=put_credit&symbol=${sym}`}
+                  className="mt-2 block bg-panel-2 border border-border rounded-sm py-1.5 text-xs text-cyan hover:bg-cyan/10 hover:border-cyan/50 text-center transition-colors"
+                >
+                  Build Put Credit Spread
+                </Link>
+              )}
             </ErrorBoundary>
           </Cell>
           <Cell title="WHEELABILITY">

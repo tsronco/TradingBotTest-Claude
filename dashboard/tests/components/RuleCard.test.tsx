@@ -52,4 +52,14 @@ describe('RuleCard', () => {
     expect(screen.queryByText('[edit]')).toBeNull();
     expect(screen.queryByText('[delete]')).toBeNull();
   });
+
+  it('summarizes max_risk_per_spread trigger with dollar cap', () => {
+    render(<RuleCard rule={mkRule({
+      title: 'Max risk per spread',
+      severity: 'warn',
+      triggers: [{ type: 'max_risk_per_spread', max_dollars: 500 }],
+    })} />);
+    expect(screen.getByText(/Max risk per spread/)).toBeTruthy();
+    expect(screen.getByText(/\$500/)).toBeTruthy();
+  });
 });

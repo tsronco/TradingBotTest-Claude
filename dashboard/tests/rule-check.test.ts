@@ -262,4 +262,59 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
     const mod = await import('../api/_lib/rule-check');
     expect(mod.runStubRuleChecks).toBe(mod.runRuleChecks);
   });
+
+  it('emits warn when spread risk exceeds max_risk_per_spread cap', async () => {
+    kvGet.mockImplementation(async (k: string) => {
+      if (k === 'rules:manual') return [mkRule({
+        id: 'r1', title: 'Max risk per spread', severity: 'warn',
+        triggers: [{ type: 'max_risk_per_spread', max_dollars: 50 }],
+      })];
+      return null;
+    });
+    const { runRuleChecks } = await import('../api/_lib/rule-check');
+    const violations = await runRuleChecks({
+      asset_class: 'spread',
+      symbol: 'AAL',
+      qty: 1,
+      account: 'manual_paper',
+      spread: { width: 1.0, net_credit: 0.25, max_loss: 0.75 },
+    });
+    expect(violations).toContainEqual(
+      expect.objectContaining({ rule: 'r1', severity: 'warn' })
+    );
+  });
+
+  it('does not fire max_risk_per_spread when risk is under cap', async () => {
+    kvGet.mockImplementation(async (k: string) => {
+      if (k === 'rules:manual') return [mkRule({
+        id: 'r1', title: 'Max risk per spread', severity: 'warn',
+        triggers: [{ type: 'max_risk_per_spread', max_dollars: 100 }],
+      })];
+      return null;
+    });
+    const { runRuleChecks } = await import('../api/_lib/rule-check');
+    const violations = await runRuleChecks({
+      asset_class: 'spread', symbol: 'AAL', qty: 1, account: 'manual_paper',
+      spread: { width: 1.0, net_credit: 0.25, max_loss: 0.75 },
+    });
+    expect(violations.filter((v) => v.rule === 'r1')).toHaveLength(0);
+  });
+
+  it('blocks when severity is block and spread risk exceeds cap', async () => {
+    kvGet.mockImplementation(async (k: string) => {
+      if (k === 'rules:manual') return [mkRule({
+        id: 'r1', title: 'Max risk per spread', severity: 'block',
+        triggers: [{ type: 'max_risk_per_spread', max_dollars: 50 }],
+      })];
+      return null;
+    });
+    const { runRuleChecks } = await import('../api/_lib/rule-check');
+    const violations = await runRuleChecks({
+      asset_class: 'spread', symbol: 'AAL', qty: 1, account: 'manual_paper',
+      spread: { width: 1.0, net_credit: 0.25, max_loss: 0.75 },
+    });
+    expect(violations).toContainEqual(
+      expect.objectContaining({ rule: 'r1', severity: 'block' })
+    );
+  });
 });

@@ -201,6 +201,45 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
+  // Spread (mleg) path — Alpaca returns a single order with a `legs` array.
+  // Match each leg's OCC symbol to short/long and copy fill prices back onto
+  // the spread block. Net credit is recomputed from actual fills (may differ
+  // from the order's target net credit by a few cents of slippage). Modify
+  // chain walking is skipped — paper Alpaca mleg orders submit as one unit
+  // and don't have a replaces/replaced_by chain to walk.
+  if (trade.asset_class === 'spread' && trade.spread) {
+    let order: any = null;
+    try {
+      order = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_order_id}`);
+    } catch (e) {
+      console.error('syncFillData mleg order fetch failed', trade.id, trade.alpaca_order_id, e);
+      return trade;
+    }
+    if (!order || order.status !== 'filled') return trade;
+    const legs = order.legs ?? [];
+    const shortFill = legs.find((l: any) => l.symbol === trade.spread!.short_leg.occ);
+    const longFill = legs.find((l: any) => l.symbol === trade.spread!.long_leg.occ);
+    if (!shortFill || !longFill) return trade;
+    const shortPx = parseFloat(shortFill.filled_avg_price);
+    const longPx = parseFloat(longFill.filled_avg_price);
+    if (!Number.isFinite(shortPx) || !Number.isFinite(longPx)) return trade;
+    const netCredit = shortPx - longPx;
+    const updated: Trade = {
+      ...trade,
+      filled_at: order.filled_at ?? new Date().toISOString(),
+      filled_avg_price: netCredit,           // back-compat for legacy consumers
+      spread: {
+        ...trade.spread,
+        short_leg: { ...trade.spread.short_leg, fill_price: shortPx },
+        long_leg: { ...trade.spread.long_leg, fill_price: longPx },
+        net_credit: netCredit,
+        max_loss: trade.spread.width - netCredit,
+      },
+    };
+    await kv().set(tradeKey(trade.id), updated);
+    return updated;
+  }
+
   // Build the full modify chain bidirectionally from trade.alpaca_order_id:
   //   - Walk forward via replaced_by to find the terminal (non-replaced) order
   //   - Walk backward via replaces to find every prior order
@@ -350,6 +389,60 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
           closed_by: 'expired',
         };
       }
+    }
+  }
+
+  // Path 2b: spread past expiration with no close order = resolve by spot vs strikes.
+  // The bot (Phase 2 handle_spread) clears the legs on Alpaca's side at expiry, but
+  // the dashboard's trade record stays pinned to trades:index:open with closed_at=null
+  // unless we resolve it here. Three outcomes:
+  //   • spot >= short_strike  → both legs worthless OTM, keep full net credit (win)
+  //   • spot <  long_strike   → both legs deep ITM, full max loss
+  //   • between strikes       → partial loss, leave for manual resolution
+  if (trade.asset_class === 'spread' && trade.spread) {
+    const exp = trade.spread.expiration;
+    const expDate = new Date(exp + 'T20:00:00Z'); // ~4 PM ET = 20:00 UTC during EDT
+    if (Date.now() > expDate.getTime()) {
+      // Fetch latest trade price for the underlying
+      let spot = 0;
+      try {
+        const latest = await alpacaData<any>(mode, `/v2/stocks/${trade.symbol}/trades/latest`, { feed: 'iex' });
+        spot = parseFloat(latest?.trade?.p ?? '0');
+      } catch (e) {
+        console.error('detectClose spread spot fetch failed', trade.id, trade.symbol, e);
+        return null;
+      }
+      if (!Number.isFinite(spot) || spot <= 0) {
+        console.error('detectClose spread spot unavailable', trade.id, trade.symbol);
+        return null;
+      }
+
+      const { short_leg, long_leg, net_credit, max_loss, width } = trade.spread;
+      const qty = short_leg.qty;
+
+      if (spot >= short_leg.strike) {
+        // Worthless OTM — keep full credit
+        return {
+          closed_at: expDate.toISOString(),
+          closed_avg_price: 0,
+          realized_pnl: Math.round(net_credit * 100 * qty * 100) / 100,
+          closed_by: 'expired',
+        };
+      }
+      if (spot < long_leg.strike) {
+        // Deep ITM — full max loss
+        return {
+          closed_at: expDate.toISOString(),
+          closed_avg_price: width,
+          realized_pnl: Math.round(-max_loss * 100 * qty * 100) / 100,
+          closed_by: 'expired',
+        };
+      }
+      // Between strikes — partial loss, leave for manual close
+      console.warn(
+        `[${trade.id}] spread expired between strikes (spot=${spot}, short=${short_leg.strike}, long=${long_leg.strike}) — leaving for manual close`,
+      );
+      return null;
     }
   }
 

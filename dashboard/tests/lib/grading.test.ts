@@ -71,6 +71,45 @@ describe('gradeTrade', () => {
     expect(result.letter).toBe('B');
   });
 
+  it('uses spread-aware hindsight prompt for spread trades', async () => {
+    const spreadTrade = {
+      id: 'T-2026-05-25-001',
+      account: 'conservative_paper',
+      asset_class: 'spread',
+      symbol: 'AAL',
+      submitted_at: '2026-05-15T14:00:00Z',
+      filled_at: '2026-05-15T14:00:15Z',
+      closed_at: '2026-05-25T20:00:00Z',
+      closed_avg_price: 0.12,
+      closed_by: 'manual',
+      entry_grade: 'B+',
+      entry_reasoning: 'Bullish AAL above $12.50',
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { strike: 12.5, fill_price: 0.37, qty: 1 },
+        long_leg: { strike: 11.5, fill_price: 0.12, qty: 1 },
+        net_credit: 0.25,
+        max_loss: 0.75,
+        width: 1,
+        expiration: '2026-05-29',
+      },
+      schema: 1,
+    } as any;
+    claudeCreate.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '{"letter":"B+","review":"ok","calibration":"matched","tendencies_hit":[]}' }],
+      usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 0 },
+    });
+    const { gradeTrade } = await import('../../api/_lib/grading');
+    await gradeTrade({ trade: spreadTrade, bars: [] });
+    const userMsg = claudeCreate.mock.calls[0][0].messages[0].content;
+    expect(userMsg).toContain('put credit spread');
+    expect(userMsg).toContain('12.50');
+    expect(userMsg).toContain('11.50');
+    expect(userMsg).toContain('0.25');
+    expect(userMsg).toContain('0.75');
+    expect(userMsg).toContain('closed');
+  });
+
   it('marks parse_failed when both attempts return junk', async () => {
     claudeCreate.mockResolvedValue({
       content: [{ type: 'text', text: 'junk' }],

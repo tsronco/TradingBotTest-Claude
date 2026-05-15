@@ -76,6 +76,39 @@ describe('POST /api/trades/preview', () => {
     expect(json.requires_totp).toBe(true);
   });
 
+  it('previews a spread payload and returns spread exposure', async () => {
+    kvGet.mockImplementation((key: string) => {
+      if (key === 'config:totp_thresholds') {
+        return Promise.resolve({ conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 });
+      }
+      return Promise.resolve(null);
+    });
+    ruleCheckMock.mockResolvedValueOnce([]);
+    const handler = (await import('../../api/trades/[action]')).default;
+    const req = mockReq({ action: 'preview' }, {
+      kind: 'spread',
+      account: 'manual_paper',
+      symbol: 'AAL',
+      spread_type: 'put_credit',
+      short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+      long_leg:  { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+      expiration: '2026-05-29',
+      qty: 1,
+      limit_price: -0.25,
+      entry_grade: 'B+',
+      entry_reasoning: 'Bullish AAL above $12.50',
+    });
+    const res = mockRes();
+    await handler(req, res);
+    const json = (res.json as any).mock.calls[0][0];
+    // width=1, credit=0.25, max_loss=0.75 → exposure = 0.75 * 100 * 1 = 75
+    expect(json.exposure).toBeCloseTo(75, 2);
+    expect(json.requires_totp).toBe(false);   // 75 < 2500 manual_paper threshold
+    expect(Array.isArray(json.rule_warnings)).toBe(true);
+    expect(json.draft).toBeDefined();
+    expect(json.draft.kind).toBe('spread');
+  });
+
   it('returns validation_errors for missing reasoning', async () => {
     kvGet.mockResolvedValue(null);
     const handler = (await import('../../api/trades/[action]')).default;

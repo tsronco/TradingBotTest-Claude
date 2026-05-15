@@ -293,9 +293,10 @@ Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, 
 
 **Daily summary visibility (Phase 3)**: `daily_summary.py` now renders a `Wheel — Open Spreads` field with one row per `spread_active` entry, showing symbol, spread type, strikes, net credit, live P&L %, P&L $, and DTE. Live P&L is computed from the current mid of each leg via `wheel_strategy.get_option_quote`. If a quote is unavailable, P&L cells show `—`. Field is omitted when no spreads are open. Applies to all four per-mode summaries; non-manual modes hold zero spreads today so the field naturally doesn't render.
 
+**Dashboard order form (Phase 4)**: `/order/new?spread=put_credit&symbol=<SYMBOL>` opens a two-leg spread order form. Reachable via a "Build Put Credit Spread" button on every `/lookup/<SYMBOL>` page when the symbol has an options chain. Live mode is disabled in the account dropdown with a tooltip. Default `max_risk_per_spread` rule of $500 (warn-level) is auto-seeded on first `/api/rules?resource=manual` GET; configurable on `/rules` like other manual rules. Trade record stores both legs in `trade.spread` (see `SpreadDetails` in `dashboard/api/_lib/trade-types.ts`); `/trades` renders one row per spread; `/trade/:id` shows both legs in a SpreadMetadata card and both strike levels as horizontal price lines on the chart. AI hindsight grading prompt branches for spread context. Spread close remains bot-driven (Phase 2 management) — no dashboard close action.
+
 **What's NOT yet implemented:**
 - Live-mode wiring — `spread_management: False` on conservative, aggressive, AND live. A future plan flips live on after at least 2 weeks of manual paper validation.
-- Dashboard order form for opening multi-leg spreads through Alpaca's `mleg` order class.
 - Position-size guardrails (`min_account_floor`, `max_concurrent_spreads`) — only matter for the future live small-account plan.
 - Auto-roll logic — Tim opted out; spreads close at trigger, no auto-rollover.
 - Dashboard `rule-check.ts` still ignores `spread_active` when evaluating bot-wheel overlap on manual order placement — future enhancement, not a bug today.
@@ -308,7 +309,9 @@ Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, 
 Tracking plans:
 - Phase 1 (foundation): [2026-05-14-spread-detection-foundation.md](docs/superpowers/plans/2026-05-14-spread-detection-foundation.md) (merged in [PR #9](https://github.com/tsronco/TradingBotTest-Claude/pull/9))
 - Phase 2 (management): [2026-05-14-spread-management.md](docs/superpowers/plans/2026-05-14-spread-management.md) (merged in [PR #11](https://github.com/tsronco/TradingBotTest-Claude/pull/11))
-- Spec: [2026-05-14-spread-management-design.md](docs/superpowers/specs/2026-05-14-spread-management-design.md)
+- Phase 3 (daily summary): [2026-05-14-spread-daily-summary.md](docs/superpowers/plans/2026-05-14-spread-daily-summary.md) (merged in [PR #13](https://github.com/tsronco/TradingBotTest-Claude/pull/13))
+- Phase 4 (dashboard form): [2026-05-15-dashboard-spread-form.md](docs/superpowers/plans/2026-05-15-dashboard-spread-form.md)
+- Specs: [management](docs/superpowers/specs/2026-05-14-spread-management-design.md), [dashboard form](docs/superpowers/specs/2026-05-15-dashboard-spread-form-design.md)
 
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):

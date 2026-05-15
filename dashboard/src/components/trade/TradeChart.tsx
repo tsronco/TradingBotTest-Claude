@@ -93,6 +93,27 @@ export function TradeChart({ trade }: { trade: Trade }) {
       ]);
     }
 
+    // Spread strikes — draw both as horizontal price lines so the chart
+    // visually shows where the short and long legs sit relative to spot.
+    if (trade.asset_class === 'spread' && trade.spread) {
+      series.createPriceLine({
+        price: trade.spread.short_leg.strike,
+        color: '#f0b429',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: `short $${trade.spread.short_leg.strike.toFixed(2)}`,
+      });
+      series.createPriceLine({
+        price: trade.spread.long_leg.strike,
+        color: '#5d8eff',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: `long $${trade.spread.long_leg.strike.toFixed(2)}`,
+      });
+    }
+
     return () => chart.remove();
   }, [data, trade]);
 

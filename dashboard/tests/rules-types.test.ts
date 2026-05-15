@@ -15,12 +15,13 @@ import {
 } from '../api/_lib/rules-types';
 
 describe('rules-types', () => {
-  it('exposes all 11 trigger types', () => {
+  it('exposes all 12 trigger types', () => {
     expect(TRIGGER_TYPES).toEqual([
       'symbol_in', 'symbol_not_in', 'side', 'asset_class',
       'option_type', 'option_dte_lt', 'option_dte_gt',
       'open_position_count_gt', 'earnings_within_days',
       'strike_below_cost_basis', 'tag_present',
+      'max_risk_per_spread',
     ]);
   });
 
