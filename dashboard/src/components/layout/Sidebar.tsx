@@ -23,7 +23,7 @@ const acctOpts: { value: AccountMode; label: string; key: string }[] = [
   { value: 'live', label: 'live $', key: 'l' },
 ];
 
-export default function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useLogout();
   const [mode, setMode] = useAccount();
 

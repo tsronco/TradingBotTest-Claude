@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -52,5 +53,14 @@ describe('AppShell drawer', () => {
     fireEvent.click(screen.getByLabelText('Toggle navigation'));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(document.querySelector('.term-sidebar-wrap')!.className).toContain('-translate-x-full');
+  });
+
+  it('locks body scroll while open and restores on close', () => {
+    renderShell();
+    expect(document.body.style.overflow).toBe('');
+    fireEvent.click(screen.getByLabelText('Toggle navigation'));
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.body.style.overflow).toBe('');
   });
 });
