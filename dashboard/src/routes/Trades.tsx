@@ -38,7 +38,7 @@ export default function Trades() {
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 flex-wrap">
+      <div className="mt-4 flex flex-wrap gap-2">
         <FilterPbtn
           label="account"
           value={filters.account}
