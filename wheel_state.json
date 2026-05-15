@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-15T15:58:00.624048Z"
+    "last_checked": "2026-05-15T16:08:11.166540Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260605P00405000: $8.98 vs entry $5.90",
+    "last_action": "Monitoring TSLA260605P00405000: $8.83 vs entry $5.90",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260522P00050000: $0.98 vs entry $0.29"
+    "last_action": "Monitoring BAC260522P00050000: $1.01 vs entry $0.29"
   },
   "XOM": {
     "stage": 1,
@@ -128,7 +128,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00135000: $4.41 vs entry $3.55",
+    "last_action": "Monitoring PLTR260522P00135000: $4.19 vs entry $3.55",
     "contract_qty": 1
   },
   "SOFI": {
@@ -155,7 +155,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260522P00015000: $0.16 vs entry $0.24",
+    "last_action": "Monitoring SOFI260522P00015000: $0.19 vs entry $0.24",
     "contract_qty": 1
   },
   "PFE": {
@@ -174,7 +174,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260605P00025000: $0.34 vs entry $0.18",
+    "last_action": "Monitoring PFE260605P00025000: $0.35 vs entry $0.18",
     "contract_qty": 1
   },
   "F": {
@@ -228,7 +228,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.47 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.44 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -247,7 +247,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $10.54 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $10.61 vs entry $6.65",
     "contract_qty": 1
   }
 }
