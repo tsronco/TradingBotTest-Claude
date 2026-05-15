@@ -21,13 +21,13 @@ export default function PayoffChart({ legs, currentPrice }: Props) {
     [JSON.stringify(legs), currentPrice]
   );
 
-  if (result.points.length === 0) return null;
-
-  const { points, maxProfit, maxLoss, breakevens, window: win } = result;
-
   const [scrubPrice, setScrubPrice] = useState<number>(currentPrice);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragging = useRef(false);
+
+  if (result.points.length === 0) return null;
+
+  const { points, maxProfit, maxLoss, breakevens, window: win } = result;
 
   // Map price → SVG x coordinate
   const priceRange = win.hi - win.lo || 1;
