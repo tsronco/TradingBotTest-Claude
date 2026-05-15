@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fmtUsd, fmtPct } from '../../lib/format';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
 import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../../lib/account-utils';
@@ -82,10 +82,13 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   // Pull current price from the same query the QuotePanel uses — React Query
-  // dedupes, so this is free.
+  // dedupes, so this is free. refetchInterval keeps the spot divider live as
+  // the underlying ticks; React Query auto-pauses when the component unmounts.
   const quoteQ = useQuery({
     queryKey: ['quote', symbol],
     queryFn: () => api<any>(`/api/alpaca/quote?symbol=${symbol}`),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
   const snap = quoteQ.data?.snapshot?.[symbol];
   const stockPrice: number | undefined = snap?.latestTrade?.p ?? snap?.dailyBar?.c;
@@ -231,29 +234,81 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((c) => {
-            const cs = snapshots[c.symbol] ?? {};
-            const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
-            const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
-            return (
-              <tr
-                key={c.symbol}
-                className="border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer"
-                onClick={() => navigate(`/order/new?contract=${c.symbol}&action=open&account=${accountForMode(accountMode)}`)}
-              >
-                <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
-                <td className={`px-2 py-1 ${klass} font-semibold`}>{c.type === 'call' ? 'C' : 'P'}</td>
-                <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.bp?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
-                <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.ap?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
-                <td className="px-2 py-1 text-right text-mid">{cs.impliedVolatility ? fmtPct(cs.impliedVolatility * 100) : <span className="text-dim">—</span>}</td>
-                <td className={`px-2 py-1 text-right ${deltaColorClass(g.delta)}`}>{g.delta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
-                {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.gamma?.toFixed(4) ?? <span className="text-dim">—</span>}</td>}
-                <td className="px-2 py-1 text-right text-mid">{g.theta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
-                {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.vega?.toFixed(3) ?? <span className="text-dim">—</span>}</td>}
-                <td className="px-2 py-1 text-right text-mid">{cs.openInterest ?? <span className="text-dim">—</span>}</td>
-              </tr>
+          {(() => {
+            // Base columns: strike, type, bid, ask, iv, delta, theta, oi = 8
+            // With showAllGreeks adds gamma + vega = 10
+            const colSpan = showAllGreeks ? 10 : 8;
+
+            // Build the unique sorted strike values to determine divider position.
+            const uniqueStrikes = Array.from(new Set(rows.map((c) => Number(c.strike_price)))).sort(
+              (a, b) => a - b
             );
-          })}
+
+            // Find the index in rows after which the divider should be inserted.
+            // Divider sits after the last row whose strike ≤ spot, before the
+            // first row whose strike > spot. If spot is below all strikes,
+            // insertAfterStrike is -Infinity (divider goes to top). If spot is
+            // above all strikes, insertAfterStrike is the last strike (bottom).
+            let insertAfterStrike: number = -Infinity;
+            if (stockPrice != null) {
+              for (const s of uniqueStrikes) {
+                if (s <= stockPrice) insertAfterStrike = s;
+              }
+            }
+
+            const elements: React.ReactNode[] = [];
+            let dividerInserted = false;
+
+            // If spot is below all visible strikes, insert divider first.
+            if (stockPrice != null && insertAfterStrike === -Infinity && !dividerInserted) {
+              elements.push(
+                <tr key="chain-spot-divider" className="chain-spot">
+                  <td colSpan={colSpan}>Share price: {fmtUsd(stockPrice)}</td>
+                </tr>
+              );
+              dividerInserted = true;
+            }
+
+            for (const c of rows) {
+              const cs = snapshots[c.symbol] ?? {};
+              const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
+              const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
+              elements.push(
+                <tr
+                  key={c.symbol}
+                  className="border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/order/new?contract=${c.symbol}&action=open&account=${accountForMode(accountMode)}`)}
+                >
+                  <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
+                  <td className={`px-2 py-1 ${klass} font-semibold`}>{c.type === 'call' ? 'C' : 'P'}</td>
+                  <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.bp?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
+                  <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.ap?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
+                  <td className="px-2 py-1 text-right text-mid">{cs.impliedVolatility ? fmtPct(cs.impliedVolatility * 100) : <span className="text-dim">—</span>}</td>
+                  <td className={`px-2 py-1 text-right ${deltaColorClass(g.delta)}`}>{g.delta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
+                  {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.gamma?.toFixed(4) ?? <span className="text-dim">—</span>}</td>}
+                  <td className="px-2 py-1 text-right text-mid">{g.theta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
+                  {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.vega?.toFixed(3) ?? <span className="text-dim">—</span>}</td>}
+                  <td className="px-2 py-1 text-right text-mid">{cs.openInterest ?? <span className="text-dim">—</span>}</td>
+                </tr>
+              );
+
+              // After inserting the row for insertAfterStrike, emit the divider.
+              if (
+                stockPrice != null &&
+                !dividerInserted &&
+                Number(c.strike_price) === insertAfterStrike
+              ) {
+                elements.push(
+                  <tr key="chain-spot-divider" className="chain-spot">
+                    <td colSpan={colSpan}>Share price: {fmtUsd(stockPrice)}</td>
+                  </tr>
+                );
+                dividerInserted = true;
+              }
+            }
+
+            return elements;
+          })()}
         </tbody>
       </table>
       </div>
