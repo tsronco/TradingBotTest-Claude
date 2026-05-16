@@ -19,6 +19,12 @@ import { newId } from '../_lib/rules-types.js';
 
 const MAX_PER_TICK = 3;
 
+// How long to wait for Alpaca to post the OPEXP/OPASN settlement activity
+// before assuming a past-expiry STO simply expired worthless. Alpaca normally
+// posts it the evening of / morning after expiry; this is a safety net so a
+// trade never hangs open indefinitely if the activity never arrives.
+const SETTLEMENT_BACKSTOP_MS = 3 * 86400000; // 3 days
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Allow either Vercel's built-in cron header OR an explicit bearer token
   const isVercelCron = req.headers['x-vercel-cron'] === '1'
@@ -328,6 +334,55 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   return updated;
 }
 
+/**
+ * For a past-expiry STO option, ask Alpaca's account activity stream whether
+ * the contract was assigned (OPASN) or expired worthless (OPEXP). Returns
+ * null when no matching activity has posted yet (caller should retry on a
+ * later tick). Matching is by OCC contract symbol; legacy trades with no
+ * contract_symbol can't be matched and resolve as 'expired'.
+ */
+async function resolveOptionSettlement(
+  mode: 'conservative' | 'aggressive' | 'manual',
+  trade: Trade,
+): Promise<'assigned' | 'expired' | null> {
+  if (!trade.contract_symbol) return 'expired';
+  // Window the activity fetch from a few days before expiry. The OPEXP/OPASN
+  // posts on/after the expiration date, but Alpaca's `after` filter is
+  // date-granular and may be strictly-after — so anchoring exactly on the
+  // expiration date risks excluding a same-day settlement. A wider window is
+  // safe because we match precisely on the OCC contract symbol below, which
+  // is unique to this contract/strike/expiry.
+  let after: string | undefined;
+  if (trade.expiration) {
+    const d = new Date(trade.expiration + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 5);
+    after = d.toISOString().slice(0, 10);
+  }
+  let activities: any[] = [];
+  try {
+    const raw = await alpacaTrade<any[]>(mode, '/v2/account/activities', {
+      activity_types: 'OPEXP,OPASN',
+      after,
+      page_size: 100,
+    });
+    activities = Array.isArray(raw) ? raw : [];
+  } catch (e) {
+    console.error('resolveOptionSettlement activities fetch failed', trade.id, e);
+    return null; // transient — treat as "not posted yet" and retry next tick
+  }
+  const match = activities.filter(
+    (a) => a?.symbol === trade.contract_symbol
+      && (a?.activity_type === 'OPEXP' || a?.activity_type === 'OPASN'),
+  );
+  if (match.length === 0) return null;
+  // If a partial assignment posts both an OPASN and an OPEXP for the same
+  // contract, the assignment is the economically significant event — it's
+  // what delivers shares, spawns the follow-on stock trade, and changes the
+  // hindsight grading context.
+  if (match.some((a) => a.activity_type === 'OPASN')) return 'assigned';
+  return 'expired';
+}
+
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
 
@@ -375,20 +430,37 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
     }
   }
 
-  // Path 2: option past expiration with no close order = expired worthless
+  // Path 2: option past expiration with no close order.
   if (trade.asset_class === 'option' && trade.expiration) {
     const expDate = new Date(trade.expiration + 'T20:00:00Z'); // 4 PM ET ~= 20:00 UTC during DST
     if (Date.now() > expDate.getTime()) {
-      // STO expired worthless: kept full premium
+      // STO: a short option past expiry either expired worthless (OTM) or was
+      // assigned (ITM). Both leave the same option-leg economics — full premium
+      // kept, contract gone — but only an assignment delivers shares, so the
+      // distinction drives the follow-on stock-trade spawn and the hindsight
+      // grading context. Alpaca records this in the account activity stream
+      // (OPEXP = expired, OPASN = assigned); the contract itself is not an
+      // order so there's nothing in /v2/orders to read.
       if (trade.side === 'STO') {
+        const settlement = await resolveOptionSettlement(mode, trade);
+        if (settlement === null) {
+          // Activity hasn't posted yet (Alpaca posts OPEXP/OPASN the evening
+          // of / morning after expiry). Leave the trade open and retry next
+          // tick — UNLESS we're past the backstop window, in which case fall
+          // back to "expired" so a trade never hangs open forever if the
+          // activity never arrives.
+          if (Date.now() < expDate.getTime() + SETTLEMENT_BACKSTOP_MS) return null;
+        }
+        const closedBy = settlement === 'assigned' ? 'assigned' : 'expired';
         return {
           closed_at: expDate.toISOString(),
           closed_avg_price: 0,
           realized_pnl: (trade.filled_avg_price ?? 0) * 100 * trade.qty,
-          closed_by: 'expired',
+          closed_by: closedBy,
         };
       }
-      // BTO expired worthless: lost full premium
+      // BTO expired worthless: lost full premium. (Long-option exercise is not
+      // modeled — the wheel strategies never buy long options to exercise.)
       if (trade.side === 'BTO') {
         return {
           closed_at: expDate.toISOString(),
