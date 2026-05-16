@@ -108,7 +108,7 @@ Selecting a group renders those accounts **side-by-side** on the account-aware p
 | Param | Proposed default | Why / note |
 |---|---|---|
 | `screener_universe` (SM) | conservative "happy to own" pool **expanded to ~60 names** (50–100 range) | RESOLVED #5; aggressive pool deferred until accounts grow |
-| `sm500_max_underlying_price` | **$25** | RESOLVED #3 — sm500-only universe filter so narrow spreads fit its risk cap; sm1000/sm2000 unfiltered |
+| `max_underlying_price` | **$25** | RESOLVED #3 — sm500-only universe filter so narrow spreads fit its risk cap; sm1000/sm2000 unfiltered |
 | `wheelability_min` | **90** (percentile-normalized 0–100) | RESOLVED #1 — "top ~10% of today's screened universe" |
 | `bp_switch_threshold` | **$5,000** | below → spread instead of CSP (Tim's number) |
 | `short_put_otm_pct` | 0.10 | reuse manual wheel `put_strike_pct` |

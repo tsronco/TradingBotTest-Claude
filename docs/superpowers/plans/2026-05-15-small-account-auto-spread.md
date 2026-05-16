@@ -20,7 +20,7 @@
 |---|---|---|
 | `screener_core.py` | Create | Shared, pure, importable scoring + universe build (extracted from `wheel_screener.py`). |
 | `wheel_screener.py` | Modify | Import from `screener_core`; CLI/Discord output byte-unchanged. |
-| `config.py` | Modify | Expanded ~60-name conservative pool; `sm500/sm1000/sm2000` MODES entries (manual flags + `auto_open_*` block + `sm500_max_underlying_price`). |
+| `config.py` | Modify | Expanded ~60-name conservative pool; `sm500/sm1000/sm2000` MODES entries (manual flags + `auto_open_*` block + `max_underlying_price`). |
 | `earnings.py` | Create | `next_earnings_within(symbol, days) -> bool` — yfinance, per-run cache, bounded retry. |
 | `requirements.txt` | Modify | Add pinned `yfinance` (+ its needed deps already present? verify). |
 | `wheel_strategy.py` | Modify | `_open_spread_mleg`, `normalize_scores`, `bp_wants_spread`, risk-rail guards, `_auto_open_spread`; wire into per-cycle flow gated by `AUTO_OPEN_SPREADS`. |
@@ -158,13 +158,13 @@ def test_auto_open_param_block_defaults():
     assert c["short_put_otm_pct"] == 0.10
     assert c["spread_dte_min"] == 14 and c["spread_dte_max"] == 28
     # sm500-only universe price filter; sm1000/sm2000 unfiltered (None)
-    assert config.get_mode("sm500")["sm500_max_underlying_price"] == 25
-    assert config.get_mode("sm1000").get("sm500_max_underlying_price") is None
+    assert config.get_mode("sm500")["max_underlying_price"] == 25
+    assert config.get_mode("sm1000").get("max_underlying_price") is None
 ```
 
 - [ ] **Step 2: Run → FAIL.** `python -m pytest tests/test_modes_sm.py -v`
 
-- [ ] **Step 3: Implement** — add `sm500`/`sm1000`/`sm2000` to `MODES` in `config.py`. Start from a verbatim copy of the `manual` entry (so all management flags + wheel params match), then per mode set: `alpaca_*_env` → `ALPACA_SM{N}_*`; `*_channel` → `sm{n}_{trades,summary,errors,actions}`; `log_stream` → `sm{n}`; `wheel_state_file`/`strategy_state_file` → `*_sm{n}.json`; `screener_universe: None` (→ uses the expanded conservative default). Append the new `auto_open_*` param block to all three (values from `test_auto_open_param_block_defaults`). Set `sm500_max_underlying_price: 25` on sm500 only; `None` on sm1000/sm2000. Confirm `parse_mode_arg`/`get_mode` need no change (they're generic over MODES keys).
+- [ ] **Step 3: Implement** — add `sm500`/`sm1000`/`sm2000` to `MODES` in `config.py`. Start from a verbatim copy of the `manual` entry (so all management flags + wheel params match), then per mode set: `alpaca_*_env` → `ALPACA_SM{N}_*`; `*_channel` → `sm{n}_{trades,summary,errors,actions}`; `log_stream` → `sm{n}`; `wheel_state_file`/`strategy_state_file` → `*_sm{n}.json`; `screener_universe: None` (→ uses the expanded conservative default). Append the new `auto_open_*` param block to all three (values from `test_auto_open_param_block_defaults`). Set `max_underlying_price: 25` on sm500 only; `None` on sm1000/sm2000. Confirm `parse_mode_arg`/`get_mode` need no change (they're generic over MODES keys).
 
 - [ ] **Step 4: Run → PASS** `tests/test_modes_sm.py`; full `python -m pytest tests/ -v` green (existing mode tests unaffected — additive keys).
 
@@ -337,7 +337,7 @@ def bp_wants_spread(options_bp: float, threshold: float) -> bool:
 
 **Files:** Modify `wheel_strategy.py`, `tests/test_auto_spread.py`
 
-- [ ] **Step 1: Append failing tests** — `spread_passes_risk(width, equity, max_risk_pct)` (max loss = width*100 ≤ equity*pct), `under_concurrency(open_spreads, cap)`, `above_account_floor(equity, floor)`, `bp_fits(options_bp, width, buffer)`, and `eligible_universe(cfg, prices)` (sm500 filters to `price <= sm500_max_underlying_price`; sm1000/sm2000 pass all). Include the exact arithmetic in asserts (e.g. `spread_passes_risk(1.0, 500, 0.12)` → False because 100 > 60; `spread_passes_risk(1.0, 1000, 0.12)` → False (100 > 120? no, 100<=120 → True) — write the precise expected booleans).
+- [ ] **Step 1: Append failing tests** — `spread_passes_risk(width, equity, max_risk_pct)` (max loss = width*100 ≤ equity*pct), `under_concurrency(open_spreads, cap)`, `above_account_floor(equity, floor)`, `bp_fits(options_bp, width, buffer)`, and `eligible_universe(cfg, prices)` (sm500 filters to `price <= max_underlying_price`; sm1000/sm2000 pass all). Include the exact arithmetic in asserts (e.g. `spread_passes_risk(1.0, 500, 0.12)` → False because 100 > 60; `spread_passes_risk(1.0, 1000, 0.12)` → False (100 > 120? no, 100<=120 → True) — write the precise expected booleans).
 
 - [ ] **Step 2: Run → FAIL.**
 
@@ -412,12 +412,12 @@ git commit -m "feat: _open_spread_mleg multi-leg put-credit-spread open primitiv
   - **Risk cap block:** sm500 path — cheapest width still `width*100 > equity*0.12` → no order (this is the documented sm500-mostly-no-trade case); assert a clear "no trade within risk budget" log event, not an error.
   - **Concurrency cap:** `open_spreads >= max_concurrent_spreads` → returns immediately, no scoring.
   - **Account floor:** equity < `account_floor` → returns immediately.
-  - **sm500 universe filter:** with `sm500_max_underlying_price=25`, a $40 underlying is excluded from scoring even if it would score highest.
+  - **sm500 universe filter:** with `max_underlying_price=25`, a $40 underlying is excluded from scoring even if it would score highest.
   - **max_opens_per_cycle:** at most one `_open_spread_mleg` call even if several candidates qualify.
 
 - [ ] **Step 2: Run → FAIL.**
 
-- [ ] **Step 3: Implement `_auto_open_spread(state, account, cfg)`** in `wheel_strategy.py`. Order of operations exactly: (1) if `not AUTO_OPEN_SPREADS` return; (2) `equity = float(get_account()["equity"])`; if `not above_account_floor(equity, cfg["account_floor"])` → log+return; (3) count existing `spread_active` entries in `state`; if `not under_concurrency(count, cfg["max_concurrent_spreads"])` → log+return; (4) build universe via `screener_core.build_universe(cfg["screener_universe"], already_wheeled)`; fetch underlying prices; apply `eligible_universe(prices, cfg.get("sm500_max_underlying_price"))`; (5) `raw = {sym: screener_core.score_candidate(sym, free_bp, api_get=api_get)["score"] for sym in eligible if data}`; `norm = normalize_scores(raw)`; (6) iterate symbols by descending `norm`; for each with `norm[sym] >= cfg["wheelability_min"]`: skip if `earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"])`; require `bp_wants_spread(options_bp, cfg["bp_switch_threshold"])` (always True for SM); pick short put ≈ `cfg["short_put_otm_pct"]` OTM within `spread_dte_min/max` (reuse existing `find_best_contract`/strike rounding), long put one strike below for the **narrowest width** that satisfies `spread_passes_risk(width, equity, cfg["max_risk_pct_equity"])` AND `bp_fits(options_bp, width)`; if none satisfies → continue to next symbol; (7) on first fully-eligible symbol: compute net credit (short mid − long mid), `_open_spread_mleg(short_occ, long_occ, qty=1, net_credit)`, seed `state[sym]` from `_empty_spread_state()` populated with legs/width/credit/expiration/`opened_at`, log a `#sm{n}_trades` adoption-style embed, and **return after one open** (`max_opens_per_cycle`=1). Use the existing logging/Discord helpers (mode-routed) the wheel already uses. Add module global `AUTO_OPEN_SPREADS` populated in `apply_mode` from `cfg.get("auto_open_spreads", False)`.
+- [ ] **Step 3: Implement `_auto_open_spread(state, account, cfg)`** in `wheel_strategy.py`. Order of operations exactly: (1) if `not AUTO_OPEN_SPREADS` return; (2) `equity = float(get_account()["equity"])`; if `not above_account_floor(equity, cfg["account_floor"])` → log+return; (3) count existing `spread_active` entries in `state`; if `not under_concurrency(count, cfg["max_concurrent_spreads"])` → log+return; (4) build universe via `screener_core.build_universe(cfg["screener_universe"], already_wheeled)`; fetch underlying prices; apply `eligible_universe(prices, cfg.get("max_underlying_price"))`; (5) `raw = {sym: screener_core.score_candidate(sym, free_bp, api_get=api_get)["score"] for sym in eligible if data}`; `norm = normalize_scores(raw)`; (6) iterate symbols by descending `norm`; for each with `norm[sym] >= cfg["wheelability_min"]`: skip if `earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"])`; require `bp_wants_spread(options_bp, cfg["bp_switch_threshold"])` (always True for SM); pick short put ≈ `cfg["short_put_otm_pct"]` OTM within `spread_dte_min/max` (reuse existing `find_best_contract`/strike rounding), long put one strike below for the **narrowest width** that satisfies `spread_passes_risk(width, equity, cfg["max_risk_pct_equity"])` AND `bp_fits(options_bp, width)`; if none satisfies → continue to next symbol; (7) on first fully-eligible symbol: compute net credit (short mid − long mid), `_open_spread_mleg(short_occ, long_occ, qty=1, net_credit)`, seed `state[sym]` from `_empty_spread_state()` populated with legs/width/credit/expiration/`opened_at`, log a `#sm{n}_trades` adoption-style embed, and **return after one open** (`max_opens_per_cycle`=1). Use the existing logging/Discord helpers (mode-routed) the wheel already uses. Add module global `AUTO_OPEN_SPREADS` populated in `apply_mode` from `cfg.get("auto_open_spreads", False)`.
 
 - [ ] **Step 4: Wire into the per-cycle flow.** In `run_wheel` (after the existing discover + manage-hand-opened + `handle_spread` management passes, BEFORE cycle end), add: `if AUTO_OPEN_SPREADS: _auto_open_spread(state, account, config.get_mode(MODE))`. Management of the just-opened spread happens on subsequent cycles via the existing `handle_spread` (no new exit code). Confirm `apply_mode` sets `AUTO_OPEN_SPREADS` (Task 4.4 Step 3).
 

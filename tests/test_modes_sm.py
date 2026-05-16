@@ -45,5 +45,6 @@ def test_auto_open_param_block_defaults():
     assert c["short_put_otm_pct"] == 0.10
     assert c["spread_dte_min"] == 14 and c["spread_dte_max"] == 28
     # sm500-only universe price filter; sm1000/sm2000 unfiltered (None)
-    assert config.get_mode("sm500")["sm500_max_underlying_price"] == 25
-    assert config.get_mode("sm1000").get("sm500_max_underlying_price") is None
+    assert config.get_mode("sm500")["max_underlying_price"] == 25
+    assert config.get_mode("sm1000").get("max_underlying_price") is None
+    assert config.get_mode("sm2000").get("max_underlying_price") is None

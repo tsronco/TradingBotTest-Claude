@@ -390,7 +390,7 @@ MODES = {
         "spread_dte_max":            28,
         # sm500-only cheap-underlying filter: screen only symbols priced ≤$25
         # so minimum-width spreads can fit the 12% risk cap on a $500 account.
-        "sm500_max_underlying_price": 25,
+        "max_underlying_price": 25,
     },
 
     "sm1000": {
@@ -444,7 +444,7 @@ MODES = {
         "spread_dte_min":            14,
         "spread_dte_max":            28,
         # sm1000 screens the full conservative universe — no price cap
-        "sm500_max_underlying_price": None,
+        "max_underlying_price": None,
     },
 
     "sm2000": {
@@ -498,7 +498,7 @@ MODES = {
         "spread_dte_min":            14,
         "spread_dte_max":            28,
         # sm2000 screens the full conservative universe — no price cap
-        "sm500_max_underlying_price": None,
+        "max_underlying_price": None,
     },
 }
 
