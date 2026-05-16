@@ -2,7 +2,7 @@
 
 > **Standalone effort.** Three new low-balance paper accounts (`sm500` / `sm1000` / `sm2000`) that manage hand-opened positions exactly like `manual`, **and** autonomously open risk-defined put credit spreads screened from the existing wheel universe. Plus a dashboard group-view account selector covering all 7 accounts.
 
-**Status:** Design — companion implementation plan to be written **after Tim reviews this spec** (more open decisions here than the mobile/order-form efforts, so spec-review-first).
+**Status:** Design **finalized** — all 6 open decisions resolved by Tim 2026-05-15 (see Resolved decisions). Companion implementation plan being written.
 
 **Branch:** `claude/small-account-auto-spread` (off `main`, which now contains the mobile + order-form work via #18/#19).
 
@@ -40,7 +40,8 @@ Key insight: the new opener is a **separate code path** from the `WHEEL_SKIP_NEW
 
 ### Universe & scoring (reuse, don't duplicate)
 
-- **Universe:** reuse the existing wheel-screener universe (Tim's choice). Proposed: the **conservative** screener universe (40 large-cap "happy to own" names — appropriate for small accounts) rather than the aggressive high-IV pool. *(Open decision #5.)*
+- **Universe:** reuse the existing wheel-screener scoring against a **conservative "happy to own" pool, expanded to ~50–100 names** (RESOLVED: Tim wants the existing ~40-name conservative pool broadened so there are enough candidates; proposed target **~60** vetted large-cap names within his 50–100 ask). The aggressive high-IV pool is **deferred** — added later only if the accounts grow (RESOLVED #5).
+- **sm500 cheap-underlying filter (RESOLVED #3):** sm1000/sm2000 screen the full pool; **sm500 screens only underlyings priced ≤ ~$25** (proposed default, tweakable) so a minimum-width put credit spread can actually fit its risk cap and the account can still try to make money rather than perpetually no-trading. This is a per-mode universe filter, not a separate list.
 - **DRY refactor:** `score_candidate(symbol, free_bp)` currently lives in `wheel_screener.py` and is CLI-only (entangled with Discord output). The plan will **extract the scoring core into a shared importable module** (e.g. `screener_core.py`) that *both* the existing weekly screener CLI and the new auto-opener import — one implementation, no logic drift. The screener CLI's behavior/output stays byte-identical.
 - **Score-scale mismatch (must resolve — open decision #1).** The real score is `premium_yield*100 − spread_pct*50 + budget_fit*5` ≈ a 0–15 range (typical 4–8), **not** 0–100. Tim thinks in "90/100." Proposed: after scoring the day's screened universe, **normalize to a 0–100 "wheelability"** by percentile-ranking within that cycle's candidates (so "90" = "top ~10% of today's screened names"). Gate auto-open on `wheelability ≥ threshold` (proposed default **90**). This makes Tim's mental model real and self-calibrating regardless of absolute score drift. Alternative considered: raw-score min-max normalize to 0–100 (more sensitive to outliers). **Percentile is the proposal.**
 
@@ -63,7 +64,7 @@ Put credit spread (bullish/neutral, defined risk — matches the dashboard sprea
 
 Because there's no validation buffer, **safety lives entirely in these guards + conservative defaults.** Every one is enforced before an order is placed:
 
-- **`max_risk_pct_equity`** (proposed **12%**): a spread's max loss `(width × 100)` must be ≤ this fraction of account equity. *Honest consequence:* a $1-wide spread = $100 max loss = **20% of a $500 account** → sm500 will frequently have **zero** affordable spreads and will mostly log "no trade within risk budget." That is expected and correct, not a bug. The strategy is meaningfully exercised at **sm1000/sm2000**; sm500 primarily validates that the guardrails refuse oversized risk. *(Open decision #3.)*
+- **`max_risk_pct_equity`** (proposed **12%**): a spread's max loss `(width × 100)` must be ≤ this fraction of account equity. *Consequence, now mitigated for sm500:* a $1-wide spread = $100 max loss = 20% of a $500 account, which the 12% cap rejects. RESOLVED #3 — rather than let sm500 perpetually no-trade, sm500 screens only **cheap underlyings (≤ ~$25)** where the cheapest available spread width is more likely to fit the 12% cap, so it can still attempt small defined-risk trades. sm500 remains the most constrained account (it may still no-trade on days nothing cheap clears the cap + earnings + score gauntlet) — that's acceptable; the cap is never relaxed, only the universe is narrowed to give it a fighting chance.
 - **`max_concurrent_spreads`** (proposed **3** for sm1000/sm2000; effectively 0–1 for sm500 by the risk cap).
 - **`account_floor`** (proposed: skip all opens if equity < **$300**): don't trade a near-dead account.
 - **BP-fit:** only open if `options_buying_power ≥ spread max loss (collateral) + buffer`.
@@ -106,8 +107,9 @@ Selecting a group renders those accounts **side-by-side** on the account-aware p
 
 | Param | Proposed default | Why / note |
 |---|---|---|
-| `screener_universe` (SM) | conservative pool (40 names) | "happy to own", appropriate for small accounts (open #5) |
-| `wheelability_min` | **90** (percentile-normalized 0–100) | "top ~10% of today's screened universe" (open #1) |
+| `screener_universe` (SM) | conservative "happy to own" pool **expanded to ~60 names** (50–100 range) | RESOLVED #5; aggressive pool deferred until accounts grow |
+| `sm500_max_underlying_price` | **$25** | RESOLVED #3 — sm500-only universe filter so narrow spreads fit its risk cap; sm1000/sm2000 unfiltered |
+| `wheelability_min` | **90** (percentile-normalized 0–100) | RESOLVED #1 — "top ~10% of today's screened universe" |
 | `bp_switch_threshold` | **$5,000** | below → spread instead of CSP (Tim's number) |
 | `short_put_otm_pct` | 0.10 | reuse manual wheel `put_strike_pct` |
 | `spread_dte_min/max` | 14 / 28 | reuse manual wheel DTE |
@@ -142,14 +144,16 @@ Selecting a group renders those accounts **side-by-side** on the account-aware p
 - **Dashboard:** vitest for "selected set of accounts" rendering + group chips.
 - **Manual device pass:** the dashboard group selector visual is jsdom-unverifiable → Tim's phone pass, like prior efforts.
 
-## Open decisions — need your eyes (review before I write the plan)
+## Resolved decisions (2026-05-15, all confirmed by Tim)
 
-1. **Score normalization:** percentile-rank the day's screened universe to 0–100, gate at `≥90` = top decile. Good, or want raw-score min-max, or a different cutoff?
-2. **Earnings data:** add `yfinance` to the bot (recommended) vs bot→dashboard proxy call. OK to add the dependency?
-3. **$500 reality:** accept that sm500 will mostly no-trade (risk cap math) and the strategy really lives at sm1000/sm2000? Or tune sm500 differently (e.g. restrict it to sub-$20 underlyings so a narrow spread fits)?
-4. **Group selector:** keep single + All, add Small/Core/Hands-on groups — confirm the three names and that single/All stay.
-5. **SM universe:** conservative screener pool (proposed) vs aggressive high-IV pool.
-6. **`$5,000` BP switch & `12%` risk cap & `90` threshold** — all tweakable; happy with these as the conservative starting points, or set different numbers now?
+1. **Score normalization:** ✅ percentile-rank the day's screened universe to 0–100, gate at `≥90` (top decile).
+2. **Earnings data:** ✅ add `yfinance` to the bot.
+3. **$500 reality:** ✅ tune sm500 to **cheap underlyings (≤ ~$25)** so it can still attempt small trades; risk cap never relaxed. sm1000/sm2000 unfiltered.
+4. **Group selector:** ✅ keep single-select + All, add **Small / Core / Hands-on** group chips.
+5. **SM universe:** ✅ conservative "happy to own" pool, **expanded to ~50–100 (target ~60) names**; aggressive pool deferred until accounts grow.
+6. **Numbers:** ✅ `$5,000` BP switch, `12%` max-risk, `90` threshold accepted as the conservative starting points (all remain config-tweakable).
+
+No open decisions remain — the companion implementation plan can be written.
 
 ## Rollout
 
