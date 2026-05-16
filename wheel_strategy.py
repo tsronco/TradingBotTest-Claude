@@ -1940,6 +1940,54 @@ def _discover_wheel_state(state: dict) -> set:
     return discovered
 
 
+# ── Autonomous put-credit-spread opener (Phase 4 — SM modes only) ─────────
+# Gated entirely behind AUTO_OPEN_SPREADS (set in apply_mode from
+# cfg["auto_open_spreads"], True only on sm500/sm1000/sm2000). For
+# conservative/aggressive/manual/live this whole path is inert.
+
+def normalize_scores(raw: dict) -> dict:
+    """Percentile-rank raw screener scores to 0-100 within this cycle's set.
+
+    100 = best, 0 = worst. Singleton -> 100. Empty -> {}.
+    """
+    if not raw:
+        return {}
+    if len(raw) == 1:
+        return {k: 100.0 for k in raw}
+    ordered = sorted(raw.items(), key=lambda kv: kv[1])
+    n = len(ordered)
+    return {sym: round(i / (n - 1) * 100.0, 4) for i, (sym, _) in enumerate(ordered)}
+
+
+def bp_wants_spread(options_bp: float, threshold: float) -> bool:
+    """Below the BP threshold -> open a defined-risk spread instead of a CSP."""
+    return options_bp < threshold
+
+
+def spread_passes_risk(width: float, equity: float, max_risk_pct: float) -> bool:
+    """Max loss (width × 100) must be ≤ this fraction of account equity."""
+    return (width * 100.0) <= equity * max_risk_pct
+
+
+def under_concurrency(open_spreads: int, cap: int) -> bool:
+    return open_spreads < cap
+
+
+def above_account_floor(equity: float, floor: float) -> bool:
+    return equity >= floor
+
+
+def bp_fits(options_bp: float, width: float, buffer: float = 1.0) -> bool:
+    return options_bp >= (width * 100.0) * buffer
+
+
+def eligible_universe(symbols_prices: dict, max_price) -> list:
+    """Filter symbols to those at/below max_price; pass all when None."""
+    if max_price is None:
+        return list(symbols_prices)
+    return [s for s, px in symbols_prices.items() if px <= max_price]
+
+
 def run_wheel():
     """One cycle: iterate every symbol in SYMBOLS, handle independently."""
     global SYMBOLS
