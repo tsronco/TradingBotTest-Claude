@@ -40,6 +40,8 @@ from datetime import datetime, timedelta, date, timezone
 from dotenv import load_dotenv
 
 import config
+import screener_core
+import earnings
 from notifications import send_embed, log_event, Color
 
 load_dotenv()
@@ -80,6 +82,7 @@ SPREAD_MANAGEMENT      = False  # manual mode (Phase 2): manage adopted spreads
 SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
 SPREAD_STOP_LOSS_PCT   = 0.50
 SPREAD_DTE_FLOOR       = 2
+AUTO_OPEN_SPREADS      = False  # SM modes (Phase 4): autonomous spread opener
 
 
 def apply_mode(mode_name: str) -> None:
@@ -97,6 +100,7 @@ def apply_mode(mode_name: str) -> None:
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
     global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
     global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
+    global AUTO_OPEN_SPREADS
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -134,6 +138,8 @@ def apply_mode(mode_name: str) -> None:
     SPREAD_EARLY_CLOSE_PCT = cfg.get("spread_early_close_pct", 0.50)
     SPREAD_STOP_LOSS_PCT   = cfg.get("spread_stop_loss_pct", 0.50)
     SPREAD_DTE_FLOOR       = cfg.get("spread_dte_floor", 2)
+
+    AUTO_OPEN_SPREADS      = cfg.get("auto_open_spreads", False)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -2009,6 +2015,254 @@ def _open_spread_mleg(short_occ: str, long_occ: str, qty: int, net_credit: float
     })
 
 
+def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
+    """Autonomously open ONE risk-defined put credit spread per cycle.
+
+    Highest-risk path in the system — gated entirely behind
+    AUTO_OPEN_SPREADS (SM modes only). Order of operations is
+    deliberate and must not be reordered:
+
+      1. flag gate (return before ANY external call if disabled)
+      2. account-floor gate (skip near-dead accounts)
+      3. concurrency gate (count existing spread_active entries)
+      4. build universe + price-filter (sm500 cheap-underlying filter)
+      5. score every candidate, normalize to 0-100 percentile
+      6. iterate best→worst: wheelability gate, earnings gate,
+         BP-switch gate, then construct the narrowest spread that
+         clears the risk cap AND BP-fit
+      7. on the first fully-eligible symbol: place the mleg order,
+         seed spread_active state for handle_spread to manage,
+         emit a #trades embed, RETURN (max one open per cycle)
+
+    A "no trade within risk budget" outcome is a normal logged event,
+    never an exception. Exits reuse the inherited manual handle_spread
+    on subsequent cycles — no new exit code here.
+    """
+    # (1) flag gate — touch nothing if disabled (cons/agg/manual/live)
+    if not AUTO_OPEN_SPREADS:
+        return
+
+    # (2) account-floor gate
+    equity = float(get_account()["equity"])
+    floor = cfg["account_floor"]
+    if not above_account_floor(equity, floor):
+        log(f"[auto-spread] equity ${equity:.2f} < account_floor ${floor} — skipping")
+        log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_below_floor",
+                  result="skipped",
+                  details={"equity": equity, "account_floor": floor})
+        return
+
+    # (3) concurrency gate
+    open_spreads = sum(
+        1 for k, v in state.items()
+        if not k.startswith("_") and isinstance(v, dict)
+        and v.get("stage") == "spread_active"
+    )
+    cap = cfg["max_concurrent_spreads"]
+    if not under_concurrency(open_spreads, cap):
+        log(f"[auto-spread] {open_spreads} open spreads >= cap {cap} — skipping")
+        log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_concurrency_cap",
+                  result="skipped",
+                  details={"open_spreads": open_spreads, "max_concurrent_spreads": cap})
+        return
+
+    # (4) build universe + price filter
+    already_wheeled = {k for k in state if not k.startswith("_")}
+    universe = screener_core.build_universe(cfg.get("screener_universe"), already_wheeled)
+
+    options_bp = float(account.get("options_buying_power") or 0)
+    free_bp = options_bp
+
+    # (5) score every candidate (dict has both "score" and "price")
+    scored_full = {}
+    for sym in universe:
+        try:
+            r = screener_core.score_candidate(
+                sym, free_bp,
+                api_get=api_get,
+                target_dte_min=cfg["spread_dte_min"],
+                target_dte_max=cfg["spread_dte_max"],
+                put_strike_discount=cfg["short_put_otm_pct"],
+                headers=HEADERS,
+            )
+        except Exception as e:
+            log(f"[auto-spread] score_candidate({sym}) failed: {type(e).__name__}: {e}")
+            r = None
+        if r:
+            scored_full[sym] = r
+
+    # price-filter (sm500 cheap-underlying universe narrowing; None = all)
+    prices = {sym: r["price"] for sym, r in scored_full.items()}
+    eligible = set(eligible_universe(prices, cfg.get("max_underlying_price")))
+    raw = {sym: r["score"] for sym, r in scored_full.items() if sym in eligible}
+    norm = normalize_scores(raw)
+
+    if not norm:
+        log("[auto-spread] no eligible scored candidates this cycle — no trade")
+        log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_no_candidates",
+                  result="skipped", details={"universe_size": len(universe)})
+        return
+
+    threshold = cfg["wheelability_min"]
+    otm_pct   = cfg["short_put_otm_pct"]
+    dte_min   = cfg["spread_dte_min"]
+    dte_max   = cfg["spread_dte_max"]
+    max_risk_pct = cfg["max_risk_pct_equity"]
+
+    # (6) iterate best→worst
+    for sym in sorted(norm, key=lambda s: norm[s], reverse=True):
+        if norm[sym] < threshold:
+            # everything after this scores lower too — stop scanning
+            log(f"[auto-spread] best remaining {sym} wheelability "
+                f"{norm[sym]:.1f} < {threshold} — no trade")
+            break
+
+        if earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"]):
+            log(f"[auto-spread] {sym} earnings within "
+                f"{cfg['earnings_exclusion_days']}d (or unknown) — skipping")
+            continue
+
+        if not bp_wants_spread(options_bp, cfg["bp_switch_threshold"]):
+            # BP is above the switch — a CSP would be opened instead, but
+            # SM modes keep wheel_skip_new_puts ON, so just skip (SM is
+            # always far below this threshold in practice).
+            log(f"[auto-spread] {sym} options_bp ${options_bp:.0f} >= "
+                f"switch ${cfg['bp_switch_threshold']} — not a spread candidate")
+            continue
+
+        price = scored_full[sym]["price"]
+        short_target = round_strike(price * (1 - otm_pct), price)
+        short_contract = find_best_contract(sym, "put", short_target, dte_min, dte_max)
+        if not short_contract:
+            log(f"[auto-spread] {sym} no short put contract found — skipping")
+            continue
+        short_occ    = short_contract["symbol"]
+        short_strike = float(short_contract["strike_price"])
+        expiration   = short_contract["expiration_date"]
+
+        short_q = get_option_quote(short_occ)
+        if not short_q:
+            log(f"[auto-spread] {sym} no quote for short {short_occ} — skipping")
+            continue
+        short_mid = (short_q["bid"] + short_q["ask"]) / 2.0
+
+        inc = strike_increment(price)
+
+        # Search widening long strikes; pick the NARROWEST that clears
+        # both the risk cap and BP-fit.
+        chosen = None
+        max_steps = 10  # bounded — don't scan an unbounded chain
+        for step in range(1, max_steps + 1):
+            long_target = short_strike - inc * step
+            if long_target <= 0:
+                break
+            long_contract = find_best_contract(sym, "put", long_target,
+                                                dte_min, dte_max)
+            if not long_contract:
+                continue
+            long_strike = float(long_contract["strike_price"])
+            width = round(short_strike - long_strike, 4)
+            if width <= 0:
+                continue
+            if not spread_passes_risk(width, equity, max_risk_pct):
+                continue
+            if not bp_fits(options_bp, width):
+                continue
+            long_q = get_option_quote(long_contract["symbol"])
+            if not long_q:
+                continue
+            long_mid = (long_q["bid"] + long_q["ask"]) / 2.0
+            chosen = {
+                "long_occ":    long_contract["symbol"],
+                "long_strike": long_strike,
+                "long_mid":    long_mid,
+                "width":       width,
+            }
+            break  # first hit == narrowest passing width
+
+        if not chosen:
+            log(f"[auto-spread] {sym} no long leg fits risk budget "
+                f"(equity ${equity:.2f} @ {max_risk_pct:.0%}) — trying next")
+            continue
+
+        # (7) fully eligible — place the order
+        net_credit = round(short_mid - chosen["long_mid"], 4)
+        width      = chosen["width"]
+        max_loss   = round(width * 100.0, 2)
+        try:
+            order = _open_spread_mleg(short_occ, chosen["long_occ"],
+                                      1, net_credit)
+        except Exception as e:
+            log(f"[auto-spread] _open_spread_mleg failed for {sym}: "
+                f"{type(e).__name__}: {e}")
+            send_embed(
+                ERRORS_CH, f"Auto-spread open failed {sym}",
+                color=Color.RED,
+                description=f"`{type(e).__name__}: {str(e)[:400]}`",
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_open_failed",
+                      result="failure", symbol=sym,
+                      notes=f"{type(e).__name__}: {str(e)[:400]}")
+            return  # one attempt per cycle either way
+
+        # Seed spread_active state so the inherited manual handle_spread
+        # adopts and manages exits on subsequent cycles (no new exit code).
+        ss = _empty_spread_state()
+        ss["spread_type"] = "put_credit"
+        ss["short_leg"] = {"occ": short_occ, "strike": short_strike,
+                           "entry_premium": round(short_mid, 4), "qty": 1}
+        ss["long_leg"]  = {"occ": chosen["long_occ"], "strike": chosen["long_strike"],
+                           "entry_premium": round(chosen["long_mid"], 4), "qty": 1}
+        ss["expiration"] = expiration
+        ss["net_credit"] = net_credit
+        ss["max_loss"]   = max_loss
+        ss["width"]      = width
+        ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
+        ss["last_action"] = (
+            f"Auto-opened put credit spread short=${short_strike:.2f} "
+            f"long=${chosen['long_strike']:.2f} credit=${net_credit:.2f}"
+        )
+        state[sym] = ss
+
+        order_id = order.get("id", "?") if isinstance(order, dict) else "?"
+        send_embed(
+            TRADES_CH, f"Auto-spread: opened put credit spread {sym}",
+            color=Color.GREEN,
+            description=(
+                f"Screener-driven open (wheelability {norm[sym]:.0f}). "
+                f"short=${short_strike:.2f} `{short_occ}`, "
+                f"long=${chosen['long_strike']:.2f} `{chosen['long_occ']}`, "
+                f"width=${width:.2f}, net_credit=${net_credit:.2f}, "
+                f"max_loss=${max_loss:.2f}, exp {expiration}. "
+                f"Order {order_id}. handle_spread now manages exits."
+            ),
+            footer=f"wheel_strategy.py · {MODE}",
+            actions_channel=ACTIONS_CH,
+        )
+        log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_opened",
+                  result="success", symbol=sym,
+                  alpaca_order_id=order_id if order_id != "?" else None,
+                  details={
+                      "wheelability": norm[sym],
+                      "short_occ": short_occ, "long_occ": chosen["long_occ"],
+                      "short_strike": short_strike,
+                      "long_strike": chosen["long_strike"],
+                      "width": width, "net_credit": net_credit,
+                      "max_loss": max_loss, "expiration": expiration,
+                  })
+        return  # max_opens_per_cycle = 1 — stop after one open
+
+    # Fell through the whole eligible list with no order — a normal,
+    # expected outcome (especially for sm500). Logged, not an error.
+    log("[auto-spread] no symbol cleared the full gauntlet this cycle — no trade")
+    log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_no_trade",
+              result="skipped",
+              details={"candidates_considered": len(norm),
+                       "equity": equity})
+
+
 def run_wheel():
     """One cycle: iterate every symbol in SYMBOLS, handle independently."""
     global SYMBOLS
@@ -2113,6 +2367,27 @@ def run_wheel():
                 log_event(LOG_STREAM, "wheel_strategy.py", "symbol_exception",
                           result="failure",
                           notes=f"{symbol}: {type(e).__name__}: {str(e)[:500]}")
+
+        # ── Autonomous spread opener (SM modes only) ──
+        # Runs AFTER the discover + manage-hand-opened + handle_spread
+        # passes above, BEFORE cycle end. Gated by AUTO_OPEN_SPREADS
+        # (False on cons/agg/manual/live → fully inert there). Wrapped
+        # so an opener failure can't lose this cycle's state writeback.
+        if AUTO_OPEN_SPREADS:
+            try:
+                _auto_open_spread(state, account, config.get_mode(MODE))
+            except Exception as e:
+                log(f"[auto-spread] _auto_open_spread crashed: {type(e).__name__}: {e}")
+                send_embed(
+                    ERRORS_CH, "wheel_strategy.py — _auto_open_spread crashed",
+                    color=Color.RED,
+                    description=f"`{type(e).__name__}: {str(e)[:500]}`",
+                    footer=f"wheel_strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH,
+                )
+                log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_exception",
+                          result="failure",
+                          notes=f"{type(e).__name__}: {str(e)[:500]}")
 
         save_state(state)
         log_event(LOG_STREAM, "wheel_strategy.py", "cycle_complete",

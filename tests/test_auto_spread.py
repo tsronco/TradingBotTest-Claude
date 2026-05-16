@@ -129,3 +129,370 @@ def test_open_spread_mleg_limit_is_negative_of_credit(monkeypatch):
     ws._open_spread_mleg("S260529P00010000", "L260529P00009000", 2, -0.42)
     assert captured["body"]["limit_price"] == "-0.42"
     assert captured["body"]["qty"] == "2"
+
+
+# ── Task 4.4: _auto_open_spread orchestration + per-cycle wiring ──────────
+import screener_core
+import earnings as earnings_mod
+import config
+
+
+SM_CFG = config.get_mode("sm1000")
+
+
+def _contract(occ, strike, expiration="2026-06-12"):
+    return {"symbol": occ, "strike_price": str(strike),
+            "expiration_date": expiration}
+
+
+def _wire_sm(monkeypatch, *, equity, options_bp,
+             scored, earnings_within, contracts_by_strike, quotes,
+             max_underlying_price=None):
+    """Patch every external seam for an SM auto-open cycle.
+
+    scored: {symbol: {"score": float, "price": float}} or {symbol: None}
+    earnings_within: {symbol: bool}
+    contracts_by_strike: {(symbol, strike): contract-dict}
+    quotes: {occ: {"bid": .., "ask": ..}}
+    """
+    ws.AUTO_OPEN_SPREADS = True
+    cfg = dict(SM_CFG)
+    cfg["max_underlying_price"] = max_underlying_price
+
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": str(equity),
+                                 "options_buying_power": str(options_bp)})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+
+    def fake_score(symbol, free_bp, **kw):
+        return scored.get(symbol)
+    monkeypatch.setattr(screener_core, "score_candidate", fake_score)
+
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda sym, days: earnings_within.get(sym, False))
+
+    def fake_find(underlying, opt_type, target_strike, dmin, dmax):
+        # nearest available strike for this underlying
+        cands = {k[1]: v for k, v in contracts_by_strike.items()
+                 if k[0] == underlying}
+        if not cands:
+            return None
+        best = min(cands, key=lambda s: abs(s - target_strike))
+        return cands[best]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: quotes.get(occ))
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, qty, nc: opened.append(
+                            {"short": s, "long": l, "qty": qty, "net_credit": nc})
+                        or {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+    return cfg, opened
+
+
+def test_auto_open_inert_when_flag_off(monkeypatch):
+    """Gated off: AUTO_OPEN_SPREADS False -> immediate return, nothing
+    touched. This is the cons/agg/manual/live isolation guarantee."""
+    ws.AUTO_OPEN_SPREADS = False
+    called = []
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: called.append("acct") or {"equity": "1000"})
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {}, SM_CFG)
+    assert called == [], "must not even call get_account when flag off"
+    assert state == {"_meta": {}}
+
+
+def test_auto_open_happy_path_opens_one_spread(monkeypatch):
+    # CHEAP scores top; short ~10% OTM of $20 = $18, long one strike below = $17
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},  # short mid 0.60
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},  # long mid 0.35
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0},
+                "OTHER": {"score": 3.0, "price": 50.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert len(opened) == 1
+    o = opened[0]
+    assert o["short"] == "CHEAP260612P00018000"
+    assert o["long"] == "CHEAP260612P00017000"   # narrowest $1 width
+    # net credit = short mid - long mid = 0.60 - 0.35 = 0.25
+    assert round(o["net_credit"], 2) == 0.25
+    # state seeded as spread_active for handle_spread adoption
+    assert state["CHEAP"]["stage"] == "spread_active"
+    assert state["CHEAP"]["spread_type"] == "put_credit"
+    assert state["CHEAP"]["short_leg"]["occ"] == "CHEAP260612P00018000"
+    assert state["CHEAP"]["long_leg"]["occ"] == "CHEAP260612P00017000"
+    assert state["CHEAP"]["width"] == 1.0
+    assert round(state["CHEAP"]["net_credit"], 2) == 0.25
+    assert state["CHEAP"]["expiration"] == "2026-06-12"
+    assert state["CHEAP"]["opened_at"] is not None
+
+
+def test_auto_open_earnings_block_skips_to_next(monkeypatch):
+    """Top symbol has earnings within window -> skipped; next-best (still
+    in the >=90 percentile band) with clear earnings is opened instead.
+
+    Percentile normalization (the plan's RESOLVED #1) means the 2nd-best
+    only clears the 90 gate when the universe is large enough. Top two of
+    an 11-name universe land at percentile 100 and 90 — both >= 90 — so
+    the earnings-skip-to-next path is genuinely reachable here.
+    """
+    # 11 symbols: TOP (score 100, earnings-blocked) and NEXT (score 99,
+    # clear) are the two highest; 9 fillers below keep percentiles spread
+    # so NEXT lands at exactly the 90th percentile (index 9 of 0..10).
+    scored = {"TOP": {"score": 100.0, "price": 20.0},
+              "NEXT": {"score": 99.0, "price": 20.0}}
+    for i in range(9):
+        scored[f"F{i}"] = {"score": float(i + 1), "price": 20.0}
+    contracts = {
+        ("NEXT", 18.0): _contract("NEXT260612P00018000", 18.0),
+        ("NEXT", 17.0): _contract("NEXT260612P00017000", 17.0),
+    }
+    quotes = {
+        "NEXT260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "NEXT260612P00017000": {"bid": 0.25, "ask": 0.35},
+    }
+    earnings = {s: False for s in scored}
+    earnings["TOP"] = True
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored=scored,
+        earnings_within=earnings,
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1
+    assert opened[0]["short"] == "NEXT260612P00018000"
+    assert "TOP" not in state
+    assert state["NEXT"]["stage"] == "spread_active"
+
+
+def test_auto_open_earnings_block_all_no_trade(monkeypatch):
+    """Every scored symbol has earnings within window -> no order, logged
+    as a normal event (NOT an exception)."""
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"AAA": {"score": 9.0, "price": 20.0},
+                "BBB": {"score": 8.0, "price": 20.0}},
+        earnings_within={"AAA": True, "BBB": True},
+        contracts_by_strike={},
+        quotes={},
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)  # no raise
+    assert opened == []
+    assert state == {"_meta": {}}
+
+
+def test_auto_open_risk_cap_blocks_no_trade(monkeypatch):
+    """sm500-style: cheapest available width still exceeds the 12% risk
+    cap -> no order; normal 'no trade within risk budget' outcome."""
+    # equity 500 @ 12% => max loss budget = $60. A $1 width = $100 loss.
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "CHEAP260612P00017000": {"bid": 0.25, "ask": 0.35},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=500, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert opened == []
+    assert "CHEAP" not in state
+
+
+def test_auto_open_concurrency_cap_returns_early(monkeypatch):
+    """open_spreads >= max_concurrent_spreads -> return immediately,
+    no scoring call."""
+    scored_calls = []
+    monkeypatch.setattr(ws, "AUTO_OPEN_SPREADS", True)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "2000", "options_buying_power": "2000"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: scored_calls.append("built") or ["X"])
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+    # 3 active spreads already == cap (max_concurrent_spreads=3)
+    state = {"_meta": {},
+             "A": {"stage": "spread_active"},
+             "B": {"stage": "spread_active"},
+             "C": {"stage": "spread_active"}}
+    ws._auto_open_spread(state, {}, SM_CFG)
+    assert scored_calls == [], "must not build universe when at concurrency cap"
+
+
+def test_auto_open_account_floor_returns_early(monkeypatch):
+    """equity < account_floor ($300) -> return immediately, no scoring."""
+    built = []
+    monkeypatch.setattr(ws, "AUTO_OPEN_SPREADS", True)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "250", "options_buying_power": "250"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: built.append("x") or [])
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {}, SM_CFG)
+    assert built == [], "must not build universe below account floor"
+
+
+def test_auto_open_sm500_universe_price_filter(monkeypatch):
+    """With max_underlying_price=25, a $40 underlying is excluded from
+    scoring even if it would otherwise score highest."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "CHEAP260612P00017000": {"bid": 0.25, "ask": 0.35},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"PRICEY": {"score": 9.9, "price": 40.0},   # excluded by filter
+                "CHEAP": {"score": 5.0, "price": 20.0}},     # only eligible
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+        max_underlying_price=25,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1
+    assert opened[0]["short"] == "CHEAP260612P00018000"
+    assert "PRICEY" not in state
+
+
+def test_auto_open_max_one_per_cycle(monkeypatch):
+    """Several candidates qualify (both in the >=90 band) -> at most ONE
+    _open_spread_mleg call, and the highest-scoring one is chosen."""
+    # 11-name universe: AAA (100) and BBB (90) both clear the 90 gate;
+    # 9 fillers below. Both AAA and BBB have full contract+quote data, so
+    # without the one-per-cycle guard the loop would open both.
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score": 99.0, "price": 20.0}}
+    for i in range(9):
+        scored[f"F{i}"] = {"score": float(i + 1), "price": 20.0}
+    contracts = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+    }
+    quotes = {
+        "AAA260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "AAA260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "BBB260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "BBB260612P00017000": {"bid": 0.25, "ask": 0.35},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=2000, options_bp=2000,
+        scored=scored,
+        earnings_within={s: False for s in scored},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1, "max_opens_per_cycle is 1 — exactly one open"
+    # the highest-scoring one (AAA) is the one opened
+    assert opened[0]["short"] == "AAA260612P00018000"
+    assert "BBB" not in state
+
+
+def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
+    """Per-cycle wiring: run_wheel invokes _auto_open_spread after the
+    management passes when AUTO_OPEN_SPREADS is on (SM mode)."""
+    import json
+    ws.apply_mode("sm1000")
+    assert ws.AUTO_OPEN_SPREADS is True   # apply_mode set it
+
+    state_file = tmp_path / "wheel_state_sm1000.json"
+    state_file.write_text(json.dumps({"_meta": {}}))
+    monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(ws, "is_market_open", lambda: True)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "1000", "options_buying_power": "1000"})
+    monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: set())
+
+    called = []
+    monkeypatch.setattr(ws, "_auto_open_spread",
+                        lambda state, account, cfg: called.append(cfg["log_stream"]))
+    # auto-discover yields no symbols -> early no-op return BEFORE the
+    # auto-open hook would run, so seed one tracked symbol to keep the
+    # cycle alive past the discover gate.
+    monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: {"ZZZ"})
+    monkeypatch.setattr(ws, "get_latest_price", lambda sym: 10.0)
+    monkeypatch.setattr(ws, "handle_stage1", lambda *a, **kw: None)
+
+    ws.run_wheel()
+    assert called == ["sm1000"], "run_wheel must call _auto_open_spread once on SM"
+
+    # restore default mode so later tests/imports see conservative
+    ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_run_wheel_skips_auto_open_when_flag_off(monkeypatch, tmp_path):
+    """conservative/aggressive/manual/live: AUTO_OPEN_SPREADS off -> the
+    auto-open hook is never invoked."""
+    import json
+    ws.apply_mode("conservative")
+    assert ws.AUTO_OPEN_SPREADS is False
+
+    state_file = tmp_path / "wheel_state.json"
+    state_file.write_text(json.dumps({"_meta": {}, "TSLA":
+                                      ws._empty_symbol_state()}))
+    monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(ws, "is_market_open", lambda: True)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "100000",
+                                 "options_buying_power": "100000"})
+    monkeypatch.setattr(ws, "get_latest_price", lambda sym: 250.0)
+    monkeypatch.setattr(ws, "handle_stage1", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "handle_stage2", lambda *a, **kw: None)
+
+    called = []
+    monkeypatch.setattr(ws, "_auto_open_spread",
+                        lambda *a, **kw: called.append("X"))
+    ws.run_wheel()
+    assert called == [], "auto-open must not fire on conservative"
+    ws.apply_mode(config.DEFAULT_MODE)
