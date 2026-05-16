@@ -5,7 +5,7 @@ import { fmtUsd, fmtPct, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
-import { accountsForSelection } from '../lib/account-utils';
+import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
 
 interface Position {
   symbol: string;
@@ -302,7 +302,7 @@ export default function Positions() {
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">positions</span>
         <span className="text-amber">--list</span>
-        <span className="text-dim">--mode=<span className="text-fg">{selectedModes.length === 7 ? 'all' : mode}</span></span>
+        <span className="text-dim">--mode=<span className="text-fg">{selectedModes.length === ALL_MODES.length ? 'all' : mode}</span></span>
         <span className="caret" />
       </div>
 

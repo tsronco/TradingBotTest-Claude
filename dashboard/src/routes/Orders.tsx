@@ -13,7 +13,7 @@ import {
   underlyingFromSymbol,
   collectUnderlyings,
 } from '../lib/order-filters';
-import { accountsForSelection } from '../lib/account-utils';
+import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
 
 interface Order {
   id: string;
@@ -391,7 +391,7 @@ export default function Orders() {
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">orders</span>
         <span className="text-amber">--list</span>
-        <span className="text-dim">--mode=<span className="text-fg">{visibleCards.length === 7 ? 'all' : mode}</span></span>
+        <span className="text-dim">--mode=<span className="text-fg">{visibleCards.length === ALL_MODES.length ? 'all' : mode}</span></span>
         {symbol && <span className="text-dim">--symbol=<span className="text-fg">{symbol}</span></span>}
         <span className="text-dim">--range=<span className="text-fg">{dateRange}</span></span>
         <span className="caret" />

@@ -28,9 +28,9 @@ const acctOpts: { value: AccountMode; label: string; key: string }[] = [
   { value: 'manual',       label: 'manual',       key: 'm' },
   { value: 'live',         label: 'live $',       key: 'l' },
   // single accounts — small
-  { value: 'sm500',  label: '$500',   key: '5' },
-  { value: 'sm1000', label: '$1,000', key: '1' },
-  { value: 'sm2000', label: '$2,000', key: '2' },
+  { value: 'sm500',  label: '$500',   key: 'f' },
+  { value: 'sm1000', label: '$1,000', key: 'k' },
+  { value: 'sm2000', label: '$2,000', key: 'd' },
 ];
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
