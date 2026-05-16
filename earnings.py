@@ -11,7 +11,7 @@ from typing import Optional
 
 _CACHE: dict[str, Optional[dt.datetime]] = {}
 _MAX_ATTEMPTS = 3
-_BACKOFFS = (1, 3)
+_BACKOFFS = (1, 3)  # seconds; indexed by attempt -> needs len == _MAX_ATTEMPTS-1
 
 
 def _next_earnings_dt(symbol: str) -> Optional[dt.datetime]:
@@ -25,12 +25,13 @@ def _next_earnings_dt(symbol: str) -> Optional[dt.datetime]:
             future = [ix.to_pydatetime() for ix in edf.index
                       if ix.to_pydatetime().astimezone(dt.timezone.utc) >= now]
             return min(future).astimezone(dt.timezone.utc) if future else None
-        except Exception:
+        except Exception as e:
             if attempt + 1 < _MAX_ATTEMPTS:
+                print(f"[earnings] {symbol} attempt {attempt+1}/{_MAX_ATTEMPTS} failed: {type(e).__name__}: {e}; retrying in {_BACKOFFS[attempt]}s", flush=True)
                 time.sleep(_BACKOFFS[attempt])
                 continue
+            print(f"[earnings] {symbol} all {_MAX_ATTEMPTS} attempts failed: {type(e).__name__}: {e}; treating as BLOCKED", flush=True)
             return None
-    return None
 
 
 def next_earnings_within(symbol: str, days: int) -> bool:

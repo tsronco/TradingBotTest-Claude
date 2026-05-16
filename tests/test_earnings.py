@@ -39,3 +39,14 @@ def test_per_run_cache_avoids_duplicate_lookups():
         earnings.next_earnings_within("F", 7)
         earnings.next_earnings_within("F", 7)
         assert m.call_count == 1  # second call served from cache
+
+
+def test_yfinance_exhaustion_returns_none_and_logs(monkeypatch, capsys):
+    """All 3 attempts raise -> returns None (BLOCKED) and logs the exhaustion line."""
+    monkeypatch.setattr("time.sleep", lambda _: None)  # no real sleeps
+    with patch("yfinance.Ticker", side_effect=RuntimeError("rate limited")):
+        result = earnings._next_earnings_dt("X")
+    assert result is None
+    captured = capsys.readouterr()
+    assert "all 3 attempts failed" in captured.out
+    assert "BLOCKED" in captured.out
