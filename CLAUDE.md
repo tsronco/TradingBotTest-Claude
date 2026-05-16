@@ -1,6 +1,6 @@
 # TradingBotTest-Claude
 
-Alpaca trading sandbox running scheduled bots on **GitHub Actions cron** across **four accounts in parallel** — a "conservative" and "aggressive" paper wheel that auto-execute, a "manual" paper account where the user opens trades by hand and the bot manages them (trail/ladder/stop on every stock you hold, 50% close on existing puts, covered call sale on assignment) but never opens new puts itself, and a "live" REAL-MONEY account that behaves identically to manual on separate Alpaca live credentials. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
+Alpaca trading sandbox running scheduled bots on **GitHub Actions cron** across **seven accounts in parallel** — a "conservative" and "aggressive" paper wheel that auto-execute, a "manual" paper account where the user opens trades by hand and the bot manages them (trail/ladder/stop on every stock you hold, 50% close on existing puts, covered call sale on assignment) but never opens new puts itself, a "live" REAL-MONEY account that behaves identically to manual on separate Alpaca live credentials, and **three small-account paper accounts** (`sm500`/`sm1000`/`sm2000`, seeded at $500/$1k/$2k) that manage hand-opened positions like manual and autonomously open earnings-screened, risk-capped put credit spreads from a shared screener core. Notifications flow to a private Discord server (separate channels per account); structured logs are committed back to this repo as JSONL.
 
 A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, deployed to Vercel at https://tradingbot-dashboard-blue.vercel.app) sits alongside the bots — read-only-monitoring + manual lookup of any symbol. See [Dashboard subproject](#dashboard-subproject) below.
 
@@ -70,6 +70,27 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │  Starting capital: $10k (vs $100k on the auto-execute accounts)   │
 └────────────────────────────────────────────────────────────────────┘
 
+┌─ Small-account auto-spread paper accounts ────────────────────────┐
+│  tsla-monitor-sm500.yml   (every 10 min, :05 offset)              │
+│  tsla-monitor-sm1000.yml  (every 10 min, :08 offset)              │
+│  tsla-monitor-sm2000.yml  (every 10 min, :06 offset)              │
+│    ├─ strategy.py --mode sm{n}                                     │
+│    │   auto-discovers stocks from positions; trail/ladder/stop    │
+│    │   on every name held (same behaviour as manual)              │
+│    ├─ wheel_strategy.py --mode sm{n}                               │
+│    │   wheel_skip_new_puts=True (static CSP wheel OFF);           │
+│    │   manages hand-opened puts/spreads/CCs;                      │
+│    │   auto_open_spreads=True: screener-driven put credit spread  │
+│    │   opener (percentile-90 score gate, 12% equity risk cap,     │
+│    │   earnings-excluded, ≤1/cycle; sm500 filters to ≤$25         │
+│    │   underlyings; exits reuse manual handle_spread)             │
+│    └─ long_options_strategy.py --mode sm{n}                        │
+│  Discord: #sm{n}-trades, #sm{n}-summary,                          │
+│           #sm{n}-errors, #sm{n}-actions                           │
+│  Alpaca:  ALPACA_SM{N}_API_KEY / ALPACA_SM{N}_API_SECRET (paper)  │
+│  Starting capital: $500 / $1,000 / $2,000                         │
+└────────────────────────────────────────────────────────────────────┘
+
 ┌─ Shared workflows ────────────────────────────────────────────────┐
 │  congress-copy.yml      (Mon–Fri, 4× day)                         │
 │    Conservative-only: scrapes politicians, copies trades, -15% SL │
@@ -79,13 +100,16 @@ A **personal web dashboard** at `dashboard/` (Vite + React 19 + Tailwind v4, dep
 │    3. Manual summary        → #manual-summary  (no head-to-head)  │
 │    4. Live summary          → #live-summary    (no head-to-head — │
 │        real money, separate capital base & operating model)       │
-│    5. Head-to-head embed    → cons + agg summary channels         │
-│       (manual + live both excluded — different starting capital   │
-│        and operating model make a 4-way comparison meaningless)   │
+│    5. SM500 summary         → #sm500-summary   (no head-to-head)  │
+│    6. SM1000 summary        → #sm1000-summary  (no head-to-head)  │
+│    7. SM2000 summary        → #sm2000-summary  (no head-to-head)  │
+│    8. Head-to-head embed    → cons + agg summary channels         │
+│       (manual + live + SM all excluded — different capital        │
+│        base and operating model; step runs if: always())          │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The four accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Manual and live both carry two extra flags (`auto_discover_symbols` and `wheel_skip_new_puts`) that change behaviour without forking the scripts; live is configurationally identical to manual except for the credential set (real-money Alpaca live endpoint) and the Discord channels (`#live-*`). Tests cover that the four modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels) and that the manual/live behaviour flags fire correctly while conservative/aggressive don't.
+All seven accounts run **identical scripts** parameterized by `--mode`. The mode picks credentials, state files, log streams, Discord channels, wheel symbols, and parameters from `config.py → MODES`. Manual and live both carry two extra flags (`auto_discover_symbols` and `wheel_skip_new_puts`) that change behaviour without forking the scripts; live is configurationally identical to manual except for the credential set (real-money Alpaca live endpoint) and the Discord channels (`#live-*`). The three SM modes inherit manual's management flags and add a new `auto_open_spreads` flag (and `auto_open_*` param block) that is `True` only on SM modes — conservative/aggressive/manual/live are byte-unaffected. Tests cover that all seven modes are properly isolated (separate Alpaca creds, distinct state files, distinct Discord channels) and that each mode's behaviour flags fire correctly.
 
 ## Environment
 
@@ -136,7 +160,40 @@ DISCORD_LIVE_TRADES_WEBHOOK=...
 DISCORD_LIVE_SUMMARY_WEBHOOK=...
 DISCORD_LIVE_ERRORS_WEBHOOK=...
 DISCORD_LIVE_ACTIONS_WEBHOOK=...
+
+# Small-account paper accounts (separate paper-only Alpaca signup; all paper endpoint)
+ALPACA_SM500_API_KEY=...
+ALPACA_SM500_API_SECRET=...
+ALPACA_SM500_BASE_URL=https://paper-api.alpaca.markets/v2
+
+ALPACA_SM1000_API_KEY=...
+ALPACA_SM1000_API_SECRET=...
+ALPACA_SM1000_BASE_URL=https://paper-api.alpaca.markets/v2
+
+ALPACA_SM2000_API_KEY=...
+ALPACA_SM2000_API_SECRET=...
+ALPACA_SM2000_BASE_URL=https://paper-api.alpaca.markets/v2
+
+# Discord webhooks — sm500 side
+DISCORD_SM500_TRADES_WEBHOOK=...
+DISCORD_SM500_SUMMARY_WEBHOOK=...
+DISCORD_SM500_ERRORS_WEBHOOK=...
+DISCORD_SM500_ACTIONS_WEBHOOK=...
+
+# Discord webhooks — sm1000 side
+DISCORD_SM1000_TRADES_WEBHOOK=...
+DISCORD_SM1000_SUMMARY_WEBHOOK=...
+DISCORD_SM1000_ERRORS_WEBHOOK=...
+DISCORD_SM1000_ACTIONS_WEBHOOK=...
+
+# Discord webhooks — sm2000 side
+DISCORD_SM2000_TRADES_WEBHOOK=...
+DISCORD_SM2000_SUMMARY_WEBHOOK=...
+DISCORD_SM2000_ERRORS_WEBHOOK=...
+DISCORD_SM2000_ACTIONS_WEBHOOK=...
 ```
+
+> **Tim provisions:** all 9 `ALPACA_SM*` + 12 `DISCORD_SM*` values must be mirrored as **GitHub Actions secrets** for hosted runs. The `ALPACA_SM*` values also need to be added as **Vercel env vars** for the dashboard. They are already present in local `.env` (verified 2026-05-15).
 
 **Paper-only for congress-copy.** `paper_guard.py` asserts the base URL is `paper-api.alpaca.markets` on every congress-copy invocation. Congress-copy runs **conservative-only**, so the guard never sees the live credentials. Do NOT add congress-copy to the live workflow — the guard would (correctly) reject it.
 
@@ -144,16 +201,19 @@ DISCORD_LIVE_ACTIONS_WEBHOOK=...
 
 All cron expressions are in **UTC**. Times below are translated for clarity.
 
-All eight workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
+All eleven monitor/summary workflows are triggered **exclusively by cron-job.org** via `workflow_dispatch` API calls. The schedules are configured in cron-job.org's account (see `tools/setup_cronjobs.py` for the canonical source).
 
 | Workflow | cron-job.org schedule (UTC) | CT | ET | Covers |
 |---|---|---|---|---|
 | `tsla-monitor.yml` | `7,17,27,37,47,57 13-20 * * 1-5` | every 10 min, 8:07 AM–3:57 PM | every 10 min, 9:07 AM–4:57 PM | Conservative: strategy + wheel + long-options |
 | `tsla-monitor-aggressive.yml` | `9,19,29,39,49,59 13-20 * * 1-5` | every 10 min, :09 offset | every 10 min, :09 offset | Aggressive: strategy + wheel + long-options |
-| `tsla-monitor-manual.yml` | `1,11,21,31,41,51 13-20 * * 1-5` | every 10 min, :11 offset | every 10 min, :11 offset | Manual: strategy + wheel + long-options |
-| `tsla-monitor-live.yml` | `3,13,23,33,43,53 13-20 * * 1-5` | every 10 min, :13 offset | every 10 min, :13 offset | Live REAL-MONEY: strategy + wheel + long-options |
+| `tsla-monitor-manual.yml` | `1,11,21,31,41,51 13-20 * * 1-5` | every 10 min, :01 offset | every 10 min, :01 offset | Manual: strategy + wheel + long-options |
+| `tsla-monitor-live.yml` | `3,13,23,33,43,53 13-20 * * 1-5` | every 10 min, :03 offset | every 10 min, :03 offset | Live REAL-MONEY: strategy + wheel + long-options |
+| `tsla-monitor-sm500.yml` | `5,15,25,35,45,55 13-20 * * 1-5` | every 10 min, :05 offset | every 10 min, :05 offset | SM500: strategy + wheel (auto-spread) + long-options |
+| `tsla-monitor-sm1000.yml` | `8,18,28,38,48,58 13-20 * * 1-5` | every 10 min, :08 offset | every 10 min, :08 offset | SM1000: strategy + wheel (auto-spread) + long-options |
+| `tsla-monitor-sm2000.yml` | `6,16,26,36,46,56 13-20 * * 1-5` | every 10 min, :06 offset | every 10 min, :06 offset | SM2000: strategy + wheel (auto-spread) + long-options |
 | `congress-copy.yml` | `7 13,15,17,19 * * 1-5` | 8:07/10:07/12:07/2:07 PM | 9:07/11:07/1:07/3:07 PM | Conservative-only: scrape + monitor |
-| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 5-step: cons + agg + manual + live + head-to-head |
+| `daily-summary.yml` | `12 20 * * 1-5` | 3:12 PM | 4:12 PM | 8-step: cons + agg + manual + live + sm500 + sm1000 + sm2000 + head-to-head (cons/agg only; `if: always()`) |
 | `wheel-screener.yml` | `0 22 * * 0` | 5:00 PM Sun | 6:00 PM Sun | Conservative wheel-candidate digest |
 | `wheel-screener-aggressive.yml` | `2 22 * * 0` | 5:02 PM Sun | 6:02 PM Sun | Aggressive (high-IV) wheel-candidate digest |
 | `wheel-screener-manual.yml` | `4 22 * * 0` | 5:04 PM Sun | 6:04 PM Sun | Manual wheel-candidate digest (IDEAS only — bot doesn't execute) |
@@ -211,7 +271,24 @@ Live side (REAL MONEY):
 | `#live-errors` | Live-account errors / exceptions | All messages (push, with @mention) |
 | `#live-actions` | Live firehose for one-scroll review | Muted |
 
-**If `#errors`, `#aggressive-errors`, `#manual-errors`, and `#live-errors` all stay empty all day, the system worked.**
+SM500/SM1000/SM2000 sides:
+
+| Channel | What lands there | Phone notification setting |
+|---|---|---|
+| `#sm500-trades` | SM500 auto-spread opens/closes + trail/ladder/stop fires | (your choice) |
+| `#sm500-summary` | 4:12 PM ET SM500 summary (no head-to-head — different capital and operating model) | All messages (push) |
+| `#sm500-errors` | SM500-account errors / exceptions | All messages (push, with @mention) |
+| `#sm500-actions` | SM500 firehose for one-scroll review | Muted |
+| `#sm1000-trades` | SM1000 auto-spread opens/closes + trail/ladder/stop fires | (your choice) |
+| `#sm1000-summary` | 4:12 PM ET SM1000 summary (no head-to-head) | All messages (push) |
+| `#sm1000-errors` | SM1000-account errors / exceptions | All messages (push, with @mention) |
+| `#sm1000-actions` | SM1000 firehose for one-scroll review | Muted |
+| `#sm2000-trades` | SM2000 auto-spread opens/closes + trail/ladder/stop fires | (your choice) |
+| `#sm2000-summary` | 4:12 PM ET SM2000 summary (no head-to-head) | All messages (push) |
+| `#sm2000-errors` | SM2000-account errors / exceptions | All messages (push, with @mention) |
+| `#sm2000-actions` | SM2000 firehose for one-scroll review | Muted |
+
+**If `#errors`, `#aggressive-errors`, `#manual-errors`, `#live-errors`, `#sm500-errors`, `#sm1000-errors`, and `#sm2000-errors` all stay empty all day, the system worked.**
 
 ## Strategies in detail
 
@@ -313,6 +390,35 @@ Tracking plans:
 - Phase 4 (dashboard form): [2026-05-15-dashboard-spread-form.md](docs/superpowers/plans/2026-05-15-dashboard-spread-form.md)
 - Specs: [management](docs/superpowers/specs/2026-05-14-spread-management-design.md), [dashboard form](docs/superpowers/specs/2026-05-15-dashboard-spread-form-design.md)
 
+### SM auto-spread engine — `wheel_strategy.py` + `screener_core.py` + `earnings.py`
+
+The three SM modes (`sm500`/`sm1000`/`sm2000`) are the **first autonomous, screener-driven, spread-opening engine in the system.** They inherit every management behaviour from `manual` (auto-discover positions, `handle_spread` exits, strategy trail/ladder/stop, long-options exits) and add a new autonomous opener gated by `auto_open_spreads: True` (only SM modes; conservative/aggressive/manual/live are byte-unaffected, asserted by test).
+
+**Universe and scoring (shared `screener_core.py`):** the existing wheel-screener scoring logic is extracted into a shared importable module (`screener_core.py`) so both the weekly screener CLI and the SM opener use the same implementation with zero drift. The formula is `premium_yield*100 − spread_pct*50 + budget_fit*5` (≈ 0–15 raw range). The module also owns `DEFAULT_CONSERVATIVE_UNIVERSE` (expanded to ~60 liquid, optionable "happy to own" large-caps). The weekly screener's output is byte-identical after the refactor.
+
+**Score normalization:** after scoring the cycle's universe, raw scores are **percentile-ranked to 0–100** (`normalize_scores`). "100" = best candidate in today's screened set. Gate: `wheelability ≥ 90` (top ~10% of the cycle's candidates). Self-calibrating — threshold semantics don't shift with absolute score drift.
+
+**sm500 universe filter:** sm1000/sm2000 screen the full ~60-name pool. sm500 applies a `max_underlying_price: 25` filter so minimum-width spreads can fit the 12% risk cap; it still may no-trade on days nothing cheap clears the full gauntlet — that's expected, not an error.
+
+**BP switch:** `bp_wants_spread(options_bp, threshold=$5,000)` → SM accounts always `< $5k` → always open a put credit spread instead of a CSP. The switch is built generally but resolves to spread-only for SM.
+
+**Spread construction:** short put ≈ 10% OTM, narrowest available width that satisfies the risk cap, 14–28 DTE, net credit = short_mid − long_mid. Placed via new `_open_spread_mleg()` (Alpaca `order_class: mleg`, STO short / BTO long, limit = −net_credit, mirroring the close primitive).
+
+**Risk-rail gauntlet (all enforced before any order):**
+- `account_floor: $300` — skip all opens if equity is below this
+- `max_concurrent_spreads: 3` — do not open if already at cap (sm500 effectively 0–1 due to risk cap)
+- `max_risk_pct_equity: 12%` — spread's max loss (`width × 100`) must be ≤ 12% of account equity
+- `min_net_credit: $0.05/share` — reject zero/negative-credit chains (zero credit pins profit_pct to 0 forever, making 50%-profit close unenforceable; negative credit is a disguised debit spread that busts the risk cap; both are skipped with a per-symbol log, loop continues to next candidate)
+- `earnings_exclusion_days: 7` — skip any symbol with earnings within 7 days; **unknown earnings treated as blocked** (conservative fail-safe; implemented via new `earnings.py` using yfinance with per-run cache + bounded retry)
+- `bp_fits` — options BP must cover spread collateral
+- `max_opens_per_cycle: 1` — screen → pick one best → open → stop (no burst-fill)
+
+**Per-cycle flow order:** (1) discover + manage hand-opened positions (manual behaviour); (2) manage bot-opened spread_active spreads via existing `handle_spread` (50%/50%/DTE exits — no new exit logic); (3) auto-open: if under cap + above floor + market open → screen → score → normalize → pick best eligible → open or log no-trade.
+
+**State:** a newly opened spread is seeded as `stage: "spread_active"` in `wheel_state_sm{n}.json` using the existing shape, so the inherited `handle_spread` management starts on the very next cycle. State is deleted on close (same as manual spreads).
+
+**Known validation-window behaviours:** percentile-90 on a small eligible set means sm500 will frequently no-trade (expected). `net_credit` uses decision-time mids, not fill price, so paper P&L% is approximate. All SM accounts are paper-only; `live` mode cannot and does not receive `auto_open_spreads`.
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)
@@ -324,15 +430,18 @@ Pulls disclosures from CapitolTrades, sizes positions by tier (`config.SIZING_TI
 
 ## Daily summary
 
-`daily_summary.py` runs five steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
+`daily_summary.py` runs eight steps each weekday at 4:12 PM ET (`daily-summary.yml` workflow):
 
 1. **Conservative summary** (`--mode conservative`) — aggregates `strategy_state.json` + `wheel_state.json` + congress-copy SQLite + long-options positions. Posts an embed to `#daily-summary`.
 2. **Aggressive summary** (`--mode aggressive`) — aggregates `strategy_state_aggressive.json` + `wheel_state_aggressive.json` + long-options positions. Posts to `#aggressive-summary`. (Congress-copy is conservative-only, so it's omitted here.)
 3. **Manual summary** (`--mode manual`) — aggregates `strategy_state_manual.json` (multi-symbol format) + `wheel_state_manual.json` + long-options positions. Posts to `#manual-summary`. No head-to-head inclusion — different starting capital ($10k vs $100k) and a different operating model (user-driven entries) make a multi-way comparison apples-to-oranges.
 4. **Live summary** (`--mode live`) — aggregates `strategy_state_live.json` + `wheel_state_live.json` + long-options positions on the REAL-MONEY account. Posts to `#live-summary`. Also excluded from head-to-head for the same reason as manual.
-5. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from the conservative + aggressive Alpaca accounts only, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race.
+5. **SM500 summary** (`--mode sm500`) — aggregates `strategy_state_sm500.json` + `wheel_state_sm500.json` + long-options positions. Posts to `#sm500-summary`. Excluded from head-to-head — different capital base and operating model.
+6. **SM1000 summary** (`--mode sm1000`) — as above for SM1000. Posts to `#sm1000-summary`.
+7. **SM2000 summary** (`--mode sm2000`) — as above for SM2000. Posts to `#sm2000-summary`.
+8. **Head-to-head comparison** (`--head-to-head`) — pulls equity / cash / premium / cycles from the conservative + aggressive Alpaca accounts only, builds a side-by-side table embed, and posts the same comparison to *both* `#daily-summary` and `#aggressive-summary` so each side's view shows the race. Runs with `if: always()` so a failed SM step doesn't suppress it.
 
-End result: 6 embed cards per day across the four summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary and live-summary stay standalone).
+End result: 9 embed cards per day across the seven summary channels — one per-mode summary in each, plus the head-to-head in `#daily-summary` and `#aggressive-summary` (manual-summary, live-summary, and SM summaries stay standalone).
 
 **Held Stocks (ground-truth) section:** every per-mode summary also includes a "Held Stocks (not tracked by bot)" block that calls `/v2/positions` and lists any `us_equity` position whose symbol is NOT already in strategy state ∪ wheel state. Catches the gap where a stock would otherwise be invisible to the summary — e.g. a symbol removed from `config.MODES[*]['wheel_symbols']` that still has 100 shares from an old assignment, a manual buy made in the ~10-minute window between the last bot cycle and the 4:12 PM summary, or wheel/strategy state-file drift. The section only renders when at least one untracked stock exists, so on a clean day it stays out of the embed entirely.
 
@@ -395,7 +504,7 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring; full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). 171 pytest + **428 vitest** as of 2026-05-15 (dashboard suite; 395 after mobile, +33 from order-form upgrades; was mislabeled "121/351" in earlier revisions).
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring + parity (extracted `screener_core.py`); full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script) including all 7 modes; SM-mode isolation (distinct Alpaca creds/state files/channels, `auto_open_spreads` flag correctness); auto-spread engine (normalize_scores, bp_wants_spread, risk-rail guards, earnings exclusion, `_open_spread_mleg` body, `_auto_open_spread` orchestration — all Alpaca + yfinance mocked); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). **380 pytest** (bot) + **23** push-rules tests (`tools/test_push_rules_to_dashboard.py`). Dashboard: **468 vitest / 76 files** (`cd dashboard && npx vitest run --pool=threads`).
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
@@ -417,7 +526,7 @@ The congress-copy package has its own pytest setup under `congress-copy/tests/` 
 
 ## Dashboard subproject
 
-A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. **Phase 1 shipped 2026-05-02. Phase 2 (manual trading + AI grading) shipped 2026-05-03.**
+A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. **Phase 1 shipped 2026-05-02. Phase 2 (manual trading + AI grading) shipped 2026-05-03.** All seven accounts (conservative, aggressive, manual, live, sm500, sm1000, sm2000) are registered in the dashboard.
 
 - Live: https://tradingbot-dashboard-blue.vercel.app
 - Spec: `docs/superpowers/specs/2026-05-02-trading-dashboard-design.md`
@@ -430,7 +539,7 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - Bot-state push contract: each of `tsla-monitor.yml`, `tsla-monitor-aggressive.yml`, `congress-copy.yml` POSTs state JSON to `/api/bot-state` after its bot scripts run; bearer-auth via `BOT_PUSH_TOKEN`; fire-and-forget so bots are unaffected if dashboard is down
 - Read-only pages: Home (dual-account snapshot + equity-curve sparklines w/ 1D/1W/1M/3M/1Y selector), Positions (stocks + options w/ all 5 Greeks + DTE + wheel-close % progress), Orders (open + filled w/ DTE)
 - Lookup page (`/lookup/:symbol`): TradingView Advanced Chart, options chain w/ 25 expirations (MM/DD/YYYY dropdown, puts/calls/both filter, 6-strikes-nearest default, all 5 Greeks toggle), Robinhood-style earnings bars (yfinance), fundamentals (yfinance), wheelability scorer (with explicit messaging when markets closed), news (Alpaca), watchlist add
-- Account selector (Both / Conservative / Aggressive) syncs across all components via custom event
+- Account selector (single-account chips + All + group chips) syncs across all components via custom event
 - ErrorBoundary wraps every Lookup panel (no more whole-page blanking on a single component error)
 - 34 vitest tests (auth flows, KV whitelist, TOTP, sessions, option-symbol parsing)
 
@@ -444,7 +553,7 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - Modify and cancel actions on `/orders` (modify price/qty via modal, cancel with confirm)
 - AI grading via Sonnet 4.6 with prompt caching — plain-English no-jargon system prompt, grades on close using entry context + price action
 - Auto-grade cron (`*/5 13-20 * * 1-5` UTC) via cron-job.org — hits `POST /api/cron/grade-open-trades`
-- 97 vitest tests total at end of Phase 2; 114 after the manual-account expansion (third paper account wired through the full dashboard surface); **121 after the 2026-05-07 fix pass** below
+- 97 vitest tests total at end of Phase 2; 114 after the manual-account expansion (third paper account wired through the full dashboard surface); 121 after the 2026-05-07 fix pass; 468 / 76 files as of the small-account auto-spread effort (see below)
 
 ### Trade lifecycle fixes (shipped 2026-05-07)
 
@@ -491,7 +600,7 @@ dashboard/
 │   ├── hooks/             # useAuth · useAccount · useBotState · useSettings
 │   ├── lib/               # api · format · wheelability · option-symbol · trade-types · rule-check
 │   └── styles/globals.css # Tailwind v4 with @theme block
-├── tests/                 # 121 vitest tests
+├── tests/                 # 468 vitest tests / 76 files
 ├── scripts/generate-backup-codes.ts
 ├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
 ├── postcss.config.js · tsconfig.{,app,node}.json
@@ -503,7 +612,7 @@ dashboard/
 
 - Project: `tims-projects-f798c8a6/tradingbot-dashboard` (Hobby plan, Vite framework, root dir `dashboard/`)
 - KV: `upstash-kv-red-canvas` (Upstash Redis via Vercel Marketplace)
-- 21 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 8 ALPACA_* (cons + agg + manual × 3), 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- 30 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 8 ALPACA_* (cons + agg + manual × 3), 9 ALPACA_SM* (sm500 + sm1000 + sm2000 × 3 — Tim provisions), 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
 - `.env` (local): also set `DASHBOARD_CRON_TOKEN` (mirrors `CRON_TOKEN` for local cron testing)
 - GitHub Actions secret `BOT_PUSH_TOKEN` set on this repo (mirrors the Vercel value)
 
@@ -561,7 +670,7 @@ Lifecycle states (no explicit status field — derived from timestamps):
 - Server-side `live` account 403 guard (closes Phase 2 follow-up #2). Set `LIVE_ENABLED=true` env to enable
 - TS Direction warning at `api/alpaca/[endpoint].ts:84` cleaned up via `as const` (closes Phase 2 follow-up #4)
 - Vercel function count: 9 → 10 of 12 Hobby cap (added `api/rules/[resource].ts`)
-- Test count: 146 → 351 vitest (+205) plus +9 pytest (`tools/test_push_rules_to_dashboard.py`)
+- Test count: 146 → 351 vitest (+205) at Phase 3 ship, plus +9 pytest (`tools/test_push_rules_to_dashboard.py`); current totals 468 vitest / 380 pytest / 23 push-rules
 - Smoke test playbook: `dashboard/docs/PHASE3_SMOKE.md`
 
 ### Mobile responsiveness (shipped 2026-05-15)
@@ -571,6 +680,22 @@ Phone-usable pass over the whole dashboard — **not** a redesign. One breakpoin
 ### Order-form upgrades (shipped 2026-05-15)
 
 Four order-entry features — frontend + pure-TS + CSS only (no API/data-model/Vercel-function/bot change); built on the mobile branch (merged to `main` via PR #18 first, then this work rebased on `main`). (1) **Spread chip parity** — `SpreadOrderForm` now uses the shared `GradePicker`/`TagPicker` + account chips like `StockOrderForm`; `tags` added to the spread draft. Spread account chips: `conservative_paper`/`aggressive_paper`/`manual_paper` all selectable; **`live` disabled** (real-money/bot-only). Tim's explicit call: cons/agg spreads are allowed even though `spread_management` is manual-only — those are intentionally hand-managed, the bot won't 50%-close/stop/DTE-close them. (2) **Interactive payoff chart** — pure leg-based engine `dashboard/src/lib/payoff.ts` (closed-form max-profit/loss/breakeven) → SVG `PayoffChart.tsx` with a draggable Pointer-Events scrubber + keyboard a11y + theme-tokenized two-color curve; wired display-only into all 3 forms (suppressed until inputs valid). (3) **Live chain spot slider** — `OptionsChain.tsx` renders a "Share price" divider between the bracketing strikes; the shared `['quote',symbol]` query gained `refetchInterval: 5000` so it repositions live (this 5s now dominates QuotePanel/WheelabilityPanel on `/lookup` — documented in-code). (4) **Suggested-price helper** — pure `dashboard/src/lib/fillHint.ts` (FP-clean tick rounding, sub-penny null guard) → `FillHint.tsx` 3 tappable chips (Fast/Balanced/Best) that write the limit field; transparent heuristic, labelled "estimate — not a guarantee" (NOT a Robinhood-ML clone — deliberate). Spec/plan: `docs/superpowers/{specs,plans}/2026-05-15-order-form-upgrades*.md`.
+
+### Small-account dashboard registration + group-view selector (shipped 2026-05-16)
+
+Three SM accounts registered across all ~8 dashboard enumeration sites: `AccountMode` union (`useAccount.ts`), `AccountId` union (`trade-types.ts`), `Mode`/`ALL_MODES`/`ALL_ACCOUNTS`/`modeToAccount` (`account-utils.ts`), `credsFor()` branches in `alpaca.ts` (`ALPACA_SM{N}_API_KEY/SECRET`), `accountToMode()` in `rule-check.ts`, single-account chips in `Sidebar.tsx` (labels `$500`/`$1,000`/`$2,000`; values `sm500`/`sm1000`/`sm2000`). Vercel function count unaffected (additive env-var branches, not new functions — stays 10/12). Tim provisions the 9 `ALPACA_SM*` Vercel env vars.
+
+**Group-view account selector** — a new `accountsForSelection(sel): Mode[]` helper in `account-utils.ts` and three group chips in the sidebar replace the old `Both`/single-mode hardcoding:
+
+| Group chip | Accounts included | Sidebar label |
+|---|---|---|
+| `small` | sm500 · sm1000 · sm2000 | `small` (chips show `$500/$1k/$2k`) |
+| `core` | conservative · aggressive | `core` |
+| `hands-on` | manual · live | `hands-on` |
+
+Single-account chips and `All` are retained. Selecting a group renders those accounts side-by-side on account-aware pages (Home cards, Positions, Orders, etc.) via a single `accountsForSelection(mode)` derivation replacing all prior `mode==='both'` branches. Labels are decoupled from tokens. Spec/plan: `docs/superpowers/{specs,plans}/2026-05-15-small-account-auto-spread*.md`.
+
+Test counts after this effort: **468 vitest / 76 files** (dashboard); **380 pytest** + **23 push-rules** (`tools/test_push_rules_to_dashboard.py`).
 
 ### Phase 4 (next) — known follow-ups from Phase 3
 
