@@ -445,6 +445,142 @@ def test_auto_open_max_one_per_cycle(monkeypatch):
     assert "BBB" not in state
 
 
+# ── Minimum net-credit floor (M-1 correctness fix) ───────────────────────
+# A thin/illiquid chain can give long_mid >= short_mid. net_credit == 0
+# pins _compute_spread_pnl's profit_pct to 0.0 forever (the 50%-profit
+# close trigger can never fire); net_credit < 0 is a DEBIT spread placed
+# via the credit-convention order, with max_loss = width - net_credit
+# blowing past the risk cap that only validated `width`. The floor must
+# reject both BEFORE _open_spread_mleg, continuing to the next candidate.
+
+
+def _capture_log_event(monkeypatch):
+    """Re-patch ws.log_event (the _wire_sm no-op) to record calls."""
+    events = []
+    monkeypatch.setattr(
+        ws, "log_event",
+        lambda stream, script, action, **kw: events.append((action, kw)))
+    return events
+
+
+def test_auto_open_zero_credit_rejected_no_order(monkeypatch):
+    """short_mid == long_mid -> net_credit 0.0 < floor 0.05. No
+    _open_spread_mleg call, state untouched, skip is logged."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    # identical mids -> net_credit = round(0.50 - 0.50, 4) == 0.0
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.45, "ask": 0.55},  # mid 0.50
+        "CHEAP260612P00017000": {"bid": 0.45, "ask": 0.55},  # mid 0.50
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    events = _capture_log_event(monkeypatch)
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert opened == [], "zero-credit spread must NOT reach _open_spread_mleg"
+    assert "CHEAP" not in state, "state must be untouched on a rejected spread"
+    skips = [kw for action, kw in events
+             if kw.get("notes") == "below_min_net_credit"]
+    assert len(skips) == 1, "the sub-floor skip must be logged"
+    assert skips[0]["symbol"] == "CHEAP"
+    assert skips[0]["details"]["net_credit"] == 0.0
+
+
+def test_auto_open_negative_credit_rejected_no_order(monkeypatch):
+    """long_mid > short_mid -> net_credit < 0 (a debit spread via the
+    credit-convention order). Rejected; nothing opened, skip logged."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.20, "ask": 0.30},  # short mid 0.25
+        "CHEAP260612P00017000": {"bid": 0.55, "ask": 0.65},  # long mid 0.60
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    events = _capture_log_event(monkeypatch)
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert opened == [], "negative-credit spread must NOT be placed"
+    assert "CHEAP" not in state
+    skips = [kw for action, kw in events
+             if kw.get("notes") == "below_min_net_credit"]
+    assert len(skips) == 1
+    # net_credit = round(0.25 - 0.60, 4) == -0.35
+    assert skips[0]["details"]["net_credit"] == round(0.25 - 0.60, 4)
+
+
+def test_auto_open_net_credit_just_below_floor_rejected(monkeypatch):
+    """Boundary: net_credit 0.04 (< 0.05 floor) -> rejected."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    # short mid 0.50, long mid 0.46 -> net_credit 0.04 (one cent under)
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.45, "ask": 0.55},  # mid 0.50
+        "CHEAP260612P00017000": {"bid": 0.41, "ask": 0.51},  # mid 0.46
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert opened == [], "net_credit 0.04 < 0.05 floor -> rejected"
+    assert "CHEAP" not in state
+
+
+def test_auto_open_net_credit_at_floor_accepted(monkeypatch):
+    """Boundary: net_credit exactly 0.05 (== floor, NOT < floor) ->
+    accepted. Pins the >= side of the boundary."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    # short mid 0.50, long mid 0.45 -> net_credit exactly 0.05
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.45, "ask": 0.55},  # mid 0.50
+        "CHEAP260612P00017000": {"bid": 0.40, "ask": 0.50},  # mid 0.45
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1, "net_credit == 0.05 floor (not <) -> accepted"
+    assert round(opened[0]["net_credit"], 4) == 0.05
+    assert state["CHEAP"]["stage"] == "spread_active"
+    assert round(state["CHEAP"]["net_credit"], 4) == 0.05
+
+
 def test_run_wheel_calls_auto_open_on_cold_start_empty_discover(monkeypatch, tmp_path):
     """COLD START (the real first-trade path): an SM account discovers
     ZERO symbols. run_wheel must STILL invoke _auto_open_spread exactly

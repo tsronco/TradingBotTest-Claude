@@ -381,6 +381,7 @@ MODES = {
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
         "wheelability_min":          90,      # percentile threshold (0–100)
         "max_risk_pct_equity":       0.12,    # max loss / equity ≤ 12%
+        "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
         "max_concurrent_spreads":    3,
         "account_floor":             300,     # skip if equity < $300
         "earnings_exclusion_days":   7,       # skip symbols with earnings ≤7 days
@@ -436,6 +437,7 @@ MODES = {
         "bp_switch_threshold":       5000,
         "wheelability_min":          90,
         "max_risk_pct_equity":       0.12,
+        "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,
         "account_floor":             300,
         "earnings_exclusion_days":   7,
@@ -490,6 +492,7 @@ MODES = {
         "bp_switch_threshold":       5000,
         "wheelability_min":          90,
         "max_risk_pct_equity":       0.12,
+        "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,
         "account_floor":             300,
         "earnings_exclusion_days":   7,

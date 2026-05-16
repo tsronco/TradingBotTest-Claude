@@ -65,6 +65,7 @@ Put credit spread (bullish/neutral, defined risk — matches the dashboard sprea
 Because there's no validation buffer, **safety lives entirely in these guards + conservative defaults.** Every one is enforced before an order is placed:
 
 - **`max_risk_pct_equity`** (proposed **12%**): a spread's max loss `(width × 100)` must be ≤ this fraction of account equity. *Consequence, now mitigated for sm500:* a $1-wide spread = $100 max loss = 20% of a $500 account, which the 12% cap rejects. RESOLVED #3 — rather than let sm500 perpetually no-trade, sm500 screens only **cheap underlyings (≤ ~$25)** where the cheapest available spread width is more likely to fit the 12% cap, so it can still attempt small defined-risk trades. sm500 remains the most constrained account (it may still no-trade on days nothing cheap clears the cap + earnings + score gauntlet) — that's acceptable; the cap is never relaxed, only the universe is narrowed to give it a fighting chance.
+- **`min_net_credit`** (proposed **$0.05** /share): reject a spread whose computed `net_credit (short_mid − long_mid)` is below the floor. A thin/illiquid chain can yield `long_mid ≥ short_mid` → zero or negative credit. Zero credit pins `_compute_spread_pnl`'s `profit_pct` to `0.0` forever (`… if net_credit > 0 else 0.0`), so the 50%-profit close can never fire — the spread becomes un-manageable on the profit exit. Negative credit is a disguised **debit** spread placed via the credit-convention order, with `max_loss = width − net_credit > width`, busting the risk cap that only validated `width`. Enforced between the score/earnings/BP gauntlet and `_open_spread_mleg`: below-floor symbols are skipped (continue to the next eligible candidate, not a hard return).
 - **`max_concurrent_spreads`** (proposed **3** for sm1000/sm2000; effectively 0–1 for sm500 by the risk cap).
 - **`account_floor`** (proposed: skip all opens if equity < **$300**): don't trade a near-dead account.
 - **BP-fit:** only open if `options_buying_power ≥ spread max loss (collateral) + buffer`.
@@ -115,6 +116,7 @@ Selecting a group renders those accounts **side-by-side** on the account-aware p
 | `spread_dte_min/max` | 14 / 28 | reuse manual wheel DTE |
 | `target_spread_width` | smallest available ≥ $1 that fits risk cap | narrower = less risk, less credit |
 | `max_risk_pct_equity` | **12%** | sm500 ≈ can't afford a $1 spread → mostly no-trades (open #3) |
+| `min_net_credit` | **$0.05** /share | risk rail — reject non-credit / near-zero-credit spreads a thin chain can produce (long_mid ≥ short_mid). 0 credit pins profit_pct to 0 forever (50%-profit close can never fire); negative credit is a disguised debit spread that busts the risk cap |
 | `max_concurrent_spreads` | **3** | per account; sm500 effectively 0–1 via risk cap |
 | `account_floor` | **$300** equity | don't trade a near-dead account |
 | `earnings_exclusion_days` | **7** | hard skip; bot gains yfinance (open #2) |

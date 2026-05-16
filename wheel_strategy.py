@@ -2188,6 +2188,32 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # (7) fully eligible — place the order
         net_credit = round(short_mid - chosen["long_mid"], 4)
         width      = chosen["width"]
+
+        # Minimum net-credit floor. A thin/illiquid chain can produce
+        # long_mid >= short_mid, yielding a zero or NEGATIVE credit:
+        #   net_credit == 0 → _compute_spread_pnl pins profit_pct to 0.0
+        #     forever (`... if net_credit > 0 else 0.0`) → the 50%-profit
+        #     close trigger can NEVER fire → un-manageable spread.
+        #   net_credit < 0  → it's actually a DEBIT spread placed via the
+        #     credit-convention order; max_loss = width - net_credit > width,
+        #     blowing past the risk cap that only validated `width`.
+        # Reject below the config floor and try the next eligible symbol
+        # (continue, NOT return — only the terminal fall-through emits
+        # auto_spread_no_trade).
+        min_net_credit = cfg.get("min_net_credit", 0.05)
+        if net_credit < min_net_credit:
+            log(f"[auto-spread] {sym} net_credit ${net_credit:.4f} "
+                f"< min ${min_net_credit:.4f} (thin chain — would be a "
+                f"non-credit/near-zero spread) — skipping")
+            log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_skip",
+                      result="skipped", symbol=sym,
+                      notes="below_min_net_credit",
+                      details={"net_credit": net_credit,
+                               "min_net_credit": min_net_credit,
+                               "short_mid": round(short_mid, 4),
+                               "long_mid": round(chosen["long_mid"], 4)})
+            continue
+
         # Per-share max loss — MUST match _adopt_spread's convention
         # (round(width - net_credit, 4)). handle_spread / _compute_spread_pnl
         # work entirely in per-share units: the stop-loss trigger compares
@@ -2406,6 +2432,12 @@ def run_wheel():
         # passes above, BEFORE cycle end. Gated by AUTO_OPEN_SPREADS
         # (False on cons/agg/manual/live → fully inert there). Wrapped
         # so an opener failure can't lose this cycle's state writeback.
+        # MARKET-HOURS GATING: this warm hook has NO explicit is_market_open()
+        # check — it relies on the upstream `if not is_market_open(): return`
+        # (~line 2346) having already exited the cycle when the market is
+        # closed. Do NOT reorder this hook above that early-return, or it
+        # would place spreads after hours. (The cold-start branch ~line 2324
+        # carries its own explicit is_market_open() gate by contrast.)
         if AUTO_OPEN_SPREADS:
             try:
                 _auto_open_spread(state, account, config.get_mode(MODE))
