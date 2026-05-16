@@ -1,17 +1,23 @@
 name: Daily Summary
 
-# Five-step daily summary: conservative → aggressive → manual → live →
-# head-to-head comparison. Each step posts an embed to its corresponding
-# Discord channel:
+# Eight-step daily summary: 7 per-mode summaries then a head-to-head
+# comparison. Each step posts an embed to its corresponding Discord channel:
 #   1. Daily summary (conservative) → #daily-summary
 #   2. Daily summary (aggressive)   → #aggressive-summary
 #   3. Daily summary (manual)       → #manual-summary  (no head-to-head)
 #   4. Daily summary (live)         → #live-summary    (no head-to-head — real
 #                                     money, separate capital base, separate
 #                                     operating model from paper accounts)
-#   5. Head-to-head comparison      → #daily-summary AND #aggressive-summary
-#                                     (manual and live both excluded — different
-#                                      starting capital and operating model)
+#   5. Daily summary (sm500)        → #sm500-summary   (no head-to-head —
+#                                     different capital base and operating model)
+#   6. Daily summary (sm1000)       → #sm1000-summary  (no head-to-head —
+#                                     different capital base and operating model)
+#   7. Daily summary (sm2000)       → #sm2000-summary  (no head-to-head —
+#                                     different capital base and operating model)
+#   8. Head-to-head comparison      → #daily-summary AND #aggressive-summary
+#                                     (manual, live, and sm* all excluded —
+#                                      different starting capital and operating
+#                                      model)
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch.
 
@@ -110,6 +116,7 @@ jobs:
         run: python daily_summary.py --mode sm2000 --reset-counters
 
       - name: Head-to-head comparison
+        if: always()
         # Pulls both accounts' equity, premiums, etc. and posts a
         # side-by-side embed to BOTH summary channels.
         env:
