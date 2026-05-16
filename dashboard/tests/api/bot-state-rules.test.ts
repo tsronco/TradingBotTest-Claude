@@ -74,6 +74,27 @@ describe('POST /api/bot-state — bot:rules:* push', () => {
     },
   );
 
+  it.each(['sm500', 'sm1000', 'sm2000'] as const)(
+    'accepts SM bot-state/strategy/rules push for %s and writes to KV',
+    async (acct) => {
+      for (const kind of ['state', 'strategy', 'rules'] as const) {
+        kvSet.mockClear();
+        const key = `bot:${kind}:${acct}`;
+        const { req, res } = makeReqRes({
+          auth: 'Bearer test-token',
+          body: { key, payload: { acct } },
+        });
+        await handler(req, res);
+        expect(res.statusCode).toBe(200);
+        expect(kvSet).toHaveBeenCalledWith(key, { acct });
+        expect(kvSet).toHaveBeenCalledWith(
+          `bot:last-update:${key}`,
+          expect.any(String),
+        );
+      }
+    },
+  );
+
   it('rejects bot:rules:nonsense (key not in whitelist) with 400', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer test-token',

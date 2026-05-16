@@ -61,12 +61,11 @@ export async function runRuleChecks(
   }
 
   // --- Bot rules (warn-only) ---
+  // accountToMode returns a kv-keys Mode; all modes (incl. sm500/sm1000/sm2000)
+  // have their bot:rules:<mode> key whitelisted and pushed by the monitor
+  // workflows, so the lookup is valid for every account.
   const mode = accountToMode(input.account);
-  // SM accounts (sm500/sm1000/sm2000) don't have bot rules in KV — skip the lookup.
-  const hasBotRules = mode === 'conservative' || mode === 'aggressive' || mode === 'manual' || mode === 'live';
-  const bot = hasBotRules
-    ? ((await kv().get<BotRulesPayload>(botRulesKey(mode as 'conservative' | 'aggressive' | 'manual' | 'live'))) ?? null)
-    : null;
+  const bot = (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null;
   if (bot && input.asset_class === 'option') {
     if (Array.isArray(bot.wheel?.symbols) && !bot.wheel.symbols.includes(input.symbol)) {
       violations.push({
