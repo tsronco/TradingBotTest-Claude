@@ -504,7 +504,7 @@ pip install -r requirements-dev.txt   # one-time
 python -m pytest tests/ -v
 ```
 
-Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring + parity (extracted `screener_core.py`); full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script) including all 7 modes; SM-mode isolation (distinct Alpaca creds/state files/channels, `auto_open_spreads` flag correctness); auto-spread engine (normalize_scores, bp_wants_spread, risk-rail guards, earnings exclusion, `_open_spread_mleg` body, `_auto_open_spread` orchestration — all Alpaca + yfinance mocked); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). **380 pytest** (bot) + **23** push-rules tests (`tools/test_push_rules_to_dashboard.py`). Dashboard: **468 vitest / 76 files** (`cd dashboard && npx vitest run --pool=threads`).
+Currently covered: every wheel state transition (Stage 1 ↔ Stage 2, pending/filled/assigned/expired/early-close, migration, empty-state init, insufficient-cash refusal); long-options decision logic; wheel-screener scoring + parity (extracted `screener_core.py`); full mode-switching machinery (config.MODES integrity, parse_mode_arg, apply_mode in every script) including all 7 modes; SM-mode isolation (distinct Alpaca creds/state files/channels, `auto_open_spreads` flag correctness); auto-spread engine (normalize_scores, bp_wants_spread, risk-rail guards, earnings exclusion, `_open_spread_mleg` body, `_auto_open_spread` orchestration — all Alpaca + yfinance mocked); manual-mode behaviour (skip-new-puts gate, ladder scaling, OCC parsing, auto-discovery, position adoption). **380 pytest** (bot) + **23** push-rules tests (`tools/test_push_rules_to_dashboard.py`). Dashboard: **473 vitest / 77 files** (`cd dashboard && npx vitest run --pool=threads`).
 
 The congress-copy package has its own pytest setup under `congress-copy/tests/` (run from inside that directory using its `.venv`).
 
@@ -553,7 +553,7 @@ A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, 
 - Modify and cancel actions on `/orders` (modify price/qty via modal, cancel with confirm)
 - AI grading via Sonnet 4.6 with prompt caching — plain-English no-jargon system prompt, grades on close using entry context + price action
 - Auto-grade cron (`*/5 13-20 * * 1-5` UTC) via cron-job.org — hits `POST /api/cron/grade-open-trades`
-- 97 vitest tests total at end of Phase 2; 114 after the manual-account expansion (third paper account wired through the full dashboard surface); 121 after the 2026-05-07 fix pass; 468 / 76 files as of the small-account auto-spread effort (see below)
+- 97 vitest tests total at end of Phase 2; 114 after the manual-account expansion (third paper account wired through the full dashboard surface); 121 after the 2026-05-07 fix pass; 473 / 77 files as of the small-account auto-spread effort (see below)
 
 ### Trade lifecycle fixes (shipped 2026-05-07)
 
@@ -600,7 +600,7 @@ dashboard/
 │   ├── hooks/             # useAuth · useAccount · useBotState · useSettings
 │   ├── lib/               # api · format · wheelability · option-symbol · trade-types · rule-check
 │   └── styles/globals.css # Tailwind v4 with @theme block
-├── tests/                 # 468 vitest tests / 76 files
+├── tests/                 # 473 vitest tests / 77 files
 ├── scripts/generate-backup-codes.ts
 ├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
 ├── postcss.config.js · tsconfig.{,app,node}.json
@@ -670,7 +670,7 @@ Lifecycle states (no explicit status field — derived from timestamps):
 - Server-side `live` account 403 guard (closes Phase 2 follow-up #2). Set `LIVE_ENABLED=true` env to enable
 - TS Direction warning at `api/alpaca/[endpoint].ts:84` cleaned up via `as const` (closes Phase 2 follow-up #4)
 - Vercel function count: 9 → 10 of 12 Hobby cap (added `api/rules/[resource].ts`)
-- Test count: 146 → 351 vitest (+205) at Phase 3 ship, plus +9 pytest (`tools/test_push_rules_to_dashboard.py`); current totals 468 vitest / 380 pytest / 23 push-rules
+- Test count: 146 → 351 vitest (+205) at Phase 3 ship, plus +9 pytest (`tools/test_push_rules_to_dashboard.py`); current totals 473 vitest / 380 pytest / 23 push-rules
 - Smoke test playbook: `dashboard/docs/PHASE3_SMOKE.md`
 
 ### Mobile responsiveness (shipped 2026-05-15)
@@ -695,7 +695,7 @@ Three SM accounts registered across all ~8 dashboard enumeration sites: `Account
 
 Single-account chips and `All` are retained. Selecting a group renders those accounts side-by-side on account-aware pages (Home cards, Positions, Orders, etc.) via a single `accountsForSelection(mode)` derivation replacing all prior `mode==='both'` branches. Labels are decoupled from tokens. Spec/plan: `docs/superpowers/{specs,plans}/2026-05-15-small-account-auto-spread*.md`.
 
-Test counts after this effort: **468 vitest / 76 files** (dashboard); **380 pytest** + **23 push-rules** (`tools/test_push_rules_to_dashboard.py`).
+Test counts after this effort: **473 vitest / 77 files** (dashboard); **380 pytest** + **23 push-rules** (`tools/test_push_rules_to_dashboard.py`).
 
 ### Phase 4 (next) — known follow-ups from Phase 3
 
