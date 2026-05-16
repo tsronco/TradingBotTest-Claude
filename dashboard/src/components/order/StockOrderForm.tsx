@@ -11,7 +11,7 @@ import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
 
-type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
+type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
 
 interface Props {
   symbol: string;

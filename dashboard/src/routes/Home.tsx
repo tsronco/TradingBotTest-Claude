@@ -4,12 +4,26 @@ import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
 import { usePeriod, useGranularity, type Period } from '../hooks/usePeriod';
 import { fmtUsd, fmtPct } from '../lib/format';
+import { accountsForSelection } from '../lib/account-utils';
+import type { Mode } from '../lib/account-utils';
 
 interface AcctResp { account: { equity: string; last_equity: string } }
 
 function periodFlag(p: Period): string {
   return p === '1A' ? '1y' : p.toLowerCase();
 }
+
+type HomeAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
+
+const HOME_MODE_TO_CARD: Record<Mode, { acctKey: HomeAcctKey; label: string }> = {
+  conservative: { acctKey: 'CONS',  label: 'Conservative' },
+  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
+  manual:       { acctKey: 'MAN',   label: 'Manual' },
+  live:         { acctKey: 'LIVE',  label: 'Live $' },
+  sm500:        { acctKey: 'SM500', label: '$500' },
+  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
+  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
+};
 
 export default function Home() {
   const [mode] = useAccount();
@@ -33,22 +47,41 @@ export default function Home() {
     queryKey: ['account', 'live'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=live'),
   });
+  const sm500Q = useQuery({
+    queryKey: ['account', 'sm500'],
+    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm500'),
+  });
+  const sm1000Q = useQuery({
+    queryKey: ['account', 'sm1000'],
+    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm1000'),
+  });
+  const sm2000Q = useQuery({
+    queryKey: ['account', 'sm2000'],
+    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm2000'),
+  });
 
-  const consEq = consQ.data ? Number(consQ.data.account.equity) : 0;
-  const aggEq = aggQ.data ? Number(aggQ.data.account.equity) : 0;
-  const manEq = manQ.data ? Number(manQ.data.account.equity) : 0;
-  const liveEq = liveQ.data ? Number(liveQ.data.account.equity) : 0;
-  const consLast = consQ.data ? Number(consQ.data.account.last_equity) : 0;
-  const aggLast = aggQ.data ? Number(aggQ.data.account.last_equity) : 0;
-  const manLast = manQ.data ? Number(manQ.data.account.last_equity) : 0;
-  const liveLast = liveQ.data ? Number(liveQ.data.account.last_equity) : 0;
+  const equityMap: Record<Mode, number> = {
+    conservative: consQ.data ? Number(consQ.data.account.equity) : 0,
+    aggressive:   aggQ.data ? Number(aggQ.data.account.equity) : 0,
+    manual:       manQ.data ? Number(manQ.data.account.equity) : 0,
+    live:         liveQ.data ? Number(liveQ.data.account.equity) : 0,
+    sm500:        sm500Q.data ? Number(sm500Q.data.account.equity) : 0,
+    sm1000:       sm1000Q.data ? Number(sm1000Q.data.account.equity) : 0,
+    sm2000:       sm2000Q.data ? Number(sm2000Q.data.account.equity) : 0,
+  };
+  const lastMap: Record<Mode, number> = {
+    conservative: consQ.data ? Number(consQ.data.account.last_equity) : 0,
+    aggressive:   aggQ.data ? Number(aggQ.data.account.last_equity) : 0,
+    manual:       manQ.data ? Number(manQ.data.account.last_equity) : 0,
+    live:         liveQ.data ? Number(liveQ.data.account.last_equity) : 0,
+    sm500:        sm500Q.data ? Number(sm500Q.data.account.last_equity) : 0,
+    sm1000:       sm1000Q.data ? Number(sm1000Q.data.account.last_equity) : 0,
+    sm2000:       sm2000Q.data ? Number(sm2000Q.data.account.last_equity) : 0,
+  };
 
-  let total = 0, totalLast = 0;
-  if (mode === 'conservative') { total = consEq; totalLast = consLast; }
-  else if (mode === 'aggressive') { total = aggEq; totalLast = aggLast; }
-  else if (mode === 'manual') { total = manEq; totalLast = manLast; }
-  else if (mode === 'live') { total = liveEq; totalLast = liveLast; }
-  else { total = consEq + aggEq + manEq + liveEq; totalLast = consLast + aggLast + manLast + liveLast; }
+  const selectedModes = accountsForSelection(mode);
+  const total = selectedModes.reduce((s, m2) => s + equityMap[m2], 0);
+  const totalLast = selectedModes.reduce((s, m2) => s + lastMap[m2], 0);
   const dayChange = total - totalLast;
   const dayPct = totalLast ? (dayChange / totalLast) * 100 : 0;
 
@@ -56,7 +89,7 @@ export default function Home() {
   const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
   const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  const cardCount = mode === 'both' ? 4 : 1;
+  const cardCount = selectedModes.length;
 
   return (
     <div className="p-3 md:p-6 max-w-[1480px]">
@@ -67,7 +100,7 @@ export default function Home() {
         <span className="text-fg">portfolio</span>
         <span className="text-amber">--today</span>
         <span className="text-dim">
-          --mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span>{' '}
+          --mode=<span className="text-fg">{cardCount === 7 ? 'all' : mode}</span>{' '}
           --range=<span className="text-fg">{periodFlag(period)}</span>
           {period === '1D' && (
             <> --interval=<span className="text-fg">{gran}</span></>
@@ -99,7 +132,7 @@ export default function Home() {
 
         {/* aggregate equity */}
         <div className="text-right">
-          <div className="text-[10px] tracking-[0.3em] text-dim">{mode === 'both' ? 'TOTAL EQUITY' : 'EQUITY'}</div>
+          <div className="text-[10px] tracking-[0.3em] text-dim">{cardCount > 1 ? 'TOTAL EQUITY' : 'EQUITY'}</div>
           <div className="text-hi text-[26px] font-bold tnum leading-none">{fmtUsd(total)}</div>
           <div className="text-[11px] mt-1 tnum">
             <span className={dayChange >= 0 ? 'text-hi' : 'text-red'}>
@@ -118,13 +151,12 @@ export default function Home() {
         <span className="text-dim">$ pnl --range <span className="text-fg">{periodFlag(period)}</span></span>
       </div>
 
-      {/* account cards — live spans the full top row, cons/agg/manual share row 2.
-          The full-row span on LIVE is enforced via CSS in globals.css. */}
+      {/* account cards */}
       <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-        <AccountCard mode="live" label="Live $" acctKey="LIVE" />
-        <AccountCard mode="conservative" label="Conservative" acctKey="CONS" />
-        <AccountCard mode="aggressive" label="Aggressive" acctKey="AGG" />
-        <AccountCard mode="manual" label="Manual" acctKey="MAN" />
+        {selectedModes.map((m2) => {
+          const { acctKey, label } = HOME_MODE_TO_CARD[m2];
+          return <AccountCard key={m2} mode={m2} label={label} acctKey={acctKey} />;
+        })}
       </div>
 
       {/* footer ribbon */}

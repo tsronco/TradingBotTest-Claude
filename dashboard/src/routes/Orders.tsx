@@ -13,6 +13,7 @@ import {
   underlyingFromSymbol,
   collectUnderlyings,
 } from '../lib/order-filters';
+import { accountsForSelection } from '../lib/account-utils';
 
 interface Order {
   id: string;
@@ -75,14 +76,27 @@ function sideColor(side: string): string {
   return 'text-fg';
 }
 
-type OrderMode = 'conservative' | 'aggressive' | 'manual' | 'live';
-type OrderAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE';
+type OrderMode = 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
+type OrderAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
 
 const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string }> = {
-  CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
-  AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
-  MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
-  LIVE: { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  CONS:  { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
+  AGG:   { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
+  MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+  LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  SM500: { text: 'text-mid',   bg: 'bg-mid',   tag: '$500' },
+  SM1K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$1K ' },
+  SM2K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$2K ' },
+};
+
+const ORDER_MODE_TO_CARD: Record<OrderMode, { acctKey: OrderAcctKey; label: string }> = {
+  conservative: { acctKey: 'CONS',  label: 'Conservative' },
+  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
+  manual:       { acctKey: 'MAN',   label: 'Manual' },
+  live:         { acctKey: 'LIVE',  label: 'Live $' },
+  sm500:        { acctKey: 'SM500', label: '$500' },
+  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
+  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
 };
 
 interface OrdersTableProps {
@@ -323,12 +337,10 @@ export default function Orders() {
   const [dateRange, setDateRange] = useState<DateRangeKey>('month-rolling');
 
   const visibleCards = useMemo<VisibleCard[]>(() => {
-    const cards: VisibleCard[] = [];
-    if (mode === 'both' || mode === 'conservative') cards.push({ mode: 'conservative', acctKey: 'CONS', label: 'Conservative' });
-    if (mode === 'both' || mode === 'aggressive') cards.push({ mode: 'aggressive', acctKey: 'AGG', label: 'Aggressive' });
-    if (mode === 'both' || mode === 'manual') cards.push({ mode: 'manual', acctKey: 'MAN', label: 'Manual' });
-    if (mode === 'both' || mode === 'live') cards.push({ mode: 'live', acctKey: 'LIVE', label: 'Live $' });
-    return cards;
+    return accountsForSelection(mode).map((m) => {
+      const { acctKey, label } = ORDER_MODE_TO_CARD[m as OrderMode];
+      return { mode: m as OrderMode, acctKey, label };
+    });
   }, [mode]);
 
   // Date filter applies only to closed orders (open queue is always small + recent).
@@ -379,7 +391,7 @@ export default function Orders() {
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">orders</span>
         <span className="text-amber">--list</span>
-        <span className="text-dim">--mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span></span>
+        <span className="text-dim">--mode=<span className="text-fg">{visibleCards.length === 7 ? 'all' : mode}</span></span>
         {symbol && <span className="text-dim">--symbol=<span className="text-fg">{symbol}</span></span>}
         <span className="text-dim">--range=<span className="text-fg">{dateRange}</span></span>
         <span className="caret" />

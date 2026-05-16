@@ -100,15 +100,23 @@ describe('rules-types', () => {
     expect(manual.mode).toBe('manual');
   });
 
-  it('AssignmentEntry accepts all three paper account IDs', () => {
+  it('AssignmentEntry accepts all paper account IDs (original 3 + 3 SM)', () => {
     const e1: AssignmentEntry = {
       parent_trade_id: 'T-1', underlying: 'F', strike: 12, qty: 100,
       account: 'conservative_paper', detected_at: '2026-05-07T00:00:00Z',
     };
     const e2: AssignmentEntry = { ...e1, account: 'aggressive_paper' };
     const e3: AssignmentEntry = { ...e1, account: 'manual_paper' };
+    const e4: AssignmentEntry = { ...e1, account: 'sm500_paper' };
+    const e5: AssignmentEntry = { ...e1, account: 'sm1000_paper' };
+    const e6: AssignmentEntry = { ...e1, account: 'sm2000_paper' };
+    // Original 3 still pass (not weakened)
     expect([e1.account, e2.account, e3.account]).toEqual([
       'conservative_paper', 'aggressive_paper', 'manual_paper',
+    ]);
+    // SM 3 also accepted
+    expect([e4.account, e5.account, e6.account]).toEqual([
+      'sm500_paper', 'sm1000_paper', 'sm2000_paper',
     ]);
   });
 });

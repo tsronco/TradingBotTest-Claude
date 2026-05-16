@@ -62,7 +62,11 @@ export async function runRuleChecks(
 
   // --- Bot rules (warn-only) ---
   const mode = accountToMode(input.account);
-  const bot = (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null;
+  // SM accounts (sm500/sm1000/sm2000) don't have bot rules in KV — skip the lookup.
+  const hasBotRules = mode === 'conservative' || mode === 'aggressive' || mode === 'manual' || mode === 'live';
+  const bot = hasBotRules
+    ? ((await kv().get<BotRulesPayload>(botRulesKey(mode as 'conservative' | 'aggressive' | 'manual' | 'live'))) ?? null)
+    : null;
   if (bot && input.asset_class === 'option') {
     if (Array.isArray(bot.wheel?.symbols) && !bot.wheel.symbols.includes(input.symbol)) {
       violations.push({
@@ -98,9 +102,12 @@ function sevRank(s: RuleSeverity): number {
   return s === 'block' ? 0 : s === 'warn' ? 1 : 2;
 }
 
-function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' {
+function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000' {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'sm500_paper') return 'sm500';
+  if (account === 'sm1000_paper') return 'sm1000';
+  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
   return 'conservative';
 }
