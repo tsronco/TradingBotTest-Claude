@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import MonthGrid from '../components/calendar/MonthGrid';
 import DayDrawer from '../components/calendar/DayDrawer';
+import { ALL_ACCOUNTS } from '../lib/account-utils';
 
 interface DayBucket {
   realized_pnl: number;
@@ -11,7 +12,7 @@ interface DayBucket {
   open_options_expiring: Array<{ trade_id: string; symbol: string; option_type: 'put' | 'call'; strike: number }>;
 }
 
-const ACCOUNTS = ['', 'conservative_paper', 'aggressive_paper', 'manual_paper'] as const;
+const ACCOUNTS = ['', ...ALL_ACCOUNTS] as const;
 const ASSET_CLASSES = ['', 'stock', 'option'] as const;
 
 export default function Calendar() {

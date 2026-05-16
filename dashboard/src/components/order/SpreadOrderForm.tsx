@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
-import { accountToMode, type Mode } from '../../lib/account-utils';
+import { accountToMode, ALL_PAPER_ACCOUNTS, type Mode } from '../../lib/account-utils';
 import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
 import PayoffChart from './PayoffChart';
@@ -200,31 +200,21 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
 
   return (
     <div className="space-y-4 text-[12px]">
-      {/* account selector — cons/agg/manual all enabled; live stays disabled (real-money/bot-only) */}
+      {/* account selector — all 6 paper accounts (cons/agg/manual + sm500/sm1000/sm2000)
+          enabled; live stays disabled (real-money/bot-only) */}
       <div className="flex flex-col gap-1">
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
-          <button
-            type="button"
-            className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`}
-            onClick={() => setAccount('conservative_paper')}
-          >
-            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
-          </button>
-          <button
-            type="button"
-            className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`}
-            onClick={() => setAccount('aggressive_paper')}
-          >
-            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
-          </button>
-          <button
-            type="button"
-            className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`}
-            onClick={() => setAccount('manual_paper')}
-          >
-            [manual_paper{account === 'manual_paper' ? '*' : ''}]
-          </button>
+          {ALL_PAPER_ACCOUNTS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className={`pbtn max-md:min-h-[44px] ${account === a ? 'active' : ''}`}
+              onClick={() => setAccount(a)}
+            >
+              [{a}{account === a ? '*' : ''}]
+            </button>
+          ))}
           <button
             type="button"
             disabled
