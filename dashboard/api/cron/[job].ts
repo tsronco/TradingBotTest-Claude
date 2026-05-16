@@ -35,9 +35,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(404).json({ error: 'unknown_job' });
 }
 
+// Account → bot mode. MUST match api/_lib/rule-check.ts accountToMode() and the
+// duplicate copy in trades/[action].ts modeFromAccount() exactly — the grade/sync
+// cron routes SM trades to their own SM Alpaca credentials, NOT conservative's.
+// (DRY follow-up: three copies across the api/ vs src/ build-root boundary;
+// keep in sync.)
 function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'sm500_paper') return 'sm500';
+  if (account === 'sm1000_paper') return 'sm1000';
+  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
   return 'conservative';
 }

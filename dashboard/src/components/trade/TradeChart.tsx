@@ -4,6 +4,7 @@ import { createChart, ColorType, LineSeries, createSeriesMarkers } from 'lightwe
 import type { UTCTimestamp } from 'lightweight-charts';
 import { api } from '../../lib/api';
 import type { Trade } from '../../lib/trade-types';
+import { accountToMode, type Mode } from '../../lib/account-utils';
 
 interface Bar { t: string; o: number; h: number; l: number; c: number; }
 
@@ -13,11 +14,9 @@ function toTs(iso: string): UTCTimestamp {
 
 export function TradeChart({ trade }: { trade: Trade }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
-    trade.account === 'aggressive_paper' ? 'aggressive'
-    : trade.account === 'manual_paper' ? 'manual'
-    : trade.account === 'live' ? 'live'
-    : 'conservative';
+  // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
+  // An SM trade's chart must pull bars from the SM account, not conservative.
+  const mode: Mode = accountToMode(trade.account);
 
   // Pad an hour of pre-trade context so the chart is meaningful even for
   // a trade submitted minutes ago (1Hour bars wouldn't have closed yet).

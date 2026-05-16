@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
 import { usePeriod, useGranularity, type Period } from '../hooks/usePeriod';
 import { fmtUsd, fmtPct } from '../lib/format';
-import { accountsForSelection } from '../lib/account-utils';
+import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
 import type { Mode } from '../lib/account-utils';
 
 interface AcctResp { account: { equity: string; last_equity: string } }
@@ -100,7 +100,7 @@ export default function Home() {
         <span className="text-fg">portfolio</span>
         <span className="text-amber">--today</span>
         <span className="text-dim">
-          --mode=<span className="text-fg">{cardCount === 7 ? 'all' : mode}</span>{' '}
+          --mode=<span className="text-fg">{cardCount === ALL_MODES.length ? 'all' : mode}</span>{' '}
           --range=<span className="text-fg">{periodFlag(period)}</span>
           {period === '1D' && (
             <> --interval=<span className="text-fg">{gran}</span></>

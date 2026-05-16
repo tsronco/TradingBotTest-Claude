@@ -243,4 +243,77 @@ describe('POST /api/trades/submit', () => {
     // Open index push
     expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
   });
+
+  // --- SM cross-account routing (Phase 6.x critical fix) ---
+  // modeFromAccount() in trades/[action].ts MUST route SM accounts to their
+  // own Alpaca creds — the spread submit path calls
+  // alpacaTradeMutation(modeFromAccount(p.account), ...). A regression here
+  // would silently place an SM spread on the conservative paper account.
+  it.each([
+    ['sm500_paper', 'sm500'],
+    ['sm1000_paper', 'sm1000'],
+    ['sm2000_paper', 'sm2000'],
+  ])('routes %s spread submit to mode %s, not conservative', async (account, expectedMode) => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    kvIncr.mockResolvedValue(1);
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alpaca-sm-1', status: 'new', submitted_at: '2026-05-16T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      kind: 'spread',
+      account,
+      symbol: 'AAL',
+      spread_type: 'put_credit',
+      short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+      long_leg:  { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+      expiration: '2026-05-29',
+      qty: 1,
+      limit_price: -0.25,
+      entry_grade: 'B+',
+      entry_reasoning: 'SM small-account spread routing test',
+    }), res);
+
+    // The mleg order + the server-side positions re-check both go through the
+    // SM mode, never conservative.
+    expect(alpacaTradeMutationMock).toHaveBeenCalledTimes(1);
+    expect(alpacaTradeMutationMock.mock.calls[0][0]).toBe(expectedMode);
+    expect(alpacaTradeMutationMock.mock.calls[0][0]).not.toBe('conservative');
+  });
+
+  // Stock submit path: modeFromAccount feeds getQuote (alpacaData) + the
+  // positions re-check (alpacaTrade). Assert the quote call gets the SM mode.
+  it.each([
+    ['sm500_paper', 'sm500'],
+    ['sm1000_paper', 'sm1000'],
+    ['sm2000_paper', 'sm2000'],
+  ])('routes %s stock submit quote to mode %s, not conservative', async (account, expectedMode) => {
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
+    verifyTotpMock.mockReturnValue(true);
+    kvIncr.mockResolvedValue(1);
+    alpacaCreateOrder.mockResolvedValue({ id: 'alp-sm-stk-1', submitted_at: '2026-05-16T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      account, asset_class: 'stock', symbol: 'TSLA',
+      side: 'buy', qty: 5, order_type: 'limit', limit_price: 321.40,
+      tif: 'day', entry_grade: 'A', entry_reasoning: 'SM routing', tags: [],
+    }), res);
+    // getQuote(symbol, asset_class, modeFromAccount(account)) → alpacaData(mode, ...)
+    expect(dataMock).toHaveBeenCalled();
+    const quoteModes = dataMock.mock.calls.map((c: any[]) => c[0]);
+    expect(quoteModes).toContain(expectedMode);
+    expect(quoteModes).not.toContain('conservative');
+  });
 });

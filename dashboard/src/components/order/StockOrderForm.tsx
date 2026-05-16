@@ -10,6 +10,7 @@ import { AccountBpIndicator } from './AccountBpIndicator';
 import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
+import { accountToMode, type Mode } from '../../lib/account-utils';
 
 type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
 
@@ -34,11 +35,9 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
-    account === 'aggressive_paper' ? 'aggressive'
-    : account === 'manual_paper' ? 'manual'
-    : account === 'live' ? 'live'
-    : 'conservative';
+  // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
+  // Quotes/BP/positions must hit the SELECTED account (incl. SM), not conservative.
+  const mode: Mode = accountToMode(account);
   const { data: quote } = useQuery({
     queryKey: ['quote', symbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${symbol}&mode=${mode}`),
@@ -134,6 +133,20 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           >
             [live ${account === 'live' ? '*' : ''}]
           </button>
+          {([
+            ['sm500_paper', '$500'],
+            ['sm1000_paper', '$1,000'],
+            ['sm2000_paper', '$2,000'],
+          ] as [StockAccount, string][]).map(([acct, label]) => (
+            <button
+              key={acct}
+              type="button"
+              className={`pbtn max-md:min-h-[44px] ${account === acct ? 'active' : ''}`}
+              onClick={() => setAccount(acct)}
+            >
+              [{label}{account === acct ? '*' : ''}]
+            </button>
+          ))}
         </div>
         <AccountBpIndicator mode={mode} assetClass="stock" exposure={liveExposure} />
       </Section>
@@ -267,7 +280,7 @@ function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange:
   );
 }
 
-function PositionLine({ symbol, mode }: { symbol: string; mode: 'conservative' | 'aggressive' | 'manual' | 'live' }) {
+function PositionLine({ symbol, mode }: { symbol: string; mode: Mode }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),
