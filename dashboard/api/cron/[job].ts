@@ -338,11 +338,23 @@ async function resolveOptionSettlement(
   trade: Trade,
 ): Promise<'assigned' | 'expired' | null> {
   if (!trade.contract_symbol) return 'expired';
+  // Window the activity fetch from a few days before expiry. The OPEXP/OPASN
+  // posts on/after the expiration date, but Alpaca's `after` filter is
+  // date-granular and may be strictly-after — so anchoring exactly on the
+  // expiration date risks excluding a same-day settlement. A wider window is
+  // safe because we match precisely on the OCC contract symbol below, which
+  // is unique to this contract/strike/expiry.
+  let after: string | undefined;
+  if (trade.expiration) {
+    const d = new Date(trade.expiration + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 5);
+    after = d.toISOString().slice(0, 10);
+  }
   let activities: any[] = [];
   try {
     const raw = await alpacaTrade<any[]>(mode, '/v2/account/activities', {
       activity_types: 'OPEXP,OPASN',
-      after: trade.expiration ? String(trade.expiration).slice(0, 10) : undefined,
+      after,
       page_size: 100,
     });
     activities = Array.isArray(raw) ? raw : [];
