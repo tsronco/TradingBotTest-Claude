@@ -79,6 +79,36 @@ jobs:
           DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
         run: python daily_summary.py --mode live --reset-counters
 
+      - name: Daily summary (sm500)
+        env:
+          ALPACA_SM500_API_KEY:           ${{ secrets.ALPACA_SM500_API_KEY }}
+          ALPACA_SM500_API_SECRET:        ${{ secrets.ALPACA_SM500_API_SECRET }}
+          ALPACA_SM500_BASE_URL:          ${{ secrets.ALPACA_SM500_BASE_URL }}
+          DISCORD_SM500_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM500_SUMMARY_WEBHOOK }}
+          DISCORD_SM500_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM500_ERRORS_WEBHOOK }}
+          DISCORD_SM500_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM500_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode sm500 --reset-counters
+
+      - name: Daily summary (sm1000)
+        env:
+          ALPACA_SM1000_API_KEY:           ${{ secrets.ALPACA_SM1000_API_KEY }}
+          ALPACA_SM1000_API_SECRET:        ${{ secrets.ALPACA_SM1000_API_SECRET }}
+          ALPACA_SM1000_BASE_URL:          ${{ secrets.ALPACA_SM1000_BASE_URL }}
+          DISCORD_SM1000_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM1000_SUMMARY_WEBHOOK }}
+          DISCORD_SM1000_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM1000_ERRORS_WEBHOOK }}
+          DISCORD_SM1000_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM1000_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode sm1000 --reset-counters
+
+      - name: Daily summary (sm2000)
+        env:
+          ALPACA_SM2000_API_KEY:           ${{ secrets.ALPACA_SM2000_API_KEY }}
+          ALPACA_SM2000_API_SECRET:        ${{ secrets.ALPACA_SM2000_API_SECRET }}
+          ALPACA_SM2000_BASE_URL:          ${{ secrets.ALPACA_SM2000_BASE_URL }}
+          DISCORD_SM2000_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM2000_SUMMARY_WEBHOOK }}
+          DISCORD_SM2000_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM2000_ERRORS_WEBHOOK }}
+          DISCORD_SM2000_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM2000_ACTIONS_WEBHOOK }}
+        run: python daily_summary.py --mode sm2000 --reset-counters
+
       - name: Head-to-head comparison
         # Pulls both accounts' equity, premiums, etc. and posts a
         # side-by-side embed to BOTH summary channels.
