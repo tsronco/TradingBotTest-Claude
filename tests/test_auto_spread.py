@@ -246,6 +246,12 @@ def test_auto_open_happy_path_opens_one_spread(monkeypatch):
     assert state["CHEAP"]["long_leg"]["occ"] == "CHEAP260612P00017000"
     assert state["CHEAP"]["width"] == 1.0
     assert round(state["CHEAP"]["net_credit"], 2) == 0.25
+    # max_loss MUST be per-share (width - net_credit), matching
+    # _adopt_spread's round(width - net_credit, 4). The old buggy
+    # width*100 made the 50%-max-loss stop physically unreachable.
+    # width 1.0, net_credit 0.25 -> round(1.0 - 0.25, 4) == 0.75
+    assert state["CHEAP"]["max_loss"] == round(1.0 - 0.25, 4)
+    assert state["CHEAP"]["max_loss"] == 0.75
     assert state["CHEAP"]["expiration"] == "2026-06-12"
     assert state["CHEAP"]["opened_at"] is not None
 
@@ -439,9 +445,12 @@ def test_auto_open_max_one_per_cycle(monkeypatch):
     assert "BBB" not in state
 
 
-def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
-    """Per-cycle wiring: run_wheel invokes _auto_open_spread after the
-    management passes when AUTO_OPEN_SPREADS is on (SM mode)."""
+def test_run_wheel_calls_auto_open_on_cold_start_empty_discover(monkeypatch, tmp_path):
+    """COLD START (the real first-trade path): an SM account discovers
+    ZERO symbols. run_wheel must STILL invoke _auto_open_spread exactly
+    once AND persist via save_state before the no-op return — otherwise
+    the opener can never place its first trade (chicken-and-egg: nothing
+    to discover until the opener opens something)."""
     import json
     ws.apply_mode("sm1000")
     assert ws.AUTO_OPEN_SPREADS is True   # apply_mode set it
@@ -452,20 +461,60 @@ def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
     monkeypatch.setattr(ws, "is_market_open", lambda: True)
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": "1000", "options_buying_power": "1000"})
+    # EMPTY discover — the cold-start case the old test masked with {"ZZZ"}.
     monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: set())
 
     called = []
     monkeypatch.setattr(ws, "_auto_open_spread",
                         lambda state, account, cfg: called.append(cfg["log_stream"]))
-    # auto-discover yields no symbols -> early no-op return BEFORE the
-    # auto-open hook would run, so seed one tracked symbol to keep the
-    # cycle alive past the discover gate.
+    saved = []
+    monkeypatch.setattr(ws, "save_state", lambda state: saved.append(True))
+
+    ws.run_wheel()
+    assert called == ["sm1000"], (
+        "run_wheel must call _auto_open_spread exactly once even when "
+        "_discover_wheel_state returns an empty set (cold start)"
+    )
+    assert saved == [True], (
+        "save_state must persist after the cold-start opener so the next "
+        "cycle's _discover_wheel_state finds the seeded spread"
+    )
+
+    # restore default mode so later tests/imports see conservative
+    ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
+    """Per-cycle wiring (NON-EMPTY discover path): run_wheel invokes
+    _auto_open_spread exactly once after the management passes when
+    AUTO_OPEN_SPREADS is on (SM mode) and at least one symbol is
+    discovered. Guards against double-invocation across the two hook
+    sites (cold-start branch vs. end-of-cycle hook)."""
+    import json
+    ws.apply_mode("sm1000")
+    assert ws.AUTO_OPEN_SPREADS is True   # apply_mode set it
+
+    state_file = tmp_path / "wheel_state_sm1000.json"
+    state_file.write_text(json.dumps({"_meta": {}}))
+    monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(ws, "is_market_open", lambda: True)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "1000", "options_buying_power": "1000"})
+
+    called = []
+    monkeypatch.setattr(ws, "_auto_open_spread",
+                        lambda state, account, cfg: called.append(cfg["log_stream"]))
+    # Non-empty discover -> cycle proceeds past the discover gate to the
+    # end-of-cycle hook. Must run exactly once (NOT also via cold-start).
     monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: {"ZZZ"})
     monkeypatch.setattr(ws, "get_latest_price", lambda sym: 10.0)
     monkeypatch.setattr(ws, "handle_stage1", lambda *a, **kw: None)
 
     ws.run_wheel()
-    assert called == ["sm1000"], "run_wheel must call _auto_open_spread once on SM"
+    assert called == ["sm1000"], (
+        "run_wheel must call _auto_open_spread exactly once on the "
+        "non-empty path (no double-run across hook sites)"
+    )
 
     # restore default mode so later tests/imports see conservative
     ws.apply_mode(config.DEFAULT_MODE)

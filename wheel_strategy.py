@@ -2188,7 +2188,12 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # (7) fully eligible — place the order
         net_credit = round(short_mid - chosen["long_mid"], 4)
         width      = chosen["width"]
-        max_loss   = round(width * 100.0, 2)
+        # Per-share max loss — MUST match _adopt_spread's convention
+        # (round(width - net_credit, 4)). handle_spread / _compute_spread_pnl
+        # work entirely in per-share units: the stop-loss trigger compares
+        # pnl["loss_per_share"] against max_loss * SPREAD_STOP_LOSS_PCT, so a
+        # contract-multiplied value (width*100) makes the stop unreachable.
+        max_loss   = round(width - net_credit, 4)
         try:
             order = _open_spread_mleg(short_occ, chosen["long_occ"],
                                       1, net_credit)
@@ -2278,6 +2283,34 @@ def run_wheel():
             SYMBOLS = sorted(discovered)
             log(f"Auto-discovered {len(SYMBOLS)} wheel symbols: {', '.join(SYMBOLS) if SYMBOLS else '(none)'}")
             if not SYMBOLS:
+                # AUTO_OPEN_SPREADS modes (SM) discover zero symbols on a
+                # brand-new empty account. Without this branch, run_wheel
+                # would return here BEFORE the auto-open hook below, so the
+                # opener could never place its first trade (chicken-and-egg:
+                # no position to discover until the opener opens one). Run
+                # the opener on the cold-start path too, wrapped identically
+                # to the normal hook, and persist any newly-seeded spread so
+                # the NEXT cycle's _discover_wheel_state finds the position
+                # and handle_spread manages it. For non-AUTO_OPEN modes this
+                # whole block is byte-identical to before (the guard is
+                # False → falls straight through to the original
+                # log/save_state/log_event/return).
+                if AUTO_OPEN_SPREADS and is_market_open():
+                    account = get_account()
+                    try:
+                        _auto_open_spread(state, account, config.get_mode(MODE))
+                    except Exception as e:
+                        log(f"[auto-spread] _auto_open_spread crashed: {type(e).__name__}: {e}")
+                        send_embed(
+                            ERRORS_CH, "wheel_strategy.py — _auto_open_spread crashed",
+                            color=Color.RED,
+                            description=f"`{type(e).__name__}: {str(e)[:500]}`",
+                            footer=f"wheel_strategy.py · {MODE}",
+                            actions_channel=ACTIONS_CH,
+                        )
+                        log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_exception",
+                                  result="failure",
+                                  notes=f"{type(e).__name__}: {str(e)[:500]}")
                 log("No wheel-relevant positions held — manual wheel cycle is a no-op.")
                 save_state(state)
                 log_event(LOG_STREAM, "wheel_strategy.py", "no_positions",
