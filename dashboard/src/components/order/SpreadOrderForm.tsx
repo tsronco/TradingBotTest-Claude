@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { AccountId, GradeLetter, RuleWarning } from '../../lib/trade-types';
+import { accountToMode, type Mode } from '../../lib/account-utils';
 import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
 import PayoffChart from './PayoffChart';
@@ -54,12 +55,11 @@ interface Props {
 }
 
 export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props) {
-  // Derive mode from selected account, same pattern as StockOrderForm.
-  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
-    account === 'aggressive_paper' ? 'aggressive'
-    : account === 'manual_paper' ? 'manual'
-    : account === 'live' ? 'live'
-    : 'conservative';
+  // Derive mode from selected account via the single source of truth
+  // (mirrors api/_lib/rule-check.ts accountToMode). The account prop can be
+  // any AccountId incl. SM via the ?account= URL param on /order/new — a
+  // hardcoded 4-branch chain silently routed SM quotes/preview to conservative.
+  const mode: Mode = accountToMode(account);
 
   // Spot price for the underlying (used by PayoffChart)
   const { data: spotData } = useQuery({

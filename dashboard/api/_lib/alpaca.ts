@@ -1,9 +1,14 @@
 import { createClient } from '@alpacahq/typescript-sdk';
 
-export type Mode = 'conservative' | 'aggressive' | 'manual' | 'live';
+export type Mode =
+  | 'conservative' | 'aggressive' | 'manual' | 'live'
+  | 'sm500' | 'sm1000' | 'sm2000';
 
 export function isMode(s: unknown): s is Mode {
-  return s === 'conservative' || s === 'aggressive' || s === 'manual' || s === 'live';
+  return (
+    s === 'conservative' || s === 'aggressive' || s === 'manual' || s === 'live' ||
+    s === 'sm500' || s === 'sm1000' || s === 'sm2000'
+  );
 }
 
 export function modeFromQuery(q: unknown): Mode {
@@ -23,6 +28,15 @@ function credsFor(mode: Mode): { key: string; secret: string } {
   } else if (mode === 'manual') {
     key = process.env.ALPACA_MANUAL_API_KEY;
     secret = process.env.ALPACA_MANUAL_API_SECRET;
+  } else if (mode === 'sm500') {
+    key = process.env.ALPACA_SM500_API_KEY;
+    secret = process.env.ALPACA_SM500_API_SECRET;
+  } else if (mode === 'sm1000') {
+    key = process.env.ALPACA_SM1000_API_KEY;
+    secret = process.env.ALPACA_SM1000_API_SECRET;
+  } else if (mode === 'sm2000') {
+    key = process.env.ALPACA_SM2000_API_KEY;
+    secret = process.env.ALPACA_SM2000_API_SECRET;
   } else {
     // live — REAL MONEY. Hits api.alpaca.markets (not paper-api).
     key = process.env.ALPACA_LIVE_API_KEY;

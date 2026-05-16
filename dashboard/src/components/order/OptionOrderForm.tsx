@@ -12,8 +12,9 @@ import { AccountBpIndicator } from './AccountBpIndicator';
 import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
+import { accountToMode, type Mode } from '../../lib/account-utils';
 
-type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
+type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
 
 interface Props {
   contractSymbol: string;
@@ -39,11 +40,9 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mode: 'conservative' | 'aggressive' | 'manual' | 'live' =
-    account === 'aggressive_paper' ? 'aggressive'
-    : account === 'manual_paper' ? 'manual'
-    : account === 'live' ? 'live'
-    : 'conservative';
+  // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
+  // Quotes/BP/positions must hit the SELECTED account (incl. SM), not conservative.
+  const mode: Mode = accountToMode(account);
   const { data: quote } = useQuery({
     queryKey: ['option-quote', contractSymbol, mode],
     queryFn: () => api<{ snapshot: any }>(`/api/alpaca/quote?symbol=${contractSymbol}&mode=${mode}&kind=option`),
@@ -147,6 +146,20 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
           >
             [live ${account === 'live' ? '*' : ''}]
           </button>
+          {([
+            ['sm500_paper', '$500'],
+            ['sm1000_paper', '$1,000'],
+            ['sm2000_paper', '$2,000'],
+          ] as [OptionAccount, string][]).map(([acct, label]) => (
+            <button
+              key={acct}
+              type="button"
+              className={`pbtn ${account === acct ? 'active' : ''}`}
+              onClick={() => setAccount(acct)}
+            >
+              [{label}{account === acct ? '*' : ''}]
+            </button>
+          ))}
         </div>
         <AccountBpIndicator mode={mode} assetClass="option" exposure={liveExposure} />
       </div>
@@ -286,7 +299,7 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   );
 }
 
-function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: 'conservative' | 'aggressive' | 'manual' | 'live'; bid: number; ask: number }) {
+function OptionPositionLine({ contractSymbol, mode, bid, ask }: { contractSymbol: string; mode: Mode; bid: number; ask: number }) {
   const { data } = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Array<{ symbol: string; qty: string; avg_entry_price: string }> }>(`/api/alpaca/positions?mode=${mode}`),

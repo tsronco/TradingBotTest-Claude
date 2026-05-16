@@ -12,7 +12,9 @@ import pytest
 import config
 
 
-ALL_MODES = ("conservative", "aggressive", "manual", "live")
+ALL_MODES = ("conservative", "aggressive", "manual", "live", "sm500", "sm1000", "sm2000")
+ORIGINAL_MODES = ("conservative", "aggressive", "manual", "live")
+SM_MODES = ("sm500", "sm1000", "sm2000")
 
 
 # ── config.MODES sanity ───────────────────────────────────────────────────
@@ -339,11 +341,15 @@ def test_all_modes_declare_spread_thresholds():
 
 
 def test_only_manual_has_spread_management_enabled():
-    """Phase 2 enables spread management on manual paper account only.
-    Other modes must keep spread_management=False until later plans
-    flip them deliberately."""
+    """Spread management is enabled on manual + the 3 SM paper accounts.
+    Conservative, aggressive, and live must keep spread_management=False
+    until a future plan flips them deliberately."""
     import config
     assert config.MODES["manual"]["spread_management"] is True
+    for mode_name in SM_MODES:
+        assert config.MODES[mode_name]["spread_management"] is True, (
+            f"sm mode {mode_name} should have spread_management=True"
+        )
     for mode_name in ("conservative", "aggressive", "live"):
         assert config.MODES[mode_name]["spread_management"] is False, (
             f"mode {mode_name} should still have spread_management=False"

@@ -170,6 +170,33 @@ JOBS = [
         "minutes": [0],
         "wdays": [0],   # Sunday only
     },
+    # SM500 small-account paper — auto-spread mode. Offset :05 (no collision
+    # with cons :07, agg :09, manual :01, live :03, sm2000 :06, sm1000 :08).
+    {
+        "title": "TSLA Monitor (SM500)",
+        "workflow": "tsla-monitor-sm500.yml",
+        "hours": list(range(13, 21)),
+        "minutes": [5, 15, 25, 35, 45, 55],  # every 10 min, :05 offset
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    # SM1000 small-account paper — auto-spread mode. Offset :08 (no collision
+    # with cons :07, agg :09, manual :01, live :03, sm500 :05, sm2000 :06).
+    {
+        "title": "TSLA Monitor (SM1000)",
+        "workflow": "tsla-monitor-sm1000.yml",
+        "hours": list(range(13, 21)),
+        "minutes": [8, 18, 28, 38, 48, 58],  # every 10 min, :08 offset
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    # SM2000 small-account paper — auto-spread mode. Offset :06 (no collision
+    # with cons :07, agg :09, manual :01, live :03, sm500 :05, sm1000 :08).
+    {
+        "title": "TSLA Monitor (SM2000)",
+        "workflow": "tsla-monitor-sm2000.yml",
+        "hours": list(range(13, 21)),
+        "minutes": [6, 16, 26, 36, 46, 56],  # every 10 min, :06 offset
+        "wdays": [1, 2, 3, 4, 5],
+    },
 ]
 
 

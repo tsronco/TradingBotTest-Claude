@@ -1,6 +1,6 @@
 """Mode configuration for the multi paper-account architecture.
 
-Four accounts run side-by-side, fully isolated. Three are paper; one is live.
+Seven accounts run side-by-side, fully isolated. Six are paper; one is live.
 
   conservative — original wheel, 10% OTM, 14-28 DTE puts, 50% early close
                  Symbols: large-caps + a few cheap names for small-account practice.
@@ -31,13 +31,29 @@ Four accounts run side-by-side, fully isolated. Three are paper; one is live.
                  Discord: #live-trades, #live-summary, #live-errors, #live-actions
                  Alpaca:  ALPACA_LIVE_API_KEY / ALPACA_LIVE_API_SECRET (live)
 
-Each script reads --mode {conservative|aggressive|manual|live} on its CLI; the
-mode picks the credentials, state files, log stream, Discord channels, and
-parameters.
+  sm500        — Small-account paper ($500 seed). Behaves like manual (auto-discover,
+                 spread management, no static-list CSP wheel) PLUS an autonomous
+                 screener-driven put-credit-spread opener. Universe filtered to
+                 cheap underlyings (≤$25) so risk-capped spreads can actually fit.
+                 Discord: #sm500-trades, #sm500-summary, #sm500-errors, #sm500-actions
+                 Alpaca:  ALPACA_SM500_API_KEY / ALPACA_SM500_API_SECRET (paper)
+
+  sm1000       — Small-account paper ($1,000 seed). Same as sm500 but screens the
+                 full conservative universe (no price cap on underlying).
+                 Discord: #sm1000-trades, #sm1000-summary, #sm1000-errors, #sm1000-actions
+                 Alpaca:  ALPACA_SM1000_API_KEY / ALPACA_SM1000_API_SECRET (paper)
+
+  sm2000       — Small-account paper ($2,000 seed). Same as sm1000.
+                 Discord: #sm2000-trades, #sm2000-summary, #sm2000-errors, #sm2000-actions
+                 Alpaca:  ALPACA_SM2000_API_KEY / ALPACA_SM2000_API_SECRET (paper)
+
+Each script reads --mode {conservative|aggressive|manual|live|sm500|sm1000|sm2000}
+on its CLI; the mode picks the credentials, state files, log stream, Discord
+channels, and parameters.
 
 To add/remove a wheel symbol, edit CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS
-and that's the entire config change. Manual mode auto-discovers symbols from
-held positions, so it has no symbol list.
+and that's the entire config change. Manual/live/sm* modes auto-discover symbols
+from held positions, so they have no static symbol list.
 """
 
 # ── Wheel symbol lists ────────────────────────────────────────────────────
@@ -306,6 +322,186 @@ MODES = {
         "screener_strike_pct":    0.10,
         "screener_dte_min":       14,
         "screener_dte_max":       28,
+    },
+
+    # ── SM mode shared base (sm500 / sm1000 / sm2000) ─────────────────────
+    # Each SM mode is a verbatim copy of manual (all management flags +
+    # wheel params), with per-mode credential / channel / state-file
+    # overrides and a new auto_open_* param block that enables the
+    # screener-driven autonomous put-credit-spread opener.
+    #
+    # wheel_skip_new_puts stays True — the static-list CSP wheel is OFF.
+    # The new auto_open_spreads engine is a separate code path.
+
+    "sm500": {
+        "alpaca_key_env":    "ALPACA_SM500_API_KEY",
+        "alpaca_secret_env": "ALPACA_SM500_API_SECRET",
+        "alpaca_url_env":    "ALPACA_SM500_BASE_URL",
+
+        "trades_channel":    "sm500_trades",
+        "summary_channel":   "sm500_summary",
+        "errors_channel":    "sm500_errors",
+        "actions_channel":   "sm500_actions",
+
+        "log_stream":        "sm500",
+
+        "wheel_state_file":     "wheel_state_sm500.json",
+        "strategy_state_file":  "strategy_state_sm500.json",
+
+        # Inherit manual's auto-discover + skip-new-puts flags
+        "wheel_symbols":       [],
+        "auto_discover_symbols": True,
+        "wheel_skip_new_puts": True,
+
+        # Spread management enabled (same as manual)
+        "spread_management":      True,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
+
+        # Wheel parameters mirror manual / conservative
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+        "stale_after_hours":   4,
+
+        # Screener: None → falls through to the expanded conservative default
+        "screener_universe":      None,
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
+
+        # ── Auto-open param block (new — SM modes only) ───────────────────
+        # Enable the screener-driven autonomous put-credit-spread opener.
+        "auto_open_spreads":         True,
+        "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
+        "wheelability_min":          90,      # percentile threshold (0–100)
+        "max_risk_pct_equity":       0.12,    # max loss / equity ≤ 12%
+        "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
+        "max_concurrent_spreads":    3,
+        "account_floor":             300,     # skip if equity < $300
+        "earnings_exclusion_days":   7,       # skip symbols with earnings ≤7 days
+        "max_opens_per_cycle":       1,       # at most 1 new spread per cycle
+        "short_put_otm_pct":         0.10,    # short leg ~10% OTM
+        "spread_dte_min":            14,
+        "spread_dte_max":            28,
+        # sm500-only cheap-underlying filter: screen only symbols priced ≤$25
+        # so minimum-width spreads can fit the 12% risk cap on a $500 account.
+        "max_underlying_price": 25,
+    },
+
+    "sm1000": {
+        "alpaca_key_env":    "ALPACA_SM1000_API_KEY",
+        "alpaca_secret_env": "ALPACA_SM1000_API_SECRET",
+        "alpaca_url_env":    "ALPACA_SM1000_BASE_URL",
+
+        "trades_channel":    "sm1000_trades",
+        "summary_channel":   "sm1000_summary",
+        "errors_channel":    "sm1000_errors",
+        "actions_channel":   "sm1000_actions",
+
+        "log_stream":        "sm1000",
+
+        "wheel_state_file":     "wheel_state_sm1000.json",
+        "strategy_state_file":  "strategy_state_sm1000.json",
+
+        "wheel_symbols":       [],
+        "auto_discover_symbols": True,
+        "wheel_skip_new_puts": True,
+
+        "spread_management":      True,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
+
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+        "stale_after_hours":   4,
+
+        "screener_universe":      None,
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
+
+        # ── Auto-open param block ─────────────────────────────────────────
+        "auto_open_spreads":         True,
+        "bp_switch_threshold":       5000,
+        "wheelability_min":          90,
+        "max_risk_pct_equity":       0.12,
+        "min_net_credit":            0.05,
+        "max_concurrent_spreads":    3,
+        "account_floor":             300,
+        "earnings_exclusion_days":   7,
+        "max_opens_per_cycle":       1,
+        "short_put_otm_pct":         0.10,
+        "spread_dte_min":            14,
+        "spread_dte_max":            28,
+        # sm1000 screens the full conservative universe — no price cap
+        "max_underlying_price": None,
+    },
+
+    "sm2000": {
+        "alpaca_key_env":    "ALPACA_SM2000_API_KEY",
+        "alpaca_secret_env": "ALPACA_SM2000_API_SECRET",
+        "alpaca_url_env":    "ALPACA_SM2000_BASE_URL",
+
+        "trades_channel":    "sm2000_trades",
+        "summary_channel":   "sm2000_summary",
+        "errors_channel":    "sm2000_errors",
+        "actions_channel":   "sm2000_actions",
+
+        "log_stream":        "sm2000",
+
+        "wheel_state_file":     "wheel_state_sm2000.json",
+        "strategy_state_file":  "strategy_state_sm2000.json",
+
+        "wheel_symbols":       [],
+        "auto_discover_symbols": True,
+        "wheel_skip_new_puts": True,
+
+        "spread_management":      True,
+        "spread_early_close_pct": 0.50,
+        "spread_stop_loss_pct":   0.50,
+        "spread_dte_floor":       2,
+
+        "put_strike_pct":      0.10,
+        "call_strike_pct":     0.10,
+        "put_dte_min":         14,
+        "put_dte_max":         28,
+        "call_dte_min":         7,
+        "call_dte_max":        21,
+        "early_close_pct":     0.50,
+        "stale_after_hours":   4,
+
+        "screener_universe":      None,
+        "screener_strike_pct":    0.10,
+        "screener_dte_min":       14,
+        "screener_dte_max":       28,
+
+        # ── Auto-open param block ─────────────────────────────────────────
+        "auto_open_spreads":         True,
+        "bp_switch_threshold":       5000,
+        "wheelability_min":          90,
+        "max_risk_pct_equity":       0.12,
+        "min_net_credit":            0.05,
+        "max_concurrent_spreads":    3,
+        "account_floor":             300,
+        "earnings_exclusion_days":   7,
+        "max_opens_per_cycle":       1,
+        "short_put_otm_pct":         0.10,
+        "spread_dte_min":            14,
+        "spread_dte_max":            28,
+        # sm2000 screens the full conservative universe — no price cap
+        "max_underlying_price": None,
     },
 }
 

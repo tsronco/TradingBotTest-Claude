@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { fmtUsd } from '../../lib/format';
+import type { Mode } from '../../lib/account-utils';
 
 interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
@@ -8,7 +9,7 @@ interface AcctResp {
 
 interface Props {
   /** Drives which account's BP to fetch — flips when the user toggles the selector. */
-  mode: 'conservative' | 'aggressive' | 'manual' | 'live';
+  mode: Mode;
   /** Stock orders draw from regular buying_power; option orders only from options_buying_power. */
   assetClass: 'stock' | 'option';
   /** Live exposure for the in-progress order. When provided, the indicator

@@ -80,6 +80,19 @@ CHANNEL_ENV_MAP = {
     "live_summary":   "DISCORD_LIVE_SUMMARY_WEBHOOK",
     "live_errors":    "DISCORD_LIVE_ERRORS_WEBHOOK",
     "live_actions":   "DISCORD_LIVE_ACTIONS_WEBHOOK",
+    # Small-account paper accounts (sm500 / sm1000 / sm2000)
+    "sm500_trades":   "DISCORD_SM500_TRADES_WEBHOOK",
+    "sm500_summary":  "DISCORD_SM500_SUMMARY_WEBHOOK",
+    "sm500_errors":   "DISCORD_SM500_ERRORS_WEBHOOK",
+    "sm500_actions":  "DISCORD_SM500_ACTIONS_WEBHOOK",
+    "sm1000_trades":  "DISCORD_SM1000_TRADES_WEBHOOK",
+    "sm1000_summary": "DISCORD_SM1000_SUMMARY_WEBHOOK",
+    "sm1000_errors":  "DISCORD_SM1000_ERRORS_WEBHOOK",
+    "sm1000_actions": "DISCORD_SM1000_ACTIONS_WEBHOOK",
+    "sm2000_trades":  "DISCORD_SM2000_TRADES_WEBHOOK",
+    "sm2000_summary": "DISCORD_SM2000_SUMMARY_WEBHOOK",
+    "sm2000_errors":  "DISCORD_SM2000_ERRORS_WEBHOOK",
+    "sm2000_actions": "DISCORD_SM2000_ACTIONS_WEBHOOK",
 }
 
 

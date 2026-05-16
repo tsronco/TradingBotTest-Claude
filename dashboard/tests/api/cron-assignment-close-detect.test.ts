@@ -224,3 +224,82 @@ describe('grade-open-trades — STO put close: assigned vs expired', () => {
     expect(spawnedStockWrite()).toBeUndefined();
   });
 });
+
+// Phase-6 cross-account routing guard. main's resolveOptionSettlement narrowed
+// its mode param to 'conservative' | 'aggressive' | 'manual'; combined with the
+// SM-aware modeFromAccount() this branch added, an SM (or live) trade's
+// settlement-activity fetch must hit its OWN account's Alpaca creds, NOT silently
+// coerce to conservative. This asserts the mode threaded through
+// detectClose → resolveOptionSettlement → alpacaTrade('/v2/account/activities')
+// is the real per-trade SM mode.
+describe('grade-open-trades — STO settlement routes to the correct SM account creds', () => {
+  // Same STO put, but on the sm500 paper account.
+  const smStoPut = { ...stoPut, id: 'T-2026-05-12-099', account: 'sm500_paper' };
+
+  beforeEach(() => {
+    kvGet.mockReset();
+    kvSet.mockClear();
+    kvLrange.mockReset();
+    kvLrem.mockClear();
+    kvRpush.mockClear();
+    kvIncr.mockReset();
+    kvIncr.mockResolvedValue(1);
+    alpacaTrade.mockReset();
+    process.env.CRON_TOKEN = 'tok';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-16T14:00:00Z')); // ~18h past 5/15 expiry
+
+    kvLrange.mockImplementation(async (k: string) => {
+      if (k === 'trades:index:open') return [smStoPut.id];
+      if (k === 'trades:index:assignments-pending') {
+        return kvRpush.mock.calls
+          .filter((c: any) => c[0] === 'trades:index:assignments-pending')
+          .map((c: any) => c[1]);
+      }
+      return [];
+    });
+    kvGet.mockImplementation(async (k: string) => {
+      if (k === `trade:${smStoPut.id}`) return { ...smStoPut };
+      if (k === `grade:${smStoPut.id}`) {
+        return { trade_id: smStoPut.id, entry: { letter: 'F' }, hindsight: null };
+      }
+      return null;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('passes mode "sm500" (not "conservative") to the settlement-activity fetch', async () => {
+    const activityModes: string[] = [];
+    alpacaTrade.mockImplementation(async (mode: string, path: string) => {
+      if (path.includes('/v2/account/activities')) {
+        activityModes.push(mode);
+        return [{
+          id: 'act-1',
+          activity_type: 'OPEXP',
+          symbol: 'SNAP260515P00007500',
+          qty: '1',
+          date: '2026-05-15',
+        }];
+      }
+      return null;
+    });
+
+    const res = await runHandler();
+    expect(res.status).toHaveBeenCalledWith(200);
+
+    // The settlement fetch ran, and it ran against the sm500 account's creds.
+    expect(activityModes.length).toBeGreaterThan(0);
+    expect(activityModes).toContain('sm500');
+    expect(activityModes).not.toContain('conservative');
+
+    // And the trade still closes correctly (settlement logic unchanged for SM).
+    const closed = kvSet.mock.calls.find(
+      (c: any) => c[0] === `trade:${smStoPut.id}`,
+    )?.[1];
+    expect(closed.closed_by).toBe('expired');
+    expect(closed.realized_pnl).toBe(180);
+  });
+});

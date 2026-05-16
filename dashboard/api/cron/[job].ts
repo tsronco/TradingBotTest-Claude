@@ -4,6 +4,7 @@ import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
+import type { Mode } from '../_lib/alpaca.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
 import {
   enqueueAssignmentPending,
@@ -41,9 +42,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(404).json({ error: 'unknown_job' });
 }
 
-function modeFromAccount(account: string): string {
+// Account → bot mode. MUST match api/_lib/rule-check.ts accountToMode() and the
+// duplicate copy in trades/[action].ts modeFromAccount() exactly — the grade/sync
+// cron routes SM trades to their own SM Alpaca credentials, NOT conservative's.
+// (DRY follow-up: three copies across the api/ vs src/ build-root boundary;
+// keep in sync.)
+//
+// Returns the full Mode union (not bare string) so every Alpaca call site below
+// is type-checked against the real per-trade account. Narrowing this to
+// 'conservative' | 'aggressive' | 'manual' anywhere would silently mis-route
+// SM/live trades' settlement + fill + bars fetches to conservative's creds.
+function modeFromAccount(account: string): Mode {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'sm500_paper') return 'sm500';
+  if (account === 'sm1000_paper') return 'sm1000';
+  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
   return 'conservative';
 }
@@ -117,7 +131,7 @@ async function gradeOpenTrades(res: VercelResponse) {
     const end = closedTrade.closed_at ?? new Date().toISOString();
     let bars: Array<{ t: string; c: number }> = [];
     try {
-      const data = await alpacaData<any>(modeFromAccount(closedTrade.account) as any, '/v2/stocks/bars', {
+      const data = await alpacaData<any>(modeFromAccount(closedTrade.account), '/v2/stocks/bars', {
         symbols: closedTrade.symbol, timeframe: '1Min', start, end, limit: 500,
       });
       bars = (data?.bars?.[closedTrade.symbol] ?? []).map((b: any) => ({ t: b.t, c: b.c }));
@@ -205,7 +219,7 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   // per tick per filled trade with no modifies — acceptable. Could
   // optimize later with a `modify_history_checked: true` sentinel.
   if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
-  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
+  const mode = modeFromAccount(trade.account);
 
   // Spread (mleg) path — Alpaca returns a single order with a `legs` array.
   // Match each leg's OCC symbol to short/long and copy fill prices back onto
@@ -334,7 +348,7 @@ async function syncFillData(trade: Trade): Promise<Trade> {
  * contract_symbol can't be matched and resolve as 'expired'.
  */
 async function resolveOptionSettlement(
-  mode: 'conservative' | 'aggressive' | 'manual',
+  mode: Mode,
   trade: Trade,
 ): Promise<'assigned' | 'expired' | null> {
   if (!trade.contract_symbol) return 'expired';
@@ -376,7 +390,7 @@ async function resolveOptionSettlement(
 }
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
-  const mode = modeFromAccount(trade.account) as 'conservative' | 'aggressive' | 'manual';
+  const mode = modeFromAccount(trade.account);
 
   // Path 0: entry order itself was canceled/rejected before fill — trade never existed.
   // Check this FIRST because if the entry order is canceled there's no point checking close-order paths.

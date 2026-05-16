@@ -61,6 +61,60 @@ def test_build_payload_unknown_mode_raises():
         build_payload('nonsense')
 
 
+@pytest.mark.parametrize('mode', ['conservative', 'aggressive', 'manual', 'live',
+                                   'sm500', 'sm1000', 'sm2000'])
+def test_argparse_accepts_all_modes_including_sm(mode):
+    """The --mode argparse choices must accept the SM accounts, or every SM
+    monitor cycle's rules push exits with an argparse error."""
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--mode',
+        required=True,
+        choices=['conservative', 'aggressive', 'manual', 'live', 'sm500', 'sm1000', 'sm2000'],
+    )
+    args = parser.parse_args(['--mode', mode])
+    assert args.mode == mode
+
+
+def test_argparse_rejects_unknown_mode():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--mode',
+        required=True,
+        choices=['conservative', 'aggressive', 'manual', 'live', 'sm500', 'sm1000', 'sm2000'],
+    )
+    with pytest.raises(SystemExit):
+        parser.parse_args(['--mode', 'bogus'])
+
+
+@pytest.mark.parametrize('mode', ['sm500', 'sm1000', 'sm2000'])
+def test_build_payload_sm_modes(mode):
+    """SM modes are config-driven like the other accounts; build_payload must
+    produce a valid bot:rules payload for them (no congress, mode echoed)."""
+    from tools.push_rules_to_dashboard import build_payload
+    payload = build_payload(mode)
+    assert payload['mode'] == mode
+    assert isinstance(payload['wheel']['symbols'], list)
+    assert 'congress' not in payload  # congress is conservative-only
+    assert 'pushed_at' in payload
+
+
+@patch('tools.push_rules_to_dashboard.requests.post')
+@pytest.mark.parametrize('mode', ['sm500', 'sm1000', 'sm2000'])
+def test_push_sm_mode_targets_correct_rules_key(mock_post, mode):
+    mock_post.return_value = MagicMock(status_code=200, text='ok')
+    from tools.push_rules_to_dashboard import push
+    os.environ['BOT_PUSH_TOKEN'] = 'tok-1'
+    os.environ['DASHBOARD_URL'] = 'https://example.com'
+    rc = push(mode)
+    assert rc == 200
+    _, kwargs = mock_post.call_args
+    assert kwargs['json']['key'] == f'bot:rules:{mode}'
+    assert kwargs['json']['payload']['mode'] == mode
+
+
 @patch('tools.push_rules_to_dashboard.requests.post')
 def test_push_calls_dashboard_with_bearer(mock_post):
     mock_post.return_value = MagicMock(status_code=200, text='ok')

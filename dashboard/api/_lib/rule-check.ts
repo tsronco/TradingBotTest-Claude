@@ -61,6 +61,9 @@ export async function runRuleChecks(
   }
 
   // --- Bot rules (warn-only) ---
+  // accountToMode returns a kv-keys Mode; all modes (incl. sm500/sm1000/sm2000)
+  // have their bot:rules:<mode> key whitelisted and pushed by the monitor
+  // workflows, so the lookup is valid for every account.
   const mode = accountToMode(input.account);
   const bot = (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null;
   if (bot && input.asset_class === 'option') {
@@ -98,9 +101,12 @@ function sevRank(s: RuleSeverity): number {
   return s === 'block' ? 0 : s === 'warn' ? 1 : 2;
 }
 
-function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' {
+function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000' {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'sm500_paper') return 'sm500';
+  if (account === 'sm1000_paper') return 'sm1000';
+  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
   return 'conservative';
 }

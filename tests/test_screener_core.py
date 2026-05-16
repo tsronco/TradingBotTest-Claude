@@ -1,0 +1,117 @@
+# tests/test_screener_core.py
+"""Parity tests for screener_core — pin the scoring math so refactors cannot
+drift the formula away from the legacy wheel_screener.py implementation."""
+import screener_core
+
+
+def test_score_formula_matches_legacy_constants():
+    # Pin the exact scoring math so the refactor cannot drift it.
+    r = screener_core.score_from_quote(strike=100.0, bid=2.0, ask=2.2, free_bp=50_000.0)
+    # premium_yield = bid/strike = 0.02 -> *100 = 2.0
+    # spread_pct = (ask-bid)/mid = 0.2/2.1 = 0.095238 -> *50 = 4.7619
+    # budget_fit = collateral(100*100=10000) <= 50000 -> 1.0 -> *5 = 5
+    assert round(r["premium_yield"], 6) == 0.02
+    assert round(r["score"], 4) == round(2.0 - 4.7619047619 + 5.0, 4)
+    assert r["budget_fit"] is True
+
+
+def test_budget_fit_false_when_collateral_exceeds_bp():
+    r = screener_core.score_from_quote(strike=100.0, bid=2.0, ask=2.1, free_bp=5_000.0)
+    assert r["budget_fit"] is False  # 10000 > 5000
+
+
+def test_score_from_quote_formula_components():
+    """Verify each component of the score formula individually."""
+    r = screener_core.score_from_quote(strike=45.0, bid=0.40, ask=0.50, free_bp=10_000.0)
+    expected_yield = 0.40 / 45.0
+    expected_spread = (0.50 - 0.40) / 0.45
+    expected_score = expected_yield * 100 - expected_spread * 50 + 1.0 * 5
+    assert abs(r["premium_yield"] - expected_yield) < 1e-9
+    assert abs(r["spread_pct"] - expected_spread) < 1e-9
+    assert abs(r["score"] - expected_score) < 1e-9
+    assert r["budget_fit"] is True  # 4500 <= 10000
+
+
+def test_score_from_quote_budget_boundary():
+    """Collateral exactly equal to free_bp should still fit."""
+    r = screener_core.score_from_quote(strike=18.0, bid=0.50, ask=0.55, free_bp=1800.0)
+    assert r["budget_fit"] is True  # 1800 <= 1800
+
+
+def test_build_universe_excludes_already_wheeled():
+    result = screener_core.build_universe(["AAPL", "MSFT", "BAC", "T"], already_wheeled=["BAC"])
+    assert "BAC" not in result
+    assert "AAPL" in result
+    assert "MSFT" in result
+
+
+def test_build_universe_uses_default_when_cfg_is_none():
+    result = screener_core.build_universe(None, already_wheeled=[])
+    assert len(result) > 10
+    # Should match sorted(set(DEFAULT_CONSERVATIVE_UNIVERSE) - set([]))
+    assert result == sorted(set(screener_core.DEFAULT_CONSERVATIVE_UNIVERSE) - set())
+
+
+def test_build_universe_returns_sorted():
+    result = screener_core.build_universe(["C", "A", "B"], already_wheeled=[])
+    assert result == ["A", "B", "C"]
+
+
+def test_universe_size_and_quality():
+    """Task 1.3: universe must be 50-100 names, all valid, with ≥8 cheap (≤$25) names."""
+    u = screener_core.DEFAULT_CONSERVATIVE_UNIVERSE
+    # Size constraint
+    assert 50 <= len(u) <= 100, f"Universe size {len(u)} not in [50, 100]"
+    # All uppercase non-empty unique strings
+    assert all(isinstance(s, str) and s == s.upper() and len(s) > 0 for s in u)
+    assert len(u) == len(set(u)), "Universe has duplicates"
+    # At least 8 known cheap (≤$25 typical price) names are present
+    KNOWN_CHEAP = {"F", "T", "INTC", "SOFI", "PFE", "BAC", "NIO", "CCL", "KMI", "AAL", "NOK", "SNAP"}
+    present_cheap = KNOWN_CHEAP & set(u)
+    assert len(present_cheap) >= 8, (
+        f"Only {len(present_cheap)} cheap names in universe: {sorted(present_cheap)}. "
+        f"Need at least 8 from {sorted(KNOWN_CHEAP)}"
+    )
+
+
+def test_score_candidate_with_injected_api_get():
+    """score_candidate uses injected api_get and returns the legacy dict shape."""
+    contract = {
+        "symbol": "BAC260522P00045000",
+        "strike_price": 45.0,
+        "expiration_date": "2026-05-22",
+    }
+    quote = {"bid": 0.40, "ask": 0.50}
+
+    call_log = []
+
+    def fake_api_get(path, params=None):
+        call_log.append(path)
+        if "/options/contracts" in path:
+            return {"option_contracts": [contract]}
+        raise ValueError(f"unexpected path: {path}")
+
+    import unittest.mock as mock
+    with mock.patch("screener_core._get_latest_price", return_value=50.0), \
+         mock.patch("screener_core._get_option_quote", return_value=quote):
+        r = screener_core.score_candidate(
+            "BAC", free_bp=10_000.0, api_get=fake_api_get,
+            target_dte_min=14, target_dte_max=28, put_strike_discount=0.10,
+        )
+
+    assert r is not None
+    # Verify legacy dict keys
+    for key in ("symbol", "price", "strike", "expiry", "option_symbol",
+                "bid", "ask", "mid", "premium_yield", "spread_pct",
+                "collateral", "budget_fit", "score"):
+        assert key in r, f"missing key: {key}"
+    assert r["symbol"] == "BAC"
+    assert r["strike"] == 45.0
+    assert r["bid"] == 0.40
+    assert r["ask"] == 0.50
+    assert r["budget_fit"] is True
+    # Hand-computed: bid=0.40, ask=0.50, strike=45.0, free_bp=10000.0
+    # mid=0.45, premium_yield=0.40/45, spread_pct=0.10/0.45, budget_num=1.0
+    # score = (0.40/45)*100 - (0.10/0.45)*50 + 1.0*5
+    expected_score = (0.40 / 45.0) * 100 - (0.10 / 0.45) * 50 + 1.0 * 5
+    assert abs(r["score"] - expected_score) < 1e-9

@@ -13,12 +13,14 @@ mode is selected, helping decide what to add to that mode's wheel SYMBOLS.
 Both screeners exclude symbols already in their mode's wheel SYMBOLS so the
 digest never recommends ticker the wheel is already cycling on.
 
-Score components (per CLAUDE.md wheel criteria):
-  premium_yield  = ATM-ish put bid / strike  → fatter premium relative to capital
-  spread_pct     = (ask - bid) / mid         → tighter is more liquid
-  budget_fit     = strike × 100 ≤ free BP    → can we actually afford to sell it
+Keeps local fetch helpers (``get_latest_stock_price`` / ``find_best_put`` /
+``get_option_quote``) intentionally: existing tests patch them on this module
+and the screener's output must remain byte-identical. Pure math, universe
+constants, and strike rounding are single-sourced from ``screener_core``.
 
-Final score = premium_yield × 100 - spread_pct × 50 + budget_fit × 5
+Score formula: see ``screener_core.score_from_quote`` — that function is the
+single source of truth. Score components are premium yield, spread-width
+penalty, and a budget-fit bonus.
 
 Note: this v1 does NOT fetch earnings dates. The embed footer reminds you to
 verify the earnings calendar manually (earningswhispers.com) before selling.
@@ -34,37 +36,20 @@ from dotenv import load_dotenv
 import config
 import wheel_strategy
 from notifications import Color, log_event, send_embed
+from screener_core import (
+    build_universe,
+    round_strike,
+    MIN_STOCK_PRICE,
+)
 
 load_dotenv()
 
 DATA_URL         = "https://data.alpaca.markets/v2"
 OPTIONS_DATA_URL = "https://data.alpaca.markets/v1beta1"
 
-# Default conservative universe (large-cap "happy to own"). Used when the
-# selected mode's screener_universe config field is None.
-DEFAULT_CONSERVATIVE_UNIVERSE = sorted({
-    # Tech mega-cap
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AMD",
-    "INTC", "ORCL", "CRM", "ADBE", "IBM", "CSCO", "MU", "AVGO",
-    # Banks / finance
-    "JPM", "WFC", "C", "GS", "AXP", "V", "MA",
-    # Energy
-    "CVX", "COP",
-    # Consumer
-    "PEP", "WMT", "COST", "NKE", "MCD", "SBUX", "HD", "DIS",
-    # Telecom
-    "T", "VZ",
-    # Healthcare (mature large-cap; no biotech)
-    "JNJ", "UNH", "MRK", "ABBV", "PFE",
-    # Auto / industrial
-    "F", "GM", "CAT", "DE",
-    # Mobility
-    "UBER",
-})
-
 # ── Constants (apply uniformly within a mode) ─────────────────────────────
-TOP_N           = 10
-MIN_STOCK_PRICE = 5.0   # below this, options are usually too thin
+TOP_N = 10
+# MIN_STOCK_PRICE imported from screener_core
 
 
 # ── Mode-aware globals ────────────────────────────────────────────────────
@@ -115,8 +100,7 @@ def apply_mode(mode_name: str) -> None:
     ALREADY_WHEELED = set(wheel_strategy.SYMBOLS)
 
     # Universe: mode-specific override or fall through to conservative default
-    raw_universe = cfg["screener_universe"] or DEFAULT_CONSERVATIVE_UNIVERSE
-    UNIVERSE = sorted(set(raw_universe) - ALREADY_WHEELED)
+    UNIVERSE = build_universe(cfg["screener_universe"], ALREADY_WHEELED)
 
     PUT_STRIKE_DISCOUNT = cfg["screener_strike_pct"]
     TARGET_DTE_MIN      = cfg["screener_dte_min"]
@@ -165,12 +149,6 @@ def get_latest_stock_price(symbol):
     except Exception as exc:
         log(f"  [{symbol}] price lookup failed: {type(exc).__name__}: {exc}")
         return None
-
-
-def round_strike(target: float, reference_price: float) -> float:
-    """Standard option-chain strike spacing: $1 under $25, $5 at/above."""
-    inc = 1.0 if reference_price < 25 else 5.0
-    return round(target / inc) * inc
 
 
 def find_best_put(symbol: str, target_strike: float):
@@ -224,7 +202,9 @@ def get_option_quote(option_symbol: str):
 
 
 def score_candidate(symbol: str, free_bp: float):
-    """Score a single ticker. Returns dict on success, None on missing data."""
+    """Score a single ticker. Thin wrapper around screener_core.score_candidate
+    that injects this module's network helpers and mode globals.
+    Returns dict on success, None on missing data."""
     price = get_latest_stock_price(symbol)
     if price is None or price < MIN_STOCK_PRICE:
         return None
@@ -238,18 +218,15 @@ def score_candidate(symbol: str, free_bp: float):
     if quote is None:
         return None
 
-    bid    = quote["bid"]
-    ask    = quote["ask"]
-    mid    = (bid + ask) / 2
+    bid = quote["bid"]
+    ask = quote["ask"]
+    mid = (bid + ask) / 2
     if mid <= 0:
         return None
 
-    strike        = float(contract["strike_price"])
-    premium_yield = bid / strike
-    spread_pct    = (ask - bid) / mid
-    collateral    = strike * 100
-    budget_fit    = 1.0 if collateral <= free_bp else 0.0
-    score         = premium_yield * 100 - spread_pct * 50 + budget_fit * 5
+    import screener_core as _sc
+    strike = float(contract["strike_price"])
+    scored = _sc.score_from_quote(strike=strike, bid=bid, ask=ask, free_bp=free_bp)
 
     return {
         "symbol":        symbol,
@@ -260,11 +237,11 @@ def score_candidate(symbol: str, free_bp: float):
         "bid":           bid,
         "ask":           ask,
         "mid":           mid,
-        "premium_yield": premium_yield,
-        "spread_pct":    spread_pct,
-        "collateral":    collateral,
-        "budget_fit":    bool(budget_fit),
-        "score":         score,
+        "premium_yield": scored["premium_yield"],
+        "spread_pct":    scored["spread_pct"],
+        "collateral":    scored["collateral"],
+        "budget_fit":    scored["budget_fit"],
+        "score":         scored["score"],
     }
 
 

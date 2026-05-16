@@ -143,7 +143,11 @@ def push(mode: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', required=True, choices=['conservative', 'aggressive', 'manual', 'live'])
+    parser.add_argument(
+        '--mode',
+        required=True,
+        choices=['conservative', 'aggressive', 'manual', 'live', 'sm500', 'sm1000', 'sm2000'],
+    )
     args = parser.parse_args()
     push(args.mode)
 

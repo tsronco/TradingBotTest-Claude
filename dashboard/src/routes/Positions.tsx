@@ -5,6 +5,7 @@ import { fmtUsd, fmtPct, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
+import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
 
 interface Position {
   symbol: string;
@@ -28,14 +29,27 @@ interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
 }
 
-type PosMode = 'conservative' | 'aggressive' | 'manual' | 'live';
-type PosAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE';
+type PosMode = 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
+type PosAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
 
 const POS_ACCENT: Record<PosAcctKey, { text: string; bg: string; tag: string }> = {
-  CONS: { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
-  AGG:  { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
-  MAN:  { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
-  LIVE: { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  CONS:  { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
+  AGG:   { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
+  MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
+  LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  SM500: { text: 'text-mid',   bg: 'bg-mid',   tag: '$500' },
+  SM1K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$1K ' },
+  SM2K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$2K ' },
+};
+
+const MODE_TO_CARD: Record<PosMode, { acctKey: PosAcctKey; label: string }> = {
+  conservative: { acctKey: 'CONS',  label: 'Conservative' },
+  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
+  manual:       { acctKey: 'MAN',   label: 'Manual' },
+  live:         { acctKey: 'LIVE',  label: 'Live $' },
+  sm500:        { acctKey: 'SM500', label: '$500' },
+  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
+  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
 };
 
 function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {
@@ -277,11 +291,8 @@ function ProgressBar({ pct }: { pct: number }) {
 
 export default function Positions() {
   const [mode] = useAccount();
-  const showCons = mode === 'both' || mode === 'conservative';
-  const showAgg = mode === 'both' || mode === 'aggressive';
-  const showManual = mode === 'both' || mode === 'manual';
-  const showLive = mode === 'both' || mode === 'live';
-  const cardCount = mode === 'both' ? 2 : 1;
+  const selectedModes = accountsForSelection(mode);
+  const cardCount = selectedModes.length;
 
   return (
     <div className="p-3 md:p-6 max-w-[1480px]">
@@ -291,7 +302,7 @@ export default function Positions() {
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">positions</span>
         <span className="text-amber">--list</span>
-        <span className="text-dim">--mode=<span className="text-fg">{mode === 'both' ? 'all' : mode}</span></span>
+        <span className="text-dim">--mode=<span className="text-fg">{selectedModes.length === ALL_MODES.length ? 'all' : mode}</span></span>
         <span className="caret" />
       </div>
 
@@ -324,10 +335,10 @@ export default function Positions() {
 
       {/* tables */}
       <div className="grid gap-2">
-        {showCons && <PositionsTable mode="conservative" label="Conservative" acctKey="CONS" />}
-        {showAgg && <PositionsTable mode="aggressive" label="Aggressive" acctKey="AGG" />}
-        {showManual && <PositionsTable mode="manual" label="Manual" acctKey="MAN" />}
-        {showLive && <PositionsTable mode="live" label="Live $" acctKey="LIVE" />}
+        {selectedModes.map((m) => {
+          const { acctKey, label } = MODE_TO_CARD[m as PosMode];
+          return <PositionsTable key={m} mode={m as PosMode} label={label} acctKey={acctKey} />;
+        })}
       </div>
 
       {/* footer */}

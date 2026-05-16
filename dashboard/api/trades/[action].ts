@@ -16,7 +16,8 @@ import { gradeTrade } from '../_lib/grading.js';
 import { etOffsetMinutes } from '../_lib/et-time.js';
 
 interface OrderDraft {
-  account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live';
+  account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live'
+    | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
   asset_class: 'stock' | 'option';
   symbol: string;
   side: string;
@@ -36,7 +37,13 @@ interface OrderDraft {
   totp_code?: string;
 }
 
-const DEFAULT_THRESHOLDS = { conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500 };
+// SM accounts behave like manual (hand-traded small accounts) — mirror manual's
+// TOTP threshold ($2,500). Keep in sync with cron/[job].ts DEFAULT_THRESHOLDS
+// and api/_lib/rule-check.ts accountToMode().
+const DEFAULT_THRESHOLDS = {
+  conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
+  sm500_paper: 2500, sm1000_paper: 2500, sm2000_paper: 2500,
+};
 
 interface SpreadLegPayload {
   occ: string;
@@ -119,9 +126,16 @@ async function getQuote(symbol: string, asset_class: 'stock' | 'option', mode: s
   return { ask: q?.ap ?? 0, bid: q?.bp ?? 0 };
 }
 
+// Account → bot mode. MUST match api/_lib/rule-check.ts accountToMode() and the
+// duplicate copy in cron/[job].ts modeFromAccount() exactly — SM accounts route
+// to their own Alpaca credentials, NOT conservative's. (DRY follow-up: these
+// three copies live across the api/ vs src/ build-root boundary; keep in sync.)
 function modeFromAccount(account: string): string {
   if (account === 'aggressive_paper') return 'aggressive';
   if (account === 'manual_paper') return 'manual';
+  if (account === 'sm500_paper') return 'sm500';
+  if (account === 'sm1000_paper') return 'sm1000';
+  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
   return 'conservative';
 }

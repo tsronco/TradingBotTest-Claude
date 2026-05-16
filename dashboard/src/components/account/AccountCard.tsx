@@ -31,20 +31,23 @@ interface HistoryResp {
 }
 
 interface CardProps {
-  mode: 'conservative' | 'aggressive' | 'manual' | 'live';
+  mode: 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
   label: string;
-  /** 'CONS', 'AGG', or 'MAN' — used for the data-acct-key attribute that drives the filter CSS. */
-  acctKey: 'CONS' | 'AGG' | 'MAN' | 'LIVE';
+  /** acctKey — used for the data-acct-key attribute that drives the filter CSS. */
+  acctKey: 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
 }
 
 const STYLE_BY_KEY: Record<CardProps['acctKey'], {
   color: string; tag: string; tagText: string; flavor: string; ip: string;
   textClass: string; bgClass: string;
 }> = {
-  CONS: { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail', ip: '10.0.0.1', textClass: 'text-hi',    bgClass: 'bg-hi' },
-  AGG:  { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',  ip: '10.0.0.2', textClass: 'text-amber', bgClass: 'bg-amber' },
-  MAN:  { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed', ip: '10.0.0.3', textClass: 'text-cyan',  bgClass: 'bg-cyan' },
-  LIVE: { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',    ip: '10.0.0.4', textClass: 'text-red',   bgClass: 'bg-red' },
+  CONS:  { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail',         ip: '10.0.0.1', textClass: 'text-hi',    bgClass: 'bg-hi' },
+  AGG:   { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',           ip: '10.0.0.2', textClass: 'text-amber', bgClass: 'bg-amber' },
+  MAN:   { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed',     ip: '10.0.0.3', textClass: 'text-cyan',  bgClass: 'bg-cyan' },
+  LIVE:  { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',        ip: '10.0.0.4', textClass: 'text-red',   bgClass: 'bg-red' },
+  SM500: { color: '#aaaaaa', tag: 'ACCT::SM5 ', tagText: '$500',          flavor: 'SM $500 · auto-spread, user-managed',   ip: '10.0.1.1', textClass: 'text-mid',   bgClass: 'bg-mid' },
+  SM1K:  { color: '#aaaaaa', tag: 'ACCT::SM1K', tagText: '$1,000',        flavor: 'SM $1K · auto-spread, user-managed',    ip: '10.0.1.2', textClass: 'text-mid',   bgClass: 'bg-mid' },
+  SM2K:  { color: '#aaaaaa', tag: 'ACCT::SM2K', tagText: '$2,000',        flavor: 'SM $2K · auto-spread, user-managed',    ip: '10.0.1.3', textClass: 'text-mid',   bgClass: 'bg-mid' },
 };
 
 export default function AccountCard({ mode, label, acctKey }: CardProps) {
@@ -294,7 +297,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
       {/* footer status */}
       <footer className="px-5 py-2 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-dim min-w-0">
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-hi pulse" /> live</span>
-        <span><span className="text-mid">strat</span> {acctKey === 'AGG' ? 'wheel·trail·crypto' : acctKey === 'MAN' ? 'manual·bot-mgr' : 'wheel·trail'}</span>
+        <span><span className="text-mid">strat</span> {acctKey === 'AGG' ? 'wheel·trail·crypto' : acctKey === 'MAN' ? 'manual·bot-mgr' : (acctKey === 'SM500' || acctKey === 'SM1K' || acctKey === 'SM2K') ? 'auto-spread·bot-mgr' : 'wheel·trail'}</span>
         <span className="ml-auto">updated {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York' })} ET</span>
       </footer>
     </article>
