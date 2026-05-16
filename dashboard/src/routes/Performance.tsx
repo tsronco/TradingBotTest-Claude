@@ -7,8 +7,9 @@ import CalibrationScatter from '../components/performance/CalibrationScatter';
 import WinRateByTagBar from '../components/performance/WinRateByTagBar';
 import PnLBySymbolTable from '../components/performance/PnLBySymbolTable';
 import TimeHeatmap from '../components/performance/TimeHeatmap';
+import { ALL_ACCOUNTS } from '../lib/account-utils';
 
-const ACCOUNTS = ['', 'conservative_paper', 'aggressive_paper', 'manual_paper'] as const;
+const ACCOUNTS = ['', ...ALL_ACCOUNTS] as const;
 const ASSET_CLASSES = ['', 'stock', 'option'] as const;
 const DATE_RANGES = ['ALL', '1Y', '3M', '1M', '1W'] as const;
 

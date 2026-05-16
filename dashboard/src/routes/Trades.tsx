@@ -4,8 +4,9 @@ import { Link } from 'react-router-dom';
 import { useTrades, type TradesFilters } from '../hooks/useTrades';
 import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
+import { ALL_ACCOUNTS } from '../lib/account-utils';
 
-const ACCOUNTS = ['conservative_paper', 'aggressive_paper', 'manual_paper'] as const;
+const ACCOUNTS = ALL_ACCOUNTS;
 const ASSET_CLASSES = ['stock', 'option'] as const;
 const GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'] as const;
 const STATUSES = ['open', 'closed'] as const;
@@ -121,7 +122,7 @@ function FilterPbtn<T extends string>({ label, value, options, onChange }: {
   label: string; value: string | undefined; options: readonly T[]; onChange: (v: T | undefined) => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <span className="text-dim text-[10px] tracking-[0.25em]">{label.toUpperCase()}:</span>
       <button type="button" className={`pbtn ${value === undefined ? 'active' : ''}`} onClick={() => onChange(undefined)}>[any]</button>
       {options.map((o) => (
