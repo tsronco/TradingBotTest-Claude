@@ -13,12 +13,14 @@ mode is selected, helping decide what to add to that mode's wheel SYMBOLS.
 Both screeners exclude symbols already in their mode's wheel SYMBOLS so the
 digest never recommends ticker the wheel is already cycling on.
 
-Score components (per CLAUDE.md wheel criteria):
-  premium_yield  = ATM-ish put bid / strike  → fatter premium relative to capital
-  spread_pct     = (ask - bid) / mid         → tighter is more liquid
-  budget_fit     = strike × 100 ≤ free BP    → can we actually afford to sell it
+Keeps local fetch helpers (``get_latest_stock_price`` / ``find_best_put`` /
+``get_option_quote``) intentionally: existing tests patch them on this module
+and the screener's output must remain byte-identical. Pure math, universe
+constants, and strike rounding are single-sourced from ``screener_core``.
 
-Final score = premium_yield × 100 - spread_pct × 50 + budget_fit × 5
+Score formula: see ``screener_core.score_from_quote`` — that function is the
+single source of truth. Score components are premium yield, spread-width
+penalty, and a budget-fit bonus.
 
 Note: this v1 does NOT fetch earnings dates. The embed footer reminds you to
 verify the earnings calendar manually (earningswhispers.com) before selling.
@@ -36,9 +38,7 @@ import wheel_strategy
 from notifications import Color, log_event, send_embed
 from screener_core import (
     build_universe,
-    DEFAULT_CONSERVATIVE_UNIVERSE,
-    score_candidate as _score_candidate_core,
-    _round_strike as round_strike,
+    round_strike,
     MIN_STOCK_PRICE,
 )
 

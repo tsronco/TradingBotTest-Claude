@@ -66,7 +66,7 @@ def test_universe_size_and_quality():
     assert all(isinstance(s, str) and s == s.upper() and len(s) > 0 for s in u)
     assert len(u) == len(set(u)), "Universe has duplicates"
     # At least 8 known cheap (≤$25 typical price) names are present
-    KNOWN_CHEAP = {"F", "T", "INTC", "SOFI", "PFE", "BAC", "NIO", "CCL", "KMI", "AAL", "NOK", "SNAP", "WBA"}
+    KNOWN_CHEAP = {"F", "T", "INTC", "SOFI", "PFE", "BAC", "NIO", "CCL", "KMI", "AAL", "NOK", "SNAP"}
     present_cheap = KNOWN_CHEAP & set(u)
     assert len(present_cheap) >= 8, (
         f"Only {len(present_cheap)} cheap names in universe: {sorted(present_cheap)}. "
@@ -110,3 +110,8 @@ def test_score_candidate_with_injected_api_get():
     assert r["bid"] == 0.40
     assert r["ask"] == 0.50
     assert r["budget_fit"] is True
+    # Hand-computed: bid=0.40, ask=0.50, strike=45.0, free_bp=10000.0
+    # mid=0.45, premium_yield=0.40/45, spread_pct=0.10/0.45, budget_num=1.0
+    # score = (0.40/45)*100 - (0.10/0.45)*50 + 1.0*5
+    expected_score = (0.40 / 45.0) * 100 - (0.10 / 0.45) * 50 + 1.0 * 5
+    assert abs(r["score"] - expected_score) < 1e-9

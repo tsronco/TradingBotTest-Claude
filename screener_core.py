@@ -3,18 +3,21 @@
 Extracted from wheel_screener.py so the auto-spread engine (Phase 4) can
 reuse the same score formula without importing the network-heavy screener.
 
+``score_candidate(...)`` here is the canonical self-contained injectable
+scorer (used by the Phase-4 auto-spread engine); pass ``api_get`` plus
+dte/discount kwargs.
+
 Public API:
     score_from_quote(strike, bid, ask, free_bp)  -> dict   (pure, no I/O)
     score_candidate(symbol, free_bp, *, api_get, target_dte_min,
                     target_dte_max, put_strike_discount)    -> dict | None
     build_universe(cfg_universe, already_wheeled)           -> list[str]
+    round_strike(target, reference_price)                   -> float
     DEFAULT_CONSERVATIVE_UNIVERSE                           : list[str]
+    MIN_STOCK_PRICE                                         : float
 
-Score formula (preserved verbatim from wheel_screener.py):
-    premium_yield = bid / strike
-    spread_pct    = (ask - bid) / mid
-    budget_fit    = 1.0 if (strike * 100) <= free_bp else 0.0
-    score         = premium_yield * 100 - spread_pct * 50 + budget_fit * 5
+Score formula: see ``score_from_quote`` implementation — premium yield,
+minus spread-width penalty, plus a budget-fit bonus.
 
 Returned dict keys from score_candidate (legacy shape — must not change):
     symbol, price, strike, expiry, option_symbol, bid, ask, mid,
@@ -63,14 +66,12 @@ DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
     # Financials / REIT / misc large-cap
     "PLTR",
     "SOFI",   # ≤$25 typical
-    "BAC",    # already above, deduped by set()
     # Cheap names specifically for sm500 price filter
     "NIO",    # ≤$25 typical (EV, volatile — options liquid)
     "CCL",    # ≤$25 typical (cruise, volatile — options liquid)
     "AAL",    # ≤$25 typical (airlines, liquid options)
     "NOK",    # ≤$25 typical (telecom)
     "SNAP",   # ≤$25 typical (social media, active options)
-    "WBA",    # ≤$25 typical (pharmacy, large-cap)
 })
 
 
@@ -154,8 +155,8 @@ def _get_option_quote(option_symbol: str, headers: dict) -> Optional[dict]:
 # ── Round-strike helper (shared) ─────────────────────────────────────────
 
 
-def _round_strike(target: float, reference_price: float) -> float:
-    """$1 increment under $25, $5 at/above — matches wheel_screener.py."""
+def round_strike(target: float, reference_price: float) -> float:
+    """$1 increment under $25, $5 at/above — single-sourced for both screeners."""
     inc = 1.0 if reference_price < 25 else 5.0
     return round(target / inc) * inc
 
@@ -197,7 +198,7 @@ def score_candidate(
     if price is None or price < MIN_STOCK_PRICE:
         return None
 
-    target_strike = _round_strike(price * (1 - put_strike_discount), price)
+    target_strike = round_strike(price * (1 - put_strike_discount), price)
 
     today = date.today()
     exp_min = (today + timedelta(days=target_dte_min)).isoformat()
