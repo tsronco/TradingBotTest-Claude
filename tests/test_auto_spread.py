@@ -82,3 +82,50 @@ def test_eligible_universe_filters_by_price():
     assert sorted(ws.eligible_universe(prices, 25)) == ["CHEAP", "MID"]
     # max_price 20 -> only CHEAP
     assert ws.eligible_universe(prices, 20) == ["CHEAP"]
+
+
+# ── Task 4.3: _open_spread_mleg multi-leg open primitive ─────────────────
+
+def test_open_spread_mleg_builds_exact_body(monkeypatch):
+    captured = {}
+
+    def fake_api_post(path, body):
+        captured["path"] = path
+        captured["body"] = body
+        return {"id": "ord-spread-1"}
+
+    monkeypatch.setattr(ws, "api_post", fake_api_post)
+
+    ws._open_spread_mleg(
+        short_occ="AAL260529P00012500",
+        long_occ="AAL260529P00011500",
+        qty=1,
+        net_credit=0.25,
+    )
+
+    assert captured["path"] == "/orders"
+    assert captured["body"] == {
+        "order_class":   "mleg",
+        "qty":           "1",
+        "type":          "limit",
+        "limit_price":   "-0.25",   # negative => net credit received
+        "time_in_force": "day",
+        "legs": [
+            {"symbol": "AAL260529P00012500", "side": "sell",
+             "ratio_qty": "1", "position_intent": "sell_to_open"},
+            {"symbol": "AAL260529P00011500", "side": "buy",
+             "ratio_qty": "1", "position_intent": "buy_to_open"},
+        ],
+    }
+
+
+def test_open_spread_mleg_limit_is_negative_of_credit(monkeypatch):
+    """A passed-in positive OR negative credit always yields a negative
+    limit price (credit convention, mirroring the dashboard form)."""
+    captured = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: captured.update(body=b) or {"id": "x"})
+
+    ws._open_spread_mleg("S260529P00010000", "L260529P00009000", 2, -0.42)
+    assert captured["body"]["limit_price"] == "-0.42"
+    assert captured["body"]["qty"] == "2"

@@ -1988,6 +1988,27 @@ def eligible_universe(symbols_prices: dict, max_price) -> list:
     return [s for s, px in symbols_prices.items() if px <= max_price]
 
 
+def _open_spread_mleg(short_occ: str, long_occ: str, qty: int, net_credit: float):
+    """Submit an Alpaca multi-leg sell-to-open put credit spread.
+
+    Mirrors _close_spread_mleg's structure with opposite intents
+    (STO short put + BTO long put). Limit price = -net_credit
+    (negative => credit received), matching the dashboard convention
+    (`limit_price: -limitCredit`). qty is in spread units.
+    """
+    return api_post("/orders", {
+        "order_class":   "mleg",
+        "qty":           str(qty),
+        "type":          "limit",
+        "limit_price":   str(round(-abs(net_credit), 2)),
+        "time_in_force": "day",
+        "legs": [
+            {"symbol": short_occ, "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_open"},
+            {"symbol": long_occ,  "side": "buy",  "ratio_qty": "1", "position_intent": "buy_to_open"},
+        ],
+    })
+
+
 def run_wheel():
     """One cycle: iterate every symbol in SYMBOLS, handle independently."""
     global SYMBOLS
