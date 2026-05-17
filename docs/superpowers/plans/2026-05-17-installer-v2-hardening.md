@@ -1203,6 +1203,21 @@ git commit -m "test(installer): reconcile suite with v2 hardening (Upstash + 4 f
 
 ---
 
+## Task 13: Optional "Re-run Apply" button (post-final-review addition)
+
+**Added after the holistic final review**, at the user's request, while finishing the branch. Not part of the original 12-task spec; coherent with the re-run-safety theme (Section 3) and the cron-429 partial path (Section 5, exit 75 → "re-run Apply to finish the rest"). It is a convenience affordance only — it does NOT reintroduce the eliminated mandatory two-pass.
+
+**Files:** `tools/installer/webapp.py` (`start_apply`, `_PAGE_HTML` `#s7`, `apply()` JS); `tests/test_installer_webapp.py`.
+
+- `start_apply` resets `progress`/`done`/`dashboard_url` under `self._lock` before spawning the apply thread, so a second Apply renders cleanly (synchronous reset; first-run behavior unchanged since it re-establishes the same empties `__init__` set).
+- `#s7` progress screen gains `<button class="sec" onclick="show(6)">Re-run Apply</button>` (returns to the review step whose existing Apply button drives `apply()`; no new API endpoint). Finish button `&`→`&amp;`.
+- `apply()` clears `#plog` and `#dashlink` before re-applying so stale output/links don't flash.
+- Tests: deterministic `test_start_apply_resets_state_for_rerun` (thread stubbed to isolate the synchronous-reset invariant — no timing dependence) + `test_progress_screen_has_rerun_button`.
+
+Commits: `589a3a7` (feature) → `f476ae8` (review fixes: deterministic test + stale-output clear). Spec + code-quality reviewed and approved; full suite 463 passed, 0 regressions.
+
+---
+
 ## Self-Review
 
 **1. Spec coverage:**
