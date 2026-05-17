@@ -32,6 +32,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
+# "" fallback keeps the module import-safe without .env (tests/CI); a real
+# run with empty creds still hard-fails at the API call (recorded, exit 1).
 GH_TOKEN  = os.environ.get("GITHUB_ACCESS_TOKEN", "")
 CRON_KEY  = os.environ.get("CRONJOB_API_KEY", "")
 

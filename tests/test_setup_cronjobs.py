@@ -6,13 +6,14 @@ sc = importlib.import_module("tools.setup_cronjobs")
 
 def test_backoff_grows_capped_and_jittered():
     waits = [sc.compute_backoff(a) for a in range(8)]
-    assert waits[0] >= 1 and waits[0] <= 4
+    assert waits[0] >= 2.0 and waits[0] <= 4
     assert waits[3] >= waits[1]            # grows
     assert all(w <= sc.BACKOFF_CAP + 2 for w in waits)  # capped (+jitter)
 
 
 def test_backoff_honors_retry_after():
     assert sc.compute_backoff(0, retry_after="30") == 30.0
+    assert sc.compute_backoff(0, retry_after="not-a-number") >= 2.0
 
 
 def test_exit_code_partial_is_75_only_for_rate_limit():
