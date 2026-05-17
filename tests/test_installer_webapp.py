@@ -356,25 +356,26 @@ def test_start_apply_resets_state_for_rerun(monkeypatch, tmp_path):
     cfg = {"dry_run": True, "owner_repo": "bob/fork", "modes": ["conservative"],
            "include_congress": False, "do_dashboard": False, "reset_state": False,
            "bot_env": {"ALPACA_API_KEY": "PKx"}, "dash_env": {}}
-    inst.start_apply(cfg)
-    import time as _t
-    for _ in range(50):
-        if inst.snapshot()["done"]:
-            break
-        _t.sleep(0.05)
+    # First pass run synchronously (suite style) to populate state.
+    inst._apply(cfg)
     first = inst.snapshot()
     assert first["done"] is True and len(first["lines"]) > 0
-    # second run must start clean, not accumulate the first run's lines
+    inst.dashboard_url = "https://stale.example"  # simulate prior-run leftover
+    # start_apply must reset progress/done/dashboard_url SYNCHRONOUSLY,
+    # before the spawned thread can append anything.
+    # Suppress the background thread so the "immediately after" observation is
+    # race-free — the invariant under test is that the RESET happens inside
+    # start_apply (before thread spawn), not that the thread eventually finishes.
+    import threading as _threading
+    class _NoOpThread:
+        def __init__(self, target=None, args=(), daemon=False): pass
+        def start(self): pass
+    monkeypatch.setattr(_threading, "Thread", _NoOpThread)
     inst.start_apply(cfg)
     immediately = inst.snapshot()
-    assert immediately["done"] is False  # reset before thread re-finishes
-    for _ in range(50):
-        if inst.snapshot()["done"]:
-            break
-        _t.sleep(0.05)
-    second = inst.snapshot()
-    assert second["done"] is True
-    assert len(second["lines"]) == len(first["lines"])  # no stale accumulation
+    assert immediately["done"] is False           # reset, not stale True
+    assert immediately["lines"] == []             # no stale accumulation
+    assert immediately["dashboard_url"] == ""     # prior URL cleared
 
 
 def test_progress_screen_has_rerun_button():

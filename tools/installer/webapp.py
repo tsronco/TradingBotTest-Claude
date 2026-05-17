@@ -706,7 +706,7 @@ function buildReview(){let m=v=>!v?'(empty)':v.length<=8?'*'.repeat(v.length):v.
   let dk=new Set([...Object.keys(cfg.dash_env),...(S.existing_dash_keys||[])]);
   [...dk].sort().forEach(k=>L.push('  '+k+tag(k,cfg.dash_env[k])));}
  $('review').textContent=L.join('\n');}
-async function apply(){cfg.dry_run=$('dry').checked;show(7);await pj('/api/apply',cfg);poll();}
+async function apply(){cfg.dry_run=$('dry').checked;$('plog').textContent='';let dl=$('dashlink');dl.href='';dl.textContent='';show(7);await pj('/api/apply',cfg);poll();}
 async function poll(){let r=await gj('/api/progress');
  $('plog').textContent=r.lines.map(l=>({ok:'✓ ',error:'✗ ',warn:'! ',info:'  '}[l.level]||'  ')+l.msg).join('\n');
  $('plog').scrollTop=$('plog').scrollHeight;
