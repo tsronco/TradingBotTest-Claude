@@ -144,10 +144,16 @@ those by hand. But once you have your keys, the wizard does the rest.
    Actions for you; without it that stays a one-click manual step), a
    cron-job.org API key (Step 6b), and — only if you want the dashboard —
    Vercel + an Anthropic API key (Step 9a).
-3. `git push` the installer's rewrites to your fork (it edits the files but
-   won't push your repo for you), and — dashboard only — make the one
-   interactive **Upstash Redis** connection on vercel.com (a Marketplace
-   billing-consent click no CLI/API can perform).
+3. **Dashboard only:** make the one interactive **Upstash Redis** connection
+   on vercel.com (a Marketplace billing-consent click no CLI/API can perform),
+   then re-run `python setup.py --web` once so it redeploys with the KV vars.
+
+That's the entire manual surface. The installer now also **commits & pushes
+its own rewrites to your fork** (an explicit allowlist — `setup_cronjobs.py`,
+the workflow YAMLs, the reset state files; never `.env` or anything that
+could leak a secret) and **enables Actions on the fork**. If git auth/identity
+isn't set up it doesn't fail — it prints the two exact commands to finish by
+hand.
 
 **What the wizard then does for you:**
 
@@ -175,7 +181,8 @@ clean), **fixes both fork gotchas** automatically, **bulk-pushes all GitHub
 Actions secrets**, **enables Actions on the fork** (if the PAT has
 Administration scope; otherwise it logs the one-click fallback), runs
 `tools/setup_cronjobs.py`, optionally **deploys the Vercel dashboard** and sets
-its env vars, and finishes with a health check.
+its env vars, **commits & pushes its rewrites back to your fork** (safe
+explicit allowlist — never `.env`), and finishes with a health check.
 
 ```bash
 python setup.py --dry-run    # walk it without changing anything external

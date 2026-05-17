@@ -167,7 +167,6 @@ class WebInstaller:
         else:
             for c in fork.apply(ROOT, owner_repo, url):
                 self._log("ok", f"Rewrote {c}")
-            self._log("warn", "Commit & push the rewritten files to your fork.")
 
         # 3. GitHub Actions secrets + enable workflows on the fork
         self._push_secrets(owner_repo, modes, include_congress, bot_env, dry)
@@ -191,7 +190,14 @@ class WebInstaller:
                       "--web` and Apply — it redeploys with the KV vars; no "
                       "separate `vercel --prod` needed.")
 
-        # 6. health check
+        # 6. commit & push the rewrites to the fork
+        if cfg.get("auto_push", True):
+            self._git_push_fork(owner_repo, dry)
+        else:
+            self._log("warn", "Auto-push off — commit & push the rewritten "
+                      "files to your fork by hand.")
+
+        # 7. health check
         if not dry:
             for mode in modes:
                 acc = spec.account(mode)
@@ -235,6 +241,65 @@ class WebInstaller:
             self._log("ok", gh.enable_actions())
         except GitHubError as e:
             self._log("warn", str(e))  # graceful: manual fallback in message
+
+    def _git_push_fork(self, owner_repo, dry) -> None:
+        """Commit & push ONLY the installer-rewritten files to the fork.
+
+        Explicit allowlist — never ``git add -A``, never ``.env`` — so a
+        credential can't be swept in. Degrades to printing the manual
+        commands (never crashes the install) if git identity/auth/hooks
+        block it.
+        """
+        import subprocess
+        import time
+
+        paths = []
+        sc = ROOT / "tools" / "setup_cronjobs.py"
+        if sc.exists():
+            paths.append(sc)
+        paths += sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+        for pat in ("strategy_state*.json", "wheel_state*.json"):
+            paths += sorted(ROOT.glob(pat))
+        rel = [str(p.relative_to(ROOT)) for p in paths]
+        if not rel:
+            return
+        if dry:
+            self._log("info", f"Would commit & push {len(rel)} rewritten "
+                      "files to origin (no .env, explicit allowlist)")
+            return
+
+        def git(*args, **kw):
+            return subprocess.run(["git", *args], cwd=ROOT,
+                                  capture_output=True, text=True,
+                                  timeout=180, **kw)
+
+        branch = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+        if branch in ("", "HEAD"):
+            branch = "main"
+        ident = []
+        if not git("config", "user.email").stdout.strip():
+            ident = ["-c", "user.email=installer@localhost",
+                     "-c", "user.name=TradingBot Installer"]
+        git("add", "--", *rel)
+        if git("diff", "--cached", "--quiet").returncode == 0:
+            self._log("ok", "Fork already current — nothing to push.")
+            return
+        msg = f"Configure fork: point automation at {owner_repo} + reset state"
+        if git(*ident, "commit", "-m", msg).returncode != 0:
+            self._log("warn", "Auto-commit blocked (git identity or a commit "
+                      f"hook). Run by hand:\n  git add {' '.join(rel)}\n"
+                      f'  git commit -m "configure fork"\n  git push')
+            return
+        for attempt in range(4):
+            if git("push", "-u", "origin", branch).returncode == 0:
+                self._log("ok", f"Committed & pushed fork config to "
+                          f"origin/{branch}.")
+                return
+            if attempt < 3:
+                time.sleep(2 ** (attempt + 1))  # 2s,4s,8s network backoff
+        self._log("warn", "Auto-push failed (check git auth/network). Your "
+                  "commit is saved locally — finish with:  "
+                  f"git push -u origin {branch}")
 
     def _run_cron(self) -> None:
         import subprocess
@@ -446,6 +511,7 @@ except the API calls you authorize at the end.</p>
 <label class="row"><input type="checkbox" id="congress"> Enable the (conservative-only) congress copier</label>
 <label class="row"><input type="checkbox" id="dash" checked> Set up the Vercel dashboard</label>
 <label class="row"><input type="checkbox" id="reset" checked> Reset inherited bot memory (recommended on a fresh fork)</label>
+<label class="row"><input type="checkbox" id="autopush" checked> Auto-commit &amp; push the rewritten files to my fork</label>
 <button class="sec" onclick="prev(1)">Back</button><button onclick="next(1)">Continue</button></div>
 
 <div id="s2" class="step"><h2>3 · Alpaca keys</h2><div id="alpaca"></div>
@@ -498,7 +564,7 @@ function next(n){
  if(n===0){cfg.owner_repo=$('owner_repo').value.trim();if(!cfg.owner_repo)return alert('Fork required');}
  if(n===1){cfg.modes=chosen();if(!cfg.modes.length)return alert('Pick at least one account');
    cfg.include_congress=$('congress').checked;cfg.do_dashboard=$('dash').checked;
-   cfg.reset_state=$('reset').checked;buildAlpaca();}
+   cfg.reset_state=$('reset').checked;cfg.auto_push=$('autopush').checked;buildAlpaca();}
  if(n===2){if(!grabAlpaca())return;buildDiscord();}
  if(n===3){grabDiscord();buildGlobals();}
  if(n===4){grabGlobals();if(cfg.do_dashboard){buildDash();}else{show(6);buildReview();return;}}
@@ -566,7 +632,8 @@ function grabDash(){document.querySelectorAll('[data-d]').forEach(i=>{if(i.value
 function buildReview(){let m=v=>!v?'(empty)':v.length<=8?'*'.repeat(v.length):v.slice(0,4)+'…'+v.slice(-4);
  let L=['fork: '+cfg.owner_repo,'accounts: '+cfg.modes.join(', '),
   'congress: '+cfg.include_congress,'dashboard: '+cfg.do_dashboard,
-  'reset bot memory: '+cfg.reset_state,'','.env keys:'];
+  'reset bot memory: '+cfg.reset_state,'auto-push to fork: '+cfg.auto_push,
+  '','.env keys:'];
  Object.keys(cfg.bot_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.bot_env[k])));
  if(cfg.do_dashboard){L.push('','dashboard/.env keys:');
   Object.keys(cfg.dash_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.dash_env[k])));}

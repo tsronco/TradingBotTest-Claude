@@ -114,6 +114,91 @@ def test_enable_actions_degrades_without_token():
     assert "enable Actions by hand" in msgs  # graceful, not a crash
 
 
+def _fork_tree(tmp_path):
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "setup_cronjobs.py").write_text("REPO='x'\n")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "tsla.yml").write_text("on: x\n")
+    (tmp_path / "strategy_state.json").write_text("{}\n")
+    (tmp_path / ".env").write_text("SECRET=should_never_be_staged\n")
+
+
+def test_git_push_dry_run_runs_no_git(monkeypatch, tmp_path):
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    _fork_tree(tmp_path)
+    import subprocess
+    monkeypatch.setattr(subprocess, "run",
+                        lambda *a, **k: pytest.fail("git ran in dry mode"))
+    inst = webapp.WebInstaller()
+    inst._git_push_fork("bob/fork", dry=True)
+    assert "Would commit & push" in inst.snapshot()["lines"][0]["msg"]
+
+
+def test_git_push_stages_allowlist_only_and_pushes(monkeypatch, tmp_path):
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    _fork_tree(tmp_path)
+    seen = []
+
+    class R:
+        def __init__(self, code=0, out=""):
+            self.returncode, self.stdout, self.stderr = code, out, ""
+
+    def fake_run(argv, **kw):
+        seen.append(argv)
+        sub = argv[1:]
+        if "rev-parse" in sub:
+            return R(out="main\n")
+        if "config" in sub:
+            return R(out="me@example.com\n")  # identity present
+        if "diff" in sub:
+            return R(code=1)  # there ARE staged changes
+        return R(code=0)
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    inst = webapp.WebInstaller()
+    inst._git_push_fork("bob/fork", dry=False)
+
+    add = next(a for a in seen if a[:2] == ["git", "add"])
+    assert "-A" not in add and "." not in add[2:]
+    assert ".env" not in " ".join(add)  # the secret file is never staged
+    assert any("setup_cronjobs.py" in x for x in add)
+    assert any(".github/workflows/tsla.yml" in x for x in add)
+    assert ["git", "push", "-u", "origin", "main"] in seen
+    assert "pushed fork config" in \
+        " ".join(l["msg"] for l in inst.snapshot()["lines"])
+
+
+def test_git_push_failure_degrades_to_manual(monkeypatch, tmp_path):
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    _fork_tree(tmp_path)
+    import subprocess
+    import time
+
+    class R:
+        def __init__(self, code, out=""):
+            self.returncode, self.stdout, self.stderr = code, out, ""
+
+    def fake_run(argv, **kw):
+        sub = argv[1:]
+        if "rev-parse" in sub:
+            return R(0, "main\n")
+        if "config" in sub:
+            return R(0, "")  # no identity -> -c overrides used
+        if "diff" in sub:
+            return R(1)
+        if "push" in sub:
+            return R(1)  # push always fails
+        return R(0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(time, "sleep", lambda *_: None)  # no real backoff
+    inst = webapp.WebInstaller()
+    inst._git_push_fork("bob/fork", dry=False)
+    msg = " ".join(l["msg"] for l in inst.snapshot()["lines"])
+    assert "Auto-push failed" in msg and "git push -u origin main" in msg
+
+
 @pytest.fixture
 def live_server():
     inst = webapp.WebInstaller()
