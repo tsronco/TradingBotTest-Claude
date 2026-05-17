@@ -89,3 +89,17 @@ def test_dry_run_makes_no_calls(monkeypatch):
     _mock_requests(monkeypatch, handler)
     db, plan = UpstashProvisioner("e@x.com", "k", dry_run=True).find_or_create()
     assert plan == "free" and db["rest_token"] == "DRYRUN"
+
+
+def test_kv_env_maps_dashboard_required_keys():
+    db = {"endpoint": "rich-cat-1.upstash.io", "port": 6379,
+          "rest_token": "AX", "read_only_rest_token": "RO", "password": "PW"}
+    env = UpstashProvisioner.kv_env(db)
+    assert env["KV_REST_API_URL"] == "https://rich-cat-1.upstash.io"
+    assert env["KV_REST_API_TOKEN"] == "AX"
+    assert env["KV_REST_API_READ_ONLY_TOKEN"] == "RO"
+    assert env["KV_URL"] == "rediss://default:PW@rich-cat-1.upstash.io:6379"
+    assert env["REDIS_URL"] == env["KV_URL"]
+    # exactly the five keys the env shape expects, no extras
+    assert set(env) == {"KV_REST_API_URL", "KV_REST_API_TOKEN",
+                        "KV_REST_API_READ_ONLY_TOKEN", "KV_URL", "REDIS_URL"}
