@@ -16,10 +16,17 @@ manual trade entry.
 
 ## Getting started
 
-- **Setting it up for your own accounts:** see **[instructions.md](instructions.md)**
-  — a complete, from-scratch, zero-knowledge guide (fork → Alpaca → Discord →
+- **Fast path — `python setup.py`:** create the third-party accounts (Alpaca,
+  Discord, GitHub, cron-job.org, optionally Vercel/Anthropic — these signups
+  can't be automated), then run the interactive wizard. It writes your `.env`
+  files, fixes the two fork gotchas, bulk-pushes GitHub secrets, schedules
+  cron-job.org, and (optionally) creates Discord webhooks + deploys the
+  dashboard. See **["The fast path" in instructions.md](instructions.md)**.
+- **Manual / reference setup:** see **[instructions.md](instructions.md)** —
+  the complete, from-scratch, zero-knowledge guide (fork → Alpaca → Discord →
   GitHub Actions → cron-job.org → optional Vercel dashboard, with a
-  minimal-start path and real-money warnings).
+  minimal-start path and real-money warnings). The wizard automates these
+  steps; this is the fallback and the explanation of what each piece does.
 - **How it actually works:** see **[CLAUDE.md](CLAUDE.md)** — the authoritative
   architecture reference: every account mode, exact strategy parameters, the
   Discord channel map, the cron schedule, the runbook, and dashboard internals.
