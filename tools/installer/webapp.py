@@ -30,6 +30,23 @@ DASH_ENV_PATH = wizard.DASH_ENV_PATH
 DATA_URL = wizard.DATA_URL
 
 
+def _reset_state_files(dry: bool) -> list[str]:
+    """Blank inherited bot memory so a fresh fork starts clean.
+
+    Mirrors the manual ``echo "{}" > strategy_state*.json wheel_state*.json``
+    step from instructions.md — local file writes only, idempotent.
+    """
+    targets = sorted(
+        p for pat in ("strategy_state*.json", "wheel_state*.json")
+        for p in ROOT.glob(pat)
+    )
+    names = [p.name for p in targets]
+    if not dry:
+        for p in targets:
+            p.write_text("{}\n")
+    return names
+
+
 class WebInstaller:
     """Holds wizard state and runs the apply orchestration off a thread."""
 
@@ -122,6 +139,12 @@ class WebInstaller:
 
         self._log("info", f"{'DRY-RUN — ' if dry else ''}Configuring {owner_repo}")
 
+        # 0. reset inherited bot memory (fresh-fork hygiene)
+        if cfg.get("reset_state", True):
+            for name in _reset_state_files(dry):
+                self._log("info" if dry else "ok",
+                          f"{'Would reset' if dry else 'Reset'} {name}")
+
         # 1. .env files
         if dry:
             for k in sorted(bot_env):
@@ -146,8 +169,9 @@ class WebInstaller:
                 self._log("ok", f"Rewrote {c}")
             self._log("warn", "Commit & push the rewritten files to your fork.")
 
-        # 3. GitHub Actions secrets
+        # 3. GitHub Actions secrets + enable workflows on the fork
         self._push_secrets(owner_repo, modes, include_congress, bot_env, dry)
+        self._enable_actions(owner_repo, bot_env, dry)
 
         # 4. cron-job.org
         if dry:
@@ -158,6 +182,14 @@ class WebInstaller:
         # 5. dashboard deploy
         if do_dashboard and not dry:
             self._deploy_dashboard(cfg, dash_env, owner_repo)
+            self._log("warn",
+                      "One manual step left: vercel.com → your project → Storage "
+                      "→ Marketplace → Upstash Redis → connect (free). It's an "
+                      "interactive billing consent no script can perform.")
+            self._log("info",
+                      "After connecting Upstash, just re-run `python setup.py "
+                      "--web` and Apply — it redeploys with the KV vars; no "
+                      "separate `vercel --prod` needed.")
 
         # 6. health check
         if not dry:
@@ -189,6 +221,20 @@ class WebInstaller:
             except GitHubError as e:
                 self._log("error", str(e))
                 return
+
+    def _enable_actions(self, owner_repo, bot_env, dry) -> None:
+        from .github_api import GitHubError, GitHubSecrets
+
+        token = bot_env.get("GITHUB_ACCESS_TOKEN", "")
+        if not token:
+            self._log("warn", "No GitHub token — enable Actions by hand "
+                      "(fork → Actions tab → enable workflows).")
+            return
+        try:
+            gh = GitHubSecrets(owner_repo, token, dry_run=dry)
+            self._log("ok", gh.enable_actions())
+        except GitHubError as e:
+            self._log("warn", str(e))  # graceful: manual fallback in message
 
     def _run_cron(self) -> None:
         import subprocess
@@ -399,6 +445,7 @@ except the API calls you authorize at the end.</p>
 <div id="s1" class="step"><h2>2 · Accounts</h2><div id="accts"></div>
 <label class="row"><input type="checkbox" id="congress"> Enable the (conservative-only) congress copier</label>
 <label class="row"><input type="checkbox" id="dash" checked> Set up the Vercel dashboard</label>
+<label class="row"><input type="checkbox" id="reset" checked> Reset inherited bot memory (recommended on a fresh fork)</label>
 <button class="sec" onclick="prev(1)">Back</button><button onclick="next(1)">Continue</button></div>
 
 <div id="s2" class="step"><h2>3 · Alpaca keys</h2><div id="alpaca"></div>
@@ -450,7 +497,8 @@ function chosen(){return [...document.querySelectorAll('.mode:checked')].map(e=>
 function next(n){
  if(n===0){cfg.owner_repo=$('owner_repo').value.trim();if(!cfg.owner_repo)return alert('Fork required');}
  if(n===1){cfg.modes=chosen();if(!cfg.modes.length)return alert('Pick at least one account');
-   cfg.include_congress=$('congress').checked;cfg.do_dashboard=$('dash').checked;buildAlpaca();}
+   cfg.include_congress=$('congress').checked;cfg.do_dashboard=$('dash').checked;
+   cfg.reset_state=$('reset').checked;buildAlpaca();}
  if(n===2){if(!grabAlpaca())return;buildDiscord();}
  if(n===3){grabDiscord();buildGlobals();}
  if(n===4){grabGlobals();if(cfg.do_dashboard){buildDash();}else{show(6);buildReview();return;}}
@@ -517,7 +565,8 @@ async function genBackup(b){let r=await pj('/api/generate',{kind:'backup'});
 function grabDash(){document.querySelectorAll('[data-d]').forEach(i=>{if(i.value.trim())cfg.dash_env[i.dataset.d]=i.value.trim();});}
 function buildReview(){let m=v=>!v?'(empty)':v.length<=8?'*'.repeat(v.length):v.slice(0,4)+'…'+v.slice(-4);
  let L=['fork: '+cfg.owner_repo,'accounts: '+cfg.modes.join(', '),
-  'congress: '+cfg.include_congress,'dashboard: '+cfg.do_dashboard,'','.env keys:'];
+  'congress: '+cfg.include_congress,'dashboard: '+cfg.do_dashboard,
+  'reset bot memory: '+cfg.reset_state,'','.env keys:'];
  Object.keys(cfg.bot_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.bot_env[k])));
  if(cfg.do_dashboard){L.push('','dashboard/.env keys:');
   Object.keys(cfg.dash_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.dash_env[k])));}

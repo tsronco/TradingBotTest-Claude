@@ -89,3 +89,27 @@ class GitHubSecrets:
         if r.status_code not in (201, 204):
             raise GitHubError(f"Setting secret {name} failed: HTTP {r.status_code} {r.text[:200]}")
         return f"set {name}"
+
+    def enable_actions(self) -> str:
+        """Flip on GitHub Actions for a fork (the 'enable workflows' button).
+
+        Needs the token's *Administration: write* scope — a repo-settings
+        change, distinct from Secrets/Actions. Raises GitHubError with an
+        actionable fallback if the token lacks it so the caller can degrade
+        to the one-click manual instruction instead of hard-failing.
+        """
+        if self.dry_run:
+            return "DRY-RUN would enable GitHub Actions on the fork"
+        r = requests.put(
+            f"{API}/repos/{self.owner_repo}/actions/permissions",
+            headers=self._headers,
+            json={"enabled": True, "allowed_actions": "all"},
+            timeout=20,
+        )
+        if r.status_code != 204:
+            raise GitHubError(
+                f"Couldn't auto-enable Actions (HTTP {r.status_code}). The PAT "
+                "likely lacks 'Administration: read/write'. Enable it by hand: "
+                "your fork → Actions tab → 'I understand, enable workflows'."
+            )
+        return "GitHub Actions enabled on the fork"

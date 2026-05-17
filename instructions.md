@@ -135,12 +135,19 @@ those by hand. But once you have your keys, the wizard does the rest.
 
 **What you still do by hand (the irreducible part):**
 
-1. Fork + clone the repo (Step 1 below) and reset the state files.
+1. Fork + clone the repo (Step 1 below). *(State-file reset is now done for
+   you by the installer — no manual `echo "{}"` step.)*
 2. Create the accounts you want and copy their keys into a scratch text file:
    Alpaca paper account(s) (Step 2), a Discord server (Step 3), a GitHub
-   fine-grained PAT with **Contents + Actions + Secrets = Read and write**
-   (Step 6a), a cron-job.org API key (Step 6b), and — only if you want the
-   dashboard — Vercel + an Anthropic API key (Step 9a).
+   fine-grained PAT with **Contents + Actions + Secrets + Administration =
+   Read and write** (Step 6a — Administration lets the installer flip on
+   Actions for you; without it that stays a one-click manual step), a
+   cron-job.org API key (Step 6b), and — only if you want the dashboard —
+   Vercel + an Anthropic API key (Step 9a).
+3. `git push` the installer's rewrites to your fork (it edits the files but
+   won't push your repo for you), and — dashboard only — make the one
+   interactive **Upstash Redis** connection on vercel.com (a Marketplace
+   billing-consent click no CLI/API can perform).
 
 **What the wizard then does for you:**
 
@@ -162,8 +169,11 @@ configure, collects each account's keys (and offers to test them live),
 **auto-creates the Discord channels + webhooks** (if you give it a Discord bot
 token) or takes pasted webhook URLs, **generates** every secret it safely can
 (session/cron/push tokens, the TOTP secret, backup codes), writes both `.env`
-files (merging — it never clobbers existing values), **fixes both fork
-gotchas** automatically, **bulk-pushes all GitHub Actions secrets**, runs
+files (merging — it never clobbers existing values), **resets inherited bot
+memory** (blanks `strategy_state*/wheel_state*.json` so your fork starts
+clean), **fixes both fork gotchas** automatically, **bulk-pushes all GitHub
+Actions secrets**, **enables Actions on the fork** (if the PAT has
+Administration scope; otherwise it logs the one-click fallback), runs
 `tools/setup_cronjobs.py`, optionally **deploys the Vercel dashboard** and sets
 its env vars, and finishes with a health check.
 
@@ -173,9 +183,14 @@ python setup.py --check      # just health-check an existing .env
 python setup.py --fix-urls   # re-point workflows at your Vercel URL after deploy
 ```
 
-> Because the dashboard's URL only exists *after* its first deploy, the wizard
-> deploys it and then tells you to re-run `python setup.py --fix-urls` once to
-> point the workflows at your new URL. That's the only two-pass part.
+> The dashboard's URL only exists *after* its first deploy. The **`--web`**
+> installer handles this for you — it re-points the workflows and re-syncs the
+> cron jobs to the new URL automatically in the same run (no `--fix-urls`
+> needed). The only genuine two-pass part is the dashboard's **Upstash Redis**:
+> connect it on vercel.com (one Marketplace click), then re-run
+> `python setup.py --web` and Apply to redeploy with the KV vars present.
+> (The terminal `python setup.py` flow still uses `python setup.py --fix-urls`
+> for the URL re-point.)
 
 > The live real-money account is deliberately gated: the wizard warns hard and
 > defaults to **off**. Read Step 10 before ever enabling it.

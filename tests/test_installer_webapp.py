@@ -39,6 +39,7 @@ def test_generate_backup_gracefully_nulls(monkeypatch, tmp_path):
 def test_dry_run_apply_writes_nothing_and_logs_plan(monkeypatch, tmp_path):
     monkeypatch.setattr(webapp, "ENV_PATH", tmp_path / ".env")
     monkeypatch.setattr(webapp, "DASH_ENV_PATH", tmp_path / "d.env")
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)  # reset glob hits nothing
     inst = webapp.WebInstaller()
     inst._apply({
         "dry_run": True,
@@ -46,7 +47,9 @@ def test_dry_run_apply_writes_nothing_and_logs_plan(monkeypatch, tmp_path):
         "modes": ["conservative"],
         "include_congress": False,
         "do_dashboard": False,
-        "bot_env": {"ALPACA_API_KEY": "PKxx", "BOT_PUSH_TOKEN": "deadbeef"},
+        "reset_state": True,
+        "bot_env": {"ALPACA_API_KEY": "PKxx", "BOT_PUSH_TOKEN": "deadbeef",
+                    "GITHUB_ACCESS_TOKEN": "ghp_x"},
         "dash_env": {},
     })
     snap = inst.snapshot()
@@ -55,7 +58,60 @@ def test_dry_run_apply_writes_nothing_and_logs_plan(monkeypatch, tmp_path):
     text = " ".join(l["msg"] for l in snap["lines"])
     assert "would set ALPACA_API_KEY" in text
     assert "DRY-RUN would set" in text  # secrets-push plan
+    assert "DRY-RUN would enable GitHub Actions" in text  # actions plan
     assert "PKxx" not in text  # value never echoed raw
+
+
+def test_reset_state_files_blanks_only_on_real_run(monkeypatch, tmp_path):
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    (tmp_path / "strategy_state.json").write_text('{"TSLA": {"qty": 10}}')
+    (tmp_path / "wheel_state_aggressive.json").write_text('{"BAC": 1}')
+    (tmp_path / "unrelated.json").write_text('{"keep": 1}')
+
+    names = webapp._reset_state_files(dry=True)
+    assert set(names) == {"strategy_state.json", "wheel_state_aggressive.json"}
+    assert "qty" in (tmp_path / "strategy_state.json").read_text()  # untouched
+
+    webapp._reset_state_files(dry=False)
+    assert (tmp_path / "strategy_state.json").read_text() == "{}\n"
+    assert (tmp_path / "wheel_state_aggressive.json").read_text() == "{}\n"
+    assert "keep" in (tmp_path / "unrelated.json").read_text()  # not in glob
+
+
+def test_enable_actions_api_contract(monkeypatch):
+    from tools.installer import github_api
+
+    gh = github_api.GitHubSecrets("bob/fork", "ghp_x")
+    assert "DRY-RUN" in github_api.GitHubSecrets(
+        "bob/fork", "t", dry_run=True).enable_actions()
+
+    calls = {}
+
+    class Resp:
+        def __init__(self, code):
+            self.status_code = code
+            self.text = "nope"
+
+    def fake_put(url, **kw):
+        calls["url"] = url
+        calls["body"] = kw["json"]
+        return Resp(204)
+
+    monkeypatch.setattr(github_api.requests, "put", fake_put)
+    assert "enabled" in gh.enable_actions()
+    assert calls["url"].endswith("/repos/bob/fork/actions/permissions")
+    assert calls["body"] == {"enabled": True, "allowed_actions": "all"}
+
+    monkeypatch.setattr(github_api.requests, "put", lambda *a, **k: Resp(403))
+    with pytest.raises(github_api.GitHubError, match="Administration"):
+        gh.enable_actions()
+
+
+def test_enable_actions_degrades_without_token():
+    inst = webapp.WebInstaller()
+    inst._enable_actions("bob/fork", {}, dry=False)  # no GITHUB_ACCESS_TOKEN
+    msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
+    assert "enable Actions by hand" in msgs  # graceful, not a crash
 
 
 @pytest.fixture
