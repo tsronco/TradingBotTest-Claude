@@ -33,10 +33,15 @@ billing-consent click for the dashboard's database.
 4. **cron-job.org** → console.cron-job.org → Settings → API → create a key.
 5. **GitHub PAT** → GitHub → Settings → Developer settings →
    **Fine-grained tokens** → scope to **your fork only**, permissions
-   **Contents + Actions + Secrets + Administration = Read and write**.
-   (Administration lets the installer flip on Actions for you.)
-6. **Vercel** → vercel.com → sign up **with your GitHub account** (Hobby/free).
-7. *(Optional, the one paid piece — only enables AI trade grading)*
+   **Contents + Actions + Secrets + Administration + Workflows = Read and write**.
+   (Administration lets the installer flip on Actions for you; Workflows lets
+   it rewrite `.github/workflows/*.yml` and push them back to your fork.)
+6. **Upstash** → console.upstash.com → sign up (free) → Account → Management
+   API → **Create API Key**. Copy the key. You'll also need the email address
+   on the account. The installer uses these to provision the dashboard's Redis
+   database automatically.
+7. **Vercel** → vercel.com → sign up **with your GitHub account** (Hobby/free).
+8. *(Optional, the one paid piece — only enables AI trade grading)*
    **Anthropic** → console.anthropic.com → API keys → create one → add ~$5
    credit. Skip it and the dashboard still works, just without AI grades.
 
@@ -62,7 +67,8 @@ A browser window opens (localhost only, token-gated). Step through the form:
   dashboard*, *Reset bot memory*, and *Auto-push to fork* checked.
 - **Alpaca** — paste Key/Secret, click **Test** (green = good).
 - **Discord** — paste the 4 webhook URLs.
-- **Tokens** — paste the cron-job.org key + GitHub PAT; **Generate** the rest.
+- **Tokens** — paste the cron-job.org key, GitHub PAT, Upstash account email,
+  and Upstash Management API key; **Generate** the rest.
 - **Dashboard secrets** — choose a `DASHBOARD_PASSWORD`; click **Generate**
   for `SESSION_SECRET`, **TOTP** (keep the `otpauth://` link visible), and
   **Backup codes** (shown **once** — write them down); paste the Anthropic
@@ -72,12 +78,11 @@ A browser window opens (localhost only, token-gated). Step through the form:
 The progress log then does everything automatically and ends with your live
 dashboard URL.
 
-## 5. The one irreducible click (dashboard only)
+## 5. Dashboard Redis (dashboard only)
 
-1. vercel.com → your project → **Storage** tab → **Marketplace → Upstash
-   Redis → connect** (free plan). Vercel auto-injects the database vars.
-2. Re-run `python setup.py --web` and click **Apply** again. It redeploys
-   with the database connected — it re-pastes nothing, just finishes.
+The dashboard's Redis is provisioned automatically by the installer via the
+Upstash API — it works on the first Apply, no second pass and no Vercel
+Marketplace step.
 
 *(No-dashboard path: skip step 5 entirely.)*
 

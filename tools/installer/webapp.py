@@ -361,6 +361,8 @@ class WebInstaller:
         try:
             prov = upstash_api.UpstashProvisioner(email, api_key)
             db, plan = prov.find_or_create()
+            # KV vars are pushed to Vercel only (production reads Vercel runtime
+            # env); intentionally not written to dashboard/.env — see spec §1.
             dash_env.update(_UpstashProvisioner.kv_env(db))
         except UpstashError as e:
             self._log("error", f"Upstash provisioning failed: {e}")
