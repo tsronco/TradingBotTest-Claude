@@ -330,3 +330,19 @@ def test_totp_and_backup_branches_have_regen_awareness():
     assert "already set — leave blank to keep" in totp_seg
     assert "Regenerate (replaces existing)" in backup_seg
     assert "already set — leave blank to keep" in backup_seg
+
+
+def test_run_cron_classifies_partial_as_warning(monkeypatch):
+    inst = webapp.WebInstaller()
+
+    class P:
+        returncode = 75
+        stdout = "1 job(s) rate-limited — re-run Apply to finish the rest"
+        stderr = ""
+
+    monkeypatch.setattr(webapp.subprocess, "run", lambda *a, **k: P())
+    inst._run_cron()
+    lines = inst.snapshot()["lines"]
+    levels = {l["level"] for l in lines}
+    assert "warn" in levels and "error" not in levels
+    assert any("re-run Apply" in l["msg"] for l in lines)

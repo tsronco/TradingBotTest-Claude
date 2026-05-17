@@ -323,7 +323,6 @@ class WebInstaller:
                       f"git push -u origin {branch}")
 
     def _run_cron(self) -> None:
-        import subprocess
         import sys
 
         try:
@@ -331,7 +330,13 @@ class WebInstaller:
                 [sys.executable, "tools/setup_cronjobs.py"],
                 cwd=ROOT, capture_output=True, text=True, timeout=300,
             )
-            self._log("ok" if p.returncode == 0 else "error", "setup_cronjobs.py finished")
+            if p.returncode == 0:
+                level = "ok"
+            elif p.returncode == 75:
+                level = "warn"  # rate-limited partial — re-run finishes it
+            else:
+                level = "error"
+            self._log(level, "setup_cronjobs.py finished")
             tail = (p.stdout or p.stderr).strip().splitlines()[-6:]
             for line in tail:
                 self._log("info", line)
