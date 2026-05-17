@@ -22,7 +22,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from . import envfile, fork, secrets_gen, spec, validate, wizard
-from .upstash_api import UpstashProvisioner as _UpstashProvisioner
+
+# _UpstashProvisioner is the concrete class imported at module load time.
+# Inside _deploy_dashboard, the constructor is accessed via the module
+# (upstash_api.UpstashProvisioner) so tests can monkeypatch the class;
+# the static kv_env() call uses this alias, which always points to the
+# real implementation regardless of patching.  Both spellings are
+# intentional — do not consolidate.
+from .upstash_api import UpstashProvisioner as _UpstashProvisioner, UpstashError
 
 ROOT = wizard.ROOT
 ENV_PATH = wizard.ENV_PATH
@@ -312,7 +319,6 @@ class WebInstaller:
 
     def _deploy_dashboard(self, cfg, dash_env, bot_env, owner_repo) -> None:
         from . import upstash_api, vercel_cli
-        from .upstash_api import UpstashError
 
         if not vercel_cli.available():
             self._log("warn", "Vercel CLI unavailable — deploy manually "

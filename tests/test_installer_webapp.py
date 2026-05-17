@@ -278,3 +278,19 @@ def test_deploy_dashboard_provisions_upstash_and_drops_two_pass(monkeypatch):
     msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
     assert "Created free Upstash DB" in msgs
     assert "Marketplace" not in msgs  # two-pass guidance removed
+
+
+def test_deploy_dashboard_errors_when_upstash_creds_missing(monkeypatch):
+    from tools.installer import vercel_cli
+
+    monkeypatch.setattr(vercel_cli, "available", lambda: True)
+    called = []
+    monkeypatch.setattr(vercel_cli, "link",
+                        lambda *a: called.append("link") or (True, "x"))
+
+    inst = webapp.WebInstaller()
+    inst._deploy_dashboard({"vercel_project": "p"}, {"SESSION_SECRET": "s"},
+                           {}, "bob/fork")
+    msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
+    assert "Upstash email" in msgs and "required" in msgs
+    assert "link" not in called  # bailed before any Vercel work
