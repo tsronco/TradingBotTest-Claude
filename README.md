@@ -16,6 +16,8 @@ manual trade entry.
 
 ## Getting started
 
+- **New here? → [QUICKSTART.md](QUICKSTART.md)** — the 6-step minimum path
+  (one account + dashboard) in ~50 min, mostly account signups.
 - **Fast path — `python setup.py --web`:** create the third-party accounts
   (Alpaca, Discord, GitHub, cron-job.org, optionally Vercel/Anthropic — these
   signups can't be automated), then run the guided installer. `--web` opens a
