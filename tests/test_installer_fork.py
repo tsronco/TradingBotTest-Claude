@@ -106,3 +106,7 @@ def test_git_push_fork_uses_token_without_persisting(monkeypatch, tmp_path):
     assert "http.https://github.com/.extraheader=AUTHORIZATION: basic " in joined
     assert "ghp_SECRET" not in joined  # raw token never on argv
     assert not any(a[1:3] == ["remote", "set-url"] for a in calls)
+
+    import base64 as _b64, re as _re
+    _m = _re.search(r"AUTHORIZATION: basic (\S+)", joined)
+    assert _m and _b64.b64decode(_m.group(1)).decode() == "x-access-token:ghp_SECRET"

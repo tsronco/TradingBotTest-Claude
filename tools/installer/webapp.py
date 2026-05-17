@@ -13,6 +13,7 @@ progress log masks anything it reports).
 """
 from __future__ import annotations
 
+import base64
 import hmac
 import json
 import secrets as _secrets
@@ -290,7 +291,6 @@ class WebInstaller:
                       f"hook). Run by hand:\n  git add {' '.join(rel)}\n"
                       f'  git commit -m "configure fork"\n  git push')
             return
-        import base64
         push_cfg: list[str] = []
         if token:
             blob = base64.b64encode(
@@ -306,7 +306,7 @@ class WebInstaller:
                 self._log("ok", f"Committed & pushed fork config to "
                           f"origin/{branch}.")
                 return
-            last_err = (p.stderr or p.stdout or "")
+            last_err = (p.stderr or p.stdout or "")  # consumed by Task 6 (workflow-scope classifier)
             if attempt < 3:
                 time.sleep(2 ** (attempt + 1))
         self._log("warn", "Auto-push failed (check git auth/network). Your "
