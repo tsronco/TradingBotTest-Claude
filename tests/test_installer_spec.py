@@ -88,3 +88,12 @@ def test_dashboard_env_keys_excludes_live_alpaca():
     assert "ALPACA_LIVE_API_KEY" not in keys
     assert "SESSION_SECRET" in keys
     assert "ALPACA_DATA_BASE_URL" in keys
+
+
+def test_upstash_globals_present_and_ask_kind():
+    by_name = {n: (k, d) for n, k, d in spec.GLOBAL_SECRETS}
+    assert by_name["UPSTASH_EMAIL"][0] == "ask"
+    assert by_name["UPSTASH_API_KEY"][0] == "ask"
+    # GitHub PAT description must now mention Workflows (push touches workflows)
+    gh_desc = by_name["GITHUB_ACCESS_TOKEN"][1]
+    assert "Workflows" in gh_desc

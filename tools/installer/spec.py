@@ -123,8 +123,10 @@ def all_accounts() -> list[Account]:
 #   "ask"       — user pastes a value the installer cannot generate
 #   "generate"  — installer can mint a random value (offered, user may paste)
 GLOBAL_SECRETS = [
-    ("GITHUB_ACCESS_TOKEN", "ask", "Fine-grained GitHub PAT (Actions+Contents+Secrets: read/write)"),
+    ("GITHUB_ACCESS_TOKEN", "ask", "Fine-grained GitHub PAT (Contents+Actions+Workflows+Administration+Secrets: read/write)"),
     ("CRONJOB_API_KEY", "ask", "cron-job.org API key (Settings -> API)"),
+    ("UPSTASH_EMAIL", "ask", "Upstash account email (provisions the dashboard's Redis)"),
+    ("UPSTASH_API_KEY", "ask", "Upstash Management API key (console -> Account -> Management API)"),
     ("BOT_PUSH_TOKEN", "generate", "Shared secret: bot -> dashboard /api/bot-state"),
     ("DASHBOARD_CRON_TOKEN", "generate", "Mirrors Vercel CRON_TOKEN (trade-grading cron)"),
 ]
