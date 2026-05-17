@@ -110,3 +110,41 @@ def test_git_push_fork_uses_token_without_persisting(monkeypatch, tmp_path):
     import base64 as _b64, re as _re
     _m = _re.search(r"AUTHORIZATION: basic (\S+)", joined)
     assert _m and _b64.b64decode(_m.group(1)).decode() == "x-access-token:ghp_SECRET"
+
+
+def test_workflow_scope_error_is_classified():
+    from tools.installer.github_api import is_workflow_scope_error
+
+    rej = ("! [remote rejected] b -> b (refusing to allow a Personal Access "
+           "Token to create or update workflow `.github/workflows/x.yml` "
+           "without `workflow` scope)")
+    assert is_workflow_scope_error(rej) is True
+    assert is_workflow_scope_error("fatal: Authentication failed") is False
+
+
+def test_push_failure_emits_workflow_remedy(monkeypatch, tmp_path):
+    from tools.installer import webapp
+
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "setup_cronjobs.py").write_text("# x\n")
+
+    def fake_run(args, **kw):
+        class R:
+            returncode = 0
+            stdout = "main" if args[:2] == ["git", "rev-parse"] else ""
+            stderr = ""
+        if args[1:4] == ["diff", "--cached", "--quiet"]:
+            R.returncode = 1
+        if "push" in args:
+            R.returncode = 1
+            R.stderr = ("refusing to allow a Personal Access Token to "
+                        "create or update workflow `.github/workflows/x.yml` "
+                        "without `workflow` scope")
+        return R()
+
+    monkeypatch.setattr(webapp.subprocess, "run", fake_run)
+    inst = webapp.WebInstaller()
+    inst._git_push_fork("bob/fork", "ghp_x", dry=False)
+    msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
+    assert "Workflows: Read and write" in msgs

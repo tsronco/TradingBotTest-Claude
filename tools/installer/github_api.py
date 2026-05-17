@@ -113,3 +113,10 @@ class GitHubSecrets:
                 "your fork → Actions tab → 'I understand, enable workflows'."
             )
         return "GitHub Actions enabled on the fork"
+
+
+def is_workflow_scope_error(text: str) -> bool:
+    """True if a git-push rejection is the fine-grained-PAT workflow-scope
+    refusal (vs. generic auth/network failure)."""
+    t = (text or "").lower()
+    return "workflow" in t and ("scope" in t or "refusing to allow" in t)

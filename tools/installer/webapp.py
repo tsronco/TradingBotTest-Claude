@@ -309,9 +309,17 @@ class WebInstaller:
             last_err = (p.stderr or p.stdout or "")  # consumed by Task 6 (workflow-scope classifier)
             if attempt < 3:
                 time.sleep(2 ** (attempt + 1))
-        self._log("warn", "Auto-push failed (check git auth/network). Your "
-                  "commit is saved locally — finish with:  "
-                  f"git push -u origin {branch}")
+        from .github_api import is_workflow_scope_error
+        if is_workflow_scope_error(last_err):
+            self._log("warn", "Push rejected: your GitHub PAT lacks the "
+                      "Workflows permission (the installer rewrites workflow "
+                      "files). Fix: edit the fine-grained PAT -> Repository "
+                      "permissions -> Workflows: Read and write -> Update "
+                      "token, then re-run Apply.")
+        else:
+            self._log("warn", "Auto-push failed (check git auth/network). "
+                      "Your commit is saved locally — finish with:  "
+                      f"git push -u origin {branch}")
 
     def _run_cron(self) -> None:
         import subprocess
