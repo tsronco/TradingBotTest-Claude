@@ -596,6 +596,8 @@ function prev(n){show(n-1)}
 init();
 async function init(){
  S=await gj('/api/init');$('owner_repo').value=S.owner_repo||'';
+ // NOTE: bot (.env) + dashboard (.env) key namespaces merged into one Set;
+ // safe only while GLOBAL_SECRETS and DASHBOARD_SECRETS names stay disjoint.
  window.HAVE=new Set([...(S.existing_env_keys||[]),...(S.existing_dash_keys||[])]);
  let a=$('accts');S.accounts.forEach(x=>{a.insertAdjacentHTML('beforeend',
   `<div class="acct"><label class="row"><input type="checkbox" class="mode" value="${x.mode}"
@@ -654,12 +656,14 @@ function grabGlobals(){document.querySelectorAll('[data-g]').forEach(i=>{if(i.va
 async function genInto(btn,name){let r=await pj('/api/generate',{kind:'token'});
  btn.parentElement.querySelector('input').value=r.value;}
 function buildDash(){let h='';S.dashboard_secrets.forEach(g=>{
- if(g.kind==='totp'){h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+ if(g.kind==='totp'){let set=HAVE.has(g.name);h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+  ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
   <div class="row"><input type="text" data-d="TOTP_SECRET" style="flex:1">
-  <button class="sec" onclick="genTotp(this)">Generate</button></div><div class="muted" id="otpa"></div>`;}
- else if(g.kind==='backup'){h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+  <button class="sec" onclick="genTotp(this)">${set?'Regenerate (replaces existing)':'Generate'}</button></div><div class="muted" id="otpa"></div>`;}
+ else if(g.kind==='backup'){let set=HAVE.has(g.name);h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+  ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
   <div class="row"><input type="text" data-d="BACKUP_CODES_HASHED" style="flex:1">
-  <button class="sec" onclick="genBackup(this)">Generate</button></div><div class="muted" id="bcodes"></div>`;}
+  <button class="sec" onclick="genBackup(this)">${set?'Regenerate (replaces existing)':'Generate'}</button></div><div class="muted" id="bcodes"></div>`;}
  else{let gen=g.kind==='generate',set=HAVE.has(g.name);h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
   ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
   <div class="row"><input type="password" data-d="${g.name}" style="flex:1">

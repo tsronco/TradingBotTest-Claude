@@ -318,3 +318,15 @@ def test_page_html_has_existing_key_awareness():
     assert "existing_env_keys" in html and "existing_dash_keys" in html
     assert "Regenerate (replaces existing)" in html
     assert "kept" in html and "will write" in html
+
+
+def test_totp_and_backup_branches_have_regen_awareness():
+    html = webapp._PAGE_HTML
+    # the genTotp and genBackup buttons must be able to show the regen label
+    import re
+    totp_seg = html[html.index("genTotp(this)") - 400:html.index("genTotp(this)") + 200]
+    backup_seg = html[html.index("genBackup(this)") - 400:html.index("genBackup(this)") + 200]
+    assert "Regenerate (replaces existing)" in totp_seg
+    assert "already set — leave blank to keep" in totp_seg
+    assert "Regenerate (replaces existing)" in backup_seg
+    assert "already set — leave blank to keep" in backup_seg
