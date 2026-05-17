@@ -296,3 +296,17 @@ def test_deploy_dashboard_errors_when_upstash_creds_missing(monkeypatch):
     msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
     assert "Upstash email" in msgs and "required" in msgs
     assert "link" not in called  # bailed before any Vercel work
+
+
+def test_init_state_reports_existing_dashboard_keys(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    denv = tmp_path / "d.env"
+    env.write_text("ALPACA_API_KEY=PKxx\nGITHUB_ACCESS_TOKEN=ghp\n")
+    denv.write_text("SESSION_SECRET=abc\nTOTP_SECRET=ZZZ\n")
+    monkeypatch.setattr(webapp, "ENV_PATH", env)
+    monkeypatch.setattr(webapp, "DASH_ENV_PATH", denv)
+    st = webapp.WebInstaller().init_state()
+    assert "ALPACA_API_KEY" in st["existing_env_keys"]
+    assert "SESSION_SECRET" in st["existing_dash_keys"]
+    blob = repr(st)
+    assert "PKxx" not in blob and "abc" not in blob

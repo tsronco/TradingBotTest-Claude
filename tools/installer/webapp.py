@@ -107,6 +107,7 @@ class WebInstaller:
             "congress_env": spec.CONGRESS_WEBHOOK_ENV,
             "data_url": DATA_URL,
             "existing_env_keys": sorted(envfile.read_values(ENV_PATH)),
+            "existing_dash_keys": sorted(envfile.read_values(DASH_ENV_PATH)),
             "default_dry_run": self.default_dry_run,
         }
 
