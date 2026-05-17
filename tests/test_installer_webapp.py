@@ -310,3 +310,11 @@ def test_init_state_reports_existing_dashboard_keys(monkeypatch, tmp_path):
     assert "SESSION_SECRET" in st["existing_dash_keys"]
     blob = repr(st)
     assert "PKxx" not in blob and "abc" not in blob
+
+
+def test_page_html_has_existing_key_awareness():
+    html = webapp._PAGE_HTML
+    assert "already set — leave blank to keep" in html
+    assert "existing_env_keys" in html and "existing_dash_keys" in html
+    assert "Regenerate (replaces existing)" in html
+    assert "kept" in html and "will write" in html

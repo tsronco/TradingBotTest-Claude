@@ -596,6 +596,7 @@ function prev(n){show(n-1)}
 init();
 async function init(){
  S=await gj('/api/init');$('owner_repo').value=S.owner_repo||'';
+ window.HAVE=new Set([...(S.existing_env_keys||[]),...(S.existing_dash_keys||[])]);
  let a=$('accts');S.accounts.forEach(x=>{a.insertAdjacentHTML('beforeend',
   `<div class="acct"><label class="row"><input type="checkbox" class="mode" value="${x.mode}"
    ${x.mode==='conservative'?'checked':''}> <b>${x.label}</b>
@@ -615,15 +616,18 @@ function next(n){
  show(n+1);
 }
 function buildAlpaca(){let h='';S.accounts.filter(a=>cfg.modes.includes(a.mode)).forEach(a=>{
+ let set=HAVE.has(a.key_env)&&HAVE.has(a.secret_env);
  h+=`<div class="acct"><b>${a.label}</b>${a.is_real?' <span class="tag">REAL MONEY</span>':''}
+ ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
  <label>${a.key_env}</label><input type="password" data-k="${a.key_env}">
  <label>${a.secret_env}</label><input type="password" data-k="${a.secret_env}">
  <label>${a.url_env}</label><input type="text" data-k="${a.url_env}" value="${a.default_url}">
  <button class="sec" onclick="testAlpaca(this,'${a.key_env}','${a.secret_env}','${a.url_env}')">Test</button>
  <span class="pill" data-t="${a.key_env}"></span></div>`});$('alpaca').innerHTML=h;}
-function grabAlpaca(){document.querySelectorAll('#alpaca input').forEach(i=>cfg.bot_env[i.dataset.k]=i.value.trim());
- for(const a of S.accounts.filter(a=>cfg.modes.includes(a.mode)))
-  if(!cfg.bot_env[a.key_env]||!cfg.bot_env[a.secret_env]){alert('Fill keys for '+a.mode);return false}return true;}
+function grabAlpaca(){document.querySelectorAll('#alpaca input').forEach(i=>{if(i.value.trim())cfg.bot_env[i.dataset.k]=i.value.trim();});
+ for(const a of S.accounts.filter(a=>cfg.modes.includes(a.mode))){
+  let have=(cfg.bot_env[a.key_env]&&cfg.bot_env[a.secret_env])||(HAVE.has(a.key_env)&&HAVE.has(a.secret_env));
+  if(!have){alert('Fill keys for '+a.mode+' (none on file yet)');return false}}return true;}
 async function testAlpaca(btn,k,s,u){let g=q=>document.querySelector(`#alpaca input[data-k="${q}"]`).value.trim();
  let sp=btn.nextElementSibling;sp.textContent='…';let r=await pj('/api/validate/alpaca',{key:g(k),secret:g(s),url:g(u)});
  sp.textContent=r.msg;sp.className='pill '+(r.ok?'ok':'err');}
@@ -640,10 +644,11 @@ async function discordCreate(){let ch=webhookList().map(([env,channel])=>({env,c
  let e=Object.entries(r.errors||{});alert(e.length?('Some failed:\n'+e.map(x=>x[0]+': '+x[1]).join('\n')):'Channels created.');}
 function grabDiscord(){document.querySelectorAll('[data-w]').forEach(i=>{if(i.value.trim())cfg.bot_env[i.dataset.w]=i.value.trim();});}
 function buildGlobals(){let h='';S.global_secrets.forEach(g=>{
- let gen=g.kind==='generate';
+ let set=HAVE.has(g.name),gen=g.kind==='generate';
  h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+ ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
  <div class="row"><input type="password" data-g="${g.name}" style="flex:1">
- ${gen?`<button class="sec" onclick="genInto(this,'${g.name}')">Generate</button>`:''}</div>`});
+ ${gen?`<button class="sec" onclick="genInto(this,'${g.name}')">${set?'Regenerate (replaces existing)':'Generate'}</button>`:''}</div>`});
  $('globals').innerHTML=h;}
 function grabGlobals(){document.querySelectorAll('[data-g]').forEach(i=>{if(i.value.trim())cfg.bot_env[i.dataset.g]=i.value.trim();});}
 async function genInto(btn,name){let r=await pj('/api/generate',{kind:'token'});
@@ -655,9 +660,10 @@ function buildDash(){let h='';S.dashboard_secrets.forEach(g=>{
  else if(g.kind==='backup'){h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
   <div class="row"><input type="text" data-d="BACKUP_CODES_HASHED" style="flex:1">
   <button class="sec" onclick="genBackup(this)">Generate</button></div><div class="muted" id="bcodes"></div>`;}
- else{let gen=g.kind==='generate';h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+ else{let gen=g.kind==='generate',set=HAVE.has(g.name);h+=`<label>${g.name} <span class="muted">${g.desc}</span></label>
+  ${set?'<div class="muted">✓ already set — leave blank to keep</div>':''}
   <div class="row"><input type="password" data-d="${g.name}" style="flex:1">
-  ${gen?`<button class="sec" onclick="genInto2(this,'${g.name}')">Generate</button>`:''}</div>`;}});
+  ${gen?`<button class="sec" onclick="genInto2(this,'${g.name}')">${set?'Regenerate (replaces existing)':'Generate'}</button>`:''}</div>`;}});
  h+=`<div class="note">BOT_PUSH_TOKEN / CRON_TOKEN are auto-shared with the bot side.</div>`;
  $('dashsec').innerHTML=h;
  // share the two tokens that must match the bot side
@@ -673,13 +679,16 @@ async function genBackup(b){let r=await pj('/api/generate',{kind:'backup'});
  $('bcodes').innerHTML='<b class="warn">Write these down (shown once):</b><br>'+r.codes.join('<br>');}
 function grabDash(){document.querySelectorAll('[data-d]').forEach(i=>{if(i.value.trim())cfg.dash_env[i.dataset.d]=i.value.trim();});}
 function buildReview(){let m=v=>!v?'(empty)':v.length<=8?'*'.repeat(v.length):v.slice(0,4)+'…'+v.slice(-4);
+ let tag=(k,v)=>v?(' = '+m(v)+'  [will write]'):(HAVE.has(k)?'  [unchanged (kept)]':' = (empty)');
  let L=['fork: '+cfg.owner_repo,'accounts: '+cfg.modes.join(', '),
   'congress: '+cfg.include_congress,'dashboard: '+cfg.do_dashboard,
   'reset bot memory: '+cfg.reset_state,'auto-push to fork: '+cfg.auto_push,
   '','.env keys:'];
- Object.keys(cfg.bot_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.bot_env[k])));
+ let bk=new Set([...Object.keys(cfg.bot_env),...(S.existing_env_keys||[])]);
+ [...bk].sort().forEach(k=>L.push('  '+k+tag(k,cfg.bot_env[k])));
  if(cfg.do_dashboard){L.push('','dashboard/.env keys:');
-  Object.keys(cfg.dash_env).sort().forEach(k=>L.push('  '+k+' = '+m(cfg.dash_env[k])));}
+  let dk=new Set([...Object.keys(cfg.dash_env),...(S.existing_dash_keys||[])]);
+  [...dk].sort().forEach(k=>L.push('  '+k+tag(k,cfg.dash_env[k])));}
  $('review').textContent=L.join('\n');}
 async function apply(){cfg.dry_run=$('dry').checked;show(7);await pj('/api/apply',cfg);poll();}
 async function poll(){let r=await gj('/api/progress');
