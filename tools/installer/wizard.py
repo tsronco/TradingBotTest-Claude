@@ -184,10 +184,21 @@ class Wizard:
                 if e in self.bot_env:
                     d[e] = self.bot_env[e]
 
+    def _preview_env(self, label: str, values: dict[str, str]) -> None:
+        keep = {k: v for k, v in values.items() if v not in (None, "")}
+        success(f"{label} — would set {len(keep)} keys (DRY-RUN, not written):")
+        for k in sorted(keep):
+            info(f"  {k} = {envfile.mask(keep[k])}")
+
     def write_env_files(self) -> None:
         step(7, 9, "Write .env files")
+        if self.dry_run:
+            self._preview_env(".env", self.bot_env)
+            if self.do_dashboard:
+                self._preview_env("dashboard/.env", self.dash_env)
+            return
         written = envfile.write_merged(ENV_PATH, self.bot_env)
-        success(f"{ENV_PATH.relative_to(ROOT)} — {len(written)} keys set")
+        success(f".env — {len(written)} keys set")
         for k in sorted(written):
             info(f"  {k} = {envfile.mask(written[k])}")
         if self.do_dashboard:
