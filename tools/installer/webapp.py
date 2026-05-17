@@ -224,6 +224,13 @@ class WebInstaller:
             self._log("ok", f"Deployed: {msg}")
             for c in fork.apply(ROOT, owner_repo, msg):
                 self._log("ok", f"Re-pointed {c} at {msg}")
+            # The 2 dashboard cron jobs were created (step 4) before this URL
+            # existed, so they still point at the original author's dashboard.
+            # setup_cronjobs.py is idempotent (PATCHes by title) — re-run it
+            # now that the file holds the real URL so the user never has to
+            # run --fix-urls by hand.
+            self._log("info", "Re-syncing cron-job.org with deployed URL…")
+            self._run_cron()
         else:
             self._log("error", f"Deploy failed: {msg[:200]}")
 
