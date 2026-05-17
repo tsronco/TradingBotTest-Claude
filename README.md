@@ -16,12 +16,13 @@ manual trade entry.
 
 ## Getting started
 
-- **Fast path — `python setup.py`:** create the third-party accounts (Alpaca,
-  Discord, GitHub, cron-job.org, optionally Vercel/Anthropic — these signups
-  can't be automated), then run the interactive wizard. It writes your `.env`
-  files, fixes the two fork gotchas, bulk-pushes GitHub secrets, schedules
-  cron-job.org, and (optionally) creates Discord webhooks + deploys the
-  dashboard. See **["The fast path" in instructions.md](instructions.md)**.
+- **Fast path — `python setup.py --web`:** create the third-party accounts
+  (Alpaca, Discord, GitHub, cron-job.org, optionally Vercel/Anthropic — these
+  signups can't be automated), then run the guided installer. `--web` opens a
+  local browser UI (or omit it for the terminal wizard); either way it writes
+  your `.env` files, fixes the two fork gotchas, bulk-pushes GitHub secrets,
+  schedules cron-job.org, and (optionally) creates Discord webhooks + deploys
+  the dashboard. See **["The fast path" in instructions.md](instructions.md)**.
 - **Manual / reference setup:** see **[instructions.md](instructions.md)** —
   the complete, from-scratch, zero-knowledge guide (fork → Alpaca → Discord →
   GitHub Actions → cron-job.org → optional Vercel dashboard, with a

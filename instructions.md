@@ -147,10 +147,17 @@ those by hand. But once you have your keys, the wizard does the rest.
 ```bash
 pip install -r requirements.txt
 pip install -r tools/installer/requirements.txt   # pynacl, for the secrets push
-python setup.py
+python setup.py --web      # guided installer in your browser (recommended)
+# or:  python setup.py     # the same flow as a terminal wizard
 ```
 
-It detects your fork from `git remote`, asks which of the seven accounts to
+`--web` opens a local, single-page installer in your browser (localhost only,
+token-gated, nothing is served outside this machine) — step-by-step fields,
+a "Test" button per Alpaca account, one-click secret generation, a masked
+review, and a live progress log. `python setup.py` (no flag) runs the
+identical flow in the terminal instead. Both share the same engine:
+
+it detects your fork from `git remote`, asks which of the seven accounts to
 configure, collects each account's keys (and offers to test them live),
 **auto-creates the Discord channels + webhooks** (if you give it a Discord bot
 token) or takes pasted webhook URLs, **generates** every secret it safely can
