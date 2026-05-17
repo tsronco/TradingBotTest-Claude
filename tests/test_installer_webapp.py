@@ -241,3 +241,40 @@ def test_authed_requests_work(live_server):
     # token also accepted via query string alone
     code, _ = _get(port, f"/api/progress?t={token}")
     assert code == 200
+
+
+def test_deploy_dashboard_provisions_upstash_and_drops_two_pass(monkeypatch):
+    from tools.installer import upstash_api, vercel_cli
+
+    monkeypatch.setattr(vercel_cli, "available", lambda: True)
+    monkeypatch.setattr(vercel_cli, "link", lambda d, p: (True, "linked"))
+    set_calls = []
+    monkeypatch.setattr(vercel_cli, "set_env",
+                        lambda d, k, v: set_calls.append(k) or (True, k))
+    monkeypatch.setattr(vercel_cli, "deploy",
+                        lambda d: (True, "https://x.vercel.app"))
+    monkeypatch.setattr(webapp, "fork",
+                        type("F", (), {"apply": staticmethod(lambda *a: [])}))
+
+    class FakeProv:
+        def __init__(self, *a, **k): pass
+        def find_or_create(self):
+            return ({"database_name": "tradingbot-dashboard-kv",
+                     "endpoint": "h.upstash.io", "port": 6379,
+                     "rest_token": "RT", "password": "PW"}, "free")
+
+    monkeypatch.setattr(upstash_api, "UpstashProvisioner", FakeProv)
+    monkeypatch.setattr(webapp.WebInstaller, "_run_cron", lambda self: None)
+
+    inst = webapp.WebInstaller()
+    dash_env = {"SESSION_SECRET": "s"}
+    inst._deploy_dashboard(
+        {"vercel_project": "p", "bot_env": {}},
+        dash_env,
+        {"UPSTASH_EMAIL": "e@x.com", "UPSTASH_API_KEY": "k"},
+        "bob/fork",
+    )
+    assert "KV_REST_API_URL" in set_calls and "KV_REST_API_TOKEN" in set_calls
+    msgs = " ".join(l["msg"] for l in inst.snapshot()["lines"])
+    assert "Created free Upstash DB" in msgs
+    assert "Marketplace" not in msgs  # two-pass guidance removed

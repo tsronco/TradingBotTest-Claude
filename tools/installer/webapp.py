@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from . import envfile, fork, secrets_gen, spec, validate, wizard
+from .upstash_api import UpstashProvisioner as _UpstashProvisioner
 
 ROOT = wizard.ROOT
 ENV_PATH = wizard.ENV_PATH
@@ -178,17 +179,9 @@ class WebInstaller:
         else:
             self._run_cron()
 
-        # 5. dashboard deploy
+        # 5. dashboard deploy (provisions Upstash Redis, then deploys)
         if do_dashboard and not dry:
-            self._deploy_dashboard(cfg, dash_env, owner_repo)
-            self._log("warn",
-                      "One manual step left: vercel.com → your project → Storage "
-                      "→ Marketplace → Upstash Redis → connect (free). It's an "
-                      "interactive billing consent no script can perform.")
-            self._log("info",
-                      "After connecting Upstash, just re-run `python setup.py "
-                      "--web` and Apply — it redeploys with the KV vars; no "
-                      "separate `vercel --prod` needed.")
+            self._deploy_dashboard(cfg, dash_env, bot_env, owner_repo)
 
         # 6. commit & push the rewrites to the fork
         if cfg.get("auto_push", True):
@@ -317,12 +310,40 @@ class WebInstaller:
         except Exception as e:
             self._log("error", f"setup_cronjobs.py: {e}")
 
-    def _deploy_dashboard(self, cfg, dash_env, owner_repo) -> None:
-        from . import vercel_cli
+    def _deploy_dashboard(self, cfg, dash_env, bot_env, owner_repo) -> None:
+        from . import upstash_api, vercel_cli
+        from .upstash_api import UpstashError
 
         if not vercel_cli.available():
-            self._log("warn", "Vercel CLI unavailable — deploy manually (instructions Step 9).")
+            self._log("warn", "Vercel CLI unavailable — deploy manually "
+                      "(instructions Step 9).")
             return
+
+        email = bot_env.get("UPSTASH_EMAIL", "")
+        api_key = bot_env.get("UPSTASH_API_KEY", "")
+        if not (email and api_key):
+            self._log("error", "Upstash email + Management API key required "
+                      "(the dashboard needs a Redis store). Add them and "
+                      "re-Apply.")
+            return
+        try:
+            prov = upstash_api.UpstashProvisioner(email, api_key)
+            db, plan = prov.find_or_create()
+            dash_env.update(_UpstashProvisioner.kv_env(db))
+        except UpstashError as e:
+            self._log("error", f"Upstash provisioning failed: {e}")
+            return
+        if plan == "payg":
+            self._log("warn", "Upstash free plan unavailable — created a "
+                      "pay-as-you-go DB (~$0-$1/mo for this dashboard). Add a "
+                      "card at console.upstash.com if it prompts you.")
+        elif plan == "existing":
+            self._log("ok", "Reusing existing Upstash DB "
+                      f"'{db.get('database_name')}'.")
+        else:
+            self._log("ok", "Created free Upstash DB "
+                      f"'{db.get('database_name')}'.")
+
         proj = cfg.get("vercel_project") or "my-tradingbot-dashboard"
         ok, msg = vercel_cli.link(DASH_DIR, proj)
         self._log("ok" if ok else "warn", f"vercel link: {msg[:160]}")
@@ -335,11 +356,6 @@ class WebInstaller:
             self._log("ok", f"Deployed: {msg}")
             for c in fork.apply(ROOT, owner_repo, msg):
                 self._log("ok", f"Re-pointed {c} at {msg}")
-            # The 2 dashboard cron jobs were created (step 4) before this URL
-            # existed, so they still point at the original author's dashboard.
-            # setup_cronjobs.py is idempotent (PATCHes by title) — re-run it
-            # now that the file holds the real URL so the user never has to
-            # run --fix-urls by hand.
             self._log("info", "Re-syncing cron-job.org with deployed URL…")
             self._run_cron()
         else:
