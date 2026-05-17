@@ -130,7 +130,7 @@ def test_git_push_dry_run_runs_no_git(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run",
                         lambda *a, **k: pytest.fail("git ran in dry mode"))
     inst = webapp.WebInstaller()
-    inst._git_push_fork("bob/fork", dry=True)
+    inst._git_push_fork("bob/fork", "", dry=True)
     assert "Would commit & push" in inst.snapshot()["lines"][0]["msg"]
 
 
@@ -157,13 +157,15 @@ def test_git_push_stages_allowlist_only_and_pushes(monkeypatch, tmp_path):
     import subprocess
     monkeypatch.setattr(subprocess, "run", fake_run)
     inst = webapp.WebInstaller()
-    inst._git_push_fork("bob/fork", dry=False)
+    inst._git_push_fork("bob/fork", "", dry=False)
 
     add = next(a for a in seen if a[:2] == ["git", "add"])
     assert "-A" not in add and "." not in add[2:]
     assert ".env" not in " ".join(add)  # the secret file is never staged
     assert any("setup_cronjobs.py" in x for x in add)
-    assert any(".github/workflows/tsla.yml" in x for x in add)
+    assert any(x.replace("\\", "/").endswith(".github/workflows/tsla.yml")
+               or ".github/workflows/tsla.yml" in x.replace("\\", "/")
+               for x in add)
     assert ["git", "push", "-u", "origin", "main"] in seen
     assert "pushed fork config" in \
         " ".join(l["msg"] for l in inst.snapshot()["lines"])
@@ -194,7 +196,7 @@ def test_git_push_failure_degrades_to_manual(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(time, "sleep", lambda *_: None)  # no real backoff
     inst = webapp.WebInstaller()
-    inst._git_push_fork("bob/fork", dry=False)
+    inst._git_push_fork("bob/fork", "", dry=False)
     msg = " ".join(l["msg"] for l in inst.snapshot()["lines"])
     assert "Auto-push failed" in msg and "git push -u origin main" in msg
 

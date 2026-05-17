@@ -16,7 +16,9 @@ from __future__ import annotations
 import hmac
 import json
 import secrets as _secrets
+import subprocess
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -192,7 +194,7 @@ class WebInstaller:
 
         # 6. commit & push the rewrites to the fork
         if cfg.get("auto_push", True):
-            self._git_push_fork(owner_repo, dry)
+            self._git_push_fork(owner_repo, bot_env.get("GITHUB_ACCESS_TOKEN", ""), dry)
         else:
             self._log("warn", "Auto-push off — commit & push the rewritten "
                       "files to your fork by hand.")
@@ -242,17 +244,15 @@ class WebInstaller:
         except GitHubError as e:
             self._log("warn", str(e))  # graceful: manual fallback in message
 
-    def _git_push_fork(self, owner_repo, dry) -> None:
+    def _git_push_fork(self, owner_repo, token, dry) -> None:
         """Commit & push ONLY the installer-rewritten files to the fork.
 
         Explicit allowlist — never ``git add -A``, never ``.env`` — so a
-        credential can't be swept in. Degrades to printing the manual
-        commands (never crashes the install) if git identity/auth/hooks
-        block it.
+        credential can't be swept in. Authenticates via a transient
+        http.extraheader git config flag (never persisted to .git/config).
+        Degrades to printing the manual commands (never crashes the install)
+        if git identity/auth/hooks block it.
         """
-        import subprocess
-        import time
-
         paths = []
         sc = ROOT / "tools" / "setup_cronjobs.py"
         if sc.exists():
@@ -290,13 +290,25 @@ class WebInstaller:
                       f"hook). Run by hand:\n  git add {' '.join(rel)}\n"
                       f'  git commit -m "configure fork"\n  git push')
             return
+        import base64
+        push_cfg: list[str] = []
+        if token:
+            blob = base64.b64encode(
+                f"x-access-token:{token}".encode()
+            ).decode()
+            push_cfg = ["-c",
+                        "http.https://github.com/.extraheader="
+                        f"AUTHORIZATION: basic {blob}"]
+        last_err = ""
         for attempt in range(4):
-            if git("push", "-u", "origin", branch).returncode == 0:
+            p = git(*push_cfg, "push", "-u", "origin", branch)
+            if p.returncode == 0:
                 self._log("ok", f"Committed & pushed fork config to "
                           f"origin/{branch}.")
                 return
+            last_err = (p.stderr or p.stdout or "")
             if attempt < 3:
-                time.sleep(2 ** (attempt + 1))  # 2s,4s,8s network backoff
+                time.sleep(2 ** (attempt + 1))
         self._log("warn", "Auto-push failed (check git auth/network). Your "
                   "commit is saved locally — finish with:  "
                   f"git push -u origin {branch}")

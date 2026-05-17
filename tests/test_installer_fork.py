@@ -77,3 +77,32 @@ def test_apply_without_dashboard_url_only_touches_repo(tmp_path):
     assert 'REPO = "bob/fork"' in cron.read_text()
     # URL left alone when no dashboard URL supplied
     assert fork.ORIGINAL_DASHBOARD_URL in wf.read_text()
+
+
+def test_git_push_fork_uses_token_without_persisting(monkeypatch, tmp_path):
+    from tools.installer import webapp
+
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "setup_cronjobs.py").write_text("# x\n")
+    calls = []
+
+    def fake_run(args, **kw):
+        calls.append(args)
+        class R:
+            returncode = 0
+            stdout = "main" if args[:2] == ["git", "rev-parse"] else ""
+            stderr = ""
+        if args[1:4] == ["diff", "--cached", "--quiet"]:
+            R.returncode = 1
+        return R()
+
+    monkeypatch.setattr(webapp.subprocess, "run", fake_run)
+    inst = webapp.WebInstaller()
+    inst._git_push_fork("bob/fork", "ghp_SECRET", dry=False)
+
+    push = next(a for a in calls if "push" in a)
+    joined = " ".join(push)
+    assert "http.https://github.com/.extraheader=AUTHORIZATION: basic " in joined
+    assert "ghp_SECRET" not in joined  # raw token never on argv
+    assert not any(a[1:3] == ["remote", "set-url"] for a in calls)
