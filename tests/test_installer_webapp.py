@@ -346,3 +346,38 @@ def test_run_cron_classifies_partial_as_warning(monkeypatch):
     levels = {l["level"] for l in lines}
     assert "warn" in levels and "error" not in levels
     assert any("re-run Apply" in l["msg"] for l in lines)
+
+
+def test_start_apply_resets_state_for_rerun(monkeypatch, tmp_path):
+    monkeypatch.setattr(webapp, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(webapp, "DASH_ENV_PATH", tmp_path / "d.env")
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    inst = webapp.WebInstaller()
+    cfg = {"dry_run": True, "owner_repo": "bob/fork", "modes": ["conservative"],
+           "include_congress": False, "do_dashboard": False, "reset_state": False,
+           "bot_env": {"ALPACA_API_KEY": "PKx"}, "dash_env": {}}
+    inst.start_apply(cfg)
+    import time as _t
+    for _ in range(50):
+        if inst.snapshot()["done"]:
+            break
+        _t.sleep(0.05)
+    first = inst.snapshot()
+    assert first["done"] is True and len(first["lines"]) > 0
+    # second run must start clean, not accumulate the first run's lines
+    inst.start_apply(cfg)
+    immediately = inst.snapshot()
+    assert immediately["done"] is False  # reset before thread re-finishes
+    for _ in range(50):
+        if inst.snapshot()["done"]:
+            break
+        _t.sleep(0.05)
+    second = inst.snapshot()
+    assert second["done"] is True
+    assert len(second["lines"]) == len(first["lines"])  # no stale accumulation
+
+
+def test_progress_screen_has_rerun_button():
+    html = webapp._PAGE_HTML
+    assert 'onclick="show(6)"' in html
+    assert "Re-run Apply" in html

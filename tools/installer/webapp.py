@@ -128,6 +128,10 @@ class WebInstaller:
     # ── apply (runs on a background thread) ───────────────────────────────
 
     def start_apply(self, cfg: dict) -> None:
+        with self._lock:
+            self.progress = []
+            self.done = False
+            self.dashboard_url = ""
         threading.Thread(target=self._apply, args=(cfg,), daemon=True).start()
 
     def _apply(self, cfg: dict) -> None:
@@ -590,7 +594,8 @@ except the API calls you authorize at the end.</p>
 
 <div id="s7" class="step"><h2>8 · Progress</h2><div id="plog" class="log"></div>
 <div class="row"><a id="dashlink" target="_blank"></a></div>
-<button onclick="quit()">Finish & stop server</button></div>
+<button class="sec" onclick="show(6)">Re-run Apply</button>
+<button onclick="quit()">Finish &amp; stop server</button></div>
 
 <script>
 const T="__TOKEN__";const H={'X-Installer-Token':T,'Content-Type':'application/json'};
