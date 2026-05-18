@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T15:19:08.515851Z"
+    "last_checked": "2026-05-18T15:29:09.747919Z"
   },
   "SOFI": {
     "stage": "spread_active",
@@ -26,5 +26,30 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Auto-opened put credit spread short=$14.00 long=$13.00 credit=$0.08"
+  },
+  "NOK": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "NOK260605P00012000",
+      "strike": 12.0,
+      "entry_premium": 0.225,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "NOK260605P00011000",
+      "strike": 11.0,
+      "entry_premium": 0.04,
+      "qty": 1
+    },
+    "expiration": "2026-06-05",
+    "net_credit": 0.185,
+    "max_loss": 0.815,
+    "width": 1.0,
+    "opened_at": "2026-05-18T15:29:09.219116Z",
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$12.00 long=$11.00 credit=$0.18"
   }
 }
