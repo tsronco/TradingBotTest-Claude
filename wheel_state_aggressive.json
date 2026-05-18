@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T18:59:55.222107Z",
+    "last_checked": "2026-05-18T19:09:37.139323Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260522P00013000: $1.25 vs entry $0.70",
+    "last_action": "Monitoring MARA260522P00013000: $1.16 vs entry $0.70",
     "contract_qty": 1
   },
   "RIOT": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $10.46 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $9.95 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -199,7 +199,7 @@
     "stage": 1,
     "current_contract": "XOM260529P00155000",
     "contract_order_id": "973f7455-a96b-4ca7-abcc-2bf228b3f600",
-    "contract_entry_price": null,
+    "contract_entry_price": 1.34,
     "contract_entry_date": "2026-05-18T18:50:11.364098Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -211,7 +211,7 @@
     "total_premium_today": 19.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on XOM260529P00155000.",
+    "last_action": "Monitoring XOM260529P00155000: $1.37 vs entry $1.34",
     "contract_qty": 1
   },
   "KO": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.83 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.58 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
