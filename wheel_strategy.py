@@ -83,6 +83,10 @@ SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
 SPREAD_STOP_LOSS_PCT   = 0.50
 SPREAD_DTE_FLOOR       = 2
 AUTO_OPEN_SPREADS      = False  # SM modes (Phase 4): autonomous spread opener
+SPREAD_OPEN_MIN_LIMIT = 0.01  # floor for the opening mleg limit credit so a
+                              # thin/negative natural bid still posts a 1-cent
+                              # credit order (stale path cancels it if it never
+                              # fills) rather than flipping to a debit.
 
 
 def apply_mode(mode_name: str) -> None:
@@ -228,6 +232,12 @@ def _empty_spread_state() -> dict:
         "max_loss": None,
         "width": None,
         "opened_at": None,
+        # Bot-opened spreads only: id of the mleg open order + the credit
+        # the marketable limit was placed at. Adopted/hand-opened spreads
+        # leave these None so _resolve_pending_spread short-circuits to
+        # "gone" and the existing position/orphan path runs unchanged.
+        "open_order_id": None,
+        "open_limit_credit": None,
         "total_premium_collected": 0.0,
         "cycle_count": 0,
         "cycle_history": [],
@@ -556,6 +566,97 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
       5. otherwise                           → log heartbeat, no state change
     """
     sym_state = state[ticker]
+
+    # Pending-fill resolution MUST precede the position-based orphan check.
+    # A bot-opened spread whose mleg order has not filled yet has NO leg
+    # positions; without this guard the orphan check below misreads
+    # "not filled yet" as "closed externally", deletes state, and the
+    # opener immediately re-opens (the infinite 10-min loop / stacked
+    # orders observed on sm2000 2026-05-18). Adopted/hand-opened spreads
+    # carry open_order_id=None and fall straight through unchanged.
+    if sym_state.get("open_order_id"):
+        pstatus = _resolve_pending_spread(sym_state)
+        if pstatus == "pending":
+            log(f"[{ticker}] spread open order {sym_state['open_order_id']} "
+                f"pending fill — skipping cycle")
+            sym_state["last_action"] = (
+                f"Awaiting fill on spread open order {sym_state['open_order_id']}.")
+            return
+        if pstatus == "filled":
+            log(f"[{ticker}] spread open order filled — clearing pending "
+                f"marker, managing from next cycle")
+            sym_state["open_order_id"] = None
+            sym_state["last_action"] = "Spread open order filled — now managing."
+            return
+        if pstatus == "stale":
+            order_id = sym_state["open_order_id"]
+            age_h = _spread_order_age_hours(sym_state)
+            log(f"[{ticker}] spread open order {order_id} stale at "
+                f"{age_h:.1f}h — cancelling")
+            if cancel_order(order_id):
+                send_embed(
+                    ACTIONS_CH,
+                    f"Wheel: spread {ticker} open order stale at {age_h:.1f}h — cancelled",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Opening limit `{order_id}` for {ticker} did not fill "
+                        f"within {STALE_AFTER_HOURS}h. Cancelled and cleared "
+                        f"state so the opener can re-evaluate at a fresh mid."
+                    ),
+                    footer=f"wheel_strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH, also_to_actions=False,
+                )
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_open_stale_cancelled", result="success",
+                          symbol=ticker,
+                          details={"order_id": order_id,
+                                   "age_hours": round(age_h, 1)})
+                del state[ticker]
+            else:
+                log(f"[{ticker}] cancel of stale spread open order "
+                    f"{order_id} returned False — retry next cycle")
+                sym_state["last_action"] = (
+                    "Cancel of stale spread open order FAILED; will retry.")
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_open_stale_cancel_failed", result="failure",
+                          symbol=ticker, details={"order_id": order_id})
+            return
+        # pstatus == "gone": opening order canceled/rejected/expired/404.
+        gone_positions = get_positions()
+        gone_occs = {p["symbol"] for p in gone_positions
+                     if p.get("asset_class") == "us_option"}
+        g_short = sym_state["short_leg"]["occ"]
+        g_long  = sym_state["long_leg"]["occ"]
+        if g_short not in gone_occs and g_long not in gone_occs:
+            # Order terminated WITHOUT creating any position — nothing ever
+            # opened. This is NOT a spread that closed; emit an accurate
+            # embed (not _handle_orphan_leg's "closed externally") + clear.
+            gone_order_id = sym_state["open_order_id"]
+            send_embed(
+                TRADES_CH,
+                f"Wheel: spread {ticker} open order did not fill — cleared",
+                color=Color.YELLOW,
+                description=(
+                    f"Opening order `{gone_order_id}` for {ticker} terminated "
+                    f"(rejected / expired / cancelled) with no position "
+                    f"created. No spread was opened; state cleared. The "
+                    f"opener may re-evaluate {ticker} on a later cycle."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH, also_to_actions=False,
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py",
+                      "spread_open_order_unfilled_cleared", result="skipped",
+                      symbol=ticker, details={"order_id": gone_order_id})
+            del state[ticker]
+            return
+        # A leg filled (partial-fill survivor). Clear the marker and let the
+        # existing orphan handler close the survivor (its half-state-resolved
+        # message is accurate for that case).
+        sym_state["open_order_id"] = None
+        _handle_orphan_leg(state, ticker, gone_positions)
+        return
+
     positions = get_positions()
 
     # 1. Orphan detection — before any snapshot fetch
@@ -757,6 +858,34 @@ def get_order(order_id):
         if e.response.status_code == 404:
             return None
         raise
+
+
+def _working_spread_order_exists(short_occ: str, long_occ: str) -> bool:
+    """True if Alpaca currently has a non-terminal order touching either
+    leg. Belt-and-suspenders against the state-loss reopen window: even
+    if seeded state is lost before save_state, we won't stack a second
+    mleg at the broker. A lookup failure returns False (defensive — a
+    transient API error must not freeze the opener forever; the in-state
+    concurrency gate is the primary guard).
+    """
+    try:
+        orders = api_get("/orders", params={"status": "open", "nested": "true"})
+    except Exception as e:
+        log(f"_working_spread_order_exists lookup failed: {type(e).__name__}: {e}")
+        return False
+    terminal = {"filled", "canceled", "cancelled", "expired",
+                "rejected", "done_for_day", "replaced"}
+    targets = {short_occ, long_occ}
+    for o in orders or []:
+        if o.get("status") in terminal:
+            continue
+        legs = o.get("legs") or []
+        for leg in legs:
+            if leg.get("symbol") in targets:
+                return True
+        if o.get("symbol") in targets:
+            return True
+    return False
 
 
 def get_option_position(contract_symbol):
@@ -1031,6 +1160,25 @@ def _order_age_hours(sym_state) -> float:
         return 0.0
 
 
+def _spread_order_age_hours(sym_state) -> float:
+    """Hours since a bot-opened spread's opening order was placed.
+
+    Reads `opened_at` (ISO8601, '...Z'). Returns 0.0 on missing or
+    unparseable input — defensive: a parse error must never spuriously
+    trigger the stale-cancel path. Parallels _order_age_hours.
+    """
+    opened_at = sym_state.get("opened_at")
+    if not opened_at:
+        return 0.0
+    try:
+        dt = datetime.fromisoformat(opened_at.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def _resolve_pending_contract(sym_state):
     """Disambiguate when contract is set but no position exists yet.
 
@@ -1061,6 +1209,38 @@ def _resolve_pending_contract(sym_state):
                 sym_state["contract_entry_price"] = float(filled_avg)
                 log(f"Wheel order {order_id} filled — recorded entry price ${sym_state['contract_entry_price']:.2f}")
         return "just_filled"
+    return "gone"
+
+
+def _resolve_pending_spread(sym_state):
+    """Disambiguate a bot-opened spread whose opening mleg order may not
+    have filled yet. Spread-side parallel of _resolve_pending_contract.
+
+    Only meaningful when sym_state['open_order_id'] is set (bot-opened
+    spreads). Adopted/hand-opened spreads leave it None → returns "gone"
+    and the caller falls through to the existing position/orphan path
+    unchanged.
+
+    Returns:
+      "pending" — opening order still working; skip this cycle.
+      "stale"   — working > STALE_AFTER_HOURS; caller cancels + clears.
+      "filled"  — opening order filled; legs are now/imminently positions.
+      "gone"    — order canceled/rejected/expired/404/no id.
+    """
+    order_id = sym_state.get("open_order_id")
+    if not order_id:
+        return "gone"
+    order = get_order(order_id)
+    if order is None:
+        return "gone"
+    status = order.get("status", "")
+    if status in ("new", "accepted", "pending_new",
+                  "partially_filled", "accepted_for_bidding"):
+        if _spread_order_age_hours(sym_state) > STALE_AFTER_HOURS:
+            return "stale"
+        return "pending"
+    if status == "filled":
+        return "filled"
     return "gone"
 
 
@@ -1994,19 +2174,26 @@ def eligible_universe(symbols_prices: dict, max_price) -> list:
     return [s for s, px in symbols_prices.items() if px <= max_price]
 
 
-def _open_spread_mleg(short_occ: str, long_occ: str, qty: int, net_credit: float):
+def _open_spread_mleg(short_occ: str, long_occ: str, qty: int,
+                      net_credit: float, limit_credit: float = None):
     """Submit an Alpaca multi-leg sell-to-open put credit spread.
 
-    Mirrors _close_spread_mleg's structure with opposite intents
-    (STO short put + BTO long put). Limit price = -net_credit
-    (negative => credit received), matching the dashboard convention
-    (`limit_price: -limitCredit`). qty is in spread units.
+    `net_credit` is the decision-time mid (recorded in state, used for
+    P&L). `limit_credit`, when provided, is the *marketable* credit the
+    order is actually placed at (short bid − long ask, capped at the
+    mid) so the order fills instead of resting at an untradeable mid.
+    When None, falls back to the mid (legacy behavior — keeps direct
+    callers and the four non-SM modes byte-identical).
     """
+    if limit_credit is None:
+        eff_credit = abs(net_credit)
+    else:
+        eff_credit = max(round(limit_credit, 2), SPREAD_OPEN_MIN_LIMIT)
     return api_post("/orders", {
         "order_class":   "mleg",
         "qty":           str(qty),
         "type":          "limit",
-        "limit_price":   str(round(-abs(net_credit), 2)),
+        "limit_price":   f"{round(-eff_credit, 2):.2f}",
         "time_in_force": "day",
         "legs": [
             {"symbol": short_occ, "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_open"},
@@ -2176,6 +2363,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 "long_occ":    long_contract["symbol"],
                 "long_strike": long_strike,
                 "long_mid":    long_mid,
+                "long_bid":    long_q["bid"],
+                "long_ask":    long_q["ask"],
                 "width":       width,
             }
             break  # first hit == narrowest passing width
@@ -2214,15 +2403,34 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                                "long_mid": round(chosen["long_mid"], 4)})
             continue
 
+        if _working_spread_order_exists(short_occ, chosen["long_occ"]):
+            log(f"[auto-spread] {sym} already has a working order on a "
+                f"spread leg — skipping to avoid a duplicate")
+            log_event(LOG_STREAM, "wheel_strategy.py",
+                      "auto_spread_skip", result="skipped", symbol=sym,
+                      notes="working_order_exists",
+                      details={"short_occ": short_occ,
+                               "long_occ": chosen["long_occ"]})
+            continue
+
         # Per-share max loss — MUST match _adopt_spread's convention
         # (round(width - net_credit, 4)). handle_spread / _compute_spread_pnl
         # work entirely in per-share units: the stop-loss trigger compares
         # pnl["loss_per_share"] against max_loss * SPREAD_STOP_LOSS_PCT, so a
         # contract-multiplied value (width*100) makes the stop unreachable.
         max_loss   = round(width - net_credit, 4)
+        # Marketable opening limit: sell the short at its bid, buy the long
+        # at its ask (the price the spread can actually transact at), but
+        # never demand MORE credit than the mid, and floor at one cent.
+        marketable_credit = max(
+            round(short_q["bid"] - chosen["long_ask"], 2),
+            SPREAD_OPEN_MIN_LIMIT,
+        )
+        marketable_credit = min(marketable_credit, net_credit)
         try:
             order = _open_spread_mleg(short_occ, chosen["long_occ"],
-                                      1, net_credit)
+                                      1, net_credit,
+                                      limit_credit=marketable_credit)
         except Exception as e:
             log(f"[auto-spread] _open_spread_mleg failed for {sym}: "
                 f"{type(e).__name__}: {e}")
@@ -2238,6 +2446,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                       notes=f"{type(e).__name__}: {str(e)[:400]}")
             return  # one attempt per cycle either way
 
+        order_id = order.get("id", "?") if isinstance(order, dict) else "?"
+
         # Seed spread_active state so the inherited manual handle_spread
         # adopts and manages exits on subsequent cycles (no new exit code).
         ss = _empty_spread_state()
@@ -2251,13 +2461,14 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["max_loss"]   = max_loss
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
+        ss["open_order_id"] = order_id if order_id != "?" else None
+        ss["open_limit_credit"] = marketable_credit
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "
             f"long=${chosen['long_strike']:.2f} credit=${net_credit:.2f}"
         )
         state[sym] = ss
 
-        order_id = order.get("id", "?") if isinstance(order, dict) else "?"
         send_embed(
             TRADES_CH, f"Auto-spread: opened put credit spread {sym}",
             color=Color.GREEN,

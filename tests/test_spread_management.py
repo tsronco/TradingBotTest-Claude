@@ -703,3 +703,143 @@ def test_run_wheel_with_spread_management_off_skips_spread(monkeypatch, tmp_path
 
     wheel_strategy.run_wheel()
     assert handled == [], "handle_spread must not be called when SPREAD_MANAGEMENT=False"
+
+
+import wheel_strategy as ws
+
+
+def _active_spread_state(open_order_id="ord-1"):
+    ss = ws._empty_spread_state()
+    ss["spread_type"] = "put_credit"
+    ss["short_leg"] = {"occ": "SOFI260605P00014000", "strike": 14.0,
+                       "entry_premium": 0.30, "qty": 1}
+    ss["long_leg"] = {"occ": "SOFI260605P00013000", "strike": 13.0,
+                      "entry_premium": 0.20, "qty": 1}
+    ss["expiration"] = "2026-06-05"
+    ss["net_credit"] = 0.10
+    ss["max_loss"] = 0.90
+    ss["width"] = 1.0
+    ss["opened_at"] = "2026-05-18T14:27:00Z"
+    ss["open_order_id"] = open_order_id
+    return ss
+
+
+def test_handle_spread_pending_order_skips_no_close_no_delete(monkeypatch):
+    """The exact loop bug: open order unfilled, no leg positions. Must NOT
+    fire the orphan/'closed externally' path and must NOT delete state."""
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 48.0)
+    called = {"positions": 0, "orphan": 0}
+    monkeypatch.setattr(ws, "get_positions",
+                        lambda: called.__setitem__("positions", called["positions"] + 1) or [])
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda *a, **k: called.__setitem__("orphan", called["orphan"] + 1))
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert "SOFI" in state, "must not delete state while open order pending"
+    assert called["orphan"] == 0, "must not reach orphan/closed-externally path"
+    assert called["positions"] == 0, "must short-circuit before position fetch"
+
+
+def test_handle_spread_filled_clears_marker_and_returns(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "filled"})
+    monkeypatch.setattr(ws, "get_positions", lambda: [])
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert state["SOFI"]["open_order_id"] is None
+    assert state["SOFI"]["stage"] == "spread_active"
+
+
+def test_handle_spread_stale_cancels_and_clears(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 0.0)  # any age is stale
+    cancelled = []
+    monkeypatch.setattr(ws, "cancel_order",
+                        lambda oid: cancelled.append(oid) or True)
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert cancelled == ["ord-1"]
+    assert "SOFI" not in state, "stale open order → cancel + clear state"
+
+
+def test_handle_spread_stale_cancel_fails_keeps_state(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 0.0)
+    monkeypatch.setattr(ws, "cancel_order", lambda oid: False)
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert "SOFI" in state, "failed cancel must leave state for retry"
+
+
+def test_handle_spread_adopted_no_order_id_uses_existing_path(monkeypatch):
+    """Manual-mode hand-opened spread: open_order_id None → resolver not
+    consulted, existing orphan path runs (isolation guarantee)."""
+    ss = _active_spread_state(open_order_id=None)
+    state = {"SOFI": ss}
+    orphan_called = []
+    monkeypatch.setattr(ws, "get_positions", lambda: [])
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda *a, **k: orphan_called.append(True))
+    got_order = []
+    monkeypatch.setattr(ws, "get_order", lambda oid: got_order.append(oid))
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert got_order == [], "resolver must not be consulted when no open_order_id"
+    assert orphan_called == [True], "existing orphan path must run unchanged"
+
+
+def test_handle_spread_gone_no_position_accurate_embed_not_closed_externally(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "rejected"})
+    monkeypatch.setattr(ws, "get_positions", lambda: [])
+    orphan = []
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda *a, **k: orphan.append(True))
+    titles = []
+    monkeypatch.setattr(ws, "send_embed",
+                        lambda ch, title, **k: titles.append(title))
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert orphan == [], "never-filled order must NOT use the orphan/closed-externally path"
+    assert "SOFI" not in state, "state cleared"
+    assert any("did not fill" in t for t in titles)
+    assert not any("closed externally" in t for t in titles)
+
+
+def test_handle_spread_gone_with_survivor_leg_uses_orphan_handler(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "canceled"})
+    monkeypatch.setattr(ws, "get_positions",
+                        lambda: [{"symbol": "SOFI260605P00014000",
+                                  "asset_class": "us_option", "qty": "-1"}])
+    orphan = []
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda s, t, p: orphan.append((t, len(p))))
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert orphan == [("SOFI", 1)], "survivor leg → existing orphan handler closes it"

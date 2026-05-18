@@ -187,8 +187,9 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
 
     opened = []
     monkeypatch.setattr(ws, "_open_spread_mleg",
-                        lambda s, l, qty, nc: opened.append(
-                            {"short": s, "long": l, "qty": qty, "net_credit": nc})
+                        lambda s, l, qty, nc, limit_credit=None: opened.append(
+                            {"short": s, "long": l, "qty": qty, "net_credit": nc,
+                             "limit_credit": limit_credit})
                         or {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
     monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
@@ -681,3 +682,222 @@ def test_run_wheel_skips_auto_open_when_flag_off(monkeypatch, tmp_path):
     ws.run_wheel()
     assert called == [], "auto-open must not fire on conservative"
     ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_empty_spread_state_has_open_order_tracking_fields():
+    ss = ws._empty_spread_state()
+    assert ss["stage"] == "spread_active"
+    assert ss["open_order_id"] is None
+    assert ss["open_limit_credit"] is None
+
+
+from datetime import datetime, timezone, timedelta
+
+
+def test_spread_order_age_hours_parses_opened_at():
+    three_h_ago = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat().replace("+00:00", "Z")
+    assert abs(ws._spread_order_age_hours({"opened_at": three_h_ago}) - 3.0) < 0.05
+
+
+def test_spread_order_age_hours_missing_or_bad_returns_zero():
+    assert ws._spread_order_age_hours({}) == 0.0
+    assert ws._spread_order_age_hours({"opened_at": None}) == 0.0
+    assert ws._spread_order_age_hours({"opened_at": "not-a-date"}) == 0.0
+
+
+def _ss_with_order(order_id="ord-x", opened_at=None):
+    ss = ws._empty_spread_state()
+    ss["open_order_id"] = order_id
+    ss["opened_at"] = opened_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return ss
+
+
+def test_resolve_pending_spread_no_order_id_is_gone():
+    assert ws._resolve_pending_spread(ws._empty_spread_state()) == "gone"
+
+
+def test_resolve_pending_spread_404_is_gone(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: None)
+    assert ws._resolve_pending_spread(_ss_with_order()) == "gone"
+
+
+def test_resolve_pending_spread_new_is_pending(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "pending"
+
+
+def test_resolve_pending_spread_partially_filled_is_pending(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "partially_filled"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "pending"
+
+
+def test_resolve_pending_spread_filled(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "filled"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "filled"
+
+
+def test_resolve_pending_spread_rejected_is_gone(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "rejected"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "gone"
+
+
+def test_resolve_pending_spread_stale_when_old(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 2.0)
+    old = (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat().replace("+00:00", "Z")
+    assert ws._resolve_pending_spread(_ss_with_order(opened_at=old)) == "stale"
+
+
+def test_auto_open_records_open_order_id_in_state(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+    # _wire_sm patches _open_spread_mleg to return {"id": "ord-1"}
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert state["CHEAP"]["open_order_id"] == "ord-1"
+
+
+def test_open_spread_mleg_default_limit_unchanged(monkeypatch):
+    """No limit_credit passed → old behavior (full mid). Keeps the four
+    non-SM modes / direct callers byte-identical."""
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25)
+    assert cap["body"]["limit_price"] == "-0.25"
+
+
+def test_open_spread_mleg_uses_marketable_limit_credit(monkeypatch):
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    # recorded credit (mid) 0.25, but submit at marketable 0.10
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25,
+                         limit_credit=0.10)
+    assert cap["body"]["limit_price"] == "-0.10"
+
+
+def test_open_spread_mleg_limit_credit_floored_at_min(monkeypatch):
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25,
+                         limit_credit=-0.04)  # negative natural bid
+    assert cap["body"]["limit_price"] == "-0.01"  # SPREAD_OPEN_MIN_LIMIT
+
+
+def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
+    """End-to-end: short mid 0.60 / long mid 0.35 → recorded net_credit
+    0.25, but the order is placed at short_bid - long_ask = 0.55 - 0.40
+    = 0.15 (marketable), capped at the 0.25 mid."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    ws.AUTO_OPEN_SPREADS = True
+    import config
+    cfg = dict(config.get_mode("sm1000"))
+    cfg["max_underlying_price"] = None
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "1000", "options_buying_power": "2000"})
+    import screener_core, earnings as earnings_mod
+    monkeypatch.setattr(screener_core, "build_universe", lambda u, w: ["CHEAP"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda s, bp, **k: {"score": 9.0, "price": 20.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+
+    def fake_find(u, t, ts, dmin, dmax):
+        cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
+        return cands[min(cands, key=lambda s: abs(s - ts))]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    captured = {}
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None: captured.update(
+                            net_credit=nc, limit_credit=limit_credit)
+                        or {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert round(captured["net_credit"], 2) == 0.25      # recorded = mid
+    assert round(captured["limit_credit"], 2) == 0.15    # 0.55 - 0.40
+    assert round(state["CHEAP"]["net_credit"], 2) == 0.25
+    assert round(state["CHEAP"]["open_limit_credit"], 2) == 0.15
+
+
+def test_working_spread_order_exists_detects_leg(monkeypatch):
+    monkeypatch.setattr(ws, "api_get", lambda p, params=None: [
+        {"status": "new", "legs": [
+            {"symbol": "CHEAP260612P00018000"},
+            {"symbol": "CHEAP260612P00017000"}]},
+    ])
+    assert ws._working_spread_order_exists("CHEAP260612P00018000",
+                                           "CHEAP260612P00017000") is True
+    assert ws._working_spread_order_exists("OTHER260612P00010000",
+                                           "OTHER260612P00009000") is False
+
+
+def test_working_spread_order_exists_ignores_terminal(monkeypatch):
+    monkeypatch.setattr(ws, "api_get", lambda p, params=None: [
+        {"status": "filled", "legs": [{"symbol": "CHEAP260612P00018000"}]},
+    ])
+    assert ws._working_spread_order_exists("CHEAP260612P00018000",
+                                           "CHEAP260612P00017000") is False
+
+
+def test_working_spread_order_exists_api_failure_is_false(monkeypatch):
+    def boom(p, params=None):
+        raise RuntimeError("alpaca down")
+    monkeypatch.setattr(ws, "api_get", boom)
+    # Defensive: a failed lookup must not block trading forever.
+    assert ws._working_spread_order_exists("A", "B") is False
+
+
+def test_auto_open_skips_symbol_with_existing_working_order(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+    monkeypatch.setattr(ws, "_working_spread_order_exists",
+                        lambda s, l: True)
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert opened == [], "must not place a duplicate when a working order exists"
+    assert "CHEAP" not in state
