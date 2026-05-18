@@ -681,3 +681,10 @@ def test_run_wheel_skips_auto_open_when_flag_off(monkeypatch, tmp_path):
     ws.run_wheel()
     assert called == [], "auto-open must not fire on conservative"
     ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_empty_spread_state_has_open_order_tracking_fields():
+    ss = ws._empty_spread_state()
+    assert ss["stage"] == "spread_active"
+    assert ss["open_order_id"] is None
+    assert ss["open_limit_credit"] is None

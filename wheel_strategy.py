@@ -228,6 +228,12 @@ def _empty_spread_state() -> dict:
         "max_loss": None,
         "width": None,
         "opened_at": None,
+        # Bot-opened spreads only: id of the mleg open order + the credit
+        # the marketable limit was placed at. Adopted/hand-opened spreads
+        # leave these None so _resolve_pending_spread short-circuits to
+        # "gone" and the existing position/orphan path runs unchanged.
+        "open_order_id": None,
+        "open_limit_credit": None,
         "total_premium_collected": 0.0,
         "cycle_count": 0,
         "cycle_history": [],
