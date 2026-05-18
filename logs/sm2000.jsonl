@@ -55,3 +55,8 @@
 {"timestamp": "2026-05-18T15:07:25.190323+00:00", "script": "wheel_strategy.py", "action": "auto_spread_opened", "result": "success", "symbol": "F", "details": {"wheelability": 100.0, "short_occ": "F260605P00012000", "long_occ": "F260605P00011000", "short_strike": 12.0, "long_strike": 11.0, "width": 1.0, "net_credit": 0.06, "max_loss": 0.94, "expiration": "2026-06-05"}, "alpaca_order_id": "d683f25e-0999-474f-93e5-e862a928a32c"}
 {"timestamp": "2026-05-18T15:07:25.190954+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SOFI"]}}
 {"timestamp": "2026-05-18T15:07:25.538363+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-18T15:16:37.932859+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-18T15:16:39.012665+00:00", "script": "wheel_strategy.py", "action": "spread_orphan_resolved", "result": "success", "symbol": "F", "details": {"surviving_leg": "none"}}
+{"timestamp": "2026-05-18T15:17:15.585126+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 65, "equity": 2000.0}}
+{"timestamp": "2026-05-18T15:17:15.586178+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["F"]}}
+{"timestamp": "2026-05-18T15:17:16.043896+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}

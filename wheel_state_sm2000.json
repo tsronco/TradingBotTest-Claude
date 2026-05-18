@@ -1,30 +1,5 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T15:07:25.190644Z"
-  },
-  "F": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "F260605P00012000",
-      "strike": 12.0,
-      "entry_premium": 0.105,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "F260605P00011000",
-      "strike": 11.0,
-      "entry_premium": 0.045,
-      "qty": 1
-    },
-    "expiration": "2026-06-05",
-    "net_credit": 0.06,
-    "max_loss": 0.94,
-    "width": 1.0,
-    "opened_at": "2026-05-18T15:07:24.747514Z",
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$12.00 long=$11.00 credit=$0.06"
+    "last_checked": "2026-05-18T15:17:15.585936Z"
   }
 }
