@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T15:56:49.664128Z"
+    "last_checked": "2026-05-18T16:07:45.551803Z"
   },
   "F": {
     "stage": "spread_active",
@@ -27,6 +27,33 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$12.00 long=$11.00 credit=$0.08"
+    "last_action": "Awaiting fill on spread open order daa33df8-d9f7-4b3f-b30e-fba4ee6211f2."
+  },
+  "HPQ": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "HPQ260605P00019000",
+      "strike": 19.0,
+      "entry_premium": 0.485,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "HPQ260605P00018000",
+      "strike": 18.0,
+      "entry_premium": 0.275,
+      "qty": 1
+    },
+    "expiration": "2026-06-05",
+    "net_credit": 0.21,
+    "max_loss": 0.79,
+    "width": 1.0,
+    "opened_at": "2026-05-18T16:07:45.171677Z",
+    "open_order_id": "d1c56884-e509-48eb-a0cc-ebcf484236a7",
+    "open_limit_credit": 0.08,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$19.00 long=$18.00 credit=$0.21"
   }
 }
