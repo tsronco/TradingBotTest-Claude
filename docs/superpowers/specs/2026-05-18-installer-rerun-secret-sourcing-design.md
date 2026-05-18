@@ -72,5 +72,6 @@ Existing `tests/test_installer_webapp.py` pattern (monkeypatch `ENV_PATH`/`DASH_
 ## Out of scope / notes
 
 - **Fork-inherits-committed-state design weakness** (the repo commits real bot state to `main`, so forks inherit it) is acknowledged but explicitly **not** addressed here — the root fix makes auto-push work, which makes the reset reach the fork, which removes the observed harm. A structural guard (cron-gating or bot-level self-guard) was considered and declined for this spec.
+  - **Footnote (residual, pre-existing):** "no separate guard needed" is true for *this incident's mechanism* (blank-token push failure on a re-run). It is **not** a claim that the flood is now impossible: `_git_push_fork` can still fail to land the reset commit for unrelated reasons (a PAT missing the Workflows scope, or a genuine network/auth failure). Those failure modes leave the fork on inherited committed state and remain a separate, pre-existing path to the same flood symptom — out of scope for this fix, but not silently eliminated by it.
 - **Upstash regional-deprecation** was a separate bug already fixed and pushed (`353af0e`).
 - Re-validation: a fresh end-to-end acceptance re-test (new throwaway accounts) is the follow-on validation after this fix lands; that test execution is out of scope for this spec.
