@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T19:39:45.040235Z",
+    "last_checked": "2026-05-18T19:49:32.149792Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $14.01 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $13.81 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $9.43 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $9.17 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.43 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.21 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
