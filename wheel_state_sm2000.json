@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T16:16:53.886018Z"
+    "last_checked": "2026-05-18T16:27:43.947648Z"
   },
   "F": {
     "stage": "spread_active",
@@ -76,11 +76,11 @@
     "max_loss": 0.77,
     "width": 1.0,
     "opened_at": "2026-05-18T16:16:53.473990Z",
-    "open_order_id": "d0a23a6c-b645-4dfd-9441-f04f557bf1dd",
+    "open_order_id": null,
     "open_limit_credit": 0.12,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$17.00 long=$16.00 credit=$0.23"
+    "last_action": "Spread open order filled \u2014 now managing."
   }
 }
