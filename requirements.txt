@@ -2,3 +2,8 @@ requests
 python-dotenv
 matplotlib
 yfinance>=0.2.65
+# lxml is required for yfinance's earnings-dates HTML scraping, used by
+# earnings.py for the SM auto-spread engine. Without it every earnings
+# lookup raises ImportError -> "unknown" -> conservative block -> the
+# engine never opens a spread. Matches dashboard/requirements.txt.
+lxml>=4.9.0
