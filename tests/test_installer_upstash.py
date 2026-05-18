@@ -45,6 +45,9 @@ def test_creates_free_when_absent(monkeypatch):
             return _Resp(200, [])
         if method == "POST":
             assert kw["json"]["plan"] == "free"
+            assert "region" not in kw["json"]            # regional API is deprecated
+            assert kw["json"]["platform"] == "aws"
+            assert kw["json"]["primary_region"] == "us-east-1"
             return _Resp(200, {"database_name": "tradingbot-dashboard-kv",
                                "endpoint": "y.upstash.io", "port": 6379,
                                "rest_token": "FT", "read_only_rest_token": "FRO",
@@ -66,6 +69,8 @@ def test_free_rejected_falls_back_to_payg(monkeypatch):
             if kw["json"]["plan"] == "free":
                 return _Resp(402, text="payment required")
             assert kw["json"]["plan"] == "payg"
+            assert "region" not in kw["json"]            # global contract on retry too
+            assert kw["json"]["primary_region"] == "us-east-1"
             return _Resp(200, {"database_name": "tradingbot-dashboard-kv",
                                "endpoint": "z.upstash.io", "port": 6379,
                                "rest_token": "ZT", "password": "ZP"})
@@ -103,3 +108,24 @@ def test_kv_env_maps_dashboard_required_keys():
     # exactly the five keys the env shape expects, no extras
     assert set(env) == {"KV_REST_API_URL", "KV_REST_API_TOKEN",
                         "KV_REST_API_READ_ONLY_TOKEN", "KV_URL", "REDIS_URL"}
+
+
+def test_create_body_uses_global_not_regional_contract(monkeypatch):
+    captured = {}
+
+    def handler(method, url, kw):
+        if method == "GET":
+            return _Resp(200, [])
+        if method == "POST":
+            captured.update(kw["json"])
+            return _Resp(200, {"database_name": "tradingbot-dashboard-kv",
+                               "endpoint": "g.upstash.io", "port": 6379,
+                               "rest_token": "GT", "password": "GP"})
+        raise AssertionError
+    _mock_requests(monkeypatch, handler)
+    UpstashProvisioner("e@x.com", "k").find_or_create()
+    assert "region" not in captured              # deprecated field absent
+    assert captured["platform"] == "aws"
+    assert captured["primary_region"] == "us-east-1"
+    assert captured["database_name"] == "tradingbot-dashboard-kv"
+    assert captured["plan"] == "free"

@@ -73,8 +73,10 @@ class UpstashProvisioner:
                 "GET", f"/redis/database/{existing['database_id']}"
             )
             return (full if isinstance(full, dict) else existing, "existing")
-        body = {"database_name": name, "region": region,
-                "plan": "free", "tls": True}
+        # Upstash deprecated single-`region` (regional) creation -> HTTP 400.
+        # Use the global contract: platform + primary_region (no `region`).
+        body = {"database_name": name, "platform": "aws",
+                "primary_region": region, "plan": "free", "tls": True}
         try:
             db = self._request("POST", "/redis/database", body)
             return (db, "free")  # type: ignore[return-value]
