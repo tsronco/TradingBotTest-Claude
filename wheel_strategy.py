@@ -83,6 +83,10 @@ SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
 SPREAD_STOP_LOSS_PCT   = 0.50
 SPREAD_DTE_FLOOR       = 2
 AUTO_OPEN_SPREADS      = False  # SM modes (Phase 4): autonomous spread opener
+SPREAD_OPEN_MIN_LIMIT = 0.01  # floor for the opening mleg limit credit so a
+                              # thin/negative natural bid still posts a 1-cent
+                              # credit order (stale path cancels it if it never
+                              # fills) rather than flipping to a debit.
 
 
 def apply_mode(mode_name: str) -> None:
@@ -2112,19 +2116,26 @@ def eligible_universe(symbols_prices: dict, max_price) -> list:
     return [s for s, px in symbols_prices.items() if px <= max_price]
 
 
-def _open_spread_mleg(short_occ: str, long_occ: str, qty: int, net_credit: float):
+def _open_spread_mleg(short_occ: str, long_occ: str, qty: int,
+                      net_credit: float, limit_credit: float = None):
     """Submit an Alpaca multi-leg sell-to-open put credit spread.
 
-    Mirrors _close_spread_mleg's structure with opposite intents
-    (STO short put + BTO long put). Limit price = -net_credit
-    (negative => credit received), matching the dashboard convention
-    (`limit_price: -limitCredit`). qty is in spread units.
+    `net_credit` is the decision-time mid (recorded in state, used for
+    P&L). `limit_credit`, when provided, is the *marketable* credit the
+    order is actually placed at (short bid − long ask, capped at the
+    mid) so the order fills instead of resting at an untradeable mid.
+    When None, falls back to the mid (legacy behavior — keeps direct
+    callers and the four non-SM modes byte-identical).
     """
+    if limit_credit is None:
+        eff_credit = abs(net_credit)
+    else:
+        eff_credit = max(round(limit_credit, 2), SPREAD_OPEN_MIN_LIMIT)
     return api_post("/orders", {
         "order_class":   "mleg",
         "qty":           str(qty),
         "type":          "limit",
-        "limit_price":   str(round(-abs(net_credit), 2)),
+        "limit_price":   f"{round(-eff_credit, 2):.2f}",
         "time_in_force": "day",
         "legs": [
             {"symbol": short_occ, "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_open"},
@@ -2294,6 +2305,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 "long_occ":    long_contract["symbol"],
                 "long_strike": long_strike,
                 "long_mid":    long_mid,
+                "long_bid":    long_q["bid"],
+                "long_ask":    long_q["ask"],
                 "width":       width,
             }
             break  # first hit == narrowest passing width
@@ -2338,9 +2351,18 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # pnl["loss_per_share"] against max_loss * SPREAD_STOP_LOSS_PCT, so a
         # contract-multiplied value (width*100) makes the stop unreachable.
         max_loss   = round(width - net_credit, 4)
+        # Marketable opening limit: sell the short at its bid, buy the long
+        # at its ask (the price the spread can actually transact at), but
+        # never demand MORE credit than the mid, and floor at one cent.
+        marketable_credit = max(
+            round(short_q["bid"] - chosen["long_ask"], 2),
+            SPREAD_OPEN_MIN_LIMIT,
+        )
+        marketable_credit = min(marketable_credit, net_credit)
         try:
             order = _open_spread_mleg(short_occ, chosen["long_occ"],
-                                      1, net_credit)
+                                      1, net_credit,
+                                      limit_credit=marketable_credit)
         except Exception as e:
             log(f"[auto-spread] _open_spread_mleg failed for {sym}: "
                 f"{type(e).__name__}: {e}")
@@ -2372,6 +2394,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
         ss["open_order_id"] = order_id if order_id != "?" else None
+        ss["open_limit_credit"] = marketable_credit
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "
             f"long=${chosen['long_strike']:.2f} credit=${net_credit:.2f}"

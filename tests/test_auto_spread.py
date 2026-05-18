@@ -187,8 +187,9 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
 
     opened = []
     monkeypatch.setattr(ws, "_open_spread_mleg",
-                        lambda s, l, qty, nc: opened.append(
-                            {"short": s, "long": l, "qty": qty, "net_credit": nc})
+                        lambda s, l, qty, nc, limit_credit=None: opened.append(
+                            {"short": s, "long": l, "qty": qty, "net_credit": nc,
+                             "limit_credit": limit_credit})
                         or {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
     monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
@@ -768,3 +769,82 @@ def test_auto_open_records_open_order_id_in_state(monkeypatch):
     ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
 
     assert state["CHEAP"]["open_order_id"] == "ord-1"
+
+
+def test_open_spread_mleg_default_limit_unchanged(monkeypatch):
+    """No limit_credit passed → old behavior (full mid). Keeps the four
+    non-SM modes / direct callers byte-identical."""
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25)
+    assert cap["body"]["limit_price"] == "-0.25"
+
+
+def test_open_spread_mleg_uses_marketable_limit_credit(monkeypatch):
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    # recorded credit (mid) 0.25, but submit at marketable 0.10
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25,
+                         limit_credit=0.10)
+    assert cap["body"]["limit_price"] == "-0.10"
+
+
+def test_open_spread_mleg_limit_credit_floored_at_min(monkeypatch):
+    cap = {}
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: cap.update(body=b) or {"id": "x"})
+    ws._open_spread_mleg("S260605P00014000", "L260605P00013000", 1, 0.25,
+                         limit_credit=-0.04)  # negative natural bid
+    assert cap["body"]["limit_price"] == "-0.01"  # SPREAD_OPEN_MIN_LIMIT
+
+
+def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
+    """End-to-end: short mid 0.60 / long mid 0.35 → recorded net_credit
+    0.25, but the order is placed at short_bid - long_ask = 0.55 - 0.40
+    = 0.15 (marketable), capped at the 0.25 mid."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    ws.AUTO_OPEN_SPREADS = True
+    import config
+    cfg = dict(config.get_mode("sm1000"))
+    cfg["max_underlying_price"] = None
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "1000", "options_buying_power": "2000"})
+    import screener_core, earnings as earnings_mod
+    monkeypatch.setattr(screener_core, "build_universe", lambda u, w: ["CHEAP"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda s, bp, **k: {"score": 9.0, "price": 20.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+
+    def fake_find(u, t, ts, dmin, dmax):
+        cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
+        return cands[min(cands, key=lambda s: abs(s - ts))]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    captured = {}
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None: captured.update(
+                            net_credit=nc, limit_credit=limit_credit)
+                        or {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert round(captured["net_credit"], 2) == 0.25      # recorded = mid
+    assert round(captured["limit_credit"], 2) == 0.15    # 0.55 - 0.40
+    assert round(state["CHEAP"]["net_credit"], 2) == 0.25
+    assert round(state["CHEAP"]["open_limit_credit"], 2) == 0.15
