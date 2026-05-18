@@ -273,7 +273,7 @@ def test_close_spread_mleg_success_deletes_state(monkeypatch):
     wheel_strategy._close_spread(state, "PLTR", reason="early_close_50pct")
 
     assert "PLTR" not in state, "state entry must be deleted on successful close"
-    assert any("closed spread" in title.lower() for ch, title, kw in embeds)
+    assert any("spread closed" in title.lower() for ch, title, kw in embeds)
 
 
 def test_close_spread_falls_back_to_singles_on_mleg_failure(monkeypatch):

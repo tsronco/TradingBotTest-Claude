@@ -416,26 +416,41 @@ def _close_spread(state: dict, ticker: str, reason: str) -> None:
 
     # Map reason → presentation
     title_map = {
-        "early_close_50pct": f"Wheel: closed spread {ticker} at 50% profit",
-        "stop_loss_50pct":   f"Wheel: stopped out spread {ticker}",
-        "dte_floor_itm":     f"Wheel: closed spread {ticker} near expiration (ITM risk)",
+        "early_close_50pct": f"✅ Spread closed (50% profit) — {ticker}",
+        "stop_loss_50pct":   f"🛑 Spread stopped out — {ticker}",
+        "dte_floor_itm":     f"⏰ Spread closed (DTE floor, ITM) — {ticker}",
     }
     color_map = {
         "early_close_50pct": Color.GREEN,
         "stop_loss_50pct":   Color.YELLOW,
         "dte_floor_itm":     Color.YELLOW,
     }
-    title = title_map.get(reason, f"Wheel: closed spread {ticker}")
+    reason_text = {
+        "early_close_50pct": "bought to close at 50% of credit captured",
+        "stop_loss_50pct":   "bought to close at 50% of max loss (stop)",
+        "dte_floor_itm":     "bought to close — ≤2 DTE, short leg ITM",
+    }
+    title = title_map.get(reason, f"✅ Spread closed — {ticker}")
     color = color_map.get(reason, Color.YELLOW)
 
-    description = (
-        f"{sym_state['spread_type'].replace('_', ' ')} on {ticker}: "
-        f"short={short_occ}, long={long_occ}, "
-        f"net_credit=${sym_state['net_credit']:.2f}, max_loss=${sym_state['max_loss']:.2f}."
+    width = sym_state.get("width") or round(
+        abs((sym_state["short_leg"]["strike"] or 0)
+            - (sym_state["long_leg"]["strike"] or 0)), 4
     )
     footer = f"wheel_strategy.py · {MODE}"
-    send_embed(TRADES_CH, title, color=color, description=description,
-               footer=footer, actions_channel=ACTIONS_CH)
+    send_embed(
+        TRADES_CH, title, color=color,
+        description=(
+            f"{sym_state['spread_type'].replace('_', ' ')} · "
+            f"{reason_text.get(reason, 'closed')}"
+        ),
+        fields=_spread_embed_fields(
+            sym_state["short_leg"]["strike"], sym_state["long_leg"]["strike"],
+            width, sym_state["net_credit"], sym_state["max_loss"],
+            sym_state.get("expiration") or "",
+        ),
+        footer=footer, actions_channel=ACTIONS_CH,
+    )
 
     if used_fallback:
         send_embed(
