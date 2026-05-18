@@ -140,3 +140,10 @@
 {"timestamp": "2026-05-18T17:38:30.297377+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-18T17:38:30.297492+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-18T17:38:30.297589+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
+{"timestamp": "2026-05-18T17:46:45.312813+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-18T17:46:46.157556+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 3, "max_concurrent_spreads": 3}}
+{"timestamp": "2026-05-18T17:46:46.158818+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["HPQ", "M", "RIVN"]}}
+{"timestamp": "2026-05-18T17:46:46.448036+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "HPQ260605P00018000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-18T17:46:46.448205+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-18T17:46:46.448342+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-18T17:46:46.448428+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
