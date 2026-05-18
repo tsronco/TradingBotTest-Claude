@@ -1,33 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T17:26:42.901524Z"
-  },
-  "F": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "F260605P00012000",
-      "strike": 12.0,
-      "entry_premium": 0.095,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "F260605P00011000",
-      "strike": 11.0,
-      "entry_premium": 0.015,
-      "qty": 1
-    },
-    "expiration": "2026-06-05",
-    "net_credit": 0.08,
-    "max_loss": 0.92,
-    "width": 1.0,
-    "opened_at": "2026-05-18T15:56:49.260463Z",
-    "open_order_id": "daa33df8-d9f7-4b3f-b30e-fba4ee6211f2",
-    "open_limit_credit": 0.07,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order daa33df8-d9f7-4b3f-b30e-fba4ee6211f2."
+    "last_checked": "2026-05-18T17:38:29.837756Z"
   },
   "HPQ": {
     "stage": "spread_active",
@@ -82,5 +55,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
+  },
+  "RIVN": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "RIVN260605P00012000",
+      "strike": 12.0,
+      "entry_premium": 0.17,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "RIVN260605P00011000",
+      "strike": 11.0,
+      "entry_premium": 0.06,
+      "qty": 1
+    },
+    "expiration": "2026-06-05",
+    "net_credit": 0.11,
+    "max_loss": 0.89,
+    "width": 1.0,
+    "opened_at": "2026-05-18T17:38:29.285166Z",
+    "open_order_id": "a04f8dff-c1ff-4ea8-98f2-a17113b5fdf5",
+    "open_limit_credit": 0.08,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$12.00 long=$11.00 credit=$0.11"
   }
 }
