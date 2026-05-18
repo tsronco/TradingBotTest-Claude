@@ -402,7 +402,7 @@ The three SM modes (`sm500`/`sm1000`/`sm2000`) are the **first autonomous, scree
 
 **BP switch:** `bp_wants_spread(options_bp, threshold=$5,000)` → SM accounts always `< $5k` → always open a put credit spread instead of a CSP. The switch is built generally but resolves to spread-only for SM.
 
-**Spread construction:** short put ≈ 10% OTM, narrowest available width that satisfies the risk cap, 14–28 DTE, net credit = short_mid − long_mid. Placed via new `_open_spread_mleg()` (Alpaca `order_class: mleg`, STO short / BTO long, limit = −net_credit, mirroring the close primitive).
+**Spread construction:** short put ≈ 10% OTM, narrowest available width that satisfies the risk cap, 14–28 DTE, net credit = short_mid − long_mid. Placed via `_open_spread_mleg()` (Alpaca `order_class: mleg`, STO short / BTO long) at a **marketable** limit (`short_bid − long_ask`, capped at the mid, floored at $0.01) — NOT the bare mid, which never filled on thin chains (the 2026-05-18 sm2000 reopen-loop fix). The recorded `net_credit` stays the mid (P&L is mid-based, approximate, as documented). The seeded `spread_active` state records `open_order_id`; `handle_spread` resolves that order via `_resolve_pending_spread` (pending / filled / stale / gone) **before** the position-based orphan check, so an unfilled open order is never misread as "closed externally." A stale unfilled open order (> `stale_after_hours`) is cancelled and state cleared; `_working_spread_order_exists` blocks a duplicate mleg if state is lost mid-window. Adopted/hand-opened spreads carry `open_order_id=None` and skip all of this (the four non-SM modes stay byte-inert).
 
 **Risk-rail gauntlet (all enforced before any order):**
 - `account_floor: $300` — skip all opens if equity is below this
