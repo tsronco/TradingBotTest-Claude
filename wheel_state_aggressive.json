@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T18:19:48.196970Z",
+    "last_checked": "2026-05-18T18:29:34.137189Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $10.25 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $10.24 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.69 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.70 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
