@@ -2151,7 +2151,7 @@ def bp_wants_spread(options_bp: float, threshold: float) -> bool:
 
 
 def spread_passes_risk(width: float, net_credit: float, equity: float,
-                        max_risk_pct: float) -> bool:
+                       max_risk_pct: float) -> bool:
     """Net-of-credit max loss ((width - net_credit) * 100) must be ≤ this
     fraction of account equity. Matches the canonical max_loss convention
     used by _adopt_spread / _auto_open_spread state seeding."""
@@ -2355,6 +2355,10 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             width = round(short_strike - long_strike, 4)
             if width <= 0:
                 continue
+            # bp_fits is pure arithmetic — check it before the network I/O
+            # below so impossible widths are rejected without an API call.
+            if not bp_fits(options_bp, width):
+                continue
             # Need the long quote BEFORE the risk check: the gate now uses
             # net-of-credit max loss, so net_credit must be known here.
             long_q = get_option_quote(long_contract["symbol"])
@@ -2365,8 +2369,6 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             if not spread_passes_risk(width, cand_net_credit, equity,
                                       max_risk_pct):
                 continue
-            if not bp_fits(options_bp, width):
-                continue
             chosen = {
                 "long_occ":    long_contract["symbol"],
                 "long_strike": long_strike,
@@ -2374,6 +2376,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 "long_bid":    long_q["bid"],
                 "long_ask":    long_q["ask"],
                 "width":       width,
+                "net_credit":  cand_net_credit,
             }
             break  # first hit == narrowest passing width
 
@@ -2383,7 +2386,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             continue
 
         # (7) fully eligible — place the order
-        net_credit = round(short_mid - chosen["long_mid"], 4)
+        net_credit = chosen["net_credit"]
         width      = chosen["width"]
 
         # Minimum net-credit floor. A thin/illiquid chain can produce

@@ -328,11 +328,10 @@ def test_auto_open_risk_cap_blocks_no_trade(monkeypatch):
     $1 wide spread with thin credit ($0.05/share):
       net max_loss = (1.00 - 0.05) * 100 = $95 > $75 -> blocked.
     """
-    # short_mid = (0.50+0.60)/2 = 0.55; long_mid = (0.50+0.60)/2 = 0.55
-    # -> net_credit = 0.55 - 0.55 = 0.0 => max_loss = $100 > $75 -> blocked
-    # Use thin/illiquid long so net_credit is near-zero:
-    # short_mid = 0.55, long_mid = 0.50 -> net_credit = 0.05
-    # max_loss = (1.00 - 0.05) * 100 = 95 > 75 -> blocked
+    # short mid = (0.50+0.60)/2 = 0.55; long mid = (0.45+0.55)/2 = 0.50
+    # -> net_credit = 0.55 - 0.50 = 0.05 on a $1.00-wide spread
+    # net-of-credit max_loss = (1.00 - 0.05) * 100 = $95
+    # sm1000 budget = $500 equity * 0.15 = $75 -> $95 > $75 -> blocked
     contracts = {
         ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
         ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
