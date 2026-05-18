@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T17:18:51.302647Z"
+    "last_checked": "2026-05-18T17:30:26.866438Z"
   },
   "SOFI": {
     "stage": "spread_active",
@@ -54,31 +54,31 @@
     "cycle_history": [],
     "last_action": "Awaiting fill on spread open order ae73d6a6-0b41-4f2c-85a2-7a493746ae39."
   },
-  "M": {
+  "CCL": {
     "stage": "spread_active",
     "spread_type": "put_credit",
     "short_leg": {
-      "occ": "M260605P00017000",
-      "strike": 17.0,
-      "entry_premium": 0.42,
+      "occ": "CCL260605P00022000",
+      "strike": 22.0,
+      "entry_premium": 0.27,
       "qty": 1
     },
     "long_leg": {
-      "occ": "M260605P00016000",
-      "strike": 16.0,
-      "entry_premium": 0.23,
+      "occ": "CCL260605P00021000",
+      "strike": 21.0,
+      "entry_premium": 0.17,
       "qty": 1
     },
     "expiration": "2026-06-05",
-    "net_credit": 0.19,
-    "max_loss": 0.81,
+    "net_credit": 0.1,
+    "max_loss": 0.9,
     "width": 1.0,
-    "opened_at": "2026-05-18T16:10:49.985325Z",
-    "open_order_id": null,
-    "open_limit_credit": 0.12,
+    "opened_at": "2026-05-18T17:30:26.264775Z",
+    "open_order_id": "44ea44af-3211-4988-8bc1-ff590132ffcb",
+    "open_limit_credit": 0.07,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
+    "last_action": "Auto-opened put credit spread short=$22.00 long=$21.00 credit=$0.10"
   }
 }
