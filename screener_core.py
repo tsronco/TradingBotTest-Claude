@@ -29,49 +29,34 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Optional
 
-# ── Default conservative universe ─────────────────────────────────────────
-# "Large-cap, liquid options, happy to own at assignment."
-# Within 50–100 names. Cheap names (≤$25) are annotated so sm500's
-# max_underlying_price filter finds candidates.
-
 DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
-    # Tech mega-cap
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AMD",
-    "INTC",   # ≤$25 typical
-    "ORCL", "CRM", "ADBE", "IBM", "CSCO", "MU", "AVGO",
-    "QCOM", "TXN", "AMAT", "KLAC", "LRCX",
-    # Banks / finance
-    "JPM", "WFC", "C", "GS", "AXP", "V", "MA",
-    "BAC",    # ≤$25 typical
-    "MS", "BLK", "SCHW",
-    # Energy
-    "CVX", "COP", "XOM",
-    "KMI",    # ≤$25 typical
-    "OXY",
-    # Consumer / retail
-    "PEP", "WMT", "COST", "NKE", "MCD", "SBUX", "HD", "DIS",
-    "TGT", "LOW",
-    # Telecom
-    "T",      # ≤$25 typical
-    "VZ",
-    # Healthcare (mature large-cap; no biotech)
-    "JNJ", "UNH", "MRK", "ABBV",
-    "PFE",    # ≤$25 typical
-    "CVS", "MDT", "BMY",
-    # Auto / industrial
-    "F",      # ≤$25 typical
-    "GM", "CAT", "DE", "HON", "GE",
-    # Mobility / misc
-    "UBER", "LYFT",
-    # Financials / REIT / misc large-cap
-    "PLTR",
-    "SOFI",   # ≤$25 typical
-    # Cheap names specifically for sm500 price filter
-    "NIO",    # ≤$25 typical (EV, volatile — options liquid)
-    "CCL",    # ≤$25 typical (cruise, volatile — options liquid)
-    "AAL",    # ≤$25 typical (airlines, liquid options)
-    "NOK",    # ≤$25 typical (telecom)
-    "SNAP",   # ≤$25 typical (social media, active options)
+    # ── Tech / semis (large-cap, liquid options) ──
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AMD", "INTC", "ORCL",
+    "CRM", "ADBE", "IBM", "CSCO", "MU", "AVGO", "QCOM", "TXN", "AMAT",
+    "KLAC", "LRCX", "PYPL", "HPQ", "DELL", "MRVL", "NXPI", "MCHP", "ADI",
+    "FTNT", "PANW", "CRWD", "SHOP", "ABNB", "NFLX",
+    # ── Banks / finance ──
+    "JPM", "WFC", "C", "GS", "AXP", "V", "MA", "BAC", "MS", "BLK", "SCHW",
+    "USB", "PNC", "TFC",
+    # ── Energy / materials ──
+    "CVX", "COP", "XOM", "KMI", "OXY", "SLB", "HAL", "NEM", "DOW", "LYB",
+    # ── Consumer / retail ──
+    "PEP", "WMT", "COST", "NKE", "MCD", "SBUX", "HD", "DIS", "TGT", "LOW",
+    "KO", "PG", "MDLZ",
+    # ── Telecom ──
+    "T", "VZ",
+    # ── Healthcare (mature large-cap; no biotech) ──
+    "JNJ", "UNH", "MRK", "ABBV", "PFE", "CVS", "MDT", "BMY", "GILD",
+    "AMGN", "ABT",
+    # ── Auto / industrial / defense ──
+    "F", "GM", "CAT", "DE", "HON", "GE", "RTX", "LMT",
+    # ── Mobility / misc large-cap ──
+    "UBER", "LYFT", "PLTR",
+    # ── ≤$25 tier (sm500-eligible: liquid options, would own at assignment) ──
+    "SOFI", "NIO", "CCL", "AAL", "NOK", "SNAP", "WBD", "PARA", "NCLH",
+    "HOOD", "RIVN", "CLF", "VALE", "KGC", "GOLD", "AES", "KEY", "RF",
+    "HBAN", "FITB", "ALLY", "SYF", "MOS", "SIRI", "KSS", "M", "HPE",
+    "GRAB",
 })
 
 

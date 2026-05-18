@@ -58,19 +58,20 @@ def test_build_universe_returns_sorted():
 
 
 def test_universe_size_and_quality():
-    """Task 1.3: universe must be 50-100 names, all valid, with ≥8 cheap (≤$25) names."""
+    """Expanded universe: 105-130 names, valid/unique, ≥30 cheap (≤$25) names."""
     u = screener_core.DEFAULT_CONSERVATIVE_UNIVERSE
-    # Size constraint
-    assert 50 <= len(u) <= 100, f"Universe size {len(u)} not in [50, 100]"
-    # All uppercase non-empty unique strings
+    assert 105 <= len(u) <= 130, f"Universe size {len(u)} not in [105, 130]"
     assert all(isinstance(s, str) and s == s.upper() and len(s) > 0 for s in u)
     assert len(u) == len(set(u)), "Universe has duplicates"
-    # At least 8 known cheap (≤$25 typical price) names are present
-    KNOWN_CHEAP = {"F", "T", "INTC", "SOFI", "PFE", "BAC", "NIO", "CCL", "KMI", "AAL", "NOK", "SNAP"}
+    KNOWN_CHEAP = {
+        "F", "T", "INTC", "SOFI", "PFE", "BAC", "NIO", "CCL", "KMI", "AAL",
+        "NOK", "SNAP", "WBD", "PARA", "NCLH", "HOOD", "RIVN", "CLF", "VALE",
+        "KGC", "GOLD", "AES", "KEY", "RF", "HBAN", "FITB", "ALLY", "SYF",
+        "MOS", "SIRI", "KSS", "M", "HPE", "GRAB",
+    }
     present_cheap = KNOWN_CHEAP & set(u)
-    assert len(present_cheap) >= 8, (
-        f"Only {len(present_cheap)} cheap names in universe: {sorted(present_cheap)}. "
-        f"Need at least 8 from {sorted(KNOWN_CHEAP)}"
+    assert len(present_cheap) >= 30, (
+        f"Only {len(present_cheap)} cheap names: {sorted(present_cheap)}; need ≥30"
     )
 
 
