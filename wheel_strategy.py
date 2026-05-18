@@ -830,6 +830,34 @@ def get_order(order_id):
         raise
 
 
+def _working_spread_order_exists(short_occ: str, long_occ: str) -> bool:
+    """True if Alpaca currently has a non-terminal order touching either
+    leg. Belt-and-suspenders against the state-loss reopen window: even
+    if seeded state is lost before save_state, we won't stack a second
+    mleg at the broker. A lookup failure returns False (defensive — a
+    transient API error must not freeze the opener forever; the in-state
+    concurrency gate is the primary guard).
+    """
+    try:
+        orders = api_get("/orders", params={"status": "open", "nested": "true"})
+    except Exception as e:
+        log(f"_working_spread_order_exists lookup failed: {type(e).__name__}: {e}")
+        return False
+    terminal = {"filled", "canceled", "cancelled", "expired",
+                "rejected", "done_for_day", "replaced"}
+    targets = {short_occ, long_occ}
+    for o in orders or []:
+        if o.get("status") in terminal:
+            continue
+        legs = o.get("legs") or []
+        for leg in legs:
+            if leg.get("symbol") in targets:
+                return True
+        if o.get("symbol") in targets:
+            return True
+    return False
+
+
 def get_option_position(contract_symbol):
     """Returns position dict or None if not found."""
     try:
@@ -2343,6 +2371,16 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                                "min_net_credit": min_net_credit,
                                "short_mid": round(short_mid, 4),
                                "long_mid": round(chosen["long_mid"], 4)})
+            continue
+
+        if _working_spread_order_exists(short_occ, chosen["long_occ"]):
+            log(f"[auto-spread] {sym} already has a working order on a "
+                f"spread leg — skipping to avoid a duplicate")
+            log_event(LOG_STREAM, "wheel_strategy.py",
+                      "auto_spread_skip", result="skipped", symbol=sym,
+                      notes="working_order_exists",
+                      details={"short_occ": short_occ,
+                               "long_occ": chosen["long_occ"]})
             continue
 
         # Per-share max loss — MUST match _adopt_spread's convention

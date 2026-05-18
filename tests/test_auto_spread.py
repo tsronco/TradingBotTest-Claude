@@ -848,3 +848,56 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
     assert round(captured["limit_credit"], 2) == 0.15    # 0.55 - 0.40
     assert round(state["CHEAP"]["net_credit"], 2) == 0.25
     assert round(state["CHEAP"]["open_limit_credit"], 2) == 0.15
+
+
+def test_working_spread_order_exists_detects_leg(monkeypatch):
+    monkeypatch.setattr(ws, "api_get", lambda p, params=None: [
+        {"status": "new", "legs": [
+            {"symbol": "CHEAP260612P00018000"},
+            {"symbol": "CHEAP260612P00017000"}]},
+    ])
+    assert ws._working_spread_order_exists("CHEAP260612P00018000",
+                                           "CHEAP260612P00017000") is True
+    assert ws._working_spread_order_exists("OTHER260612P00010000",
+                                           "OTHER260612P00009000") is False
+
+
+def test_working_spread_order_exists_ignores_terminal(monkeypatch):
+    monkeypatch.setattr(ws, "api_get", lambda p, params=None: [
+        {"status": "filled", "legs": [{"symbol": "CHEAP260612P00018000"}]},
+    ])
+    assert ws._working_spread_order_exists("CHEAP260612P00018000",
+                                           "CHEAP260612P00017000") is False
+
+
+def test_working_spread_order_exists_api_failure_is_false(monkeypatch):
+    def boom(p, params=None):
+        raise RuntimeError("alpaca down")
+    monkeypatch.setattr(ws, "api_get", boom)
+    # Defensive: a failed lookup must not block trading forever.
+    assert ws._working_spread_order_exists("A", "B") is False
+
+
+def test_auto_open_skips_symbol_with_existing_working_order(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+    monkeypatch.setattr(ws, "_working_spread_order_exists",
+                        lambda s, l: True)
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert opened == [], "must not place a duplicate when a working order exists"
+    assert "CHEAP" not in state
