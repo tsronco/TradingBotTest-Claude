@@ -1089,6 +1089,38 @@ def _resolve_pending_contract(sym_state):
     return "gone"
 
 
+def _resolve_pending_spread(sym_state):
+    """Disambiguate a bot-opened spread whose opening mleg order may not
+    have filled yet. Spread-side parallel of _resolve_pending_contract.
+
+    Only meaningful when sym_state['open_order_id'] is set (bot-opened
+    spreads). Adopted/hand-opened spreads leave it None → returns "gone"
+    and the caller falls through to the existing position/orphan path
+    unchanged.
+
+    Returns:
+      "pending" — opening order still working; skip this cycle.
+      "stale"   — working > STALE_AFTER_HOURS; caller cancels + clears.
+      "filled"  — opening order filled; legs are now/imminently positions.
+      "gone"    — order canceled/rejected/expired/404/no id.
+    """
+    order_id = sym_state.get("open_order_id")
+    if not order_id:
+        return "gone"
+    order = get_order(order_id)
+    if order is None:
+        return "gone"
+    status = order.get("status", "")
+    if status in ("new", "accepted", "pending_new",
+                  "partially_filled", "accepted_for_bidding"):
+        if _spread_order_age_hours(sym_state) > STALE_AFTER_HOURS:
+            return "stale"
+        return "pending"
+    if status == "filled":
+        return "filled"
+    return "gone"
+
+
 def get_option_last_price(contract_symbol):
     """Get last traded price for an options contract.
 

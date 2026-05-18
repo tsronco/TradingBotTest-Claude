@@ -702,3 +702,46 @@ def test_spread_order_age_hours_missing_or_bad_returns_zero():
     assert ws._spread_order_age_hours({}) == 0.0
     assert ws._spread_order_age_hours({"opened_at": None}) == 0.0
     assert ws._spread_order_age_hours({"opened_at": "not-a-date"}) == 0.0
+
+
+def _ss_with_order(order_id="ord-x", opened_at=None):
+    ss = ws._empty_spread_state()
+    ss["open_order_id"] = order_id
+    ss["opened_at"] = opened_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return ss
+
+
+def test_resolve_pending_spread_no_order_id_is_gone():
+    assert ws._resolve_pending_spread(ws._empty_spread_state()) == "gone"
+
+
+def test_resolve_pending_spread_404_is_gone(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: None)
+    assert ws._resolve_pending_spread(_ss_with_order()) == "gone"
+
+
+def test_resolve_pending_spread_new_is_pending(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "pending"
+
+
+def test_resolve_pending_spread_partially_filled_is_pending(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "partially_filled"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "pending"
+
+
+def test_resolve_pending_spread_filled(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "filled"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "filled"
+
+
+def test_resolve_pending_spread_rejected_is_gone(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "rejected"})
+    assert ws._resolve_pending_spread(_ss_with_order()) == "gone"
+
+
+def test_resolve_pending_spread_stale_when_old(monkeypatch):
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "new"})
+    monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 2.0)
+    old = (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat().replace("+00:00", "Z")
+    assert ws._resolve_pending_spread(_ss_with_order(opened_at=old)) == "stale"
