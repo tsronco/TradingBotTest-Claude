@@ -407,8 +407,9 @@ def test_rerun_sources_secrets_from_env_files_not_blank_form(monkeypatch, tmp_pa
     monkeypatch.setattr(webapp, "ROOT", tmp_path)
     monkeypatch.setattr(webapp, "fork",
                         type("F", (), {"apply": staticmethod(lambda *a: [])}))
+    alpaca_calls = []
     monkeypatch.setattr(webapp.validate, "check_alpaca",
-                        lambda k, s, u: (True, "ok"))
+                        lambda k, s, u: alpaca_calls.append((k, s, u)) or (True, "ok"))
     monkeypatch.setattr(webapp.WebInstaller, "_run_cron", lambda self: None)
 
     pushed_secrets, enabled, pushed_token, deployed = [], [], [], {}
@@ -438,3 +439,4 @@ def test_rerun_sources_secrets_from_env_files_not_blank_form(monkeypatch, tmp_pa
     assert deployed["dash"]["DASHBOARD_PASSWORD"] == "secretpw"
     assert deployed["dash"]["TOTP_SECRET"] == "ZZTOTP"
     assert deployed["bot"]["UPSTASH_EMAIL"] == "e@x.com"
+    assert alpaca_calls and alpaca_calls[0][0] == "PKlive"  # health check used file value

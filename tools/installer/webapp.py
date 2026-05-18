@@ -207,7 +207,7 @@ class WebInstaller:
 
         # 5. dashboard deploy (provisions Upstash Redis, then deploys)
         if do_dashboard and not dry:
-            self._deploy_dashboard(cfg, eff_dash, eff_bot, owner_repo)
+            self._deploy_dashboard(cfg, dict(eff_dash), eff_bot, owner_repo)
 
         # 6. commit & push the rewrites to the fork
         if cfg.get("auto_push", True):
