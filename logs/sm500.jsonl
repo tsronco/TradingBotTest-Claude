@@ -70,3 +70,7 @@
 {"timestamp": "2026-05-18T15:55:52.619044+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 9, "equity": 500.0}}
 {"timestamp": "2026-05-18T15:55:52.620148+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-05-18T15:55:52.964875+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-18T16:05:43.097297+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-05-18T16:06:54.890617+00:00", "script": "wheel_strategy.py", "action": "auto_spread_opened", "result": "success", "symbol": "NCLH", "details": {"wheelability": 100.0, "short_occ": "NCLH260605P00014000", "long_occ": "NCLH260605P00013000", "short_strike": 14.0, "long_strike": 13.0, "width": 1.0, "net_credit": 0.165, "max_loss": 0.835, "expiration": "2026-06-05"}, "alpaca_order_id": "c3983332-e0b6-413f-a901-58abb4d9ef0e"}
+{"timestamp": "2026-05-18T16:06:54.891314+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-05-18T16:06:55.559141+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
