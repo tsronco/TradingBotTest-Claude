@@ -704,6 +704,15 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     # illiquid quotes and produced a false "50% profit" close that
     # actually realized a loss (F sm500 2026-05-18).
     close_cost = round(short_q["ask"] - long_q["bid"], 4)
+    # Crossed/degenerate quote (short_ask <= long_bid) → close_cost <= 0
+    # would make profit_pct > 1 and false-trigger an early close on a
+    # nonsensical price. Never decide on a degenerate quote — skip the
+    # cycle (same posture as a missing quote).
+    if close_cost <= 0:
+        log(f"[{ticker}] spread heartbeat — degenerate quote "
+            f"(close_cost ${close_cost:.4f} <= 0, crossed/illiquid) "
+            f"— skipping cycle")
+        return
 
     pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])

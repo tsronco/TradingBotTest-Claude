@@ -562,6 +562,28 @@ def test_handle_spread_wide_quotes_no_false_profit_close(monkeypatch):
     assert closes == [], "wide-quote mid must not produce a false profit close"
 
 
+def test_handle_spread_crossed_quote_skips_cycle(monkeypatch):
+    """Degenerate/crossed quote (short_ask <= long_bid → close_cost <= 0)
+    must NOT decide anything — skip the cycle, no false profit close."""
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # short_ask 0.05 <= long_bid 0.06 → close_cost = -0.01 → skip
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.03, "ask": 0.05},
+        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},
+    }[sym])
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [], "degenerate crossed quote must not trigger any close"
+
+
 def test_handle_spread_stop_loss_triggers_close(monkeypatch):
     """Loss per share >= 50% of max_loss → stop_loss_50pct."""
     state = {"PLTR": _far_expiry_state()}
@@ -569,7 +591,8 @@ def test_handle_spread_stop_loss_triggers_close(monkeypatch):
         {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
         {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
     ])
-    # current_value = 0.70 - 0.09 = 0.61. loss = 0.61 - 0.22 = 0.39 = 50% of 0.78
+    # close_cost = short_ask 0.71 - long_bid 0.08 = 0.63
+    # loss = 0.63 - 0.22 = 0.41 >= 50% of 0.78 max_loss (0.39)
     monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
         "PLTR260619P00008000": {"bid": 0.69, "ask": 0.71},
         "PLTR260619P00007000": {"bid": 0.08, "ask": 0.10},
