@@ -36,8 +36,8 @@ def test_auto_open_only_on_sm_modes():
 def test_auto_open_param_block_defaults():
     c = config.get_mode("sm1000")
     assert c["bp_switch_threshold"] == 5000
-    assert c["wheelability_min"] == 90
-    assert c["max_risk_pct_equity"] == 0.12
+    assert c["wheelability_min"] == 85
+    assert c["max_risk_pct_equity"] == 0.15
     assert config.get_mode("sm1000")["min_net_credit"] == 0.05
     assert c["max_concurrent_spreads"] == 3
     assert c["account_floor"] == 300
