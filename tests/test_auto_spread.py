@@ -42,15 +42,18 @@ def test_bp_wants_spread_below_threshold():
 # ── Task 4.2: risk-rail predicates ───────────────────────────────────────
 
 def test_spread_passes_risk_exact_arithmetic():
-    # max loss = width*100; pass iff <= equity * max_risk_pct
-    # $1 wide on a $500 account @ 12%: 100 > 60 -> False
-    assert ws.spread_passes_risk(1.0, 500, 0.12) is False
-    # $1 wide on a $1000 account @ 12%: 100 <= 120 -> True
-    assert ws.spread_passes_risk(1.0, 1000, 0.12) is True
-    # exact boundary: 100 <= 100 -> True
-    assert ws.spread_passes_risk(1.0, 1000, 0.10) is True
-    # $0.50 wide on $500 @ 12%: 50 <= 60 -> True (sm500 can fit a narrow one)
-    assert ws.spread_passes_risk(0.5, 500, 0.12) is True
+    # max loss = (width - net_credit) * 100; pass iff <= equity * max_risk_pct
+    # $1 wide, $0.10 credit on $500 @ 20%: (1.00-0.10)*100=90 <= 100 -> True
+    assert ws.spread_passes_risk(1.0, 0.10, 500, 0.20) is True
+    # same spread on $500 @ 15%: 90 <= 75 -> False (why sm500 was stuck)
+    assert ws.spread_passes_risk(1.0, 0.10, 500, 0.15) is False
+    # zero credit makes it gross-width again: $1 wide $1000 @ 0.10: 100 <= 100 -> True
+    assert ws.spread_passes_risk(1.0, 0.0, 1000, 0.10) is True
+    # net-of-credit is looser than gross: $1.20 wide, $0.30 credit, $1000 @ 0.10
+    #   gross 120 > 100 (old: False) but net (1.20-0.30)*100=90 <= 100 -> True
+    assert ws.spread_passes_risk(1.2, 0.30, 1000, 0.10) is True
+    # over-wide still rejected: $2 wide, $0.05 credit, $1000 @ 0.15: 195 > 150 -> False
+    assert ws.spread_passes_risk(2.0, 0.05, 1000, 0.15) is False
 
 
 def test_under_concurrency():
@@ -318,16 +321,25 @@ def test_auto_open_earnings_block_all_no_trade(monkeypatch):
 
 
 def test_auto_open_risk_cap_blocks_no_trade(monkeypatch):
-    """sm500-style: cheapest available width still exceeds the 12% risk
-    cap -> no order; normal 'no trade within risk budget' outcome."""
-    # equity 500 @ 12% => max loss budget = $60. A $1 width = $100 loss.
+    """sm1000-style: cheapest available width still exceeds net-of-credit risk
+    cap -> no order; normal 'no trade within risk budget' outcome.
+
+    sm1000 uses max_risk_pct_equity=0.15; equity=$500 => budget=$75.
+    $1 wide spread with thin credit ($0.05/share):
+      net max_loss = (1.00 - 0.05) * 100 = $95 > $75 -> blocked.
+    """
+    # short_mid = (0.50+0.60)/2 = 0.55; long_mid = (0.50+0.60)/2 = 0.55
+    # -> net_credit = 0.55 - 0.55 = 0.0 => max_loss = $100 > $75 -> blocked
+    # Use thin/illiquid long so net_credit is near-zero:
+    # short_mid = 0.55, long_mid = 0.50 -> net_credit = 0.05
+    # max_loss = (1.00 - 0.05) * 100 = 95 > 75 -> blocked
     contracts = {
         ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
         ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
     }
     quotes = {
-        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},
-        "CHEAP260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},  # short mid 0.55
+        "CHEAP260612P00017000": {"bid": 0.45, "ask": 0.55},  # long mid 0.50; credit=0.05
     }
     cfg, opened = _wire_sm(
         monkeypatch,

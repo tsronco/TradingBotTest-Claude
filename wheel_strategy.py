@@ -2150,9 +2150,13 @@ def bp_wants_spread(options_bp: float, threshold: float) -> bool:
     return options_bp < threshold
 
 
-def spread_passes_risk(width: float, equity: float, max_risk_pct: float) -> bool:
-    """Max loss (width × 100) must be ≤ this fraction of account equity."""
-    return (width * 100.0) <= equity * max_risk_pct
+def spread_passes_risk(width: float, net_credit: float, equity: float,
+                        max_risk_pct: float) -> bool:
+    """Net-of-credit max loss ((width - net_credit) * 100) must be ≤ this
+    fraction of account equity. Matches the canonical max_loss convention
+    used by _adopt_spread / _auto_open_spread state seeding."""
+    max_loss = (width - net_credit) * 100.0
+    return max_loss <= equity * max_risk_pct
 
 
 def under_concurrency(open_spreads: int, cap: int) -> bool:
@@ -2351,14 +2355,18 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             width = round(short_strike - long_strike, 4)
             if width <= 0:
                 continue
-            if not spread_passes_risk(width, equity, max_risk_pct):
-                continue
-            if not bp_fits(options_bp, width):
-                continue
+            # Need the long quote BEFORE the risk check: the gate now uses
+            # net-of-credit max loss, so net_credit must be known here.
             long_q = get_option_quote(long_contract["symbol"])
             if not long_q:
                 continue
             long_mid = (long_q["bid"] + long_q["ask"]) / 2.0
+            cand_net_credit = round(short_mid - long_mid, 4)
+            if not spread_passes_risk(width, cand_net_credit, equity,
+                                      max_risk_pct):
+                continue
+            if not bp_fits(options_bp, width):
+                continue
             chosen = {
                 "long_occ":    long_contract["symbol"],
                 "long_strike": long_strike,
