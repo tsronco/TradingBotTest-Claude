@@ -380,7 +380,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
         "wheelability_min":          90,      # percentile threshold (0–100)
-        "max_risk_pct_equity":       0.12,    # max loss / equity ≤ 12%
+        "max_risk_pct_equity":       0.15,    # max loss / equity ≤ 15%
         "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
         "max_concurrent_spreads":    3,
         "account_floor":             300,     # skip if equity < $300
@@ -436,7 +436,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          90,
-        "max_risk_pct_equity":       0.12,
+        "max_risk_pct_equity":       0.15,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,
         "account_floor":             300,
@@ -491,7 +491,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          90,
-        "max_risk_pct_equity":       0.12,
+        "max_risk_pct_equity":       0.15,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,
         "account_floor":             300,
