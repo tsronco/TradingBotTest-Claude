@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T13:31:34.806029Z"
+    "last_checked": "2026-05-18T13:41:49.683813Z"
   },
   "F": {
     "stage": 1,
@@ -23,13 +23,13 @@
   },
   "SNAP": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "SNAP260529C00006000",
+    "contract_order_id": "69f467c6-86cb-4581-a2e7-a6c88065ea3e",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-12T15:21:32.948673Z",
-    "contract_expiration": "2026-05-15",
-    "contract_type": "put",
-    "contract_strike": 7.5,
+    "contract_entry_date": "2026-05-18T13:41:49.262990Z",
+    "contract_expiration": "2026-05-29",
+    "contract_type": "call",
+    "contract_strike": 6.0,
     "contract_qty": 1,
     "cost_basis_per_share": 5.659091,
     "shares_qty": 110,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Assigned on SNAP260515P00007500. 110 shares, cost basis $5.66."
+    "last_action": "Sold-to-open 1\u00d7 SNAP260529C00006000 @ $0.07. Awaiting fill."
   },
   "AAL": {
     "stage": "spread_active",
