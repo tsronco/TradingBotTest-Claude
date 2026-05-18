@@ -1037,6 +1037,25 @@ def _order_age_hours(sym_state) -> float:
         return 0.0
 
 
+def _spread_order_age_hours(sym_state) -> float:
+    """Hours since a bot-opened spread's opening order was placed.
+
+    Reads `opened_at` (ISO8601, '...Z'). Returns 0.0 on missing or
+    unparseable input — defensive: a parse error must never spuriously
+    trigger the stale-cancel path. Parallels _order_age_hours.
+    """
+    opened_at = sym_state.get("opened_at")
+    if not opened_at:
+        return 0.0
+    try:
+        dt = datetime.fromisoformat(opened_at.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def _resolve_pending_contract(sym_state):
     """Disambiguate when contract is set but no position exists yet.
 

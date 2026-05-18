@@ -688,3 +688,17 @@ def test_empty_spread_state_has_open_order_tracking_fields():
     assert ss["stage"] == "spread_active"
     assert ss["open_order_id"] is None
     assert ss["open_limit_credit"] is None
+
+
+from datetime import datetime, timezone, timedelta
+
+
+def test_spread_order_age_hours_parses_opened_at():
+    three_h_ago = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat().replace("+00:00", "Z")
+    assert abs(ws._spread_order_age_hours({"opened_at": three_h_ago}) - 3.0) < 0.05
+
+
+def test_spread_order_age_hours_missing_or_bad_returns_zero():
+    assert ws._spread_order_age_hours({}) == 0.0
+    assert ws._spread_order_age_hours({"opened_at": None}) == 0.0
+    assert ws._spread_order_age_hours({"opened_at": "not-a-date"}) == 0.0
