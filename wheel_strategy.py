@@ -562,6 +562,67 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
       5. otherwise                           → log heartbeat, no state change
     """
     sym_state = state[ticker]
+
+    # Pending-fill resolution MUST precede the position-based orphan check.
+    # A bot-opened spread whose mleg order has not filled yet has NO leg
+    # positions; without this guard the orphan check below misreads
+    # "not filled yet" as "closed externally", deletes state, and the
+    # opener immediately re-opens (the infinite 10-min loop / stacked
+    # orders observed on sm2000 2026-05-18). Adopted/hand-opened spreads
+    # carry open_order_id=None and fall straight through unchanged.
+    if sym_state.get("open_order_id"):
+        pstatus = _resolve_pending_spread(sym_state)
+        if pstatus == "pending":
+            log(f"[{ticker}] spread open order {sym_state['open_order_id']} "
+                f"pending fill — skipping cycle")
+            sym_state["last_action"] = (
+                f"Awaiting fill on spread open order {sym_state['open_order_id']}.")
+            return
+        if pstatus == "filled":
+            log(f"[{ticker}] spread open order filled — clearing pending "
+                f"marker, managing from next cycle")
+            sym_state["open_order_id"] = None
+            sym_state["last_action"] = "Spread open order filled — now managing."
+            return
+        if pstatus == "stale":
+            order_id = sym_state["open_order_id"]
+            age_h = _spread_order_age_hours(sym_state)
+            log(f"[{ticker}] spread open order {order_id} stale at "
+                f"{age_h:.1f}h — cancelling")
+            if cancel_order(order_id):
+                send_embed(
+                    ACTIONS_CH,
+                    f"Wheel: spread {ticker} open order stale at {age_h:.1f}h — cancelled",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Opening limit `{order_id}` for {ticker} did not fill "
+                        f"within {STALE_AFTER_HOURS}h. Cancelled and cleared "
+                        f"state so the opener can re-evaluate at a fresh mid."
+                    ),
+                    footer=f"wheel_strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH, also_to_actions=False,
+                )
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_open_stale_cancelled", result="success",
+                          symbol=ticker,
+                          details={"order_id": order_id,
+                                   "age_hours": round(age_h, 1)})
+                del state[ticker]
+            else:
+                log(f"[{ticker}] cancel of stale spread open order "
+                    f"{order_id} returned False — retry next cycle")
+                sym_state["last_action"] = (
+                    "Cancel of stale spread open order FAILED; will retry.")
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_open_stale_cancel_failed", result="failure",
+                          symbol=ticker, details={"order_id": order_id})
+            return
+        # pstatus == "gone": order canceled/rejected/expired/404. Clear the
+        # marker and fall through to the existing orphan handler, which
+        # closes any partially-filled survivor leg or clears state if
+        # nothing filled. Reusing the tested path keeps the change minimal.
+        sym_state["open_order_id"] = None
+
     positions = get_positions()
 
     # 1. Orphan detection — before any snapshot fetch
