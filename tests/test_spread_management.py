@@ -804,3 +804,42 @@ def test_handle_spread_adopted_no_order_id_uses_existing_path(monkeypatch):
 
     assert got_order == [], "resolver must not be consulted when no open_order_id"
     assert orphan_called == [True], "existing orphan path must run unchanged"
+
+
+def test_handle_spread_gone_no_position_accurate_embed_not_closed_externally(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "rejected"})
+    monkeypatch.setattr(ws, "get_positions", lambda: [])
+    orphan = []
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda *a, **k: orphan.append(True))
+    titles = []
+    monkeypatch.setattr(ws, "send_embed",
+                        lambda ch, title, **k: titles.append(title))
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert orphan == [], "never-filled order must NOT use the orphan/closed-externally path"
+    assert "SOFI" not in state, "state cleared"
+    assert any("did not fill" in t for t in titles)
+    assert not any("closed externally" in t for t in titles)
+
+
+def test_handle_spread_gone_with_survivor_leg_uses_orphan_handler(monkeypatch):
+    state = {"SOFI": _active_spread_state()}
+    monkeypatch.setattr(ws, "get_order", lambda oid: {"status": "canceled"})
+    monkeypatch.setattr(ws, "get_positions",
+                        lambda: [{"symbol": "SOFI260605P00014000",
+                                  "asset_class": "us_option", "qty": "-1"}])
+    orphan = []
+    monkeypatch.setattr(ws, "_handle_orphan_leg",
+                        lambda s, t, p: orphan.append((t, len(p))))
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **k: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **k: None)
+
+    ws.handle_spread(state, "SOFI", {"equity": "2000"})
+
+    assert orphan == [("SOFI", 1)], "survivor leg → existing orphan handler closes it"

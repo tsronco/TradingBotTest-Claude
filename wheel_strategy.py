@@ -621,11 +621,41 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                           "spread_open_stale_cancel_failed", result="failure",
                           symbol=ticker, details={"order_id": order_id})
             return
-        # pstatus == "gone": order canceled/rejected/expired/404. Clear the
-        # marker and fall through to the existing orphan handler, which
-        # closes any partially-filled survivor leg or clears state if
-        # nothing filled. Reusing the tested path keeps the change minimal.
+        # pstatus == "gone": opening order canceled/rejected/expired/404.
+        gone_positions = get_positions()
+        gone_occs = {p["symbol"] for p in gone_positions
+                     if p.get("asset_class") == "us_option"}
+        g_short = sym_state["short_leg"]["occ"]
+        g_long  = sym_state["long_leg"]["occ"]
+        if g_short not in gone_occs and g_long not in gone_occs:
+            # Order terminated WITHOUT creating any position — nothing ever
+            # opened. This is NOT a spread that closed; emit an accurate
+            # embed (not _handle_orphan_leg's "closed externally") + clear.
+            gone_order_id = sym_state["open_order_id"]
+            send_embed(
+                TRADES_CH,
+                f"Wheel: spread {ticker} open order did not fill — cleared",
+                color=Color.YELLOW,
+                description=(
+                    f"Opening order `{gone_order_id}` for {ticker} terminated "
+                    f"(rejected / expired / cancelled) with no position "
+                    f"created. No spread was opened; state cleared. The "
+                    f"opener may re-evaluate {ticker} on a later cycle."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH, also_to_actions=False,
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py",
+                      "spread_open_order_unfilled_cleared", result="skipped",
+                      symbol=ticker, details={"order_id": gone_order_id})
+            del state[ticker]
+            return
+        # A leg filled (partial-fill survivor). Clear the marker and let the
+        # existing orphan handler close the survivor (its half-state-resolved
+        # message is accurate for that case).
         sym_state["open_order_id"] = None
+        _handle_orphan_leg(state, ticker, gone_positions)
+        return
 
     positions = get_positions()
 
