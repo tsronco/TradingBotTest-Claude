@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { fmtUsd, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
+import { describeSpreadOrder } from '../lib/spread-order';
 import { OrderEditModal } from '../components/order/OrderEditModal';
 import { OrdersFilterBar } from '../components/order/OrdersFilterBar';
 import {
@@ -34,6 +35,10 @@ interface Order {
   // openers stamped via assignment/expiration). null when not a closer or
   // the opener is older than the 90-day pairing window.
   realized_pl?: number | null;
+  // Multi-leg (spread) orders: Alpaca returns the parent with symbol/side
+  // null and the real data here. Used to render a combined spread row.
+  order_class?: string | null;
+  legs?: Array<{ symbol: string | null; side: string | null }> | null;
 }
 
 function fmtIsoDateMDY(iso: string): string {
@@ -154,7 +159,11 @@ function OrdersTable({
   // Symbol filter is applied client-side. Date filter is applied server-side
   // (via the `after` query param) so we don't blow past Alpaca's 500-order page cap.
   const filtered = symbolFilter
-    ? orders.filter((o) => underlyingFromSymbol(o.symbol) === symbolFilter)
+    ? orders.filter(
+        (o) =>
+          (describeSpreadOrder(o)?.underlying ??
+            underlyingFromSymbol(o.symbol ?? '')) === symbolFilter,
+      )
     : orders;
   const hiddenBySymbol = orders.length - filtered.length;
 
@@ -229,28 +238,45 @@ function OrdersTable({
             </thead>
             <tbody>
               {filtered.map((o) => {
-                const parsed = parseOptionSymbol(o.symbol);
-                const dte = parsed ? daysToExpiration(parsed.expiration) : null;
-                const lookupSymbol = parsed?.underlying ?? o.symbol;
+                const spread = describeSpreadOrder(o);
+                const parsed = spread ? null : parseOptionSymbol(o.symbol ?? '');
+                const expIso = spread?.expiration ?? parsed?.expiration ?? null;
+                const dte = expIso ? daysToExpiration(expIso) : null;
+                const lookupSymbol = spread?.underlying ?? parsed?.underlying ?? o.symbol;
                 const isOption = !!parsed;
                 return (
                   <tr key={o.id} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
                     <td data-label="submitted" className="px-4 py-1.5 text-mid text-[11px]">{fmtSubmitted(o.submitted_at)}</td>
                     <td data-primary className="px-4 py-1.5 text-fg">
                       <Link to={`/lookup/${lookupSymbol}`} className="hover:text-hi">
-                        {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
-                        {o.symbol}
-                        {parsed && (
-                          <span className="text-dim ml-2 text-[10px]">
-                            <span className={parsed.type === 'put' ? 'text-red' : 'text-cyan'}>
-                              {parsed.type.toUpperCase()}
-                            </span>{' '}
-                            ${parsed.strike} {fmtIsoDateMDY(parsed.expiration)}
-                          </span>
+                        {spread ? (
+                          <>
+                            <span className="text-dim mr-1">▸</span>
+                            {spread.underlying}
+                            <span className="text-dim ml-2 text-[10px]">
+                              <span className={spread.type === 'put' ? 'text-red' : 'text-cyan'}>
+                                {spread.label}
+                              </span>{' '}
+                              {fmtIsoDateMDY(spread.expiration)}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
+                            {o.symbol}
+                            {parsed && (
+                              <span className="text-dim ml-2 text-[10px]">
+                                <span className={parsed.type === 'put' ? 'text-red' : 'text-cyan'}>
+                                  {parsed.type.toUpperCase()}
+                                </span>{' '}
+                                ${parsed.strike} {fmtIsoDateMDY(parsed.expiration)}
+                              </span>
+                            )}
+                          </>
                         )}
                       </Link>
                     </td>
-                    <td data-label="side" className={`px-4 py-1.5 ${sideColor(o.side)}`}>{o.side}</td>
+                    <td data-label="side" className={`px-4 py-1.5 ${spread ? 'text-mid' : sideColor(o.side)}`}>{spread ? 'spread' : o.side}</td>
                     <td data-label="type" className="px-4 py-1.5 text-mid">{o.type}</td>
                     <td data-label="qty" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.qty))}</td>
                     <td data-label="filled" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(o.filled_qty))}</td>
@@ -373,7 +399,14 @@ export default function Orders() {
   // Aggregate symbols across all visible queries for the dropdown.
   const symbolOptions = useMemo(
     () =>
-      collectUnderlyings(...queries.map((q) => q.data?.orders?.map((o) => o.symbol) ?? [])),
+      collectUnderlyings(
+        ...queries.map(
+          (q) =>
+            q.data?.orders?.map(
+              (o) => describeSpreadOrder(o)?.underlying ?? o.symbol ?? '',
+            ) ?? [],
+        ),
+      ),
     [queries],
   );
 
