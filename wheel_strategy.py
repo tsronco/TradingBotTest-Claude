@@ -247,18 +247,24 @@ def _empty_spread_state() -> dict:
 
 # ── Spread management (Phase 2) ──────────────────────────────────────────
 
-def _compute_spread_pnl(sym_state: dict, short_mid: float, long_mid: float) -> dict:
-    """Compute spread P&L from current option mid prices.
+def _compute_spread_pnl(sym_state: dict, close_cost: float) -> dict:
+    """Compute spread P&L from the EXECUTABLE cost to buy-to-close.
+
+    `close_cost` must be the price the spread can actually be closed at
+    right now — for a put credit spread that is `short_ask - long_bid`
+    (you pay the short's ask to buy it back, receive the long's bid to
+    sell it). Deciding on mids instead overstates profit on illiquid,
+    wide-bid/ask options and caused a false "50% profit" close that
+    realized a loss (F sm500 2026-05-18).
 
     Args:
       sym_state: state dict with shape from _empty_spread_state, must have
                  `net_credit` and `max_loss` populated.
-      short_mid: current mid price of the short leg (per share).
-      long_mid: current mid price of the long leg (per share).
+      close_cost: executable cost-to-close per share (short_ask - long_bid).
 
     Returns:
       dict with keys:
-        current_value:  cost-to-close per share (short - long)
+        current_value:  executable cost-to-close per share.
         profit_pct:     fraction of credit captured. Positive when winning,
                         negative when losing. 0.50 means half the credit
                         has been captured (50% profit close trigger).
@@ -267,7 +273,7 @@ def _compute_spread_pnl(sym_state: dict, short_mid: float, long_mid: float) -> d
                         max_loss * stop_loss_pct for stop-out check.
     """
     net_credit = float(sym_state["net_credit"])
-    current_value = short_mid - long_mid
+    current_value = close_cost
     profit_pct = (net_credit - current_value) / net_credit if net_credit > 0 else 0.0
     loss_per_share = current_value - net_credit
     return {
@@ -598,6 +604,10 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                 f"Awaiting fill on spread open order {sym_state['open_order_id']}.")
             return
         if pstatus == "filled":
+            # Reconcile net_credit/max_loss to the ACTUAL fill before the
+            # pending marker (and order id) are cleared — profit/stop/embed
+            # must key off money actually received, not decision-time mids.
+            _reconcile_spread_fill(sym_state)
             log(f"[{ticker}] spread open order filled — clearing pending "
                 f"marker, managing from next cycle")
             sym_state["open_order_id"] = None
@@ -689,10 +699,13 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     if not short_q or not long_q:
         log(f"[{ticker}] spread heartbeat — missing quote, skipping cycle")
         return
-    short_mid = round((short_q["bid"] + short_q["ask"]) / 2, 4)
-    long_mid  = round((long_q["bid"]  + long_q["ask"])  / 2, 4)
+    # Executable cost to buy-to-close: pay the short leg's ask, receive
+    # the long leg's bid. Deciding on mids overstated profit on wide /
+    # illiquid quotes and produced a false "50% profit" close that
+    # actually realized a loss (F sm500 2026-05-18).
+    close_cost = round(short_q["ask"] - long_q["bid"], 4)
 
-    pnl = _compute_spread_pnl(sym_state, short_mid, long_mid)
+    pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])
 
     # 2. Profit trigger
@@ -1257,6 +1270,58 @@ def _resolve_pending_spread(sym_state):
     if status == "filled":
         return "filled"
     return "gone"
+
+
+def _reconcile_spread_fill(sym_state: dict) -> None:
+    """Replace decision-time net_credit/max_loss with the ACTUAL fill once
+    the opening mleg order fills.
+
+    The opener seeds net_credit from decision-time mids; the real fill can
+    differ materially (F sm500 2026-05-18: stored 0.075 vs filled 0.0496).
+    profit_pct, the stop-loss check, and the close embed all key off
+    net_credit, so they must reflect money actually received. No-ops
+    (keeps the decision-time values) if the order or its per-leg fills are
+    unavailable, or if the true fill nets <= 0 credit — never clobber with
+    garbage that would pin profit_pct to 0 forever.
+    """
+    order_id = sym_state.get("open_order_id")
+    if not order_id:
+        return
+    order = get_order(order_id)
+    if not order:
+        return
+    legs = order.get("legs") or []
+    short_occ = sym_state["short_leg"]["occ"]
+    long_occ  = sym_state["long_leg"]["occ"]
+
+    def _leg_fill(occ):
+        for lg in legs:
+            if lg.get("symbol") == occ:
+                try:
+                    v = abs(float(lg.get("filled_avg_price")))
+                except (TypeError, ValueError):
+                    return None
+                return v if v > 0 else None
+        return None
+
+    short_fill = _leg_fill(short_occ)
+    long_fill  = _leg_fill(long_occ)
+    if short_fill is None or long_fill is None:
+        return
+    net_credit = round(short_fill - long_fill, 4)
+    if net_credit <= 0:
+        log(f"[reconcile] {short_occ}/{long_occ} fill nets "
+            f"${net_credit:.4f} <= 0 — keeping decision-time net_credit")
+        return
+    width = sym_state.get("width")
+    if not width or width <= 0:
+        width = round(abs(float(sym_state["short_leg"]["strike"])
+                          - float(sym_state["long_leg"]["strike"])), 4)
+    old = sym_state.get("net_credit")
+    sym_state["net_credit"] = net_credit
+    sym_state["max_loss"]   = round(width - net_credit, 4)
+    log(f"[reconcile] spread net_credit decision=${old} → fill "
+        f"${net_credit:.4f} (max_loss ${sym_state['max_loss']:.4f})")
 
 
 def get_option_last_price(contract_symbol):
@@ -2458,6 +2523,29 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                                "min_net_credit": min_net_credit,
                                "short_mid": round(short_mid, 4),
                                "long_mid": round(chosen["long_mid"], 4)})
+            continue
+
+        # Executable-credit floor. The mid-based net_credit can be wildly
+        # optimistic on wide/illiquid quotes — F sm500 2026-05-18 stored a
+        # mid credit of $0.075 but the spread could only ever transact for
+        # ~$0.05 and exited at a loss. Require the CONSERVATIVE executable
+        # credit (sell the short at its bid, buy the long at its ask — the
+        # price the spread can actually open AND later close near) to clear
+        # the same floor, so we only open spreads whose economics are real.
+        exec_credit = round(short_q["bid"] - chosen["long_ask"], 4)
+        if exec_credit < min_net_credit:
+            log(f"[auto-spread] {sym} executable credit ${exec_credit:.4f} "
+                f"(short_bid ${short_q['bid']:.4f} - long_ask "
+                f"${chosen['long_ask']:.4f}) < min ${min_net_credit:.4f} "
+                f"(too wide/illiquid to exit reliably) — skipping")
+            log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_skip",
+                      result="skipped", symbol=sym,
+                      notes="below_exec_net_credit",
+                      details={"exec_credit": exec_credit,
+                               "mid_net_credit": net_credit,
+                               "min_net_credit": min_net_credit,
+                               "short_bid": round(short_q["bid"], 4),
+                               "long_ask": round(chosen["long_ask"], 4)})
             continue
 
         if _working_spread_order_exists(short_occ, chosen["long_occ"]):

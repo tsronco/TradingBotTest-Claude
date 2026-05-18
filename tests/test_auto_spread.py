@@ -565,14 +565,47 @@ def test_auto_open_net_credit_just_below_floor_rejected(monkeypatch):
     assert "CHEAP" not in state
 
 
-def test_auto_open_net_credit_at_floor_accepted(monkeypatch):
-    """Boundary: net_credit exactly 0.05 (== floor, NOT < floor) ->
-    accepted. Pins the >= side of the boundary."""
+def test_auto_open_executable_credit_at_floor_accepted(monkeypatch):
+    """Boundary: EXECUTABLE credit (short_bid - long_ask) exactly 0.05
+    (== floor, NOT < floor) -> accepted. Pins the >= side of the new
+    executable-credit boundary."""
     contracts = {
         ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
         ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
     }
-    # short mid 0.50, long mid 0.45 -> net_credit exactly 0.05
+    # exec credit = short_bid 0.55 - long_ask 0.50 = 0.05 (== floor)
+    # mid net_credit = 0.56 - 0.49 = 0.07
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.57},  # mid 0.56
+        "CHEAP260612P00017000": {"bid": 0.48, "ask": 0.50},  # mid 0.49
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch,
+        equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1, "executable credit == 0.05 floor (not <) -> accepted"
+    assert round(opened[0]["net_credit"], 4) == 0.07
+    assert state["CHEAP"]["stage"] == "spread_active"
+    assert round(state["CHEAP"]["net_credit"], 4) == 0.07
+
+
+def test_auto_open_skips_when_executable_credit_below_floor(monkeypatch):
+    """Regression (F sm500 2026-05-18): mid net_credit clears the floor
+    but the spread can only transact at a much worse executable price.
+    The opener must SKIP it (don't open spreads you can't exit near)."""
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    # mid net_credit = 0.50 - 0.45 = 0.05 (>= floor, would have opened
+    # under the old rule) BUT exec credit = short_bid 0.45 - long_ask
+    # 0.50 = -0.05 (< floor) -> skip.
     quotes = {
         "CHEAP260612P00018000": {"bid": 0.45, "ask": 0.55},  # mid 0.50
         "CHEAP260612P00017000": {"bid": 0.40, "ask": 0.50},  # mid 0.45
@@ -587,10 +620,8 @@ def test_auto_open_net_credit_at_floor_accepted(monkeypatch):
     )
     state = {"_meta": {}}
     ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
-    assert len(opened) == 1, "net_credit == 0.05 floor (not <) -> accepted"
-    assert round(opened[0]["net_credit"], 4) == 0.05
-    assert state["CHEAP"]["stage"] == "spread_active"
-    assert round(state["CHEAP"]["net_credit"], 4) == 0.05
+    assert opened == [], "wide/illiquid executable credit < floor -> no open"
+    assert "CHEAP" not in state
 
 
 def test_run_wheel_calls_auto_open_on_cold_start_empty_discover(monkeypatch, tmp_path):

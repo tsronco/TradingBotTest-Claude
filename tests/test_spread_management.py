@@ -38,7 +38,8 @@ def test_compute_spread_pnl_at_open():
     """Right after open: short price = entry, long price = entry, current
     value = net_credit, profit_pct = 0."""
     sym_state = _spread_state(net_credit=0.22, max_loss=0.78)
-    result = wheel_strategy._compute_spread_pnl(sym_state, short_mid=0.33, long_mid=0.11)
+    # close_cost == credit → break-even (executable cost to BTC = short_ask - long_bid)
+    result = wheel_strategy._compute_spread_pnl(sym_state, close_cost=0.22)
     assert result["current_value"] == pytest.approx(0.22)
     assert result["profit_pct"] == pytest.approx(0.0)
     assert result["loss_per_share"] == pytest.approx(0.0)
@@ -47,9 +48,8 @@ def test_compute_spread_pnl_at_open():
 def test_compute_spread_pnl_50pct_profit():
     """Spread worth half of entry credit → 50% profit captured."""
     sym_state = _spread_state(net_credit=0.22, max_loss=0.78)
-    # short dropped from 0.33 to 0.18, long dropped from 0.11 to 0.07
-    # current value = 0.18 - 0.07 = 0.11 = half of 0.22 credit
-    result = wheel_strategy._compute_spread_pnl(sym_state, short_mid=0.18, long_mid=0.07)
+    # executable cost to buy-to-close dropped to 0.11 = half of 0.22 credit
+    result = wheel_strategy._compute_spread_pnl(sym_state, close_cost=0.11)
     assert result["current_value"] == pytest.approx(0.11)
     assert result["profit_pct"] == pytest.approx(0.50)
     assert result["loss_per_share"] == pytest.approx(-0.11)
@@ -58,8 +58,8 @@ def test_compute_spread_pnl_50pct_profit():
 def test_compute_spread_pnl_half_max_loss():
     """Loss per share = max_loss / 2 → stop loss should trigger."""
     sym_state = _spread_state(net_credit=0.22, max_loss=0.78)
-    # current_value = 0.22 + 0.39 = 0.61 (loss = 0.39, half of 0.78)
-    result = wheel_strategy._compute_spread_pnl(sym_state, short_mid=0.70, long_mid=0.09)
+    # close_cost = 0.61 → loss = 0.61 - 0.22 = 0.39, half of 0.78 max loss
+    result = wheel_strategy._compute_spread_pnl(sym_state, close_cost=0.61)
     assert result["current_value"] == pytest.approx(0.61)
     assert result["loss_per_share"] == pytest.approx(0.39)
     assert result["profit_pct"] < 0  # losing
@@ -68,10 +68,71 @@ def test_compute_spread_pnl_half_max_loss():
 def test_compute_spread_pnl_max_loss_floor():
     """Stock crashed — spread is worth the full width, max loss realized."""
     sym_state = _spread_state(short_strike=8.0, long_strike=7.0, net_credit=0.22, max_loss=0.78)
-    # short = 1.50, long = 0.50, current_value = 1.00 = width
-    result = wheel_strategy._compute_spread_pnl(sym_state, short_mid=1.50, long_mid=0.50)
+    # close_cost = 1.00 = full width (spread at max loss)
+    result = wheel_strategy._compute_spread_pnl(sym_state, close_cost=1.00)
     assert result["current_value"] == pytest.approx(1.00)
     assert result["loss_per_share"] == pytest.approx(0.78)
+
+
+def test_reconcile_spread_fill_overwrites_from_actual_legs(monkeypatch):
+    """Decision-time net_credit is replaced with the real fill (F sm500
+    2026-05-18: stored 0.075 vs actually filled 0.0496)."""
+    sym_state = _spread_state(net_credit=0.075, max_loss=0.925)  # width 1.0
+    sym_state["open_order_id"] = "ord-1"
+    monkeypatch.setattr(wheel_strategy, "get_order", lambda oid: {
+        "id": oid, "status": "filled", "legs": [
+            {"symbol": "PLTR260619P00008000", "side": "sell", "filled_avg_price": "0.0798"},
+            {"symbol": "PLTR260619P00007000", "side": "buy",  "filled_avg_price": "0.0302"},
+        ],
+    })
+    monkeypatch.setattr(wheel_strategy, "log", lambda *a, **k: None)
+
+    wheel_strategy._reconcile_spread_fill(sym_state)
+
+    assert sym_state["net_credit"] == pytest.approx(0.0496)
+    assert sym_state["max_loss"] == pytest.approx(0.9504)  # width 1.0 - 0.0496
+
+
+def test_reconcile_spread_fill_no_clobber_when_legs_missing(monkeypatch):
+    """Order present but no leg fills → keep decision-time values."""
+    sym_state = _spread_state(net_credit=0.075, max_loss=0.925)
+    sym_state["open_order_id"] = "ord-1"
+    monkeypatch.setattr(wheel_strategy, "get_order", lambda oid: {"status": "filled"})
+    monkeypatch.setattr(wheel_strategy, "log", lambda *a, **k: None)
+
+    wheel_strategy._reconcile_spread_fill(sym_state)
+
+    assert sym_state["net_credit"] == pytest.approx(0.075)
+    assert sym_state["max_loss"] == pytest.approx(0.925)
+
+
+def test_reconcile_spread_fill_no_clobber_when_no_order(monkeypatch):
+    """get_order None (404) → keep decision-time values, no crash."""
+    sym_state = _spread_state(net_credit=0.075, max_loss=0.925)
+    sym_state["open_order_id"] = "ord-1"
+    monkeypatch.setattr(wheel_strategy, "get_order", lambda oid: None)
+    monkeypatch.setattr(wheel_strategy, "log", lambda *a, **k: None)
+
+    wheel_strategy._reconcile_spread_fill(sym_state)
+
+    assert sym_state["net_credit"] == pytest.approx(0.075)
+
+
+def test_reconcile_spread_fill_no_clobber_on_nonpositive_credit(monkeypatch):
+    """A fill that nets <= 0 credit is not written (would pin profit_pct)."""
+    sym_state = _spread_state(net_credit=0.075, max_loss=0.925)
+    sym_state["open_order_id"] = "ord-1"
+    monkeypatch.setattr(wheel_strategy, "get_order", lambda oid: {
+        "legs": [
+            {"symbol": "PLTR260619P00008000", "filled_avg_price": "0.03"},
+            {"symbol": "PLTR260619P00007000", "filled_avg_price": "0.05"},
+        ],
+    })
+    monkeypatch.setattr(wheel_strategy, "log", lambda *a, **k: None)
+
+    wheel_strategy._reconcile_spread_fill(sym_state)
+
+    assert sym_state["net_credit"] == pytest.approx(0.075)
 
 
 def test_place_sell_to_close_calls_alpaca_with_correct_payload(monkeypatch):
@@ -461,10 +522,11 @@ def test_handle_spread_profit_50pct_triggers_close(monkeypatch):
         {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
     ])
     monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
-        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},  # mid 0.18
-        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},  # mid 0.07
+        "PLTR260619P00008000": {"bid": 0.10, "ask": 0.12},
+        "PLTR260619P00007000": {"bid": 0.04, "ask": 0.06},
     }[sym])
-    # Profit calc: current_value = 0.18 - 0.07 = 0.11, credit was 0.22 → 50% profit
+    # Executable BTC cost = short_ask 0.12 - long_bid 0.04 = 0.08;
+    # profit_pct = (0.22 - 0.08) / 0.22 = 0.64 ≥ 0.50 → early close
     monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
     closes = []
     monkeypatch.setattr(wheel_strategy, "_close_spread",
@@ -472,6 +534,32 @@ def test_handle_spread_profit_50pct_triggers_close(monkeypatch):
 
     wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
     assert closes == [("PLTR", "early_close_50pct")]
+
+
+def test_handle_spread_wide_quotes_no_false_profit_close(monkeypatch):
+    """Regression (F sm500 2026-05-18): a wide bid/ask whose MID implies a
+    big profit must NOT trigger an early close. The decision uses the
+    executable BTC cost (short_ask - long_bid), so a spread that can only
+    be bought back at a loss is held, not falsely closed at 'profit'."""
+    state = {"PLTR": _far_expiry_state()}  # net_credit 0.22, max_loss 0.78
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # MID would say current_value = 0.22 - 0.20 = 0.02 → ~91% "profit" (the bug).
+    # Executable cost = short_ask 0.40 - long_bid 0.02 = 0.38 → a real loss of
+    # 0.16/sh (< 0.39 stop threshold) → must HOLD, not close.
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.04, "ask": 0.40},  # mid 0.22
+        "PLTR260619P00007000": {"bid": 0.02, "ask": 0.38},  # mid 0.20
+    }[sym])
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == [], "wide-quote mid must not produce a false profit close"
 
 
 def test_handle_spread_stop_loss_triggers_close(monkeypatch):
@@ -613,10 +701,11 @@ def test_handle_spread_profit_takes_priority_over_dte(monkeypatch):
         {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
         {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
     ])
-    # current_value = 0.11 = 50% of credit
+    # Executable BTC cost = short_ask 0.12 - long_bid 0.04 = 0.08
+    # → profit_pct = (0.22 - 0.08)/0.22 = 0.64 ≥ 0.50
     monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
-        "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},
-        "PLTR260619P00007000": {"bid": 0.06, "ask": 0.08},
+        "PLTR260619P00008000": {"bid": 0.10, "ask": 0.12},
+        "PLTR260619P00007000": {"bid": 0.04, "ask": 0.06},
     }[sym])
     # Stock 7.5 < short strike 8.0 → ITM, but profit trigger fires first
     monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 7.5)
