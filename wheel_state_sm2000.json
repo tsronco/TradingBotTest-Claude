@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T14:47:31.412133Z"
+    "last_checked": "2026-05-18T14:58:04.968994Z"
   },
   "SOFI": {
     "stage": "spread_active",
@@ -8,7 +8,7 @@
     "short_leg": {
       "occ": "SOFI260605P00014000",
       "strike": 14.0,
-      "entry_premium": 0.175,
+      "entry_premium": 0.17,
       "qty": 1
     },
     "long_leg": {
@@ -18,10 +18,10 @@
       "qty": 1
     },
     "expiration": "2026-06-05",
-    "net_credit": 0.1,
-    "max_loss": 0.9,
+    "net_credit": 0.095,
+    "max_loss": 0.905,
     "width": 1.0,
-    "opened_at": "2026-05-18T14:47:30.959988Z",
+    "opened_at": "2026-05-18T14:58:04.593972Z",
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
