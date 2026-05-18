@@ -175,6 +175,17 @@ class WebInstaller:
                 dw = envfile.write_merged(DASH_ENV_PATH, dash_env)
                 self._log("ok", f"dashboard/.env — {len(dw)} keys written")
 
+        # After step 1 the .env files are the complete merged truth (form
+        # values + already-set keys preserved by write_merged). Every step
+        # below must source from that, NOT the in-memory form — the re-run
+        # safety UI deliberately leaves already-set fields blank.
+        if dry:
+            eff_bot, eff_dash = bot_env, dash_env  # files unwritten; preview=form
+        else:
+            eff_bot = envfile.read_values(ENV_PATH)
+            eff_dash = (envfile.read_values(DASH_ENV_PATH)
+                        if do_dashboard else {})
+
         # 2. fork gotchas
         url = self.dashboard_url or cfg.get("dashboard_url") or None
         if dry:
@@ -185,8 +196,8 @@ class WebInstaller:
                 self._log("ok", f"Rewrote {c}")
 
         # 3. GitHub Actions secrets + enable workflows on the fork
-        self._push_secrets(owner_repo, modes, include_congress, bot_env, dry)
-        self._enable_actions(owner_repo, bot_env, dry)
+        self._push_secrets(owner_repo, modes, include_congress, eff_bot, dry)
+        self._enable_actions(owner_repo, eff_bot, dry)
 
         # 4. cron-job.org
         if dry:
@@ -196,11 +207,11 @@ class WebInstaller:
 
         # 5. dashboard deploy (provisions Upstash Redis, then deploys)
         if do_dashboard and not dry:
-            self._deploy_dashboard(cfg, dash_env, bot_env, owner_repo)
+            self._deploy_dashboard(cfg, eff_dash, eff_bot, owner_repo)
 
         # 6. commit & push the rewrites to the fork
         if cfg.get("auto_push", True):
-            self._git_push_fork(owner_repo, bot_env.get("GITHUB_ACCESS_TOKEN", ""), dry)
+            self._git_push_fork(owner_repo, eff_bot.get("GITHUB_ACCESS_TOKEN", ""), dry)
         else:
             self._log("warn", "Auto-push off — commit & push the rewritten "
                       "files to your fork by hand.")
@@ -209,9 +220,9 @@ class WebInstaller:
         if not dry:
             for mode in modes:
                 acc = spec.account(mode)
-                k = bot_env.get(acc.key_env)
-                s = bot_env.get(acc.secret_env)
-                u = bot_env.get(acc.url_env, acc.default_url)
+                k = eff_bot.get(acc.key_env)
+                s = eff_bot.get(acc.secret_env)
+                u = eff_bot.get(acc.url_env, acc.default_url)
                 if k and s:
                     ok, msg = validate.check_alpaca(k, s, u)
                     self._log("ok" if ok else "error", f"{mode}: Alpaca {msg}")

@@ -382,3 +382,59 @@ def test_progress_screen_has_rerun_button():
     html = webapp._PAGE_HTML
     assert 'onclick="show(6)"' in html
     assert "Re-run Apply" in html
+
+
+def test_rerun_sources_secrets_from_env_files_not_blank_form(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    denv = tmp_path / "d.env"
+    env.write_text(
+        "ALPACA_API_KEY=PKlive\nALPACA_API_SECRET=sek\n"
+        "ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2\n"
+        "GITHUB_ACCESS_TOKEN=ghp_fromfile\n"
+        "DISCORD_TSLA_WEBHOOK=https://discord.com/api/webhooks/a\n"
+        "DISCORD_SUMMARY_WEBHOOK=https://discord.com/api/webhooks/b\n"
+        "DISCORD_ERRORS_WEBHOOK=https://discord.com/api/webhooks/c\n"
+        "DISCORD_ACTIONS_WEBHOOK=https://discord.com/api/webhooks/d\n"
+        "BOT_PUSH_TOKEN=bpt\nUPSTASH_EMAIL=e@x.com\nUPSTASH_API_KEY=uk\n"
+    )
+    denv.write_text(
+        "DASHBOARD_PASSWORD=secretpw\nTOTP_SECRET=ZZTOTP\n"
+        "SESSION_SECRET=ss\nBOT_PUSH_TOKEN=bpt\nCRON_TOKEN=ct\n"
+        "INTERNAL_FUNCTIONS_TOKEN=ift\n"
+    )
+    monkeypatch.setattr(webapp, "ENV_PATH", env)
+    monkeypatch.setattr(webapp, "DASH_ENV_PATH", denv)
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    monkeypatch.setattr(webapp, "fork",
+                        type("F", (), {"apply": staticmethod(lambda *a: [])}))
+    monkeypatch.setattr(webapp.validate, "check_alpaca",
+                        lambda k, s, u: (True, "ok"))
+    monkeypatch.setattr(webapp.WebInstaller, "_run_cron", lambda self: None)
+
+    pushed_secrets, enabled, pushed_token, deployed = [], [], [], {}
+    monkeypatch.setattr(webapp.WebInstaller, "_push_secrets",
+        lambda self, owner, modes, inc, env_, dry: pushed_secrets.append(env_))
+    monkeypatch.setattr(webapp.WebInstaller, "_enable_actions",
+        lambda self, owner, env_, dry: enabled.append(env_))
+    monkeypatch.setattr(webapp.WebInstaller, "_git_push_fork",
+        lambda self, owner, token, dry: pushed_token.append(token))
+
+    def fake_deploy(self, cfg, dash_env_, bot_env_, owner):
+        deployed["dash"], deployed["bot"] = dash_env_, bot_env_
+    monkeypatch.setattr(webapp.WebInstaller, "_deploy_dashboard", fake_deploy)
+
+    inst = webapp.WebInstaller()
+    inst._apply({
+        "dry_run": False, "owner_repo": "bob/fork",
+        "modes": ["conservative"], "include_congress": False,
+        "do_dashboard": True, "reset_state": False,
+        "bot_env": {}, "dash_env": {},
+    })
+
+    assert pushed_secrets[0]["GITHUB_ACCESS_TOKEN"] == "ghp_fromfile"
+    assert pushed_secrets[0]["DISCORD_TSLA_WEBHOOK"].endswith("/a")
+    assert enabled[0]["GITHUB_ACCESS_TOKEN"] == "ghp_fromfile"
+    assert pushed_token[0] == "ghp_fromfile"
+    assert deployed["dash"]["DASHBOARD_PASSWORD"] == "secretpw"
+    assert deployed["dash"]["TOTP_SECRET"] == "ZZTOTP"
+    assert deployed["bot"]["UPSTASH_EMAIL"] == "e@x.com"
