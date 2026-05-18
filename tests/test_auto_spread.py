@@ -745,3 +745,26 @@ def test_resolve_pending_spread_stale_when_old(monkeypatch):
     monkeypatch.setattr(ws, "STALE_AFTER_HOURS", 2.0)
     old = (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat().replace("+00:00", "Z")
     assert ws._resolve_pending_spread(_ss_with_order(opened_at=old)) == "stale"
+
+
+def test_auto_open_records_open_order_id_in_state(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+        ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
+        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
+    }
+    cfg, opened = _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0}},
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+    # _wire_sm patches _open_spread_mleg to return {"id": "ord-1"}
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert state["CHEAP"]["open_order_id"] == "ord-1"

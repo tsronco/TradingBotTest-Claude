@@ -2356,6 +2356,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                       notes=f"{type(e).__name__}: {str(e)[:400]}")
             return  # one attempt per cycle either way
 
+        order_id = order.get("id", "?") if isinstance(order, dict) else "?"
+
         # Seed spread_active state so the inherited manual handle_spread
         # adopts and manages exits on subsequent cycles (no new exit code).
         ss = _empty_spread_state()
@@ -2369,13 +2371,13 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["max_loss"]   = max_loss
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
+        ss["open_order_id"] = order_id if order_id != "?" else None
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "
             f"long=${chosen['long_strike']:.2f} credit=${net_credit:.2f}"
         )
         state[sym] = ss
 
-        order_id = order.get("id", "?") if isinstance(order, dict) else "?"
         send_embed(
             TRADES_CH, f"Auto-spread: opened put credit spread {sym}",
             color=Color.GREEN,
