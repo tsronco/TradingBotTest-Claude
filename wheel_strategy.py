@@ -501,7 +501,7 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
                 f"Long leg gone from Alpaca; bought-to-close remaining short "
                 f"`{short_occ}` to clean up the orphan."
             )
-            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+            send_embed(TRADES_CH, f"🩹 Spread half-state resolved — {ticker}",
                        color=Color.YELLOW, description=description,
                        footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
             log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
@@ -524,7 +524,7 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
                 f"Short leg gone from Alpaca; sold-to-close remaining long "
                 f"`{long_occ}` to clean up the orphan."
             )
-            send_embed(TRADES_CH, f"Wheel: spread half-state resolved {ticker}",
+            send_embed(TRADES_CH, f"🩹 Spread half-state resolved — {ticker}",
                        color=Color.YELLOW, description=description,
                        footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
             log_event(LOG_STREAM, "wheel_strategy.py", "spread_orphan_resolved",
@@ -540,7 +540,7 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
         return
 
     # Both missing — no orders, just clear state
-    send_embed(TRADES_CH, f"Wheel: spread {ticker} fully closed externally",
+    send_embed(TRADES_CH, f"🏁 Spread fully closed externally — {ticker}",
                color=Color.YELLOW,
                description=(
                    f"Both legs of the spread on {ticker} are gone from Alpaca "
@@ -596,7 +596,7 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
             if cancel_order(order_id):
                 send_embed(
                     ACTIONS_CH,
-                    f"Wheel: spread {ticker} open order stale at {age_h:.1f}h — cancelled",
+                    f"⏳ Spread open order stale — {ticker} ({age_h:.1f}h, cancelled)",
                     color=Color.YELLOW,
                     description=(
                         f"Opening limit `{order_id}` for {ticker} did not fill "
@@ -634,7 +634,7 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
             gone_order_id = sym_state["open_order_id"]
             send_embed(
                 TRADES_CH,
-                f"Wheel: spread {ticker} open order did not fill — cleared",
+                f"⚠️ Spread open order did not fill — {ticker}",
                 color=Color.YELLOW,
                 description=(
                     f"Opening order `{gone_order_id}` for {ticker} terminated "
@@ -2018,12 +2018,15 @@ def _discover_wheel_state(state: dict) -> set:
                 # Already adopted on a prior cycle — don't re-announce.
                 continue
             send_embed(
-                TRADES_CH, f"Wheel: adopted spread {ticker}",
+                TRADES_CH, f"📥 Spread adopted — {ticker}",
                 color=Color.BLUE,
                 description=(
-                    f"{sp.spread_type.replace('_', ' ')} short=${sp.short_strike:.2f} "
-                    f"long=${sp.long_strike:.2f} credit=${sp.net_credit:.2f} "
-                    f"max_loss=${sp.max_loss:.2f} ({sp.short_qty}× contracts)."
+                    f"{sp.spread_type.replace('_', ' ')} · user-opened, "
+                    f"now bot-managed ({sp.short_qty}× contracts)"
+                ),
+                fields=_spread_embed_fields(
+                    sp.short_strike, sp.long_strike, sp.width,
+                    sp.net_credit, sp.max_loss, sp.expiration.isoformat(),
                 ),
                 footer=f"wheel_strategy.py · {MODE}",
                 actions_channel=ACTIONS_CH,
@@ -2176,6 +2179,34 @@ def eligible_universe(symbols_prices: dict, max_price) -> list:
     if max_price is None:
         return list(symbols_prices)
     return [s for s, px in symbols_prices.items() if px <= max_price]
+
+
+def _spread_embed_fields(short_strike: float, long_strike: float,
+                         width: float, net_credit: float, max_loss: float,
+                         expiration: str) -> list[dict]:
+    """Build the structured Discord embed fields for a put credit spread.
+
+    Pure (no I/O) so it is unit-testable. `expiration` is an ISO
+    'YYYY-MM-DD' string; DTE is computed against today.
+    """
+    try:
+        dte = (date.fromisoformat(expiration) - date.today()).days
+    except ValueError:
+        dte = 0
+    return [
+        {"name": "Short put",  "value": f"${short_strike:.2f}", "inline": True},
+        {"name": "Long put",   "value": f"${long_strike:.2f}",  "inline": True},
+        {"name": "Width",      "value": f"${width:.2f}",        "inline": True},
+        {"name": "Net credit",
+         "value": f"${net_credit:.2f}/sh\n(${net_credit * 100:.2f})",
+         "inline": True},
+        {"name": "Max loss",
+         "value": f"${max_loss:.2f}/sh\n(${max_loss * 100:.2f})",
+         "inline": True},
+        {"name": "Expires",
+         "value": f"{expiration}\n({dte}d)",
+         "inline": True},
+    ]
 
 
 def _open_spread_mleg(short_occ: str, long_occ: str, qty: int,
@@ -2481,17 +2512,14 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         state[sym] = ss
 
         send_embed(
-            TRADES_CH, f"Auto-spread: opened put credit spread {sym}",
+            TRADES_CH, f"🎯 Put credit spread opened — {sym}",
             color=Color.GREEN,
-            description=(
-                f"Screener-driven open (wheelability {norm[sym]:.0f}). "
-                f"short=${short_strike:.2f} `{short_occ}`, "
-                f"long=${chosen['long_strike']:.2f} `{chosen['long_occ']}`, "
-                f"width=${width:.2f}, net_credit=${net_credit:.2f}, "
-                f"max_loss=${max_loss:.2f}, exp {expiration}. "
-                f"Order {order_id}. handle_spread now manages exits."
+            description=f"Screener-driven · wheelability {norm[sym]:.0f}",
+            fields=_spread_embed_fields(
+                short_strike, chosen["long_strike"], width,
+                net_credit, max_loss, expiration,
             ),
-            footer=f"wheel_strategy.py · {MODE}",
+            footer=f"wheel_strategy.py · {MODE} · order {str(order_id)[:8]}…",
             actions_channel=ACTIONS_CH,
         )
         log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_opened",

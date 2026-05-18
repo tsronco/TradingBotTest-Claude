@@ -912,3 +912,25 @@ def test_auto_open_skips_symbol_with_existing_working_order(monkeypatch):
 
     assert opened == [], "must not place a duplicate when a working order exists"
     assert "CHEAP" not in state
+
+
+def test_spread_embed_fields():
+    from datetime import date, timedelta
+    exp = (date.today() + timedelta(days=18)).isoformat()
+    f = ws._spread_embed_fields(
+        short_strike=14.0, long_strike=13.0, width=1.0,
+        net_credit=0.10, max_loss=0.91, expiration=exp,
+    )
+    assert isinstance(f, list) and len(f) == 6
+    assert all(set(d) == {"name", "value", "inline"} for d in f)
+    assert all(d["inline"] is True for d in f)
+    names = [d["name"] for d in f]
+    assert names == ["Short put", "Long put", "Width",
+                     "Net credit", "Max loss", "Expires"]
+    by = {d["name"]: d["value"] for d in f}
+    assert by["Short put"] == "$14.00"
+    assert by["Long put"] == "$13.00"
+    assert by["Width"] == "$1.00"
+    assert by["Net credit"] == "$0.10/sh\n($10.00)"
+    assert by["Max loss"] == "$0.91/sh\n($91.00)"
+    assert by["Expires"] == f"{exp}\n(18d)"
