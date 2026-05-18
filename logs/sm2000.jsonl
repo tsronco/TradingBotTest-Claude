@@ -108,3 +108,9 @@
 {"timestamp": "2026-05-18T16:46:51.180776+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "HPQ260605P00018000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-18T16:46:51.180938+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-18T16:46:51.181071+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
+{"timestamp": "2026-05-18T16:57:49.466938+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-18T16:57:50.442002+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 3, "max_concurrent_spreads": 3}}
+{"timestamp": "2026-05-18T16:57:50.443208+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["F", "HPQ", "M"]}}
+{"timestamp": "2026-05-18T16:57:50.726925+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "HPQ260605P00018000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-18T16:57:50.727090+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-18T16:57:50.727185+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
