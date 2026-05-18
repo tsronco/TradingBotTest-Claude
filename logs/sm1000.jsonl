@@ -34,3 +34,7 @@
 {"timestamp": "2026-05-18T14:29:21.044867+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 63, "equity": 1000.0}}
 {"timestamp": "2026-05-18T14:29:21.046042+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-05-18T14:29:21.561782+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-18T14:38:59.903810+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-05-18T14:39:18.497895+00:00", "script": "wheel_strategy.py", "action": "auto_spread_opened", "result": "success", "symbol": "SOFI", "details": {"wheelability": 92.0635, "short_occ": "SOFI260605P00014000", "long_occ": "SOFI260605P00013000", "short_strike": 14.0, "long_strike": 13.0, "width": 1.0, "net_credit": 0.125, "max_loss": 0.875, "expiration": "2026-06-05"}, "alpaca_order_id": "b73a4453-9b23-4c39-8bd0-7dc0a779bd0b"}
+{"timestamp": "2026-05-18T14:39:18.498664+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-05-18T14:39:18.867177+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
