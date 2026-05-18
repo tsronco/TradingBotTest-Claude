@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T17:40:11.090907Z",
+    "last_checked": "2026-05-18T17:50:00.557247Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -100,7 +100,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $9.54 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $9.55 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -217,9 +217,9 @@
   "KO": {
     "stage": 1,
     "current_contract": "KO260529P00075000",
-    "contract_order_id": "eaf177b5-d0fa-43e2-ba6a-2da5d978e171",
+    "contract_order_id": "90f5cf75-cdb1-464c-8633-c6ff59080c0a",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-18T13:40:59.418102Z",
+    "contract_entry_date": "2026-05-18T17:49:58.305481Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
     "contract_strike": 75.0,
@@ -230,7 +230,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on KO260529P00075000.",
+    "last_action": "Sold-to-open KO260529P00075000 @ $0.04. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -249,7 +249,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.49 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.44 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -287,7 +287,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260522P00025000: $0.11 vs entry $0.11",
+    "last_action": "Monitoring PFE260522P00025000: $0.14 vs entry $0.11",
     "contract_qty": 1
   }
 }
