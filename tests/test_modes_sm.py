@@ -38,6 +38,9 @@ def test_auto_open_param_block_defaults():
     assert c["bp_switch_threshold"] == 5000
     assert c["wheelability_min"] == 85
     assert c["max_risk_pct_equity"] == 0.15
+    # sm500 runs a higher per-trade risk ceiling so a $1-wide spread fits
+    assert config.get_mode("sm500")["max_risk_pct_equity"] == 0.20
+    assert config.get_mode("sm2000")["max_risk_pct_equity"] == 0.15
     assert config.get_mode("sm1000")["min_net_credit"] == 0.05
     assert c["max_concurrent_spreads"] == 3
     assert c["account_floor"] == 300
