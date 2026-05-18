@@ -440,3 +440,57 @@ def test_rerun_sources_secrets_from_env_files_not_blank_form(monkeypatch, tmp_pa
     assert deployed["dash"]["TOTP_SECRET"] == "ZZTOTP"
     assert deployed["bot"]["UPSTASH_EMAIL"] == "e@x.com"
     assert alpaca_calls and alpaca_calls[0][0] == "PKlive"  # health check used file value
+
+
+def test_dry_run_uses_form_not_files(monkeypatch, tmp_path):
+    # A populated .env exists, but dry-run must NOT source from it — it
+    # previews only the (form) submission and writes/pushes nothing.
+    env = tmp_path / ".env"
+    env.write_text("GITHUB_ACCESS_TOKEN=ghp_fromfile\nALPACA_API_KEY=PKfile\n")
+    monkeypatch.setattr(webapp, "ENV_PATH", env)
+    monkeypatch.setattr(webapp, "DASH_ENV_PATH", tmp_path / "d.env")
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    seen = []
+    monkeypatch.setattr(webapp.WebInstaller, "_push_secrets",
+        lambda self, o, m, i, env_, dry: seen.append(env_))
+    inst = webapp.WebInstaller()
+    inst._apply({
+        "dry_run": True, "owner_repo": "bob/fork", "modes": ["conservative"],
+        "include_congress": False, "do_dashboard": False, "reset_state": True,
+        "bot_env": {"ALPACA_API_KEY": "PKform"}, "dash_env": {},
+    })
+    # dry-run effective env is the FORM, not the file
+    assert seen[0] == {"ALPACA_API_KEY": "PKform"}
+    assert "GITHUB_ACCESS_TOKEN" not in seen[0]
+    assert not env.read_text().count("PKform")  # nothing written in dry-run
+
+
+def test_first_run_effective_env_equals_written_form(monkeypatch, tmp_path):
+    # No pre-existing .env; a full form. After write_merged the file == form,
+    # so the effective env equals the form (no behavior change for a clean
+    # first-time forker).
+    env = tmp_path / ".env"
+    monkeypatch.setattr(webapp, "ENV_PATH", env)
+    monkeypatch.setattr(webapp, "DASH_ENV_PATH", tmp_path / "d.env")
+    monkeypatch.setattr(webapp, "ROOT", tmp_path)
+    monkeypatch.setattr(webapp, "fork",
+                        type("F", (), {"apply": staticmethod(lambda *a: [])}))
+    monkeypatch.setattr(webapp.validate, "check_alpaca",
+                        lambda k, s, u: (True, "ok"))
+    monkeypatch.setattr(webapp.WebInstaller, "_run_cron", lambda self: None)
+    seen = []
+    monkeypatch.setattr(webapp.WebInstaller, "_git_push_fork",
+        lambda self, o, token, dry: seen.append(token))
+    monkeypatch.setattr(webapp.WebInstaller, "_push_secrets",
+        lambda self, o, m, i, e, d: None)
+    monkeypatch.setattr(webapp.WebInstaller, "_enable_actions",
+        lambda self, o, e, d: None)
+    inst = webapp.WebInstaller()
+    inst._apply({
+        "dry_run": False, "owner_repo": "bob/fork", "modes": ["conservative"],
+        "include_congress": False, "do_dashboard": False, "reset_state": False,
+        "bot_env": {"GITHUB_ACCESS_TOKEN": "ghp_form",
+                    "ALPACA_API_KEY": "PKf", "ALPACA_API_SECRET": "sf"},
+        "dash_env": {},
+    })
+    assert seen[0] == "ghp_form"  # token from the just-written file == form value
