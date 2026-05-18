@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T17:39:38.296967Z"
+    "last_checked": "2026-05-18T17:49:21.649322Z"
   },
   "SOFI": {
     "stage": "spread_active",
@@ -43,15 +43,15 @@
       "qty": 1
     },
     "expiration": "2026-06-05",
-    "net_credit": 0.195,
-    "max_loss": 0.805,
+    "net_credit": 0.08,
+    "max_loss": 0.92,
     "width": 1.0,
     "opened_at": "2026-05-18T17:39:37.983192Z",
-    "open_order_id": "26ca9539-3d46-4edd-8869-e6e3b3762013",
+    "open_order_id": null,
     "open_limit_credit": 0.04,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$17.00 long=$16.00 credit=$0.20"
+    "last_action": "Spread open order filled \u2014 now managing."
   }
 }
