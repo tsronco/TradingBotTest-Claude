@@ -393,3 +393,10 @@
 {"timestamp": "2026-05-19T16:28:57.695618+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T16:28:57.695769+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SOFI260605P00013000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T16:28:57.695913+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
+{"timestamp": "2026-05-19T16:38:39.271331+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-05-19T16:38:40.933834+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 3, "max_concurrent_spreads": 3}}
+{"timestamp": "2026-05-19T16:38:40.935141+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "M", "SOFI"]}}
+{"timestamp": "2026-05-19T16:38:41.324441+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "AAL260612P00010000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T16:38:41.324596+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T16:38:41.324715+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SOFI260605P00013000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T16:38:41.324810+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
