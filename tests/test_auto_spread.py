@@ -519,9 +519,16 @@ def test_auto_open_negative_credit_rejected_no_order(monkeypatch):
         "CHEAP260612P00018000": {"bid": 0.20, "ask": 0.30},  # short mid 0.25
         "CHEAP260612P00017000": {"bid": 0.55, "ask": 0.65},  # long mid 0.60
     }
+    # equity=1500 (not 1000) so the negative-credit spread's max_loss of
+    # $135 = (1.0 - (-0.35)) * 100 still fits inside the post-hardening
+    # max_risk_pct_equity=0.10 cap ($150). Without this, the spread is
+    # rejected at the RISK gate before ever reaching the credit-floor
+    # check this test asserts. The risk-cap tightening shipped in Task 4
+    # of the SM PCS hardening; the test's intent (verify negative-credit
+    # spreads log below_min_net_credit and don't open) is preserved.
     cfg, opened = _wire_sm(
         monkeypatch,
-        equity=1000, options_bp=2000,
+        equity=1500, options_bp=2000,
         scored={"CHEAP": {"score": 9.0, "price": 20.0}},
         earnings_within={},
         contracts_by_strike=contracts,
