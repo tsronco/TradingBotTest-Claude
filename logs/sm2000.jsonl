@@ -531,3 +531,6 @@
 {"timestamp": "2026-05-19T20:16:38.553239+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-05-19T20:16:38.869227+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["KSS", "M", "RIVN"]}}
 {"timestamp": "2026-05-19T20:16:39.117194+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-19T20:26:34.997340+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-19T20:26:35.990386+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["KSS", "M", "RIVN"]}}
+{"timestamp": "2026-05-19T20:26:36.403163+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
