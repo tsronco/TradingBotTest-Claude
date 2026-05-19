@@ -730,6 +730,26 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
         _close_spread(state, ticker, reason="early_close_50pct")
         return
 
+    # 2a. Underlying-price tripwire (SM modes only, SPREAD_STOP_CREDIT_MULT set).
+    # If the stock has traded through the short strike, close immediately —
+    # robust to degenerate/illiquid option quotes where the 2x-credit stop
+    # could otherwise miss the trigger by reading a stale mid.
+    if SPREAD_STOP_CREDIT_MULT is not None:
+        short_strike = float(sym_state["short_leg"]["strike"])
+        spread_type = sym_state["spread_type"]
+        stock_price = get_latest_price(ticker)
+        if stock_price is not None:
+            tripped = (
+                (spread_type == "put_credit"  and stock_price <= short_strike) or
+                (spread_type == "call_credit" and stock_price >= short_strike)
+            )
+            if tripped:
+                log(f"[{ticker}] spread underlying tripwire — stock "
+                    f"${stock_price:.2f} crossed short strike "
+                    f"${short_strike:.2f} ({spread_type}) — closing")
+                _close_spread(state, ticker, reason="underlying_tripwire")
+                return
+
     # 3. Stop loss trigger
     # SM modes (SPREAD_STOP_CREDIT_MULT set): fire when buy-back cost
     # reaches N x the credit received — a small, bounded dollar loss that

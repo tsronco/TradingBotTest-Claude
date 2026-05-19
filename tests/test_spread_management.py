@@ -13,6 +13,23 @@ import pytest
 import wheel_strategy
 
 
+@pytest.fixture
+def apply_sm_mode():
+    """Apply a wheel_strategy mode for the test, auto-revert to conservative after.
+
+    Centralizes the apply_mode lifecycle so SM-mode tests don't leak SPREAD_*
+    constants into subsequent tests.
+    """
+    import config
+    applied = []
+    def _apply(mode_name: str):
+        wheel_strategy.apply_mode(mode_name)
+        applied.append(mode_name)
+    yield _apply
+    if applied:
+        wheel_strategy.apply_mode(config.DEFAULT_MODE)
+
+
 def _spread_state(short_strike=8.0, long_strike=7.0, net_credit=0.22, max_loss=0.78):
     """Build a populated spread_active state dict for tests."""
     return {
@@ -978,9 +995,8 @@ def _seeded_sm_spread_state():
     }
 
 
-def test_handle_spread_sm_stop_fires_at_2x_credit(monkeypatch):
-    import config
-    ws.apply_mode("sm1000")  # arms SPREAD_STOP_CREDIT_MULT=2.0
+def test_handle_spread_sm_stop_fires_at_2x_credit(monkeypatch, apply_sm_mode):
+    apply_sm_mode("sm1000")  # arms SPREAD_STOP_CREDIT_MULT=2.0
 
     state = _seeded_sm_spread_state()
     monkeypatch.setattr(ws, "get_positions", lambda: [
@@ -1001,13 +1017,9 @@ def test_handle_spread_sm_stop_fires_at_2x_credit(monkeypatch):
     ws.handle_spread(state, "AMD", account={"cash": 1000})
     assert closed["hit"] == ("AMD", "stop_loss_2x_credit")
 
-    # restore default mode so later tests see conservative
-    ws.apply_mode(config.DEFAULT_MODE)
 
-
-def test_handle_spread_sm_stop_does_not_fire_below_2x_credit(monkeypatch):
-    import config
-    ws.apply_mode("sm1000")
+def test_handle_spread_sm_stop_does_not_fire_below_2x_credit(monkeypatch, apply_sm_mode):
+    apply_sm_mode("sm1000")
 
     state = _seeded_sm_spread_state()
     monkeypatch.setattr(ws, "get_positions", lambda: [
@@ -1028,15 +1040,11 @@ def test_handle_spread_sm_stop_does_not_fire_below_2x_credit(monkeypatch):
     ws.handle_spread(state, "AMD", account={"cash": 1000})
     assert "hit" not in closed
 
-    # restore default mode so later tests see conservative
-    ws.apply_mode(config.DEFAULT_MODE)
 
-
-def test_handle_spread_non_sm_mode_still_uses_50pct_max_loss(monkeypatch):
+def test_handle_spread_non_sm_mode_still_uses_50pct_max_loss(monkeypatch, apply_sm_mode):
     """Manual mode (spread_management on, spread_stop_credit_mult None)
     must keep the legacy 50%-of-max-loss behavior — byte-unaffected."""
-    import config
-    ws.apply_mode("manual")
+    apply_sm_mode("manual")
     assert ws.SPREAD_STOP_CREDIT_MULT is None  # sanity
 
     state = _seeded_sm_spread_state()
@@ -1058,5 +1066,71 @@ def test_handle_spread_non_sm_mode_still_uses_50pct_max_loss(monkeypatch):
     ws.handle_spread(state, "AMD", account={"cash": 1000})
     assert "hit" not in closed  # manual's 50%-of-max-loss didn't fire either
 
-    # restore default mode so later tests see conservative
-    ws.apply_mode(config.DEFAULT_MODE)
+
+def test_handle_spread_sm_underlying_tripwire_put_credit(monkeypatch, apply_sm_mode):
+    """Put credit spread: stock trading <= short strike → close immediately."""
+    apply_sm_mode("sm1000")
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    # Quote is fine, 2x stop NOT triggered, but stock crossed short strike.
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 13.95)  # below $14
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert closed["hit"] == ("AMD", "underlying_tripwire")
+
+
+def test_handle_spread_sm_underlying_tripwire_not_fired_above_strike(monkeypatch, apply_sm_mode):
+    apply_sm_mode("sm1000")
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 14.05)  # above $14
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+
+
+def test_handle_spread_non_sm_underlying_tripwire_inactive(monkeypatch, apply_sm_mode):
+    """Manual mode must NOT get the tripwire — byte-unaffected."""
+    apply_sm_mode("manual")
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 13.95)  # below strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed  # manual didn't fire — no tripwire active
