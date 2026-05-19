@@ -470,3 +470,9 @@
 {"timestamp": "2026-05-19T18:26:39.747370+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T18:26:39.747526+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T18:26:39.747632+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
+{"timestamp": "2026-05-19T18:36:37.051515+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-19T18:36:37.861325+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 3, "max_concurrent_spreads": 3}}
+{"timestamp": "2026-05-19T18:36:37.862643+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["KSS", "M", "RIVN"]}}
+{"timestamp": "2026-05-19T18:36:38.158139+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T18:36:38.158290+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T18:36:38.158405+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
