@@ -419,6 +419,30 @@ The three SM modes (`sm500`/`sm1000`/`sm2000`) are the **first autonomous, scree
 
 **Known validation-window behaviours:** percentile-90 on a small eligible set means sm500 will frequently no-trade (expected). `net_credit` uses decision-time mids, not fill price, so paper P&L% is approximate. All SM accounts are paper-only; `live` mode cannot and does not receive `auto_open_spreads`.
 
+**Hardened-engine update (2026-05-19).** After the SM accounts bled −$280 / −8% across two trading days (sm500 $500→$451.51, sm1000 $1k→$863.43, sm2000 $2k→$1,904.58), the engine was hardened on four structural faults: no credit-to-risk floor, narrowest-width selection, a 10-min-cycle-gated stop that slipped past its trigger on illiquid chains, and a universe filter that forced the cheapest junk names. Plan: [2026-05-19-sm-pcs-hardening.md](docs/superpowers/plans/2026-05-19-sm-pcs-hardening.md). Spec: [2026-05-19-sm-pcs-hardening-design.md](docs/superpowers/specs/2026-05-19-sm-pcs-hardening-design.md).
+
+Posture table:
+
+| Param | sm500 (Conservative) | sm1000 / sm2000 (Balanced) | Other modes |
+|---|---|---|---|
+| `min_credit_to_width_pct` | 0.40 | 0.33 | — (gate inactive) |
+| `max_risk_pct_equity` | 0.10 | 0.10 | n/a |
+| `max_concurrent_spreads` | 1 | 2 / 3 | n/a |
+| `spread_stop_credit_mult` | 2.0 | 2.0 | None → falls back to 0.50 of max_loss |
+| `trend_filter` | True | True | unset → inactive |
+| `screener_universe` | SM_CURATED_UNIVERSE | SM_CURATED_UNIVERSE | None → DEFAULT_CONSERVATIVE_UNIVERSE |
+
+Behavioral changes:
+1. **Credit-to-width floor** — `_auto_open_spread` rejects any candidate whose `net_credit / width < min_credit_to_width_pct`. The existing absolute `$0.05` floor was relocated inside the width loop to run BEFORE the new ratio gate, preserving the `below_min_net_credit` log event as the degenerate-quote guard while the ratio gate enforces real quality.
+2. **Best-ratio width selection** — same risk ceiling, but `pick_best_ratio_width` picks the highest payoff/risk width across all acceptable candidates instead of breaking on the narrowest.
+3. **2× credit stop** — `handle_spread` fires at `close_cost ≥ 2 × net_credit` for SM modes (a small bounded dollar loss the cron can catch). Non-SM modes keep the legacy 50%-of-max-loss path in the `else` branch.
+4. **Underlying-price tripwire** — SM-only, runs BEFORE the profit trigger: if the stock crosses the short strike, close immediately, independent of option quote quality.
+5. **Curated universe + 20-day SMA trend gate** — `SM_CURATED_UNIVERSE` (12 quality names) replaces the cheap-junk path; trade only when underlying ≥ SMA20. SMA20 helper is pure-with-injection (`screener_core.is_above_sma20`); production fetch is `wheel_strategy.get_recent_daily_closes` (Alpaca bars, `feed=iex`).
+
+Validation: forward-paper on the reset SM accounts. Cutover wiped state files; Tim reset each SM Alpaca paper sub-account to its seed balance ($500/$1k/$2k) and rotated API keys (9 GitHub Actions secrets + 9 Vercel env vars updated from local .env) before the hardened engine went live. T0 = first hardened-engine cycle after cutover. 2-week window. Primary success metric is **avg-win / avg-loss ratio**, not win rate alone.
+
+Test counts after the hardening: **450 pytest** (bot) + dashboard unchanged.
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)
