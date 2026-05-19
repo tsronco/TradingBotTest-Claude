@@ -436,9 +436,9 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          85,
-        "max_risk_pct_equity":       0.15,
+        "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
-        "max_concurrent_spreads":    3,
+        "max_concurrent_spreads":    2,
         "account_floor":             300,
         "earnings_exclusion_days":   7,
         "max_opens_per_cycle":       1,
@@ -447,6 +447,11 @@ MODES = {
         "spread_dte_max":            28,
         # sm1000 screens the full conservative universe — no price cap
         "max_underlying_price": None,
+
+        # ── Hardened-engine additions (2026-05-19) ───────────────────────
+        "min_credit_to_width_pct":   0.33,    # net_credit >= width * this
+        "spread_stop_credit_mult":   2.0,     # close at 2x credit (vs 50% max loss)
+        "trend_filter":              True,    # require price >= 20-day SMA
     },
 
     "sm2000": {
@@ -491,7 +496,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          85,
-        "max_risk_pct_equity":       0.15,
+        "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,
         "account_floor":             300,
@@ -502,6 +507,11 @@ MODES = {
         "spread_dte_max":            28,
         # sm2000 screens the full conservative universe — no price cap
         "max_underlying_price": None,
+
+        # ── Hardened-engine additions (2026-05-19) ───────────────────────
+        "min_credit_to_width_pct":   0.33,
+        "spread_stop_credit_mult":   2.0,
+        "trend_filter":              True,
     },
 }
 
@@ -540,3 +550,12 @@ def parse_mode_arg(argv: list[str]) -> tuple[str, list[str]]:
             remaining.append(argv[i])
             i += 1
     return mode, remaining
+
+
+# ── Late binding for SM_CURATED_UNIVERSE ─────────────────────────────────
+# screener_core imports config in some paths; we set the universe pointer
+# after MODES is built to keep the import graph one-directional.
+from screener_core import SM_CURATED_UNIVERSE as _SM_CURATED_UNIVERSE
+MODES["sm1000"]["screener_universe"] = _SM_CURATED_UNIVERSE
+MODES["sm2000"]["screener_universe"] = _SM_CURATED_UNIVERSE
+# sm500 set in Task 5 (Conservative posture).
