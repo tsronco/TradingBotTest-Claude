@@ -945,6 +945,32 @@ def get_stock_position(symbol):
         raise
 
 
+def get_recent_daily_closes(symbol: str, n: int = 20) -> list:
+    """Return the last `n` daily close prices for `symbol`, oldest first.
+
+    Returns [] on any failure (HTTP error, bad payload, exception).
+    Used by the SM auto-spread engine's trend gate; callers expect
+    empty-list-means-don't-trade.
+    """
+    try:
+        from datetime import date, timedelta
+        end = date.today()
+        start = end - timedelta(days=n * 2 + 7)  # weekends + holiday cushion
+        url = (
+            f"https://data.alpaca.markets/v2/stocks/{symbol}/bars"
+            f"?timeframe=1Day&start={start.isoformat()}&end={end.isoformat()}"
+            f"&limit={n + 10}&feed=iex&adjustment=raw"
+        )
+        resp = _alpaca_request("GET", url, headers=HEADERS, timeout=10)
+        if resp.status_code != 200:
+            return []
+        bars = resp.json().get("bars") or []
+        closes = [float(b["c"]) for b in bars if "c" in b]
+        return closes[-n:]
+    except Exception:
+        return []
+
+
 def find_best_contract(underlying_symbol, option_type, target_strike,
                         exp_min_days, exp_max_days):
     """Find the contract closest to target_strike within the expiry window."""

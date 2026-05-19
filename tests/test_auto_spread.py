@@ -965,3 +965,38 @@ def test_spread_embed_fields():
     assert by["Net credit"] == "$0.10/sh\n($10.00)"
     assert by["Max loss"] == "$0.91/sh\n($91.00)"
     assert by["Expires"] == f"{exp}\n(18d)"
+
+
+# ── Task 3: get_recent_daily_closes (Alpaca bars fetcher) ────────────────
+
+
+def test_get_recent_daily_closes_returns_list_of_floats(monkeypatch):
+    sample = {
+        "bars": [
+            {"c": 10.10}, {"c": 10.20}, {"c": 10.30}, {"c": 10.40},
+            {"c": 10.50}, {"c": 10.60}, {"c": 10.70}, {"c": 10.80},
+            {"c": 10.90}, {"c": 11.00}, {"c": 11.10}, {"c": 11.20},
+            {"c": 11.30}, {"c": 11.40}, {"c": 11.50}, {"c": 11.60},
+            {"c": 11.70}, {"c": 11.80}, {"c": 11.90}, {"c": 12.00},
+        ]
+    }
+    class FakeResp:
+        status_code = 200
+        def json(self): return sample
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **kw: FakeResp())
+    closes = ws.get_recent_daily_closes("AMD", n=20)
+    assert closes == [b["c"] for b in sample["bars"]]
+
+
+def test_get_recent_daily_closes_empty_on_http_error(monkeypatch):
+    class FakeResp:
+        status_code = 500
+        def json(self): return {}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **kw: FakeResp())
+    assert ws.get_recent_daily_closes("AMD", n=20) == []
+
+
+def test_get_recent_daily_closes_empty_on_exception(monkeypatch):
+    def boom(*a, **kw): raise RuntimeError("net")
+    monkeypatch.setattr(ws, "_alpaca_request", boom)
+    assert ws.get_recent_daily_closes("AMD", n=20) == []
