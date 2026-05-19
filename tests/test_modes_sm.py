@@ -94,3 +94,21 @@ def test_sm500_conservative_posture_params():
     assert cfg["max_underlying_price"] == 25         # retained intentionally
     from screener_core import SM_CURATED_UNIVERSE
     assert cfg["screener_universe"] == SM_CURATED_UNIVERSE
+
+
+def test_apply_mode_reads_spread_stop_credit_mult_for_sm_modes():
+    import wheel_strategy as ws
+    ws.apply_mode("sm1000")
+    assert ws.SPREAD_STOP_CREDIT_MULT == 2.0
+
+
+def test_apply_mode_spread_stop_credit_mult_none_for_non_sm_modes():
+    import wheel_strategy as ws
+    ws.apply_mode("conservative")
+    assert ws.SPREAD_STOP_CREDIT_MULT is None
+    ws.apply_mode("aggressive")
+    assert ws.SPREAD_STOP_CREDIT_MULT is None
+    ws.apply_mode("manual")
+    assert ws.SPREAD_STOP_CREDIT_MULT is None
+    ws.apply_mode("live")
+    assert ws.SPREAD_STOP_CREDIT_MULT is None

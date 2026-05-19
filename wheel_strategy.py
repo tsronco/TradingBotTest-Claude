@@ -82,6 +82,7 @@ SPREAD_MANAGEMENT      = False  # manual mode (Phase 2): manage adopted spreads
 SPREAD_EARLY_CLOSE_PCT = 0.50  # populated from config in apply_mode (Task 10)
 SPREAD_STOP_LOSS_PCT   = 0.50
 SPREAD_DTE_FLOOR       = 2
+SPREAD_STOP_CREDIT_MULT: float | None = None  # SM modes: hardened stop trigger (Task 6–8)
 AUTO_OPEN_SPREADS      = False  # SM modes (Phase 4): autonomous spread opener
 SPREAD_OPEN_MIN_LIMIT = 0.01  # floor for the opening mleg limit credit so a
                               # thin/negative natural bid still posts a 1-cent
@@ -104,6 +105,7 @@ def apply_mode(mode_name: str) -> None:
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
     global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
     global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
+    global SPREAD_STOP_CREDIT_MULT
     global AUTO_OPEN_SPREADS
 
     cfg = config.get_mode(mode_name)
@@ -138,10 +140,14 @@ def apply_mode(mode_name: str) -> None:
     WHEEL_SKIP_NEW_PUTS   = cfg.get("wheel_skip_new_puts", False)
     AUTO_DISCOVER_SYMBOLS = cfg.get("auto_discover_symbols", False)
 
-    SPREAD_MANAGEMENT      = cfg.get("spread_management", False)
-    SPREAD_EARLY_CLOSE_PCT = cfg.get("spread_early_close_pct", 0.50)
-    SPREAD_STOP_LOSS_PCT   = cfg.get("spread_stop_loss_pct", 0.50)
-    SPREAD_DTE_FLOOR       = cfg.get("spread_dte_floor", 2)
+    SPREAD_MANAGEMENT       = cfg.get("spread_management", False)
+    SPREAD_EARLY_CLOSE_PCT  = cfg.get("spread_early_close_pct", 0.50)
+    SPREAD_STOP_LOSS_PCT    = cfg.get("spread_stop_loss_pct", 0.50)
+    SPREAD_DTE_FLOOR        = cfg.get("spread_dte_floor", 2)
+    # Hardened-engine: when set (SM modes only), replaces SPREAD_STOP_LOSS_PCT
+    # as the stop trigger in handle_spread. None for cons/agg/manual/live —
+    # those modes keep the old 50%-of-max-loss behavior unchanged.
+    SPREAD_STOP_CREDIT_MULT = cfg.get("spread_stop_credit_mult", None)
 
     AUTO_OPEN_SPREADS      = cfg.get("auto_open_spreads", False)
 
