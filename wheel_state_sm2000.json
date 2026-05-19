@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-19T17:06:38.125633Z"
+    "last_checked": "2026-05-19T17:17:07.300673Z"
   },
   "M": {
     "stage": "spread_active",
@@ -56,31 +56,31 @@
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
   },
-  "F": {
+  "KSS": {
     "stage": "spread_active",
     "spread_type": "put_credit",
     "short_leg": {
-      "occ": "F260612P00012000",
-      "strike": 12.0,
-      "entry_premium": 0.175,
+      "occ": "KSS260612P00010000",
+      "strike": 10.0,
+      "entry_premium": 0.45,
       "qty": 1
     },
     "long_leg": {
-      "occ": "F260612P00011000",
-      "strike": 11.0,
-      "entry_premium": 0.045,
+      "occ": "KSS260612P00009000",
+      "strike": 9.0,
+      "entry_premium": 0.215,
       "qty": 1
     },
     "expiration": "2026-06-12",
-    "net_credit": 0.1,
-    "max_loss": 0.9,
+    "net_credit": 0.235,
+    "max_loss": 0.765,
     "width": 1.0,
-    "opened_at": "2026-05-19T13:38:00.917471Z",
-    "open_order_id": null,
-    "open_limit_credit": 0.1,
+    "opened_at": "2026-05-19T17:17:06.886867Z",
+    "open_order_id": "f8ba5196-b401-4b12-b279-0e3097d4efd2",
+    "open_limit_credit": 0.17,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
+    "last_action": "Auto-opened put credit spread short=$10.00 long=$9.00 credit=$0.23"
   }
 }
