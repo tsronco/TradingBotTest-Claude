@@ -732,7 +732,13 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     if SPREAD_STOP_CREDIT_MULT is not None:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
-        stock_price = get_latest_price(ticker)
+        # get_latest_price raises on HTTP/network failure; wrap so the
+        # tripwire degrades to a heartbeat skip rather than crashing the
+        # whole symbol's cycle. The None-guard below then handles cleanly.
+        try:
+            stock_price = get_latest_price(ticker)
+        except Exception:
+            stock_price = None
         if stock_price is not None:
             tripped = (
                 (spread_type == "put_credit"  and stock_price <= short_strike) or
@@ -2629,10 +2635,12 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             # crossed market can yield zero or NEGATIVE credit — zero pins
             # profit_pct to 0.0 forever (50%-close never fires); negative is a
             # disguised debit spread whose max_loss blows past the risk cap.
-            # This guard fires on the SHORT leg's quote, which is the SAME for
-            # every width iteration on this symbol — if the narrowest width
-            # produces degenerate credit, wider widths won't fix it (they share
-            # the same short_mid). Break, emit the event, skip to next symbol.
+            # This guard fires off the SHORT leg's quote, which is the SAME for
+            # every width iteration on this symbol — credit only INCREASES with
+            # width (wider = cheaper long, larger net), so a degenerate result
+            # at the narrowest width means the short_mid itself is below the
+            # floor. Wider strikes can't rescue a sub-floor short_mid. Break,
+            # emit the event, skip to next symbol.
             if cand_net_credit < min_net_credit:
                 log(f"[auto-spread] {sym} net_credit ${cand_net_credit:.4f} "
                     f"< min ${min_net_credit:.4f} (thin chain — would be a "
@@ -2669,11 +2677,13 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 "net_credit":  cand_net_credit,
             })
 
-        chosen = pick_best_ratio_width(candidates)
-
+        # Degenerate-quote skip MUST run before picker — otherwise we'd
+        # spend cycles computing a best-ratio winner only to discard it.
         if _credit_floor_hit:
             # logging already emitted inside the loop; just skip to next symbol
             continue
+
+        chosen = pick_best_ratio_width(candidates)
 
         if not chosen:
             log(f"[auto-spread] {sym} no long leg fits risk budget "
