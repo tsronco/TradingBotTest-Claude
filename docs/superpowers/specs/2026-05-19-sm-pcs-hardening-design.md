@@ -100,6 +100,26 @@ The 50%-profit winner exit (`spread_early_close_pct: 0.50`) is unchanged — it 
 
 No historical options data in-repo, so no backtest. Validation is forward-paper, consistent with how the spread engine was originally validated: ship hardened → observe ~2 weeks → measure **realized win rate, avg-win / avg-loss ratio, and net P&L**. The avg-win/avg-loss ratio is the primary success metric; win rate alone is explicitly not sufficient. Decide on scope changes (e.g., sm500 dormancy, widening the universe) only after that window.
 
+## Cutover (T0 prep)
+
+Validation requires a clean, well-defined T0. The cutover is the first step of the implementation plan — the hardened engine does not enable until this completes.
+
+**Account-side (manual, Tim performs):**
+1. Cancel all open SM spreads on each Alpaca paper sub-account via the Alpaca web UI.
+2. Reset each SM paper sub-account to its named seed balance: sm500 → $500, sm1000 → $1,000, sm2000 → $2,000. (Alpaca's reset defaults to $100k; either reset-then-withdraw, or delete and recreate the sub-account.)
+3. Generate new API keys for each reset sub-account.
+4. Update **9 GitHub Actions secrets** (`ALPACA_SM{500,1000,2000}_API_KEY` / `_API_SECRET` / `_BASE_URL`).
+5. Update **9 Vercel env vars** (same names) on the `tradingbot-dashboard` project so the dashboard reads the new accounts.
+6. Update local `.env` to match.
+
+**Repo-side (code task in the plan):**
+7. Delete state files for the SM modes so the new engine starts with no inherited state: `wheel_state_sm500.json`, `wheel_state_sm1000.json`, `wheel_state_sm2000.json`, and the corresponding `strategy_state_sm{n}.json` and any long-options state files for those modes. Commit the deletions.
+8. Verify each SM mode's bot run logs in `equity = seed` on its first hardened-engine cycle. That cycle's equity is T0 for the validation window.
+
+**Dashboard historical trade records** (KV) are intentionally left in place — they're useful as a "before" record for comparison and do not contaminate the new validation window (account-id-scoped + timestamped).
+
+T0 is the timestamp of the first hardened-engine cycle on each account after cutover. The 2-week validation window starts from T0.
+
 ## Testing
 
 - New unit tests: credit-to-width gate accept/reject at boundary; best-ratio width selection vs the old narrowest selection; stop fires at 2× credit; underlying-price tripwire fires when stock crosses short strike; trend gate blocks below-SMA20 entries.
