@@ -955,3 +955,108 @@ def test_handle_spread_gone_with_survivor_leg_uses_orphan_handler(monkeypatch):
     ws.handle_spread(state, "SOFI", {"equity": "2000"})
 
     assert orphan == [("SOFI", 1)], "survivor leg → existing orphan handler closes it"
+
+
+def _seeded_sm_spread_state():
+    """Minimal state dict for an active sm1000 spread.
+
+    short P14 @ 0.30 credit (gross), long P13 @ 0.10 → net_credit 0.20,
+    width 1.00, max_loss 0.80. Stop at 2x credit = close_cost >= 0.40."""
+    return {
+        "_meta": {},
+        "AMD": {
+            "stage": "spread_active",
+            "spread_type": "put_credit",
+            "expiration": "2099-12-31",   # far future — DTE branch can't fire
+            "net_credit": 0.20,
+            "max_loss": 0.80,
+            "width": 1.0,
+            "short_leg": {"occ": "AMD2099P00014000", "strike": 14.0, "premium": 0.30},
+            "long_leg":  {"occ": "AMD2099P00013000", "strike": 13.0, "premium": 0.10},
+            "open_order_id": None,
+        },
+    }
+
+
+def test_handle_spread_sm_stop_fires_at_2x_credit(monkeypatch):
+    import config
+    ws.apply_mode("sm1000")  # arms SPREAD_STOP_CREDIT_MULT=2.0
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    # close_cost = short_ask - long_bid = 0.50 - 0.05 = 0.45 → >= 0.20*2.0 → STOP
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.45, "ask": 0.50},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 15.0)  # above short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert closed["hit"] == ("AMD", "stop_loss_2x_credit")
+
+    # restore default mode so later tests see conservative
+    ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_handle_spread_sm_stop_does_not_fire_below_2x_credit(monkeypatch):
+    import config
+    ws.apply_mode("sm1000")
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    # close_cost = 0.30 - 0.05 = 0.25 → < 0.40 → no stop
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 15.0)
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+
+    # restore default mode so later tests see conservative
+    ws.apply_mode(config.DEFAULT_MODE)
+
+
+def test_handle_spread_non_sm_mode_still_uses_50pct_max_loss(monkeypatch):
+    """Manual mode (spread_management on, spread_stop_credit_mult None)
+    must keep the legacy 50%-of-max-loss behavior — byte-unaffected."""
+    import config
+    ws.apply_mode("manual")
+    assert ws.SPREAD_STOP_CREDIT_MULT is None  # sanity
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    # close_cost = 0.45 → loss_per_share = 0.45-0.20 = 0.25 < 0.80*0.50 = 0.40 → no stop
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.45, "ask": 0.50},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 15.0)
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed  # manual's 50%-of-max-loss didn't fire either
+
+    # restore default mode so later tests see conservative
+    ws.apply_mode(config.DEFAULT_MODE)

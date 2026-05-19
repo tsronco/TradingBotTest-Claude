@@ -731,11 +731,25 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
         return
 
     # 3. Stop loss trigger
-    if pnl["loss_per_share"] >= max_loss * SPREAD_STOP_LOSS_PCT:
-        log(f"[{ticker}] spread loss=${pnl['loss_per_share']:.2f} >= "
-            f"{SPREAD_STOP_LOSS_PCT:.0%} of max_loss=${max_loss:.2f} — stopping out")
-        _close_spread(state, ticker, reason="stop_loss_50pct")
-        return
+    # SM modes (SPREAD_STOP_CREDIT_MULT set): fire when buy-back cost
+    # reaches N x the credit received — a small, bounded dollar loss that
+    # the 10-min cron can actually catch before slippage.
+    # Other modes: legacy 50%-of-max-loss behavior, unchanged.
+    if SPREAD_STOP_CREDIT_MULT is not None:
+        net_credit = float(sym_state["net_credit"])
+        stop_price = net_credit * SPREAD_STOP_CREDIT_MULT
+        if close_cost >= stop_price:
+            log(f"[{ticker}] spread close_cost=${close_cost:.2f} >= "
+                f"{SPREAD_STOP_CREDIT_MULT:.1f}x credit ${net_credit:.2f} "
+                f"(${stop_price:.2f}) — stopping out")
+            _close_spread(state, ticker, reason="stop_loss_2x_credit")
+            return
+    else:
+        if pnl["loss_per_share"] >= max_loss * SPREAD_STOP_LOSS_PCT:
+            log(f"[{ticker}] spread loss=${pnl['loss_per_share']:.2f} >= "
+                f"{SPREAD_STOP_LOSS_PCT:.0%} of max_loss=${max_loss:.2f} — stopping out")
+            _close_spread(state, ticker, reason="stop_loss_50pct")
+            return
 
     # 4. DTE floor with ITM check
     from datetime import date as _date
