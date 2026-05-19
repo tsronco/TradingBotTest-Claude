@@ -188,6 +188,11 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     monkeypatch.setattr(ws, "get_option_quote",
                         lambda occ: quotes.get(occ))
 
+    # Trend fetcher: return flat history so is_above_sma20 returns True
+    # (all real prices in these tests are > 1.0, so synthetic flat 1.0 works)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [1.0] * 20)
+
     opened = []
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda s, l, qty, nc, limit_credit=None: opened.append(
@@ -886,6 +891,9 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    # Trend fetcher: synthetic flat history
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [1.0] * 20)
     captured = {}
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda s, l, q, nc, limit_credit=None: captured.update(
@@ -1056,3 +1064,83 @@ def test_pick_best_ratio_width_empty_returns_none():
 def test_pick_best_ratio_width_singleton_returns_it():
     c = {"width": 1.0, "net_credit": 0.40}
     assert ws.pick_best_ratio_width([c]) is c
+
+
+# ── Task 11: trend-filter gate ────────────────────────────────────────────
+
+def test_auto_open_spread_skips_symbols_below_sma20(monkeypatch):
+    """When trend_filter is True, a candidate below its SMA20 must be
+    skipped — even if all other gates pass."""
+    ws.AUTO_OPEN_SPREADS = True
+    cfg = dict(SM_CFG)
+    cfg["trend_filter"] = True
+
+    state = {"_meta": {}}
+    account = {"options_buying_power": 1000, "cash": 1000, "equity": 1000}
+
+    monkeypatch.setattr(ws, "get_account", lambda: account)
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, a: ["AMD"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda *a, **kw: {"score": 9.0, "price": 100.0})
+    monkeypatch.setattr(ws, "normalize_scores",
+                        lambda raw: {"AMD": 99.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+
+    # SMA20 helper returns False → below 20-day SMA
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [110.0] * 20)  # avg 110, current price 100 → below
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda *a, **kw: opened.append({"opened": True}) or "ORDER_ID")
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws._auto_open_spread(state, account, cfg)
+    assert opened == []  # trend gate blocked it
+
+
+def test_auto_open_spread_proceeds_above_sma20(monkeypatch):
+    """Candidate above SMA20 makes it past the trend gate. (Other gates
+    may block downstream — we only verify the trend gate doesn't.)"""
+    ws.AUTO_OPEN_SPREADS = True
+    cfg = dict(SM_CFG)
+    cfg["trend_filter"] = True
+
+    state = {"_meta": {}}
+    account = {"options_buying_power": 1000, "cash": 1000, "equity": 1000}
+
+    monkeypatch.setattr(ws, "get_account", lambda: account)
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, a: ["AMD"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda *a, **kw: {"score": 9.0, "price": 100.0})
+    monkeypatch.setattr(ws, "normalize_scores",
+                        lambda raw: {"AMD": 99.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+
+    # SMA20 returns True → above 20-day SMA → trend gate passes
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [90.0] * 20)  # avg 90, price 100 → above
+
+    # find_best_contract returns None to terminate downstream cleanly
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda *a, **kw: None)
+
+    trend_check_reached = {"hit": False}
+    real_is_above = screener_core.is_above_sma20
+    def spy_is_above(sym, price, fetch):
+        trend_check_reached["hit"] = True
+        return real_is_above(sym, price, fetch)
+    monkeypatch.setattr(screener_core, "is_above_sma20", spy_is_above)
+
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws._auto_open_spread(state, account, cfg)
+    assert trend_check_reached["hit"] is True

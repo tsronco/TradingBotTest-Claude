@@ -2555,6 +2555,21 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 f"{cfg['earnings_exclusion_days']}d (or unknown) — skipping")
             continue
 
+        # Trend gate (hardened SM engine). Only sell put credit spreads
+        # when the underlying is at or above its 20-day SMA — no falling
+        # knives. Fail-closed: missing history skips the symbol.
+        if cfg.get("trend_filter"):
+            price = scored_full[sym]["price"]
+            if not screener_core.is_above_sma20(
+                sym, price, get_recent_daily_closes
+            ):
+                log(f"[auto-spread] {sym} below 20-day SMA "
+                    f"(price ${price:.2f}) — trend gate skip")
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "auto_spread_trend_gate_skip", result="skipped",
+                          symbol=sym, details={"price": price})
+                continue
+
         if not bp_wants_spread(options_bp, cfg["bp_switch_threshold"]):
             # BP is above the switch — a CSP would be opened instead, but
             # SM modes keep wheel_skip_new_puts ON, so just skip (SM is
