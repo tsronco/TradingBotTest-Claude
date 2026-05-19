@@ -222,7 +222,7 @@ def test_auto_open_happy_path_opens_one_spread(monkeypatch):
     }
     quotes = {
         "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},  # short mid 0.60
-        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},  # long mid 0.35
+        "CHEAP260612P00017000": {"bid": 0.20, "ask": 0.30},  # long mid 0.25; ratio 0.35/1.0=0.35 >= 0.33
         "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
     }
     cfg, opened = _wire_sm(
@@ -241,21 +241,21 @@ def test_auto_open_happy_path_opens_one_spread(monkeypatch):
     o = opened[0]
     assert o["short"] == "CHEAP260612P00018000"
     assert o["long"] == "CHEAP260612P00017000"   # narrowest $1 width
-    # net credit = short mid - long mid = 0.60 - 0.35 = 0.25
-    assert round(o["net_credit"], 2) == 0.25
+    # net credit = short mid - long mid = 0.60 - 0.25 = 0.35
+    assert round(o["net_credit"], 2) == 0.35
     # state seeded as spread_active for handle_spread adoption
     assert state["CHEAP"]["stage"] == "spread_active"
     assert state["CHEAP"]["spread_type"] == "put_credit"
     assert state["CHEAP"]["short_leg"]["occ"] == "CHEAP260612P00018000"
     assert state["CHEAP"]["long_leg"]["occ"] == "CHEAP260612P00017000"
     assert state["CHEAP"]["width"] == 1.0
-    assert round(state["CHEAP"]["net_credit"], 2) == 0.25
+    assert round(state["CHEAP"]["net_credit"], 2) == 0.35
     # max_loss MUST be per-share (width - net_credit), matching
     # _adopt_spread's round(width - net_credit, 4). The old buggy
     # width*100 made the 50%-max-loss stop physically unreachable.
-    # width 1.0, net_credit 0.25 -> round(1.0 - 0.25, 4) == 0.75
-    assert state["CHEAP"]["max_loss"] == round(1.0 - 0.25, 4)
-    assert state["CHEAP"]["max_loss"] == 0.75
+    # width 1.0, net_credit 0.35 -> round(1.0 - 0.35, 4) == 0.65
+    assert state["CHEAP"]["max_loss"] == round(1.0 - 0.35, 4)
+    assert state["CHEAP"]["max_loss"] == 0.65
     assert state["CHEAP"]["expiration"] == "2026-06-12"
     assert state["CHEAP"]["opened_at"] is not None
 
@@ -281,8 +281,8 @@ def test_auto_open_earnings_block_skips_to_next(monkeypatch):
         ("NEXT", 17.0): _contract("NEXT260612P00017000", 17.0),
     }
     quotes = {
-        "NEXT260612P00018000": {"bid": 0.50, "ask": 0.60},
-        "NEXT260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "NEXT260612P00018000": {"bid": 0.50, "ask": 0.60},   # short mid 0.55
+        "NEXT260612P00017000": {"bid": 0.15, "ask": 0.25},   # long mid 0.20; ratio 0.35/1.0=0.35 >= 0.33
     }
     earnings = {s: False for s in scored}
     earnings["TOP"] = True
@@ -399,8 +399,8 @@ def test_auto_open_sm500_universe_price_filter(monkeypatch):
         ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
     }
     quotes = {
-        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},
-        "CHEAP260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "CHEAP260612P00018000": {"bid": 0.50, "ask": 0.60},   # short mid 0.55
+        "CHEAP260612P00017000": {"bid": 0.15, "ask": 0.25},   # long mid 0.20; ratio 0.35/1.0=0.35 >= 0.33
     }
     cfg, opened = _wire_sm(
         monkeypatch,
@@ -436,10 +436,10 @@ def test_auto_open_max_one_per_cycle(monkeypatch):
         ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
     }
     quotes = {
-        "AAA260612P00018000": {"bid": 0.50, "ask": 0.60},
-        "AAA260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "AAA260612P00018000": {"bid": 0.50, "ask": 0.60},   # short mid 0.55
+        "AAA260612P00017000": {"bid": 0.15, "ask": 0.25},   # long mid 0.20; ratio 0.35/1.0=0.35 >= 0.33
         "BBB260612P00018000": {"bid": 0.50, "ask": 0.60},
-        "BBB260612P00017000": {"bid": 0.25, "ask": 0.35},
+        "BBB260612P00017000": {"bid": 0.15, "ask": 0.25},
     }
     cfg, opened = _wire_sm(
         monkeypatch,
@@ -594,6 +594,11 @@ def test_auto_open_executable_credit_at_floor_accepted(monkeypatch):
         contracts_by_strike=contracts,
         quotes=quotes,
     )
+    # mid net_credit 0.07 / width 1.0 = 0.07 ratio < default 0.33 gate.
+    # This test isolates the absolute-floor mechanism (exec_credit == floor
+    # boundary), not ratio quality. Disable the ratio gate explicitly so the
+    # test exercises only what it documents.
+    cfg["min_credit_to_width_pct"] = None
     state = {"_meta": {}}
     ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
     assert len(opened) == 1, "executable credit == 0.05 floor (not <) -> accepted"
@@ -804,8 +809,8 @@ def test_auto_open_records_open_order_id_in_state(monkeypatch):
         ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
     }
     quotes = {
-        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
-        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},   # short mid 0.60
+        "CHEAP260612P00017000": {"bid": 0.20, "ask": 0.30},   # long mid 0.25; ratio 0.35/1.0=0.35 >= 0.33
         "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
     }
     cfg, opened = _wire_sm(
@@ -850,17 +855,17 @@ def test_open_spread_mleg_limit_credit_floored_at_min(monkeypatch):
 
 
 def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
-    """End-to-end: short mid 0.60 / long mid 0.35 → recorded net_credit
-    0.25, but the order is placed at short_bid - long_ask = 0.55 - 0.40
-    = 0.15 (marketable), capped at the 0.25 mid."""
+    """End-to-end: short mid 0.60 / long mid 0.25 → recorded net_credit
+    0.35 (mid), but the order is placed at short_bid - long_ask = 0.55 - 0.30
+    = 0.25 (marketable), capped at the 0.35 mid → limit_credit 0.25."""
     contracts = {
         ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
         ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
         ("CHEAP", 16.0): _contract("CHEAP260612P00016000", 16.0),
     }
     quotes = {
-        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},
-        "CHEAP260612P00017000": {"bid": 0.30, "ask": 0.40},
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},   # short mid 0.60
+        "CHEAP260612P00017000": {"bid": 0.20, "ask": 0.30},   # long mid 0.25; ratio 0.35/1.0=0.35 >= 0.33
         "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
     }
     ws.AUTO_OPEN_SPREADS = True
@@ -893,10 +898,10 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
     state = {"_meta": {}}
     ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
 
-    assert round(captured["net_credit"], 2) == 0.25      # recorded = mid
-    assert round(captured["limit_credit"], 2) == 0.15    # 0.55 - 0.40
-    assert round(state["CHEAP"]["net_credit"], 2) == 0.25
-    assert round(state["CHEAP"]["open_limit_credit"], 2) == 0.15
+    assert round(captured["net_credit"], 2) == 0.35      # recorded = mid (0.60 - 0.25)
+    assert round(captured["limit_credit"], 2) == 0.25    # 0.55 - 0.30 (marketable)
+    assert round(state["CHEAP"]["net_credit"], 2) == 0.35
+    assert round(state["CHEAP"]["open_limit_credit"], 2) == 0.25
 
 
 def test_working_spread_order_exists_detects_leg(monkeypatch):
@@ -1007,3 +1012,20 @@ def test_get_recent_daily_closes_empty_on_exception(monkeypatch):
     def boom(*a, **kw): raise RuntimeError("net")
     monkeypatch.setattr(ws, "_alpaca_request", boom)
     assert ws.get_recent_daily_closes("AMD", n=20) == []
+
+
+# ── Task 9: credit_ratio_passes gate in _auto_open_spread ──────────────────
+
+
+def test_credit_to_width_gate_accepts_at_or_above_ratio():
+    assert ws.credit_ratio_passes(net_credit=0.33, width=1.0, min_ratio=0.33) is True
+    assert ws.credit_ratio_passes(net_credit=0.40, width=1.0, min_ratio=0.33) is True
+    assert ws.credit_ratio_passes(net_credit=1.50, width=3.0, min_ratio=0.40) is True  # 0.50 ratio
+
+
+def test_credit_to_width_gate_rejects_below_ratio():
+    assert ws.credit_ratio_passes(net_credit=0.32, width=1.0, min_ratio=0.33) is False
+    assert ws.credit_ratio_passes(net_credit=0.10, width=1.0, min_ratio=0.33) is False
+    assert ws.credit_ratio_passes(net_credit=0.20, width=1.0, min_ratio=0.40) is False  # Conservative
+    # Degenerate width (would div-by-zero) → reject
+    assert ws.credit_ratio_passes(net_credit=1.0, width=0.0, min_ratio=0.33) is False

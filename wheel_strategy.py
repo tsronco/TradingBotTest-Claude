@@ -2361,6 +2361,18 @@ def bp_fits(options_bp: float, width: float, buffer: float = 1.0) -> bool:
     return options_bp >= (width * 100.0) * buffer
 
 
+def credit_ratio_passes(net_credit: float, width: float, min_ratio: float) -> bool:
+    """Return True iff net_credit / width >= min_ratio.
+
+    Degenerate width (<= 0) is treated as a fail (defensive — width
+    should never be <= 0 by the time this is called, but if it ever is
+    we won't divide by zero).
+    """
+    if width <= 0:
+        return False
+    return (net_credit / width) >= min_ratio
+
+
 def eligible_universe(symbols_prices: dict, max_price) -> list:
     """Filter symbols to those at/below max_price; pass all when None."""
     if max_price is None:
@@ -2560,6 +2572,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # Search widening long strikes; pick the NARROWEST that clears
         # both the risk cap and BP-fit.
         chosen = None
+        _credit_floor_hit = False   # sentinel: absolute-floor break fired
+        min_net_credit = cfg.get("min_net_credit", 0.05)
         max_steps = 10  # bounded — don't scan an unbounded chain
         for step in range(1, max_steps + 1):
             long_target = short_strike - inc * step
@@ -2584,6 +2598,36 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 continue
             long_mid = (long_q["bid"] + long_q["ask"]) / 2.0
             cand_net_credit = round(short_mid - long_mid, 4)
+            # Absolute minimum net-credit floor (degenerate-guard). A thin or
+            # crossed market can yield zero or NEGATIVE credit — zero pins
+            # profit_pct to 0.0 forever (50%-close never fires); negative is a
+            # disguised debit spread whose max_loss blows past the risk cap.
+            # This guard fires on the SHORT leg's quote, which is the SAME for
+            # every width iteration on this symbol — if the narrowest width
+            # produces degenerate credit, wider widths won't fix it (they share
+            # the same short_mid). Break, emit the event, skip to next symbol.
+            if cand_net_credit < min_net_credit:
+                log(f"[auto-spread] {sym} net_credit ${cand_net_credit:.4f} "
+                    f"< min ${min_net_credit:.4f} (thin chain — would be a "
+                    f"non-credit/near-zero spread) — skipping")
+                log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_skip",
+                          result="skipped", symbol=sym,
+                          notes="below_min_net_credit",
+                          details={"net_credit": cand_net_credit,
+                                   "min_net_credit": min_net_credit,
+                                   "short_mid": round(short_mid, 4),
+                                   "long_mid": round(long_mid, 4)})
+                _credit_floor_hit = True
+                break
+            # Credit-to-width gate (hardened SM engine). Reject thin spreads
+            # whose payoff/risk ratio is too asymmetric to ever beat losses.
+            # Absolute floor is the degenerate guard (above); this gate is the
+            # real quality filter — try the next wider width on a soft miss.
+            min_ratio = cfg.get("min_credit_to_width_pct")
+            if min_ratio is not None and not credit_ratio_passes(
+                cand_net_credit, width, min_ratio
+            ):
+                continue
             if not spread_passes_risk(width, cand_net_credit, equity,
                                       max_risk_pct):
                 continue
@@ -2598,6 +2642,10 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             }
             break  # first hit == narrowest passing width
 
+        if _credit_floor_hit:
+            # logging already emitted inside the loop; just skip to next symbol
+            continue
+
         if not chosen:
             log(f"[auto-spread] {sym} no long leg fits risk budget "
                 f"(equity ${equity:.2f} @ {max_risk_pct:.0%}) — trying next")
@@ -2606,31 +2654,6 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # (7) fully eligible — place the order
         net_credit = chosen["net_credit"]
         width      = chosen["width"]
-
-        # Minimum net-credit floor. A thin/illiquid chain can produce
-        # long_mid >= short_mid, yielding a zero or NEGATIVE credit:
-        #   net_credit == 0 → _compute_spread_pnl pins profit_pct to 0.0
-        #     forever (`... if net_credit > 0 else 0.0`) → the 50%-profit
-        #     close trigger can NEVER fire → un-manageable spread.
-        #   net_credit < 0  → it's actually a DEBIT spread placed via the
-        #     credit-convention order; max_loss = width - net_credit > width,
-        #     blowing past the risk cap that only validated `width`.
-        # Reject below the config floor and try the next eligible symbol
-        # (continue, NOT return — only the terminal fall-through emits
-        # auto_spread_no_trade).
-        min_net_credit = cfg.get("min_net_credit", 0.05)
-        if net_credit < min_net_credit:
-            log(f"[auto-spread] {sym} net_credit ${net_credit:.4f} "
-                f"< min ${min_net_credit:.4f} (thin chain — would be a "
-                f"non-credit/near-zero spread) — skipping")
-            log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_skip",
-                      result="skipped", symbol=sym,
-                      notes="below_min_net_credit",
-                      details={"net_credit": net_credit,
-                               "min_net_credit": min_net_credit,
-                               "short_mid": round(short_mid, 4),
-                               "long_mid": round(chosen["long_mid"], 4)})
-            continue
 
         # Executable-credit floor. The mid-based net_credit can be wildly
         # optimistic on wide/illiquid quotes — F sm500 2026-05-18 stored a
