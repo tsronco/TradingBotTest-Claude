@@ -518,3 +518,6 @@
 {"timestamp": "2026-05-19T19:55:39.508897+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T19:55:39.509050+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SOFI260605P00013000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T19:55:39.509155+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
+{"timestamp": "2026-05-19T20:05:39.510114+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-05-19T20:05:40.073489+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["M", "RIVN", "SOFI"]}}
+{"timestamp": "2026-05-19T20:05:40.309102+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
