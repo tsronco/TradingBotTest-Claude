@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-18T19:59:42.775092Z",
+    "last_checked": "2026-05-19T13:39:38.341574Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $13.81 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $13.10 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -66,22 +66,31 @@
     "contract_qty": 1
   },
   "SMCI": {
-    "stage": 1,
-    "current_contract": "SMCI260515P00035000",
+    "stage": 2,
+    "current_contract": null,
     "contract_order_id": "11aec3bc-85d1-496a-aeda-094313ec5e4a",
-    "contract_entry_price": 1.79,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-07T14:29:26.502653Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
     "contract_strike": 35.0,
-    "cost_basis_per_share": null,
-    "shares_qty": 0,
-    "total_cost": null,
+    "cost_basis_per_share": 33.21,
+    "shares_qty": 100,
+    "total_cost": 3321.0,
     "total_premium_collected": 152.0,
     "total_premium_today": 0.0,
     "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Order filled on SMCI260515P00035000 @ $1.79. Now tracking.",
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "SMCI260515P00035000",
+        "outcome": "assigned",
+        "cost_basis": 33.21,
+        "shares": 100
+      }
+    ],
+    "last_action": "Assigned on SMCI260515P00035000. 100 shares, cost basis $33.21.",
     "contract_qty": 1
   },
   "NVDA": {
@@ -100,7 +109,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $8.85 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $8.65 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -169,17 +178,17 @@
     "contract_qty": 1
   },
   "BAC": {
-    "stage": 1,
-    "current_contract": "BAC260515P00050000",
+    "stage": 2,
+    "current_contract": null,
     "contract_order_id": "e8955129-3026-41db-970c-026f37573d7f",
-    "contract_entry_price": 0.08,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-06T17:59:30.386608Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
     "contract_strike": 50.0,
-    "cost_basis_per_share": null,
-    "shares_qty": 0,
-    "total_cost": null,
+    "cost_basis_per_share": 49.92,
+    "shares_qty": 100,
+    "total_cost": 4992.0,
     "total_premium_collected": 25.0,
     "total_premium_today": 0.0,
     "cycle_count": 1,
@@ -190,9 +199,17 @@
         "symbol": "BAC260508P00050000",
         "outcome": "expired_worthless",
         "premium": 0
+      },
+      {
+        "cycle": 2,
+        "type": "put",
+        "symbol": "BAC260515P00050000",
+        "outcome": "assigned",
+        "cost_basis": 49.92,
+        "shares": 100
       }
     ],
-    "last_action": "Order filled on BAC260515P00050000 @ $0.08. Now tracking.",
+    "last_action": "Assigned on BAC260515P00050000. 100 shares, cost basis $49.92.",
     "contract_qty": 1
   },
   "XOM": {
@@ -211,18 +228,18 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260529P00155000: $1.53 vs entry $1.34",
+    "last_action": "Monitoring XOM260529P00155000: $1.58 vs entry $1.34",
     "contract_qty": 1
   },
   "KO": {
     "stage": 1,
-    "current_contract": "KO260529P00075000",
-    "contract_order_id": "90f5cf75-cdb1-464c-8633-c6ff59080c0a",
+    "current_contract": "KO260529P00080000",
+    "contract_order_id": "eddda355-1064-479b-aa30-7101a8acef34",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-18T17:49:58.305481Z",
+    "contract_entry_date": "2026-05-19T13:39:37.354807Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
-    "contract_strike": 75.0,
+    "contract_strike": 80.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -230,7 +247,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on KO260529P00075000.",
+    "last_action": "Sold-to-open KO260529P00080000 @ $0.45. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -249,26 +266,35 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.15 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.18 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
-    "stage": 1,
-    "current_contract": "SOFI260515P00016000",
+    "stage": 2,
+    "current_contract": null,
     "contract_order_id": "1777cdda-83f0-4924-8bee-dc54acb0af8f",
-    "contract_entry_price": 0.35,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-04T13:49:47.666025Z",
     "contract_expiration": "2026-05-15",
     "contract_type": "put",
     "contract_strike": 16.0,
-    "cost_basis_per_share": null,
-    "shares_qty": 0,
-    "total_cost": null,
+    "cost_basis_per_share": 15.65,
+    "shares_qty": 100,
+    "total_cost": 1565.0,
     "total_premium_collected": 0.0,
     "total_premium_today": 0.0,
     "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Order filled on SOFI260515P00016000 @ $0.35. Now tracking.",
+    "cycle_history": [
+      {
+        "cycle": 1,
+        "type": "put",
+        "symbol": "SOFI260515P00016000",
+        "outcome": "assigned",
+        "cost_basis": 15.65,
+        "shares": 100
+      }
+    ],
+    "last_action": "Assigned on SOFI260515P00016000. 100 shares, cost basis $15.65.",
     "contract_qty": 1
   },
   "PFE": {
