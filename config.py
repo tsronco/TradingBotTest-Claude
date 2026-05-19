@@ -380,9 +380,9 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
         "wheelability_min":          85,      # percentile threshold (0–100)
-        "max_risk_pct_equity":       0.20,    # max loss / equity ≤ 20% (sm500 only — fits a $1-wide spread)
+        "max_risk_pct_equity":       0.10,    # hardened 2026-05-19: 0.20 -> 0.10
         "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
-        "max_concurrent_spreads":    3,
+        "max_concurrent_spreads":    1,       # Conservative: at most 1 open
         "account_floor":             300,     # skip if equity < $300
         "earnings_exclusion_days":   7,       # skip symbols with earnings ≤7 days
         "max_opens_per_cycle":       1,       # at most 1 new spread per cycle
@@ -392,6 +392,12 @@ MODES = {
         # sm500-only cheap-underlying filter: screen only symbols priced ≤$25
         # so minimum-width spreads can fit the 12% risk cap on a $500 account.
         "max_underlying_price": 25,
+
+        # ── Hardened-engine additions (2026-05-19, Conservative posture) ─
+        "min_credit_to_width_pct":   0.40,    # stricter than sm1000/sm2000
+        "spread_stop_credit_mult":   2.0,
+        "trend_filter":              True,
+        "screener_universe":         None,    # set in the late-binding block
     },
 
     "sm1000": {
@@ -556,6 +562,6 @@ def parse_mode_arg(argv: list[str]) -> tuple[str, list[str]]:
 # screener_core imports config in some paths; we set the universe pointer
 # after MODES is built to keep the import graph one-directional.
 from screener_core import SM_CURATED_UNIVERSE as _SM_CURATED_UNIVERSE
+MODES["sm500"]["screener_universe"] = _SM_CURATED_UNIVERSE
 MODES["sm1000"]["screener_universe"] = _SM_CURATED_UNIVERSE
 MODES["sm2000"]["screener_universe"] = _SM_CURATED_UNIVERSE
-# sm500 set in Task 5 (Conservative posture).

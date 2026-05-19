@@ -37,12 +37,13 @@ def test_auto_open_param_block_defaults():
     c = config.get_mode("sm1000")
     assert c["bp_switch_threshold"] == 5000
     assert c["wheelability_min"] == 85
-    # sm1000/sm2000 now at 0.10 (Balanced posture); sm500 stays 0.20 (Conservative posture)
+    # All SM modes now at 0.10 (Balanced for sm1000/sm2000, Conservative for sm500)
     assert c["max_risk_pct_equity"] == 0.10
-    # sm500 runs a higher per-trade risk ceiling so a $1-wide spread fits
-    assert config.get_mode("sm500")["max_risk_pct_equity"] == 0.20
+    assert config.get_mode("sm500")["max_risk_pct_equity"] == 0.10
     assert config.get_mode("sm2000")["max_risk_pct_equity"] == 0.10
     assert config.get_mode("sm1000")["min_net_credit"] == 0.05
+    # sm500 Conservative posture: max_concurrent_spreads 3 -> 1
+    assert config.get_mode("sm500")["max_concurrent_spreads"] == 1
     # sm1000 Balanced posture: max_concurrent_spreads 3 -> 2
     assert c["max_concurrent_spreads"] == 2
     # sm2000 Balanced posture: max_concurrent_spreads stays 3
@@ -78,5 +79,18 @@ def test_sm2000_balanced_posture_params():
     assert cfg["spread_stop_credit_mult"] == 2.0
     assert cfg["max_risk_pct_equity"] == 0.10
     assert cfg["max_concurrent_spreads"] == 3
+    from screener_core import SM_CURATED_UNIVERSE
+    assert cfg["screener_universe"] == SM_CURATED_UNIVERSE
+
+
+def test_sm500_conservative_posture_params():
+    import config
+    cfg = config.MODES["sm500"]
+    assert cfg["min_credit_to_width_pct"] == 0.40   # stricter than balanced
+    assert cfg["trend_filter"] is True
+    assert cfg["spread_stop_credit_mult"] == 2.0
+    assert cfg["max_risk_pct_equity"] == 0.10
+    assert cfg["max_concurrent_spreads"] == 1
+    assert cfg["max_underlying_price"] == 25         # retained intentionally
     from screener_core import SM_CURATED_UNIVERSE
     assert cfg["screener_universe"] == SM_CURATED_UNIVERSE
