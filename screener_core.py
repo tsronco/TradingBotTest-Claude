@@ -157,6 +157,42 @@ def _get_option_quote(option_symbol: str, headers: dict) -> Optional[dict]:
     return None
 
 
+def is_above_sma20(
+    symbol: str,
+    current_price: float,
+    fetch_closes,
+) -> bool:
+    """Return True iff current_price >= mean of last 20 daily closes.
+
+    Used as the trend gate on the SM auto-spread engine: we only open
+    a put credit spread when the underlying is at or above its 20-day
+    SMA (i.e., not in a short-term downtrend).
+
+    Fail-closed posture: any failure to obtain 20 valid closes returns
+    False. Selling puts on a symbol whose trend we cannot verify is
+    the exact failure mode this gate exists to prevent.
+
+    Parameters
+    ----------
+    symbol         For logging context only — does not affect the math.
+    current_price  Latest stock price (caller already has this from
+                   score_candidate's `r["price"]`; passing it in avoids
+                   a redundant API call).
+    fetch_closes   Callable(symbol) -> list[float] | None. The 20 most
+                   recent daily closes (oldest first or newest first —
+                   order does not affect the mean). Injected so tests
+                   stay pure-Python.
+    """
+    try:
+        closes = fetch_closes(symbol)
+    except Exception:
+        return False
+    if not closes or len(closes) < 20:
+        return False
+    sma20 = sum(closes[-20:]) / 20.0
+    return current_price >= sma20
+
+
 # ── Round-strike helper (shared) ─────────────────────────────────────────
 
 

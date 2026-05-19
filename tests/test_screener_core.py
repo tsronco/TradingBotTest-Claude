@@ -137,3 +137,41 @@ def test_sm_curated_universe_size():
     """Tight list — under 20 names so the screener's scoring loop
     doesn't waste API calls on borderline tickers."""
     assert 8 <= len(screener_core.SM_CURATED_UNIVERSE) <= 18
+
+
+def test_is_above_sma20_returns_true_when_price_above_average():
+    # 20 closes averaging 10.00; current price 11.00 → above SMA → True
+    closes = [10.0] * 20
+    fetch = lambda sym: closes
+    assert screener_core.is_above_sma20("ANY", 11.0, fetch) is True
+
+
+def test_is_above_sma20_returns_false_when_price_below_average():
+    closes = [10.0] * 20
+    fetch = lambda sym: closes
+    assert screener_core.is_above_sma20("ANY", 9.0, fetch) is False
+
+
+def test_is_above_sma20_boundary_inclusive():
+    # price exactly == SMA20 counts as above (don't reject borderline)
+    closes = [10.0] * 20
+    fetch = lambda sym: closes
+    assert screener_core.is_above_sma20("ANY", 10.0, fetch) is True
+
+
+def test_is_above_sma20_insufficient_history_returns_false():
+    # No 20 days of data → conservative fail-closed: treat as below
+    # (don't sell puts on a symbol we can't verify the trend on)
+    fetch = lambda sym: [10.0] * 5
+    assert screener_core.is_above_sma20("ANY", 11.0, fetch) is False
+
+
+def test_is_above_sma20_fetch_returns_none_is_false():
+    fetch = lambda sym: None
+    assert screener_core.is_above_sma20("ANY", 11.0, fetch) is False
+
+
+def test_is_above_sma20_fetch_raises_is_false():
+    def boom(sym):
+        raise RuntimeError("network down")
+    assert screener_core.is_above_sma20("ANY", 11.0, boom) is False
