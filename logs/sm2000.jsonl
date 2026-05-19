@@ -351,3 +351,10 @@
 {"timestamp": "2026-05-19T15:26:43.949762+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T15:26:43.949873+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-19T15:26:43.949949+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
+{"timestamp": "2026-05-19T15:36:34.970196+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-19T15:36:37.027100+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 3, "max_concurrent_spreads": 3}}
+{"timestamp": "2026-05-19T15:36:37.028344+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["F", "M", "RIVN"]}}
+{"timestamp": "2026-05-19T15:36:37.414437+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "F260612P00011000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T15:36:37.414633+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "M260605P00016000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T15:36:37.414764+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "RIVN260605P00011000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-19T15:36:37.414854+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 3, "closed": 0, "held": 0, "skipped": 3}}
