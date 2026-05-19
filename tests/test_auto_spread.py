@@ -1029,3 +1029,30 @@ def test_credit_to_width_gate_rejects_below_ratio():
     assert ws.credit_ratio_passes(net_credit=0.20, width=1.0, min_ratio=0.40) is False  # Conservative
     # Degenerate width (would div-by-zero) → reject
     assert ws.credit_ratio_passes(net_credit=1.0, width=0.0, min_ratio=0.33) is False
+
+
+# ── Task 10: pick_best_ratio_width selector in _auto_open_spread ──────────
+
+
+def test_pick_best_ratio_width_among_candidates():
+    """Given multiple acceptable widths, pick the one with the highest
+    credit/width ratio — NOT the narrowest."""
+    candidates = [
+        # narrowest: $1 wide, $0.20 credit → ratio 0.20
+        {"width": 1.0, "net_credit": 0.20, "tag": "narrow"},
+        # middle:    $2 wide, $0.70 credit → ratio 0.35
+        {"width": 2.0, "net_credit": 0.70, "tag": "best"},
+        # wider:     $3 wide, $0.60 credit → ratio 0.20
+        {"width": 3.0, "net_credit": 0.60, "tag": "wide"},
+    ]
+    chosen = ws.pick_best_ratio_width(candidates)
+    assert chosen["tag"] == "best"
+
+
+def test_pick_best_ratio_width_empty_returns_none():
+    assert ws.pick_best_ratio_width([]) is None
+
+
+def test_pick_best_ratio_width_singleton_returns_it():
+    c = {"width": 1.0, "net_credit": 0.40}
+    assert ws.pick_best_ratio_width([c]) is c

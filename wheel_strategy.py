@@ -2373,6 +2373,18 @@ def credit_ratio_passes(net_credit: float, width: float, min_ratio: float) -> bo
     return (net_credit / width) >= min_ratio
 
 
+def pick_best_ratio_width(candidates: list) -> dict | None:
+    """Pick the candidate with the highest net_credit/width ratio.
+
+    Each candidate is a dict containing at least 'width' and 'net_credit'.
+    Returns None on empty input. Stable on ties — first candidate wins
+    (which gives the narrowest of equally-good ratios, fine).
+    """
+    if not candidates:
+        return None
+    return max(candidates, key=lambda c: c["net_credit"] / c["width"])
+
+
 def eligible_universe(symbols_prices: dict, max_price) -> list:
     """Filter symbols to those at/below max_price; pass all when None."""
     if max_price is None:
@@ -2569,9 +2581,9 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
 
         inc = strike_increment(price)
 
-        # Search widening long strikes; pick the NARROWEST that clears
-        # both the risk cap and BP-fit.
-        chosen = None
+        # Search widening long strikes; collect all that clear the risk cap
+        # and BP-fit, then pick the highest credit-to-width ratio (Task 10).
+        candidates = []
         _credit_floor_hit = False   # sentinel: absolute-floor break fired
         min_net_credit = cfg.get("min_net_credit", 0.05)
         max_steps = 10  # bounded — don't scan an unbounded chain
@@ -2631,7 +2643,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             if not spread_passes_risk(width, cand_net_credit, equity,
                                       max_risk_pct):
                 continue
-            chosen = {
+            # Collect, don't break — Task 10 picks best ratio after the loop.
+            candidates.append({
                 "long_occ":    long_contract["symbol"],
                 "long_strike": long_strike,
                 "long_mid":    long_mid,
@@ -2639,8 +2652,9 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 "long_ask":    long_q["ask"],
                 "width":       width,
                 "net_credit":  cand_net_credit,
-            }
-            break  # first hit == narrowest passing width
+            })
+
+        chosen = pick_best_ratio_width(candidates)
 
         if _credit_floor_hit:
             # logging already emitted inside the loop; just skip to next symbol
