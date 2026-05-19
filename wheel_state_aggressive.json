@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-19T15:59:34.403541Z",
+    "last_checked": "2026-05-19T16:09:41.999687Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260522P00013000: $1.14 vs entry $0.70",
+    "last_action": "Monitoring MARA260522P00013000: $1.10 vs entry $0.70",
     "contract_qty": 1
   },
   "RIOT": {
@@ -109,7 +109,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $9.12 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $9.17 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -266,7 +266,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.27 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.31 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -301,7 +301,7 @@
     "stage": 1,
     "current_contract": "PFE260529P00025000",
     "contract_order_id": "d1f09e86-166a-4846-9540-41443902604e",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.14,
     "contract_entry_date": "2026-05-19T15:09:40.700016Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -313,7 +313,7 @@
     "total_premium_today": 8.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on PFE260529P00025000.",
+    "last_action": "Monitoring PFE260529P00025000: $0.10 vs entry $0.14",
     "contract_qty": 1
   }
 }
