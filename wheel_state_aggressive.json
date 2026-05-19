@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-19T14:29:41.436812Z",
+    "last_checked": "2026-05-19T14:39:34.781119Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -19,7 +19,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring COIN260522P00200000: $13.38 vs entry $5.70",
+    "last_action": "Monitoring COIN260522P00200000: $13.15 vs entry $5.70",
     "contract_qty": 1
   },
   "MARA": {
@@ -43,7 +43,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260522P00013000: $1.43 vs entry $0.70",
+    "last_action": "Monitoring MARA260522P00013000: $1.47 vs entry $0.70",
     "contract_qty": 1
   },
   "RIOT": {
@@ -109,7 +109,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVDA260522P00225000: $10.46 vs entry $5.20",
+    "last_action": "Monitoring NVDA260522P00225000: $10.12 vs entry $5.20",
     "contract_qty": 1
   },
   "AMD": {
@@ -209,7 +209,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.65 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.63 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -266,7 +266,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260522P00130000: $1.19 vs entry $2.40",
+    "last_action": "Monitoring PLTR260522P00130000: $1.15 vs entry $2.40",
     "contract_qty": 1
   },
   "SOFI": {
@@ -294,7 +294,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.28 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.27 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
