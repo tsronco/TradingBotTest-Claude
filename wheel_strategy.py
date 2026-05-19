@@ -723,17 +723,12 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])
 
-    # 2. Profit trigger
-    if pnl["profit_pct"] >= SPREAD_EARLY_CLOSE_PCT:
-        log(f"[{ticker}] spread profit_pct={pnl['profit_pct']:.2%} >= "
-            f"{SPREAD_EARLY_CLOSE_PCT:.0%} — closing at profit")
-        _close_spread(state, ticker, reason="early_close_50pct")
-        return
-
     # 2a. Underlying-price tripwire (SM modes only, SPREAD_STOP_CREDIT_MULT set).
     # If the stock has traded through the short strike, close immediately —
     # robust to degenerate/illiquid option quotes where the 2x-credit stop
-    # could otherwise miss the trigger by reading a stale mid.
+    # could otherwise miss the trigger by reading a stale mid. Runs BEFORE
+    # the profit trigger because position-based risk takes precedence over
+    # price-based gains; the spec is explicit about this ordering.
     if SPREAD_STOP_CREDIT_MULT is not None:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
@@ -749,6 +744,13 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                     f"${short_strike:.2f} ({spread_type}) — closing")
                 _close_spread(state, ticker, reason="underlying_tripwire")
                 return
+
+    # 2. Profit trigger
+    if pnl["profit_pct"] >= SPREAD_EARLY_CLOSE_PCT:
+        log(f"[{ticker}] spread profit_pct={pnl['profit_pct']:.2%} >= "
+            f"{SPREAD_EARLY_CLOSE_PCT:.0%} — closing at profit")
+        _close_spread(state, ticker, reason="early_close_50pct")
+        return
 
     # 3. Stop loss trigger
     # SM modes (SPREAD_STOP_CREDIT_MULT set): fire when buy-back cost
