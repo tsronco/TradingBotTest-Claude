@@ -1216,6 +1216,29 @@ def _spread_order_age_hours(sym_state) -> float:
         return 0.0
 
 
+def _contract_expired(sym_state) -> bool:
+    """True if the tracked contract's expiration date is strictly in the
+    past (date.today(), consistent with the rest of this module's date math).
+
+    A bot-opened put/call's opening order stays status=="filled" at the
+    broker forever, but its *position* settles at expiry (expires worthless
+    or is assigned). Without this check, _resolve_pending_contract reads the
+    still-"filled" order and returns "just_filled" every cycle once the
+    position is gone, pinning the symbol in Stage 1/2 with a dead contract
+    instead of running the Stage 1↔2 / expiry transition (the SMCI/BAC/SOFI
+    aggressive bug, 2026-05-19 — manual/live/sm were unaffected because
+    adopted positions carry contract_order_id=None and already resolve
+    "gone"). Missing/unparseable expiration → False (never force-resolve on
+    bad data)."""
+    exp = sym_state.get("contract_expiration")
+    if not exp:
+        return False
+    try:
+        return date.fromisoformat(exp) < date.today()
+    except (ValueError, TypeError):
+        return False
+
+
 def _resolve_pending_contract(sym_state):
     """Disambiguate when contract is set but no position exists yet.
 
@@ -1224,7 +1247,8 @@ def _resolve_pending_contract(sym_state):
       "stale"       — order pending > STALE_AFTER_HOURS. Caller should
                       cancel and re-quote at the fresh mid.
       "just_filled" — order just filled; entry_price was set as a side effect.
-      "gone"        — order is cancelled/rejected/expired or no order_id.
+      "gone"        — order cancelled/rejected/expired, contract past its
+                      expiration date, or no order_id.
     """
     order_id = sym_state.get("contract_order_id")
     if not order_id:
@@ -1245,6 +1269,12 @@ def _resolve_pending_contract(sym_state):
             if filled_avg:
                 sym_state["contract_entry_price"] = float(filled_avg)
                 log(f"Wheel order {order_id} filled — recorded entry price ${sym_state['contract_entry_price']:.2f}")
+        # A filled order is only "just filled" for the brief window before
+        # the position appears (≈1 cycle). Past the contract's expiry an
+        # absent position means it settled (expired worthless / assigned) —
+        # resolve "gone" so the caller runs the Stage 1↔2 / expiry path.
+        if _contract_expired(sym_state):
+            return "gone"
         return "just_filled"
     return "gone"
 

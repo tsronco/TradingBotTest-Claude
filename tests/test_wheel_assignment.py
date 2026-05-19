@@ -900,6 +900,111 @@ def test_resolve_filled_status_takes_precedence_over_stale(monkeypatch):
 
     assert ws._resolve_pending_contract(sym_state) == "just_filled"
 
+
+# ── _resolve_pending_contract: filled order whose position has expired ───
+# Regression for the SMCI/BAC/SOFI aggressive bug (2026-05-19). At the
+# broker the opening order stays status=="filled" FOREVER; only the
+# *position* settles at expiry. The pre-fix code returned "just_filled"
+# every cycle once the position vanished, pinning the symbol in Stage 1
+# with the dead contract and never running the assignment/expiry path.
+
+def test_resolve_filled_but_contract_expired_returns_gone(monkeypatch):
+    """Order is genuinely status=='filled' (real Alpaca behaviour, not the
+    fake 'expired' the old assignment test used) but the contract's
+    expiration date has passed → must resolve 'gone' so the caller runs
+    the Stage 1↔2 / expiry transition."""
+    from datetime import date, timedelta
+    sym_state = ws._empty_symbol_state()
+    sym_state["contract_order_id"] = "long-ago-filled"
+    sym_state["contract_entry_price"] = 1.79
+    sym_state["contract_expiration"] = (date.today() - timedelta(days=2)).isoformat()
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "filled",
+                                      "filled_avg_price": "1.79"})
+
+    assert ws._resolve_pending_contract(sym_state) == "gone"
+
+
+def test_resolve_filled_not_yet_expired_still_just_filled(monkeypatch):
+    """Guard: a genuinely-just-filled order whose contract has NOT expired
+    must still return 'just_filled' (no regression to the brief post-fill
+    window where the position hasn't appeared yet)."""
+    from datetime import date, timedelta
+    sym_state = ws._empty_symbol_state()
+    sym_state["contract_order_id"] = "fresh-fill"
+    sym_state["contract_entry_price"] = None
+    sym_state["contract_expiration"] = (date.today() + timedelta(days=21)).isoformat()
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "filled",
+                                      "filled_avg_price": "1.79"})
+
+    assert ws._resolve_pending_contract(sym_state) == "just_filled"
+    assert sym_state["contract_entry_price"] == 1.79  # still recorded as a side effect
+
+
+def test_contract_expired_helper_handles_bad_data():
+    """Missing / unparseable expiration must NOT force-resolve (defensive
+    default — never strand a live contract on garbage state)."""
+    s = ws._empty_symbol_state()
+    assert ws._contract_expired(s) is False          # expiration is None
+    s["contract_expiration"] = "not-a-date"
+    assert ws._contract_expired(s) is False
+
+
+def test_stage1_filled_order_expired_contract_assigns_to_stage2(
+        monkeypatch, fresh_symbol_state):
+    """End-to-end SMCI/BAC/SOFI repro: opening order still status=='filled',
+    option position gone, contract past expiry, broker assigned 100 shares
+    → wheel must flip to Stage 2 (was stuck in Stage 1 'Now tracking')."""
+    fresh_symbol_state["current_contract"]  = "SMCI260515P00035000"
+    fresh_symbol_state["contract_order_id"] = "11aec3bc-aggr-smci"
+    fresh_symbol_state["contract_entry_price"] = 1.79
+    fresh_symbol_state["contract_expiration"]  = "2026-05-15"  # a past Friday
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order", lambda oid: _filled_order(price=1.79))
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: _stock_position_100("SMCI", avg=35.0))
+
+    ws.handle_stage1("SMCI", fresh_symbol_state, stock_price=33.0, account=_account())
+
+    assert fresh_symbol_state["stage"] == 2
+    assert fresh_symbol_state["shares_qty"] == 100
+    assert fresh_symbol_state["cost_basis_per_share"] == 35.0
+    assert fresh_symbol_state["current_contract"] is None
+    assert any(h["outcome"] == "assigned" for h in fresh_symbol_state["cycle_history"])
+
+
+def test_stage1_filled_order_expired_contract_worthless_sells_new_put(
+        monkeypatch, fresh_symbol_state):
+    """Same repro, OTM side: order still 'filled', position gone, contract
+    past expiry, no shares → collect premium (entry price intact, NOT the
+    degraded $0 the order-ageout path produced) and sell a fresh put."""
+    fresh_symbol_state["current_contract"]  = "BAC260515P00050000"
+    fresh_symbol_state["contract_order_id"] = "e8955129-aggr-bac"
+    fresh_symbol_state["contract_entry_price"] = 0.08
+    fresh_symbol_state["contract_expiration"]  = "2026-05-15"
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order", lambda oid: _filled_order(price=0.08))
+    monkeypatch.setattr(ws, "get_stock_position", lambda s: None)
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("BAC", strike=50))
+
+    sells = []
+    monkeypatch.setattr(ws, "place_sell_to_open",
+                        lambda c, p, qty=1: sells.append((c, p)) or {"id": "new-put"})
+
+    ws.handle_stage1("BAC", fresh_symbol_state, stock_price=52.0, account=_account())
+
+    assert fresh_symbol_state["stage"] == 1
+    assert fresh_symbol_state["total_premium_collected"] == 8.0  # 0.08 * 100, not $0
+    assert fresh_symbol_state["current_contract"] != "BAC260515P00050000"
+    assert len(sells) == 1
+    assert any(h["outcome"] == "expired_worthless"
+               for h in fresh_symbol_state["cycle_history"])
+
+
 # ── handle_stage1 stale handling ────────────────────────────────────────
 
 def test_stage1_stale_order_cancelled_and_replaced(monkeypatch, fresh_symbol_state, alpaca_account_state):
