@@ -112,3 +112,29 @@ def test_apply_mode_spread_stop_credit_mult_none_for_non_sm_modes():
     assert ws.SPREAD_STOP_CREDIT_MULT is None
     ws.apply_mode("live")
     assert ws.SPREAD_STOP_CREDIT_MULT is None
+
+
+def test_non_sm_modes_have_no_hardened_engine_keys():
+    """The four non-SM modes must NOT carry any hardened-engine key.
+    If this ever fails, an SM-only param leaked into another mode and
+    will silently change its behavior."""
+    import config
+    hardened_keys = {
+        "min_credit_to_width_pct",
+        "spread_stop_credit_mult",
+        "trend_filter",
+        "max_underlying_price",       # sm500-only filter
+    }
+    # auto_open_spreads is also SM-only but it pre-existed before this
+    # hardening — verify it's explicitly False on each non-SM mode (or
+    # absent) rather than treating it as a "leak."
+    for mode_name in ("conservative", "aggressive", "manual", "live"):
+        cfg = config.MODES[mode_name]
+        leaks = hardened_keys.intersection(cfg.keys())
+        assert not leaks, (
+            f"{mode_name} has hardened-engine keys leaked into its config: {leaks}"
+        )
+        # Belt + suspenders: also check auto_open_spreads is False or unset
+        assert cfg.get("auto_open_spreads", False) is False, (
+            f"{mode_name} should not have auto_open_spreads enabled"
+        )
