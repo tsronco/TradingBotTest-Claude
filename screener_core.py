@@ -60,6 +60,26 @@ DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
 })
 
 
+# ── SM-mode curated universe ─────────────────────────────────────────────
+# Hand-picked for the hardened SM auto-spread engine (2026-05-19). Criteria:
+#   - liquid options (weeklies or active monthlies)
+#   - tight bid/ask spreads on near-the-money puts
+#   - IV high enough that ~10% OTM puts at 14-28 DTE can clear the
+#     min_credit_to_width_pct floor (0.33 Balanced / 0.40 Conservative)
+#   - quality enough that an assignment wouldn't be a disaster (though
+#     SM modes never accept assignment — spread is defined-risk)
+#
+# Deliberately EXCLUDES the ≤$25 junk tier the old sm500 filter selected
+# (NCLH, HPQ, KSS, RIVN, M, NIO, AAL, etc.) — those names were the source
+# of the −$280 / −8% bleed over 2026-05-18 to 2026-05-19.
+SM_CURATED_UNIVERSE: list[str] = sorted({
+    # Higher-IV growth / semis (Balanced posture credit floor target)
+    "AMD", "NVDA", "MU", "PLTR",
+    # Mid-IV financials / consumer (proven on conservative wheel)
+    "BAC", "SOFI", "F", "T", "INTC", "PFE", "KO", "XOM",
+})
+
+
 # ── Pure scoring math (no I/O) ────────────────────────────────────────────
 
 

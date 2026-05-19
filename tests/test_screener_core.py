@@ -116,3 +116,24 @@ def test_score_candidate_with_injected_api_get():
     # score = (0.40/45)*100 - (0.10/0.45)*50 + 1.0*5
     expected_score = (0.40 / 45.0) * 100 - (0.10 / 0.45) * 50 + 1.0 * 5
     assert abs(r["score"] - expected_score) < 1e-9
+
+
+def test_sm_curated_universe_excludes_junk_tier():
+    """The new SM list must NOT contain the cheap-junk names that the
+    old sm500 max_underlying_price:25 filter was selecting into."""
+    junk = {"NCLH", "HPQ", "KSS", "RIVN", "M", "NIO", "AAL", "WBD", "PARA"}
+    assert junk.isdisjoint(set(screener_core.SM_CURATED_UNIVERSE))
+
+
+def test_sm_curated_universe_is_subset_of_quality_names():
+    """Spot-check: every SM name appears in the larger conservative
+    universe (no surprise picks)."""
+    assert set(screener_core.SM_CURATED_UNIVERSE).issubset(
+        set(screener_core.DEFAULT_CONSERVATIVE_UNIVERSE)
+    )
+
+
+def test_sm_curated_universe_size():
+    """Tight list — under 20 names so the screener's scoring loop
+    doesn't waste API calls on borderline tickers."""
+    assert 8 <= len(screener_core.SM_CURATED_UNIVERSE) <= 18
