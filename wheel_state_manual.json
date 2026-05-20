@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T19:41:46.581231Z"
+    "last_checked": "2026-05-20T19:51:35.425544Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.16 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.12 vs entry $0.12"
   },
   "AAL": {
     "stage": "spread_active",
@@ -91,6 +91,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVTS260605P00020500: $1.60 vs entry $2.12"
+    "last_action": "Monitoring NVTS260605P00020500: $1.63 vs entry $2.12"
   }
 }
