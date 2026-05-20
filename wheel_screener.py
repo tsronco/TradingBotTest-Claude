@@ -88,7 +88,15 @@ def apply_mode(mode_name: str) -> None:
 
     API_KEY    = os.getenv(cfg["alpaca_key_env"])
     API_SECRET = os.getenv(cfg["alpaca_secret_env"])
-    BASE_URL   = os.getenv(cfg["alpaca_url_env"], "https://paper-api.alpaca.markets/v2")
+    # Validate scheme — a missing or malformed (e.g. literal "-" placeholder)
+    # GitHub Actions secret would otherwise produce URLs like "-/positions"
+    # that requests rejects with MissingSchema. Fall back to the paper default
+    # if the env value isn't a proper http(s) URL.
+    _raw_url = (os.getenv(cfg["alpaca_url_env"]) or "").strip()
+    if _raw_url.startswith(("http://", "https://")):
+        BASE_URL = _raw_url
+    else:
+        BASE_URL = "https://paper-api.alpaca.markets/v2"
     HEADERS    = {
         "APCA-API-KEY-ID":     API_KEY,
         "APCA-API-SECRET-KEY": API_SECRET,
