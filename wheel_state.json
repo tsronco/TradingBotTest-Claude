@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T15:18:08.928009Z"
+    "last_checked": "2026-05-20T15:28:13.954703Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260605P00405000: $11.30 vs entry $5.90",
+    "last_action": "Monitoring TSLA260605P00405000: $11.47 vs entry $5.90",
     "contract_qty": 1
   },
   "BAC": {
@@ -129,7 +129,7 @@
     "total_premium_today": 180.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open PLTR260612P00120000 @ $1.38. Awaiting fill.",
+    "last_action": "Awaiting fill on PLTR260612P00120000.",
     "contract_qty": 1
   },
   "SOFI": {
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260605P00025000: $0.17 vs entry $0.18",
+    "last_action": "Monitoring PFE260605P00025000: $0.18 vs entry $0.18",
     "contract_qty": 1
   },
   "F": {
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.25 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.29 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.76 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $5.64 vs entry $6.65",
     "contract_qty": 1
   }
 }
