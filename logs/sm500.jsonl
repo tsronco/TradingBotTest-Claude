@@ -540,3 +540,4 @@
 {"timestamp": "2026-05-20T13:45:47.775349+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "MissingSchema: Invalid URL '-/positions': No scheme supplied. Perhaps you meant https://-/positions?"}
 {"timestamp": "2026-05-20T13:55:41.535219+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "MissingSchema: Invalid URL '-/positions': No scheme supplied. Perhaps you meant https://-/positions?"}
 {"timestamp": "2026-05-20T14:05:45.953195+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
+{"timestamp": "2026-05-20T14:16:07.008972+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
