@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T14:41:59.085475Z"
+    "last_checked": "2026-05-20T14:51:48.443767Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 SNAP260605C00006000 @ $0.12. Awaiting fill."
+    "last_action": "Awaiting fill on SNAP260605C00006000."
   },
   "AAL": {
     "stage": "spread_active",
@@ -91,6 +91,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVTS260605P00020500: $2.71 vs entry $2.12"
+    "last_action": "Monitoring NVTS260605P00020500: $2.00 vs entry $2.12"
   }
 }
