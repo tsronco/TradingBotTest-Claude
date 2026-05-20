@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T13:51:44.600675Z"
+    "last_checked": "2026-05-20T14:01:45.353169Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260529C00006000: $0.08 vs entry $0.08"
+    "last_action": "Monitoring SNAP260529C00006000: $0.05 vs entry $0.08"
   },
   "AAL": {
     "stage": "spread_active",
