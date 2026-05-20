@@ -567,3 +567,4 @@
 {"timestamp": "2026-05-20T14:38:54.020981+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
 {"timestamp": "2026-05-20T14:48:47.182813+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
 {"timestamp": "2026-05-20T14:58:45.264309+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
+{"timestamp": "2026-05-20T15:08:56.691167+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "HTTPError: 401 Client Error: Unauthorized for url: https://paper-api.alpaca.markets/v2/positions"}
