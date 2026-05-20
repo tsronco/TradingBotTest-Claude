@@ -84,7 +84,14 @@ def _headers_for(cfg: dict) -> dict:
 
 
 def _base_url_for(cfg: dict) -> str:
-    return os.getenv(cfg["alpaca_url_env"], "https://paper-api.alpaca.markets/v2")
+    # Validate scheme — a missing or malformed (e.g. literal "-" placeholder)
+    # GitHub Actions secret would otherwise produce URLs like "-/account"
+    # that requests rejects with MissingSchema. Fall back to the paper default
+    # if the env value isn't a proper http(s) URL.
+    raw = (os.getenv(cfg["alpaca_url_env"]) or "").strip()
+    if raw.startswith(("http://", "https://")):
+        return raw
+    return "https://paper-api.alpaca.markets/v2"
 
 
 def _get_account(cfg: dict) -> dict:
