@@ -544,3 +544,4 @@
 {"timestamp": "2026-05-19T20:56:36.323495+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["KSS", "M", "RIVN"]}}
 {"timestamp": "2026-05-19T20:56:36.587770+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-05-20T13:46:36.539941+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "MissingSchema: Invalid URL '-/positions': No scheme supplied. Perhaps you meant https://-/positions?"}
+{"timestamp": "2026-05-20T13:56:39.382505+00:00", "script": "strategy.py", "action": "exception", "result": "failure", "notes": "MissingSchema: Invalid URL '-/positions': No scheme supplied. Perhaps you meant https://-/positions?"}
