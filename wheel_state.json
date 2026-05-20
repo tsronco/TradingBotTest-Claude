@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T17:20:00.150037Z"
+    "last_checked": "2026-05-20T17:38:25.113502Z"
   },
   "TSLA": {
     "stage": 1,
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260605P00025000: $0.18 vs entry $0.18",
+    "last_action": "Monitoring PFE260605P00025000: $0.17 vs entry $0.18",
     "contract_qty": 1
   },
   "F": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.80 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $5.65 vs entry $6.65",
     "contract_qty": 1
   }
 }
