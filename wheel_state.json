@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-20T18:28:07.636778Z"
+    "last_checked": "2026-05-20T18:38:09.238397Z"
   },
   "TSLA": {
     "stage": 1,
@@ -43,10 +43,10 @@
   },
   "BAC": {
     "stage": 1,
-    "current_contract": "BAC260612P00045000",
-    "contract_order_id": "cb5260e6-2203-42cb-a839-99ab56ac98b9",
+    "current_contract": null,
+    "contract_order_id": null,
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-20T14:28:15.595157Z",
+    "contract_entry_date": null,
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 45.0,
@@ -57,7 +57,7 @@
     "total_premium_today": 15.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on BAC260612P00045000.",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "XOM": {
@@ -134,10 +134,10 @@
   },
   "SOFI": {
     "stage": 1,
-    "current_contract": "SOFI260612P00014000",
-    "contract_order_id": "6f408efc-7153-4431-94a1-3857bd347db4",
+    "current_contract": null,
+    "contract_order_id": null,
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-20T14:28:17.554974Z",
+    "contract_entry_date": null,
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 14.0,
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Awaiting fill on SOFI260612P00014000.",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "PFE": {
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260522P00025000: $0.32 vs entry $0.15",
+    "last_action": "Monitoring T260522P00025000: $0.30 vs entry $0.15",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $5.40 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $5.14 vs entry $6.65",
     "contract_qty": 1
   }
 }
