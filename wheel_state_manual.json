@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-21T17:11:35.010622Z"
+    "last_checked": "2026-05-21T17:21:34.589599Z"
   },
   "F": {
     "stage": 1,
@@ -91,6 +91,6 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring NVTS260605P00020500: $1.20 vs entry $2.12"
+    "last_action": "Monitoring NVTS260605P00020500: $1.18 vs entry $2.12"
   }
 }
