@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-21T15:21:36.998631Z"
+    "last_checked": "2026-05-21T15:31:36.640499Z"
   },
   "SNAP": {
     "first_seen": "2026-05-14T13:41:26.126194Z",
@@ -9,14 +9,14 @@
     "avg_cost": 5.66,
     "total_cost": 622.5,
     "position_qty": 110,
-    "stop_price": 5.49,
-    "high_water_mark": 5.775,
+    "stop_price": 5.51,
+    "high_water_mark": 5.805,
     "trailing_active": true,
     "ladder_done": [
       false,
       false,
       false
     ],
-    "last_action": "Monitoring $5.77 vs avg $5.66 (PnL +1.94%). Stop $5.49, Trail ON."
+    "last_action": "Monitoring $5.80 vs avg $5.66 (PnL +2.56%). Stop $5.51, Trail ON."
   }
 }
