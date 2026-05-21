@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-21T17:48:19.484015Z"
+    "last_checked": "2026-05-21T17:58:14.562794Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260605P00405000: $6.99 vs entry $5.90",
+    "last_action": "Monitoring TSLA260605P00405000: $6.69 vs entry $5.90",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260612P00045000 @ $0.11. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260612P00045000.",
     "contract_qty": 1
   },
   "XOM": {
@@ -129,14 +129,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260612P00125000: $1.70 vs entry $1.85",
+    "last_action": "Monitoring PLTR260612P00125000: $1.66 vs entry $1.85",
     "contract_qty": 1
   },
   "SOFI": {
     "stage": 1,
     "current_contract": "SOFI260612P00014000",
     "contract_order_id": "c0689e51-97ca-4af9-b6bd-34d4a237adeb",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.2,
     "contract_entry_date": "2026-05-21T17:48:17.864783Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open SOFI260612P00014000 @ $0.19. Awaiting fill.",
+    "last_action": "Monitoring SOFI260612P00014000: $0.19 vs entry $0.20",
     "contract_qty": 1
   },
   "PFE": {
@@ -209,7 +209,7 @@
     "stage": 1,
     "current_contract": "T260612P00025000",
     "contract_order_id": "23490cb6-5a3b-4873-8718-9fcabc9c9e77",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.41,
     "contract_entry_date": "2026-05-21T17:48:18.868043Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open T260612P00025000 @ $0.41. Awaiting fill.",
+    "last_action": "Monitoring T260612P00025000: $0.43 vs entry $0.41",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $3.83 vs entry $6.65",
+    "last_action": "Monitoring INTC260529P00115000: $3.76 vs entry $6.65",
     "contract_qty": 1
   }
 }
