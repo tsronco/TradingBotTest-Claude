@@ -310,7 +310,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 34.0,
-    "total_premium_today": 9.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring PFE260529P00025000: $0.07 vs entry $0.05",
