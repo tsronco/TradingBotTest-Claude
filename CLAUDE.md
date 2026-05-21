@@ -426,22 +426,31 @@ Posture table:
 | Param | sm500 (Conservative) | sm1000 / sm2000 (Balanced) | Other modes |
 |---|---|---|---|
 | `min_credit_to_width_pct` | 0.40 | 0.33 | — (gate inactive) |
-| `max_risk_pct_equity` | 0.10 | 0.10 | n/a |
+| `max_risk_pct_equity` | 0.20 *(0.10 → 0.20, 2026-05-21)* | 0.10 | n/a |
+| `wheelability_min` | 85 | 80 *(85 → 80, 2026-05-21)* | — |
 | `max_concurrent_spreads` | 1 | 2 / 3 | n/a |
 | `spread_stop_credit_mult` | 2.0 | 2.0 | None → falls back to 0.50 of max_loss |
 | `trend_filter` | True | True | unset → inactive |
-| `screener_universe` | SM_CURATED_UNIVERSE | SM_CURATED_UNIVERSE | None → DEFAULT_CONSERVATIVE_UNIVERSE |
+| `screener_universe` | SM_CURATED_UNIVERSE (52 names) | SM_CURATED_UNIVERSE (52 names) | None → DEFAULT_CONSERVATIVE_UNIVERSE |
 
 Behavioral changes:
 1. **Credit-to-width floor** — `_auto_open_spread` rejects any candidate whose `net_credit / width < min_credit_to_width_pct`. The existing absolute `$0.05` floor was relocated inside the width loop to run BEFORE the new ratio gate, preserving the `below_min_net_credit` log event as the degenerate-quote guard while the ratio gate enforces real quality.
 2. **Best-ratio width selection** — same risk ceiling, but `pick_best_ratio_width` picks the highest payoff/risk width across all acceptable candidates instead of breaking on the narrowest.
 3. **2× credit stop** — `handle_spread` fires at `close_cost ≥ 2 × net_credit` for SM modes (a small bounded dollar loss the cron can catch). Non-SM modes keep the legacy 50%-of-max-loss path in the `else` branch.
 4. **Underlying-price tripwire** — SM-only, runs BEFORE the profit trigger: if the stock crosses the short strike, close immediately, independent of option quote quality.
-5. **Curated universe + 20-day SMA trend gate** — `SM_CURATED_UNIVERSE` (12 quality names) replaces the cheap-junk path; trade only when underlying ≥ SMA20. SMA20 helper is pure-with-injection (`screener_core.is_above_sma20`); production fetch is `wheel_strategy.get_recent_daily_closes` (Alpaca bars, `feed=iex`).
+5. **Curated universe + 20-day SMA trend gate** — `SM_CURATED_UNIVERSE` (originally 12 quality names, **expanded 12 → 52 on 2026-05-21**, see below) replaces the cheap-junk path; trade only when underlying ≥ SMA20. SMA20 helper is pure-with-injection (`screener_core.is_above_sma20`); production fetch is `wheel_strategy.get_recent_daily_closes` (Alpaca bars, `feed=iex`).
 
 Validation: forward-paper on the reset SM accounts. Cutover wiped state files; Tim reset each SM Alpaca paper sub-account to its seed balance ($500/$1k/$2k) and rotated API keys (9 GitHub Actions secrets + 9 Vercel env vars updated from local .env) before the hardened engine went live. T0 = first hardened-engine cycle after cutover. 2-week window. Primary success metric is **avg-win / avg-loss ratio**, not win rate alone.
 
 Test counts after the hardening: **450 pytest** (bot) + dashboard unchanged.
+
+**Universe + threshold pass (2026-05-21).** First trading day under the hardened engine (2026-05-21) generated zero opens across all three SM accounts — every cycle, the same handful of names failed gates. Inspection showed the **12-name curated universe was too small** for percentile-90 to mean anything (recurring 81.8 best-score ceiling vs 85 floor), and **sm500's 10% cap couldn't fit any $1-wide spread** (~$80–95 net max loss > $50 cap). Three structural levers tuned, no behavioral guardrails relaxed:
+
+1. **`SM_CURATED_UNIVERSE` expanded 12 → 52 names.** Mix of mega-cap tech (AAPL/MSFT/GOOGL/AMZN/AVGO/QCOM), more semis (MRVL added), more financials (JPM/WFC/HBAN/KEY), broader energy (BP/PBR/RIG/CVX), pharma (ABBV/CVS/WBA), consumer staples (CL/WMT/ORLY), telecom/media (VZ/DIS/NFLX/PARA/WBD), mobility (PINS/SNAP), airlines (DAL/LUV/AAL/CCL), materials (VALE/KGC). Names that bled or are persistently declining (NIO, NCLH, HPQ, KSS, HPE, NOK, HOOD, GRAB, CLF, SIRI, RIVN, M) stay out. AAL/WBD/PARA were re-included despite being on the original post-bleed exclusion list — AAL on Tim's personal-favorite override, WBD/PARA on the bet that the 2026-05-19 guardrails (33% credit-to-width ratio for sm1000/sm2000, 40% for sm500, 2× credit stop, trend filter, underlying tripwire) catch lower-quality behavior on the way in.
+2. **`wheelability_min` 85 → 80** on sm1000/sm2000 only. sm500 stays at 85 (already gated by `max_underlying_price: 25`). Percentile-90 on a 52-name pool now means something; the prior 85 floor combined with a 12-name pool was effectively "must be the single best survivor by a comfortable margin," which the data showed never happened.
+3. **`max_risk_pct_equity` 0.10 → 0.20** for sm500 only. sm1000/sm2000 stay at 0.10. sm500's $50 cap was structurally impossible to satisfy with any $1-wide spread; $100 cap fits cleanly. Tim acknowledged this is a slightly fatter posture for a $500 account but explicitly opted in to test it ("you can't make money if you don't try"). Watch P&L closely — if losses cluster on this account, revert.
+
+Bumped `test_universe_size_and_quality` upper bound 130 → 140 (added 9 names to `DEFAULT_CONSERVATIVE_UNIVERSE` so the SM list stays a subset). Test counts unchanged: **450 pytest** (bot) + dashboard unchanged.
 
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):

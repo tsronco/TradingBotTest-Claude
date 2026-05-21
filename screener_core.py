@@ -51,7 +51,13 @@ DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
     # ── Auto / industrial / defense ──
     "F", "GM", "CAT", "DE", "HON", "GE", "RTX", "LMT",
     # ── Mobility / misc large-cap ──
-    "UBER", "LYFT", "PLTR",
+    "UBER", "LYFT", "PLTR", "PINS",
+    # ── Travel / airlines ──
+    "DAL", "LUV",
+    # ── Additional energy ──
+    "BP", "PBR", "RIG",
+    # ── Additional consumer / retail ──
+    "CL", "ORLY", "WBA",
     # ── ≤$25 tier (sm500-eligible: liquid options, would own at assignment) ──
     "SOFI", "NIO", "CCL", "AAL", "NOK", "SNAP", "WBD", "PARA", "NCLH",
     "HOOD", "RIVN", "CLF", "VALE", "KGC", "GOLD", "AES", "KEY", "RF",
@@ -70,13 +76,39 @@ DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
 #     SM modes never accept assignment — spread is defined-risk)
 #
 # Deliberately EXCLUDES the ≤$25 junk tier the old sm500 filter selected
-# (NCLH, HPQ, KSS, RIVN, M, NIO, AAL, etc.) — those names were the source
-# of the −$280 / −8% bleed over 2026-05-18 to 2026-05-19.
+# blindly — NCLH, HPQ, KSS, NIO, NOK, HOOD, GRAB, CLF, AES, NEM, GOLD,
+# FITB, ALLY, SYF, MOS, SIRI — those names were the source of the
+# −$280 / −8% bleed over 2026-05-18 to 2026-05-19.
+#
+# Expanded 2026-05-21 from 12 → 52 names. The hardening guardrails added
+# 2026-05-19 (33% credit-to-width ratio for sm1000/sm2000, 40% for sm500,
+# 2× credit stop, trend filter, underlying tripwire, raised sm500 risk
+# cap to 20%) are expected to catch any lower-quality behavior even on
+# sub-$25 adds (AAL/WBD/PARA/SNAP/WBA/etc. are deliberately re-included
+# vs. the original post-bleed conservative reset). Wheelability floor
+# also dropped 85 → 80 on sm1000/sm2000 to give the expanded pool a
+# real chance to surface a top candidate.
 SM_CURATED_UNIVERSE: list[str] = sorted({
-    # Higher-IV growth / semis (Balanced posture credit floor target)
-    "AMD", "NVDA", "MU", "PLTR",
-    # Mid-IV financials / consumer (proven on conservative wheel)
-    "BAC", "SOFI", "F", "T", "INTC", "PFE", "KO", "XOM",
+    # Mega/large-cap tech (sm2000 stretch + adoption)
+    "AAPL", "MSFT", "GOOGL", "AMZN", "AVGO", "QCOM",
+    # Semis (Balanced posture credit floor target)
+    "AMD", "NVDA", "MU", "INTC", "MRVL",
+    # Financials
+    "BAC", "JPM", "WFC", "HBAN", "KEY",
+    # Energy
+    "XOM", "CVX", "BP", "OXY", "SLB", "KMI", "PBR", "RIG",
+    # Healthcare / pharma
+    "PFE", "ABBV", "CVS", "WBA",
+    # Consumer / retail
+    "KO", "WMT", "CL", "ORLY",
+    # Telecom / media / streaming
+    "T", "VZ", "DIS", "NFLX", "PARA", "WBD",
+    # Mobility / software
+    "PLTR", "SOFI", "UBER", "LYFT", "PINS", "SNAP",
+    # Auto / airlines / industrials
+    "F", "GM", "DAL", "LUV", "AAL", "CCL",
+    # Materials
+    "VALE", "KGC",
 })
 
 

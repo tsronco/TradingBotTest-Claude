@@ -36,10 +36,15 @@ def test_auto_open_only_on_sm_modes():
 def test_auto_open_param_block_defaults():
     c = config.get_mode("sm1000")
     assert c["bp_switch_threshold"] == 5000
-    assert c["wheelability_min"] == 85
-    # All SM modes now at 0.10 (Balanced for sm1000/sm2000, Conservative for sm500)
+    # 2026-05-21: sm1000/sm2000 wheelability_min dropped 85 → 80 (percentile-90
+    # was clipping at 81.8 on the small eligible pool); sm500 stays at 85.
+    assert c["wheelability_min"] == 80
+    assert config.get_mode("sm2000")["wheelability_min"] == 80
+    assert config.get_mode("sm500")["wheelability_min"] == 85
+    # 2026-05-21: sm500 risk cap raised 0.10 → 0.20 (a $50 cap can't fit
+    # any $1-wide spread's ~$80–95 net max loss). sm1000/sm2000 stay 0.10.
     assert c["max_risk_pct_equity"] == 0.10
-    assert config.get_mode("sm500")["max_risk_pct_equity"] == 0.10
+    assert config.get_mode("sm500")["max_risk_pct_equity"] == 0.20
     assert config.get_mode("sm2000")["max_risk_pct_equity"] == 0.10
     assert config.get_mode("sm1000")["min_net_credit"] == 0.05
     # sm500 Conservative posture: max_concurrent_spreads 3 -> 1
@@ -89,7 +94,7 @@ def test_sm500_conservative_posture_params():
     assert cfg["min_credit_to_width_pct"] == 0.40   # stricter than balanced
     assert cfg["trend_filter"] is True
     assert cfg["spread_stop_credit_mult"] == 2.0
-    assert cfg["max_risk_pct_equity"] == 0.10
+    assert cfg["max_risk_pct_equity"] == 0.20       # 2026-05-21: 0.10 → 0.20
     assert cfg["max_concurrent_spreads"] == 1
     assert cfg["max_underlying_price"] == 25         # retained intentionally
     from screener_core import SM_CURATED_UNIVERSE

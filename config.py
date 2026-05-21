@@ -380,7 +380,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
         "wheelability_min":          85,      # percentile threshold (0–100)
-        "max_risk_pct_equity":       0.10,    # hardened 2026-05-19: 0.20 -> 0.10
+        "max_risk_pct_equity":       0.20,    # 2026-05-21: 0.10 → 0.20 (sm500-only; $50 cap left no $1-wide spread that could fit)
         "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
         "max_concurrent_spreads":    1,       # Conservative: at most 1 open
         "account_floor":             300,     # skip if equity < $300
@@ -441,7 +441,7 @@ MODES = {
         # ── Auto-open param block ─────────────────────────────────────────
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
-        "wheelability_min":          85,
+        "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    2,
@@ -501,7 +501,7 @@ MODES = {
         # ── Auto-open param block ─────────────────────────────────────────
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
-        "wheelability_min":          85,
+        "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,

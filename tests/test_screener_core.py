@@ -58,9 +58,9 @@ def test_build_universe_returns_sorted():
 
 
 def test_universe_size_and_quality():
-    """Expanded universe: 105-130 names, valid/unique, ≥30 cheap (≤$25) names."""
+    """Expanded universe: 105-140 names, valid/unique, ≥30 cheap (≤$25) names."""
     u = screener_core.DEFAULT_CONSERVATIVE_UNIVERSE
-    assert 105 <= len(u) <= 130, f"Universe size {len(u)} not in [105, 130]"
+    assert 105 <= len(u) <= 140, f"Universe size {len(u)} not in [105, 140]"
     assert all(isinstance(s, str) and s == s.upper() and len(s) > 0 for s in u)
     assert len(u) == len(set(u)), "Universe has duplicates"
     KNOWN_CHEAP = {
@@ -119,9 +119,15 @@ def test_score_candidate_with_injected_api_get():
 
 
 def test_sm_curated_universe_excludes_junk_tier():
-    """The new SM list must NOT contain the cheap-junk names that the
-    old sm500 max_underlying_price:25 filter was selecting into."""
-    junk = {"NCLH", "HPQ", "KSS", "RIVN", "M", "NIO", "AAL", "WBD", "PARA"}
+    """Names explicitly NOT allowed back in even after the 2026-05-21 expansion.
+    AAL/WBD/PARA/RIVN/M were originally on this list but AAL was re-added on
+    user request (personal-favorite override), and WBD/PARA were re-added
+    because the post-2026-05-19 guardrails (33% credit-to-width, 2× credit
+    stop, trend filter, underlying tripwire) should catch the bad behavior.
+    RIVN, M, HPQ, NIO, NCLH, KSS, NOK, HOOD, GRAB, CLF stay out — these are
+    the persistently-declining or meme-tier names with no business case."""
+    junk = {"NCLH", "HPQ", "KSS", "RIVN", "M", "NIO", "HPE", "NOK", "HOOD",
+            "GRAB", "CLF", "SIRI"}
     assert junk.isdisjoint(set(screener_core.SM_CURATED_UNIVERSE))
 
 
@@ -134,9 +140,11 @@ def test_sm_curated_universe_is_subset_of_quality_names():
 
 
 def test_sm_curated_universe_size():
-    """Tight list — under 20 names so the screener's scoring loop
-    doesn't waste API calls on borderline tickers."""
-    assert 8 <= len(screener_core.SM_CURATED_UNIVERSE) <= 18
+    """List size guard — 2026-05-21 expansion from 12 → ~52 names to give
+    the percentile-rank scorer a real distribution to work with. Floor
+    stays at 8 so a future reset can't accidentally drop below the
+    point where percentile-90 becomes meaningless."""
+    assert 8 <= len(screener_core.SM_CURATED_UNIVERSE) <= 70
 
 
 def test_is_above_sma20_returns_true_when_price_above_average():
