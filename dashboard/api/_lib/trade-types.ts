@@ -8,7 +8,7 @@ export type OrderSide = StockSide | OptionSide;
 export type OrderType = 'market' | 'limit' | 'stop' | 'stop_limit' | 'trailing';
 export type Tif = 'day' | 'gtc';
 export type ContractType = 'put' | 'call';
-export type ClosedBy = null | 'manual' | 'expired' | 'assigned' | 'canceled';
+export type ClosedBy = null | 'manual' | 'expired' | 'assigned' | 'canceled' | 'bot_external';
 
 export type GradeLetter =
   | 'A+' | 'A' | 'A-'
@@ -138,6 +138,20 @@ export interface GradeRecord {
   entry: GradeEntry;
   hindsight: GradeHindsight | null;
   history: Array<{ entry: GradeEntry; hindsight: GradeHindsight }>;
+}
+
+/**
+ * Summary returned by `POST /api/trades/import` — backfills trade records
+ * from raw Alpaca FILL activities for positions opened outside the
+ * dashboard (e.g. directly on the Alpaca web UI, or by the bot before the
+ * dashboard's external-close detection was wired up).
+ */
+export interface TradeImportSummary {
+  imported: number;
+  skipped_existing: number;
+  spread_pairs_found: number;
+  errors: string[];
+  created_trade_ids: string[];
 }
 
 export const GRADE_LETTERS: GradeLetter[] = [

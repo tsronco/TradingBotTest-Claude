@@ -532,11 +532,202 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
     }
   }
 
-  // Path 3: stock — match a later opposite-side fill against the same symbol
-  // (Phase 2 keeps this simple — the user is expected to attach a close order via the modify/cancel UI
-  // in milestone 6. Skipping fancy FIFO stock matching here.)
+  // Path 3: external bot-close detection for filled options + spreads.
+  //
+  // The bot manages user-opened CSPs / spreads / wheel positions via its own
+  // Alpaca client. When it buys-to-close at 50% profit (or hits a stop, or
+  // closes a spread leg pair), the dashboard's trade record has no
+  // alpaca_close_order_id and the contract is just gone from positions. Path 1
+  // can't fire (no close id linked), Path 2 can't fire (option isn't past
+  // expiry yet). Without this path, the trade stays "open" forever even
+  // though the position is gone.
+  //
+  // Approach: check current positions for the contract; if missing, walk the
+  // /v2/account/activities FILL stream to find the matching closing fill(s),
+  // and pin a synthetic close using the fill's price/timestamp/order_id.
+  // Stocks are skipped (partial closes are common and FIFO matching is out of
+  // scope for v1 — the rationale that ships with Path 3 above for stocks).
+  if (trade.asset_class === 'option' && trade.contract_symbol) {
+    const closeInfo = await detectExternalOptionClose(mode, trade);
+    if (closeInfo) return closeInfo;
+  }
+  if (trade.asset_class === 'spread' && trade.spread) {
+    const closeInfo = await detectExternalSpreadClose(mode, trade);
+    if (closeInfo) return closeInfo;
+  }
 
   return null;
+}
+
+/**
+ * Check whether an open option position has been closed externally (by the
+ * bot's own Alpaca client, or by a hand-placed close on Alpaca's web UI).
+ * Returns a CloseInfo if the position is gone and a matching closing fill
+ * can be found in the account activity stream; returns null otherwise.
+ *
+ * Matching: position symbol == OCC. Closing fill side is the opposite of
+ * the open (STO → buy to close, BTO → sell to close).
+ */
+async function detectExternalOptionClose(mode: Mode, trade: Trade): Promise<CloseInfo | null> {
+  const occ = trade.contract_symbol!;
+  if (await positionExists(mode, occ)) return null;
+
+  const expectedSide = closingSideFor(trade.side);
+  if (!expectedSide) return null;
+
+  const fill = await findClosingFill(mode, trade, occ, expectedSide);
+  if (!fill) return null;
+
+  const fillPx = Number(fill.price);
+  if (!Number.isFinite(fillPx)) return null;
+
+  return {
+    closed_at: fill.transaction_time ?? new Date().toISOString(),
+    closed_avg_price: fillPx,
+    realized_pnl: realizedPnl(trade, fillPx),
+    closed_by: 'bot_external',
+    alpaca_close_order_id: fill.order_id ?? null,
+  };
+}
+
+/**
+ * Spread variant of detectExternalOptionClose. Both legs must be gone from
+ * positions before we declare the spread closed (a partial close — e.g. the
+ * short leg gets bought back but the long survives — should NOT close the
+ * trade record; the orphan-leg handler in the bot will pick it up).
+ *
+ * P&L uses the per-leg closing fill prices. closed_avg_price stores the net
+ * debit paid to close (positive when the spread is bought back, signed
+ * consistently with the open's net_credit).
+ */
+async function detectExternalSpreadClose(mode: Mode, trade: Trade): Promise<CloseInfo | null> {
+  const shortOcc = trade.spread!.short_leg.occ;
+  const longOcc = trade.spread!.long_leg.occ;
+
+  // Both legs must be absent
+  const [shortGone, longGone] = await Promise.all([
+    positionExists(mode, shortOcc).then((b) => !b),
+    positionExists(mode, longOcc).then((b) => !b),
+  ]);
+  if (!shortGone || !longGone) return null;
+
+  // Find closing fills for both legs. Short was STO → look for buy; long was
+  // BTO → look for sell.
+  const shortFill = await findClosingFill(mode, trade, shortOcc, 'buy');
+  const longFill = await findClosingFill(mode, trade, longOcc, 'sell');
+  if (!shortFill || !longFill) return null;
+
+  const shortPx = Number(shortFill.price);
+  const longPx = Number(longFill.price);
+  if (!Number.isFinite(shortPx) || !Number.isFinite(longPx)) return null;
+
+  const qty = trade.spread!.short_leg.qty;
+  const netDebit = shortPx - longPx;        // cost to close
+  const netCredit = trade.spread!.net_credit; // credit captured at open
+  const realized = Math.round((netCredit - netDebit) * 100 * qty * 100) / 100;
+
+  // Pick the later of the two fill timestamps for closed_at — the trade
+  // isn't truly closed until both legs are out.
+  const shortTs = shortFill.transaction_time ?? '';
+  const longTs = longFill.transaction_time ?? '';
+  const closedAt = (shortTs > longTs ? shortTs : longTs) || new Date().toISOString();
+
+  return {
+    closed_at: closedAt,
+    closed_avg_price: netDebit,
+    realized_pnl: realized,
+    closed_by: 'bot_external',
+    alpaca_close_order_id: shortFill.order_id ?? null,
+  };
+}
+
+/**
+ * True if Alpaca has an open position for `symbol`. Returns false ONLY on
+ * the 404 that Alpaca emits for a missing position (the expected case when
+ * a contract has been closed). Any other error returns true — conservative:
+ * a transient network/auth failure should NOT cause us to mark the trade
+ * closed; the cron retries each tick so detection simply defers.
+ */
+async function positionExists(mode: Mode, symbol: string): Promise<boolean> {
+  try {
+    const pos = await alpacaTrade<any>(mode, `/v2/positions/${encodeURIComponent(symbol)}`);
+    return !!pos;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // Alpaca returns 404 when the position doesn't exist — treat as "gone."
+    if (msg.includes(' 404 ')) return false;
+    // Any other error: be conservative and don't mark the trade closed.
+    console.error('positionExists fetch failed', symbol, e);
+    return true;
+  }
+}
+
+/**
+ * STO and BTO are opens; STC/BTC don't make sense as opens here. Returns the
+ * Alpaca activity-stream `side` of the matching CLOSE fill (lowercased to
+ * match Alpaca's `side` field).
+ */
+function closingSideFor(openSide: string): 'buy' | 'sell' | null {
+  if (openSide === 'STO') return 'buy';
+  if (openSide === 'BTO') return 'sell';
+  return null;
+}
+
+interface ActivityFill {
+  id?: string;
+  activity_type?: string;
+  transaction_time?: string;
+  symbol?: string;
+  side?: string;
+  price?: string;
+  qty?: string;
+  order_id?: string;
+}
+
+/**
+ * Walk the Alpaca FILL activity stream for a fill matching this contract
+ * symbol + side, after the trade's filled_at timestamp. Returns null when
+ * no matching fill has posted yet.
+ *
+ * Window: starts one day before the trade's fill (defensive — handles
+ * timezone edge cases) and runs through today. Bounded fetch of 100
+ * activities per page is more than enough for the typical hold (we're
+ * matching a single closing fill against a small recent window).
+ */
+async function findClosingFill(
+  mode: Mode,
+  trade: Trade,
+  occ: string,
+  side: 'buy' | 'sell',
+): Promise<ActivityFill | null> {
+  const filledAt = trade.filled_at;
+  if (!filledAt) return null;
+  const after = new Date(new Date(filledAt).getTime() - 86400000).toISOString().slice(0, 10);
+  let activities: ActivityFill[] = [];
+  try {
+    const raw = await alpacaTrade<ActivityFill[]>(mode, '/v2/account/activities', {
+      activity_types: 'FILL',
+      after,
+      page_size: 100,
+    });
+    activities = Array.isArray(raw) ? raw : [];
+  } catch (e) {
+    console.error('findClosingFill activities fetch failed', trade.id, occ, e);
+    return null;
+  }
+  // Filter to fills on this contract, opposite side, AFTER our open.
+  const openTs = Date.parse(filledAt);
+  const matches = activities.filter((a) => {
+    if (a.symbol !== occ) return false;
+    if ((a.side ?? '').toLowerCase() !== side) return false;
+    if (!a.transaction_time) return false;
+    return Date.parse(a.transaction_time) > openTs;
+  });
+  if (matches.length === 0) return null;
+  // Earliest matching fill after the open is the close — sort ascending.
+  matches.sort((a, b) =>
+    Date.parse(a.transaction_time ?? '') - Date.parse(b.transaction_time ?? ''));
+  return matches[0];
 }
 
 function realizedPnl(trade: Trade, closePx: number): number {

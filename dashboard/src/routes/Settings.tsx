@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ThresholdsTab } from '../components/settings/ThresholdsTab';
 import { TagsTab } from '../components/settings/TagsTab';
 import { RecoveryTab } from '../components/settings/RecoveryTab';
+import { ImportTab } from '../components/settings/ImportTab';
 
 type Tab = 'thresholds' | 'tags' | 'recovery';
 
@@ -37,6 +38,12 @@ export default function Settings() {
         {tab === 'thresholds' && <ThresholdsTab />}
         {tab === 'tags' && <TagsTab />}
         {tab === 'recovery' && <RecoveryTab />}
+      </div>
+
+      {/* import from alpaca — deliberately understated, bottom-of-page one-shot */}
+      <div className="mt-10">
+        <div className="text-dim text-[10px] tracking-[0.3em] mb-3">// ADVANCED — ONE-SHOT</div>
+        <ImportTab />
       </div>
 
       {/* footer ribbon */}

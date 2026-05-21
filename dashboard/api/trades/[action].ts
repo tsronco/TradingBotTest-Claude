@@ -5,7 +5,12 @@ import { requireAuth } from '../_lib/auth-guard.js';
 import { computeExposure } from '../_lib/exposure.js';
 import { runStubRuleChecks, runRuleChecks } from '../_lib/rule-check.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
-import { GRADE_LETTERS, type GradeLetter, type Trade } from '../_lib/trade-types.js';
+import {
+  GRADE_LETTERS,
+  type GradeLetter,
+  type Trade,
+  type TradeImportSummary,
+} from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey,
@@ -92,6 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET' && action === 'performance') return performance(req, res);
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
   if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
+  if (req.method === 'POST' && action === 'import') return importFromAlpaca(req, res);
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'method_not_allowed' });
@@ -938,6 +944,414 @@ function gradeToNum(letter: string): number {
   const order = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'];
   const idx = order.indexOf(letter);
   return idx === -1 ? 5 : 11 - idx;
+}
+
+// ---------------------------------------------------------------------------
+// Import from Alpaca activity log (settings → bottom-of-page one-shot)
+//
+// Backfills trade records for opening fills that landed in Alpaca but never
+// got a dashboard record — e.g. positions opened directly on Alpaca's web UI
+// before the dashboard's spread form shipped, or wheel positions the bot
+// opened/managed before the external-close detection was wired up. Only
+// creates records for OPENS (STO/BTO); the cron's external-close detection
+// path (cron/[job].ts detectExternalOptionClose / detectExternalSpreadClose)
+// will subsequently fill in close data on the next tick.
+//
+// Spread pairing heuristic: same underlying + same expiration + same fill
+// timestamp (within SPREAD_PAIR_WINDOW_MS) + opposite buy/sell + put or call.
+// Strikes must differ (otherwise it's a roll, not a vertical). Pairs once;
+// duplicate IDs are skipped via the per-month index check.
+// ---------------------------------------------------------------------------
+
+const SPREAD_PAIR_WINDOW_MS = 5_000;
+
+interface ImportRequest {
+  account: OrderDraft['account'];
+  since: string; // ISO timestamp
+}
+
+interface RawFill {
+  id?: string;
+  activity_type?: string;
+  transaction_time?: string;
+  symbol?: string;          // OCC for options, ticker for stocks
+  side?: string;            // 'buy' | 'sell' | 'sell_short'
+  price?: string;
+  qty?: string;
+  order_id?: string;
+}
+
+interface ParsedOcc {
+  underlying: string;
+  expiration: string;       // YYYY-MM-DD
+  type: 'put' | 'call';
+  strike: number;
+}
+
+/** Parse an OCC option symbol like `AAL260529P00012500` into its components. */
+export function parseOcc(occ: string): ParsedOcc | null {
+  // Underlying is the leading [A-Z]+ run; the rest is YYMMDD + P|C + strike*1000 (8 digits)
+  const m = /^([A-Z]+)(\d{6})([PC])(\d{8})$/.exec(occ);
+  if (!m) return null;
+  const [, underlying, ymd, pc, strike8] = m;
+  const yy = ymd.slice(0, 2);
+  const mm = ymd.slice(2, 4);
+  const dd = ymd.slice(4, 6);
+  const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
+  return {
+    underlying,
+    expiration: `${year}-${mm}-${dd}`,
+    type: pc === 'P' ? 'put' : 'call',
+    strike: Number(strike8) / 1000,
+  };
+}
+
+interface SpreadPair {
+  short: RawFill;             // STO leg
+  long: RawFill;              // BTO leg
+  short_occ: ParsedOcc;
+  long_occ: ParsedOcc;
+}
+
+/**
+ * Group raw fills into spread pairs + leftover singles.
+ *
+ * A spread pair is two fills that:
+ *   - share underlying + expiration + option type (both puts OR both calls)
+ *   - have opposite sides (one buy, one sell)
+ *   - have different strikes
+ *   - posted within SPREAD_PAIR_WINDOW_MS of each other
+ *   - have equal qty
+ *
+ * Determinism: fills are processed in chronological order. The first
+ * unpaired fill scans forward for a partner; once paired, both are
+ * consumed and excluded from further matching.
+ */
+export function groupFillsIntoSpreadsAndSingles(
+  fills: RawFill[],
+): { pairs: SpreadPair[]; singles: RawFill[] } {
+  const sorted = [...fills].sort((a, b) =>
+    Date.parse(a.transaction_time ?? '') - Date.parse(b.transaction_time ?? ''));
+  const consumed = new Set<number>();
+  const pairs: SpreadPair[] = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (consumed.has(i)) continue;
+    const a = sorted[i];
+    if (!a.symbol) continue;
+    const aOcc = parseOcc(a.symbol);
+    if (!aOcc) continue; // not an option — singles handling
+    const aTs = Date.parse(a.transaction_time ?? '');
+    if (!Number.isFinite(aTs)) continue;
+    const aSide = (a.side ?? '').toLowerCase();
+    if (aSide !== 'buy' && aSide !== 'sell' && aSide !== 'sell_short') continue;
+
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (consumed.has(j)) continue;
+      const b = sorted[j];
+      if (!b.symbol) continue;
+      const bOcc = parseOcc(b.symbol);
+      if (!bOcc) continue;
+      const bTs = Date.parse(b.transaction_time ?? '');
+      if (!Number.isFinite(bTs)) continue;
+      if (bTs - aTs > SPREAD_PAIR_WINDOW_MS) break; // sorted — nothing else fits
+      if (aOcc.underlying !== bOcc.underlying) continue;
+      if (aOcc.expiration !== bOcc.expiration) continue;
+      if (aOcc.type !== bOcc.type) continue;
+      if (aOcc.strike === bOcc.strike) continue;
+      if ((a.qty ?? '') !== (b.qty ?? '')) continue;
+      const bSide = (b.side ?? '').toLowerCase();
+      // Opposite sides — one buy + one sell
+      const aIsSell = aSide === 'sell' || aSide === 'sell_short';
+      const bIsSell = bSide === 'sell' || bSide === 'sell_short';
+      if (aIsSell === bIsSell) continue;
+      // Pair! Identify which is short (sell) vs long (buy).
+      const shortFill = aIsSell ? a : b;
+      const longFill = aIsSell ? b : a;
+      const shortOcc = aIsSell ? aOcc : bOcc;
+      const longOcc = aIsSell ? bOcc : aOcc;
+      pairs.push({ short: shortFill, long: longFill, short_occ: shortOcc, long_occ: longOcc });
+      consumed.add(i);
+      consumed.add(j);
+      break;
+    }
+  }
+
+  const singles = sorted.filter((_, i) => !consumed.has(i));
+  return { pairs, singles };
+}
+
+/**
+ * True iff `orderId` already appears on a trade record in the per-month
+ * index for the fill's month. Cheap dedup — we don't walk the whole index,
+ * just the one month the fill belongs to.
+ */
+async function orderIdAlreadyImported(orderId: string, fillTime: string): Promise<boolean> {
+  const month = fillTime.slice(0, 7);
+  const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+  for (const id of ids) {
+    const t = await kv().get<Trade>(tradeKey(id));
+    if (!t) continue;
+    if (t.alpaca_order_id === orderId) return true;
+    // Also catch spread legs where the short leg's order id matches
+    if (t.asset_class === 'spread' && t.spread) {
+      if ((t.spread.short_leg as any).order_id === orderId) return true;
+    }
+  }
+  return false;
+}
+
+async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
+  const body = (req.body ?? {}) as Partial<ImportRequest>;
+  const account = body.account as OrderDraft['account'];
+  const since = body.since;
+  if (!account || !since) return res.status(400).json({ error: 'account_and_since_required' });
+  if (account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    return res.status(403).json({ error: 'live_trading_disabled' });
+  }
+  const sinceTs = Date.parse(since);
+  if (!Number.isFinite(sinceTs)) return res.status(400).json({ error: 'invalid_since_timestamp' });
+
+  const summary: TradeImportSummary = {
+    imported: 0,
+    skipped_existing: 0,
+    spread_pairs_found: 0,
+    errors: [],
+    created_trade_ids: [],
+  };
+
+  const mode = modeFromAccount(account);
+  let activities: RawFill[] = [];
+  try {
+    const raw = await alpacaTrade<RawFill[]>(
+      mode as any,
+      '/v2/account/activities',
+      { activity_types: 'FILL', after: since.slice(0, 10), page_size: 500 },
+    );
+    activities = Array.isArray(raw) ? raw : [];
+  } catch (e) {
+    return res.status(502).json({
+      error: 'alpaca_activities_fetch_failed',
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Only OPENING fills are imported here — closes will be picked up by the
+  // cron's external-close detection on the next tick.
+  // For options: STO (sell_short) and BTO (buy that creates a new long).
+  // For stocks: skipped in v1 (FIFO matching not implemented; see brief).
+  // For spreads: detected by pairing two option fills.
+
+  const optionFills: RawFill[] = activities.filter((a) => {
+    if (!a.symbol) return false;
+    return parseOcc(a.symbol) !== null;
+  });
+
+  const { pairs, singles } = groupFillsIntoSpreadsAndSingles(optionFills);
+  summary.spread_pairs_found = pairs.length;
+
+  // Handle spread pairs (credit-spread-shaped only — STO + BTO at different strikes)
+  for (const pair of pairs) {
+    try {
+      const shortOrderId = pair.short.order_id ?? '';
+      const fillTime = pair.short.transaction_time ?? new Date().toISOString();
+      if (shortOrderId && await orderIdAlreadyImported(shortOrderId, fillTime)) {
+        summary.skipped_existing += 1;
+        continue;
+      }
+      const qty = Number(pair.short.qty ?? '1');
+      const shortPx = Number(pair.short.price ?? '0');
+      const longPx = Number(pair.long.price ?? '0');
+      if (!Number.isFinite(qty) || qty <= 0) {
+        summary.errors.push(`bad qty on ${pair.short.symbol}`);
+        continue;
+      }
+      // Identify which leg is which by strike for a credit spread:
+      //   put credit:  short strike HIGHER than long strike
+      //   call credit: short strike LOWER than long strike
+      // The pairing already enforced short=sell side / long=buy side; for now
+      // we only model put_credit (mirrors SpreadDetails.spread_type union).
+      if (pair.short_occ.type !== 'put') {
+        summary.errors.push(`only put_credit spreads supported in v1 (${pair.short.symbol})`);
+        continue;
+      }
+      if (pair.short_occ.strike < pair.long_occ.strike) {
+        summary.errors.push(`unrecognized spread shape on ${pair.short.symbol} (short strike below long strike)`);
+        continue;
+      }
+      const width = Math.abs(pair.short_occ.strike - pair.long_occ.strike);
+      const netCredit = shortPx - longPx;
+      const maxLoss = width - netCredit;
+      const id = await allocateTradeId();
+      const now = new Date(fillTime);
+      const trade: Trade = {
+        id,
+        account,
+        asset_class: 'spread',
+        symbol: pair.short_occ.underlying,
+        side: 'STO',
+        qty,
+        order_type: 'limit',
+        limit_price: -netCredit, // credit convention: negative net price
+        stop_price: null,
+        trail_pct: null,
+        tif: 'day',
+        contract_symbol: pair.short.symbol ?? null,
+        strike: pair.short_occ.strike,
+        expiration: pair.short_occ.expiration,
+        contract_type: 'put',
+        greeks_at_entry: null,
+        alpaca_order_id: shortOrderId,
+        alpaca_close_order_id: null,
+        submitted_at: fillTime,
+        filled_at: fillTime,
+        filled_avg_price: netCredit,
+        closed_at: null,
+        closed_avg_price: null,
+        realized_pnl: null,
+        closed_by: null,
+        tags: ['imported'],
+        // Imports have no user-assigned grade. The schema requires a letter,
+        // so we seed 'C' (neutral) and tag with 'imported' so the calibration
+        // math + grading consumers can filter these out if needed.
+        entry_grade: 'C',
+        entry_reasoning: 'Imported from Alpaca activity log (originally opened outside dashboard)',
+        journal: '',
+        exposure_at_submit: maxLoss * 100 * qty,
+        rule_warnings_at_entry: [],
+        modify_history: [],
+        schema: 1,
+        spread: {
+          spread_type: 'put_credit',
+          short_leg: {
+            occ: pair.short.symbol ?? '',
+            strike: pair.short_occ.strike,
+            entry_premium: shortPx,
+            fill_price: shortPx,
+            qty,
+          },
+          long_leg: {
+            occ: pair.long.symbol ?? '',
+            strike: pair.long_occ.strike,
+            entry_premium: longPx,
+            fill_price: longPx,
+            qty,
+          },
+          expiration: pair.short_occ.expiration,
+          width,
+          net_credit: netCredit,
+          max_loss: maxLoss,
+        },
+      };
+      await kv().set(tradeKey(id), trade);
+      await kv().set(gradeKey(id), {
+        trade_id: id,
+        entry: {
+          letter: trade.entry_grade,
+          reasoning: trade.entry_reasoning,
+          ts: fillTime,
+        },
+        hindsight: null,
+        history: [],
+      });
+      await kv().rpush(KV_KEYS.tradesIndexOpen, id);
+      const monthKey = tradesIndexMonthKey(currentMonth(now));
+      const monthList = (await kv().get<string[]>(monthKey)) ?? [];
+      await kv().set(monthKey, [...monthList, id]);
+      summary.imported += 1;
+      summary.created_trade_ids.push(id);
+    } catch (e) {
+      summary.errors.push(`spread ${pair.short.symbol}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // Handle single option fills that are OPENS
+  for (const f of singles) {
+    try {
+      const occ = parseOcc(f.symbol ?? '');
+      if (!occ) continue;
+      const sideRaw = (f.side ?? '').toLowerCase();
+      // STO = sell_short option (opening short); BTO = buy option that opens a long
+      // Alpaca options use side='sell' for short-option opens — we infer
+      // STO when there's no preceding long position. But for v1 we use the
+      // simple heuristic: 'sell_short' OR 'sell' = STO open, 'buy' = BTO open.
+      // Closes (BTC/STC) are matched by the cron's external-close path.
+      let side: 'STO' | 'BTO';
+      if (sideRaw === 'sell_short' || sideRaw === 'sell') side = 'STO';
+      else if (sideRaw === 'buy') side = 'BTO';
+      else continue;
+      const orderId = f.order_id ?? '';
+      const fillTime = f.transaction_time ?? new Date().toISOString();
+      if (orderId && await orderIdAlreadyImported(orderId, fillTime)) {
+        summary.skipped_existing += 1;
+        continue;
+      }
+      const qty = Number(f.qty ?? '1');
+      const price = Number(f.price ?? '0');
+      if (!Number.isFinite(qty) || qty <= 0) {
+        summary.errors.push(`bad qty on ${f.symbol}`);
+        continue;
+      }
+      const id = await allocateTradeId();
+      const now = new Date(fillTime);
+      const trade: Trade = {
+        id,
+        account,
+        asset_class: 'option',
+        symbol: occ.underlying,
+        side,
+        qty,
+        order_type: 'limit',
+        limit_price: price,
+        stop_price: null,
+        trail_pct: null,
+        tif: 'day',
+        contract_symbol: f.symbol ?? null,
+        strike: occ.strike,
+        expiration: occ.expiration,
+        contract_type: occ.type,
+        greeks_at_entry: null,
+        alpaca_order_id: orderId,
+        alpaca_close_order_id: null,
+        submitted_at: fillTime,
+        filled_at: fillTime,
+        filled_avg_price: price,
+        closed_at: null,
+        closed_avg_price: null,
+        realized_pnl: null,
+        closed_by: null,
+        tags: ['imported'],
+        entry_grade: 'C',
+        entry_reasoning: 'Imported from Alpaca activity log (originally opened outside dashboard)',
+        journal: '',
+        exposure_at_submit: price * 100 * qty,
+        rule_warnings_at_entry: [],
+        modify_history: [],
+        schema: 1,
+      };
+      await kv().set(tradeKey(id), trade);
+      await kv().set(gradeKey(id), {
+        trade_id: id,
+        entry: {
+          letter: trade.entry_grade,
+          reasoning: trade.entry_reasoning,
+          ts: fillTime,
+        },
+        hindsight: null,
+        history: [],
+      });
+      await kv().rpush(KV_KEYS.tradesIndexOpen, id);
+      const monthKey = tradesIndexMonthKey(currentMonth(now));
+      const monthList = (await kv().get<string[]>(monthKey)) ?? [];
+      await kv().set(monthKey, [...monthList, id]);
+      summary.imported += 1;
+      summary.created_trade_ids.push(id);
+    } catch (e) {
+      summary.errors.push(`single ${f.symbol}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  return res.status(200).json({ imported: summary });
 }
 
 async function updateTrade(req: VercelRequest, res: VercelResponse) {
