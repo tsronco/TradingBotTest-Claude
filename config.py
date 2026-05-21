@@ -379,7 +379,7 @@ MODES = {
         # Enable the screener-driven autonomous put-credit-spread opener.
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
-        "wheelability_min":          85,      # percentile threshold (0–100)
+        "wheelability_min":          75,      # 2026-05-21: 85 → 75 (52-name pool makes percentile-90 unreachable; 77.8 was the recurring ceiling post-expansion)
         "max_risk_pct_equity":       0.20,    # 2026-05-21: 0.10 → 0.20 (sm500-only; $50 cap left no $1-wide spread that could fit)
         "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
         "max_concurrent_spreads":    1,       # Conservative: at most 1 open

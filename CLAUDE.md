@@ -427,7 +427,7 @@ Posture table:
 |---|---|---|---|
 | `min_credit_to_width_pct` | 0.40 | 0.33 | — (gate inactive) |
 | `max_risk_pct_equity` | 0.20 *(0.10 → 0.20, 2026-05-21)* | 0.10 | n/a |
-| `wheelability_min` | 85 | 80 *(85 → 80, 2026-05-21)* | — |
+| `wheelability_min` | 75 *(85 → 75, 2026-05-21 EOD)* | 80 *(85 → 80, 2026-05-21)* | — |
 | `max_concurrent_spreads` | 1 | 2 / 3 | n/a |
 | `spread_stop_credit_mult` | 2.0 | 2.0 | None → falls back to 0.50 of max_loss |
 | `trend_filter` | True | True | unset → inactive |
@@ -447,7 +447,7 @@ Test counts after the hardening: **450 pytest** (bot) + dashboard unchanged.
 **Universe + threshold pass (2026-05-21).** First trading day under the hardened engine (2026-05-21) generated zero opens across all three SM accounts — every cycle, the same handful of names failed gates. Inspection showed the **12-name curated universe was too small** for percentile-90 to mean anything (recurring 81.8 best-score ceiling vs 85 floor), and **sm500's 10% cap couldn't fit any $1-wide spread** (~$80–95 net max loss > $50 cap). Three structural levers tuned, no behavioral guardrails relaxed:
 
 1. **`SM_CURATED_UNIVERSE` expanded 12 → 52 names.** Mix of mega-cap tech (AAPL/MSFT/GOOGL/AMZN/AVGO/QCOM), more semis (MRVL added), more financials (JPM/WFC/HBAN/KEY), broader energy (BP/PBR/RIG/CVX), pharma (ABBV/CVS/WBA), consumer staples (CL/WMT/ORLY), telecom/media (VZ/DIS/NFLX/PARA/WBD), mobility (PINS/SNAP), airlines (DAL/LUV/AAL/CCL), materials (VALE/KGC). Names that bled or are persistently declining (NIO, NCLH, HPQ, KSS, HPE, NOK, HOOD, GRAB, CLF, SIRI, RIVN, M) stay out. AAL/WBD/PARA were re-included despite being on the original post-bleed exclusion list — AAL on Tim's personal-favorite override, WBD/PARA on the bet that the 2026-05-19 guardrails (33% credit-to-width ratio for sm1000/sm2000, 40% for sm500, 2× credit stop, trend filter, underlying tripwire) catch lower-quality behavior on the way in.
-2. **`wheelability_min` 85 → 80** on sm1000/sm2000 only. sm500 stays at 85 (already gated by `max_underlying_price: 25`). Percentile-90 on a 52-name pool now means something; the prior 85 floor combined with a 12-name pool was effectively "must be the single best survivor by a comfortable margin," which the data showed never happened.
+2. **`wheelability_min` 85 → 80** on sm1000/sm2000. Initially sm500 was left at 85 (already gated by `max_underlying_price: 25`), but **first-day post-expansion logs showed sm500 scores clipping at 77.8** — the percentile-rank math means a bigger pool makes the same "best survivor" score LOWER, not higher, so the 85 floor became *harder* to clear after expansion, not easier. Dropped sm500 to **75** (same 2026-05-21 EOD) so the floor scales with the pool. The 40% credit-to-width gate + trend filter + tripwire are doing the actual quality work; the wheelability floor is a "don't take an obviously bad shot" guard.
 3. **`max_risk_pct_equity` 0.10 → 0.20** for sm500 only. sm1000/sm2000 stay at 0.10. sm500's $50 cap was structurally impossible to satisfy with any $1-wide spread; $100 cap fits cleanly. Tim acknowledged this is a slightly fatter posture for a $500 account but explicitly opted in to test it ("you can't make money if you don't try"). Watch P&L closely — if losses cluster on this account, revert.
 
 Bumped `test_universe_size_and_quality` upper bound 130 → 140 (added 9 names to `DEFAULT_CONSERVATIVE_UNIVERSE` so the SM list stays a subset). Test counts unchanged: **450 pytest** (bot) + dashboard unchanged.

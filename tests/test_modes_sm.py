@@ -40,7 +40,7 @@ def test_auto_open_param_block_defaults():
     # was clipping at 81.8 on the small eligible pool); sm500 stays at 85.
     assert c["wheelability_min"] == 80
     assert config.get_mode("sm2000")["wheelability_min"] == 80
-    assert config.get_mode("sm500")["wheelability_min"] == 85
+    assert config.get_mode("sm500")["wheelability_min"] == 75
     # 2026-05-21: sm500 risk cap raised 0.10 → 0.20 (a $50 cap can't fit
     # any $1-wide spread's ~$80–95 net max loss). sm1000/sm2000 stay 0.10.
     assert c["max_risk_pct_equity"] == 0.10
