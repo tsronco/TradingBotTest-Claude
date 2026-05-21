@@ -775,3 +775,14 @@
 {"timestamp": "2026-05-21T16:57:48.249348+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 46, "equity": 2000.0}}
 {"timestamp": "2026-05-21T16:57:48.250351+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-05-21T16:57:49.012882+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-21T17:06:55.082184+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-21T17:07:05.528099+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "CCL", "details": {"price": 25.27}}
+{"timestamp": "2026-05-21T17:07:06.256735+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SOFI", "details": {"price": 15.405}}
+{"timestamp": "2026-05-21T17:07:06.961656+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "T", "details": {"price": 25.25}}
+{"timestamp": "2026-05-21T17:07:11.005490+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PFE", "details": {"price": 25.79}}
+{"timestamp": "2026-05-21T17:07:11.675587+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "LYFT", "details": {"price": 13.225}}
+{"timestamp": "2026-05-21T17:07:12.392454+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "HBAN", "details": {"price": 15.715}}
+{"timestamp": "2026-05-21T17:07:13.042821+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 136.65}}
+{"timestamp": "2026-05-21T17:07:14.525525+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 46, "equity": 2000.0}}
+{"timestamp": "2026-05-21T17:07:14.526764+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-21T17:07:15.012246+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
