@@ -462,6 +462,10 @@ Dashboard shows the shortcut status: the sidebar manual chip gets a ⚙ marker (
 
 Test count after this change: **450 pytest** + **478 vitest / 78 files** (dashboard).
 
+**Changelog page (shipped 2026-05-21 EOD).** New `/changelog` route on the dashboard renders a hand-curated history of every shipped change. Data lives in `dashboard/src/data/changelog.ts` as a typed array (`ChangelogEntry[]`) sorted newest first; each entry has `date`, `category` (feature/fix/config/engine/ui/infra), `title` (one-liner), and optional `details` (expandable). Filter chips per category. Reachable via a small "changelog" link in the sidebar above the sign-out button.
+
+**Discipline:** every time we ship a real change — bot config, dashboard feature, engine tweak, bug fix, anything user-visible — prepend a new entry to `CHANGELOG`. Bot state-update commits (the every-10-minute jsonl pushes) do NOT belong here; they're data, not changes. Keep titles tight; put context in `details`. Two retroactive batches at ship: the first ~22 entries cover everything from initial bot setup (~2026-04-15) through this changelog page itself.
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)

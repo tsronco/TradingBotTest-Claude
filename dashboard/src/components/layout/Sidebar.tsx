@@ -128,6 +128,24 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="flex-1" />
 
+      {/* changelog link — small, above sign-out */}
+      <NavLink
+        to="/changelog"
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `navrow text-left px-4 py-1.5 border-t border-border flex items-center gap-2 text-[11px] ${
+            isActive ? 'text-hi' : 'text-dim'
+          }`
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
+            <span>changelog</span>
+          </>
+        )}
+      </NavLink>
+
       {/* sign out */}
       <button
         type="button"
