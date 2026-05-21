@@ -27,10 +27,16 @@ def test_sm_modes_inherit_manual_management_flags():
         assert cfg["spread_management"] is True
         assert cfg["wheel_skip_new_puts"] is True   # static CSP wheel stays OFF
 
-def test_auto_open_only_on_sm_modes():
+def test_auto_open_enabled_on_sm_and_manual_modes():
+    """auto_open_spreads is True on the three SM accounts plus manual
+    (shortcut $10k validation enabled 2026-05-22). Conservative,
+    aggressive, and live (real-money) stay OFF — those accounts either
+    have their own opener (cons/agg via wheel CSPs) or are user-only
+    (live)."""
     for m in SM:
         assert config.get_mode(m)["auto_open_spreads"] is True
-    for m in ("conservative", "aggressive", "manual", "live"):
+    assert config.get_mode("manual")["auto_open_spreads"] is True
+    for m in ("conservative", "aggressive", "live"):
         assert config.get_mode(m).get("auto_open_spreads", False) is False
 
 def test_auto_open_param_block_defaults():
@@ -119,27 +125,37 @@ def test_apply_mode_spread_stop_credit_mult_none_for_non_sm_modes():
     assert ws.SPREAD_STOP_CREDIT_MULT is None
 
 
-def test_non_sm_modes_have_no_hardened_engine_keys():
-    """The four non-SM modes must NOT carry any hardened-engine key.
-    If this ever fails, an SM-only param leaked into another mode and
-    will silently change its behavior."""
+def test_non_sm_modes_have_no_management_side_hardened_keys():
+    """Conservative, aggressive, and live must NOT carry any hardened-engine
+    management-side key. Manual is the deliberate exception (2026-05-22): it
+    now has opener-side hardened keys (min_credit_to_width_pct, trend_filter)
+    because auto_open_spreads is enabled there as a $10k validation shortcut.
+    But manual must still NOT have management-side keys (spread_stop_credit_mult,
+    underlying tripwire) so existing user-opened spreads keep their original
+    50%-of-max-loss stop contract."""
     import config
-    hardened_keys = {
-        "min_credit_to_width_pct",
-        "spread_stop_credit_mult",
-        "trend_filter",
-        "max_underlying_price",       # sm500-only filter
-    }
-    # auto_open_spreads is also SM-only but it pre-existed before this
-    # hardening — verify it's explicitly False on each non-SM mode (or
-    # absent) rather than treating it as a "leak."
+    # Management-side keys — must stay out of all non-SM modes including manual.
+    management_keys = {"spread_stop_credit_mult"}
+    # Opener-side keys — out of conservative/aggressive/live; allowed on manual.
+    opener_keys = {"min_credit_to_width_pct", "trend_filter", "max_underlying_price"}
+
     for mode_name in ("conservative", "aggressive", "manual", "live"):
         cfg = config.MODES[mode_name]
-        leaks = hardened_keys.intersection(cfg.keys())
-        assert not leaks, (
-            f"{mode_name} has hardened-engine keys leaked into its config: {leaks}"
+        mgmt_leaks = management_keys.intersection(cfg.keys())
+        assert not mgmt_leaks, (
+            f"{mode_name} has management-side hardened-engine keys leaked "
+            f"into its config: {mgmt_leaks}"
         )
-        # Belt + suspenders: also check auto_open_spreads is False or unset
+
+    # Opener-side keys still must not leak into cons/agg/live (manual is
+    # the deliberate exception).
+    for mode_name in ("conservative", "aggressive", "live"):
+        cfg = config.MODES[mode_name]
+        opener_leaks = opener_keys.intersection(cfg.keys())
+        assert not opener_leaks, (
+            f"{mode_name} has opener-side hardened-engine keys leaked: "
+            f"{opener_leaks}"
+        )
         assert cfg.get("auto_open_spreads", False) is False, (
             f"{mode_name} should not have auto_open_spreads enabled"
         )

@@ -452,6 +452,16 @@ Test counts after the hardening: **450 pytest** (bot) + dashboard unchanged.
 
 Bumped `test_universe_size_and_quality` upper bound 130 → 140 (added 9 names to `DEFAULT_CONSERVATIVE_UNIVERSE` so the SM list stays a subset). Test counts unchanged: **450 pytest** (bot) + dashboard unchanged.
 
+**Manual auto-spread shortcut (2026-05-22).** First-day post-expansion data on the SM accounts still produced zero fills (sm500 best score 77.8 vs 75 floor expected to clear Friday; sm1000/sm2000 still risk-budget capped). Rather than wait a week for SM validation before standing up a fourth account at $10k, Tim opted to **flip `auto_open_spreads: True` on manual** as a shortcut $10k validation — the manual paper account already exists, has $10k seed, auto-discovers symbols, and manages hand-opened spreads. Adding auto-open piggybacks on all that plumbing without provisioning a fourth Alpaca sub-account / workflow / cron / Discord webhook set.
+
+Posture: **opener-side** params mirror sm1000/sm2000 Balanced (wheelability_min 80, max_risk_pct_equity 0.10, min_credit_to_width_pct 0.33, trend_filter True, max_concurrent_spreads 4 — one higher than sm2000 to account for 10x the capital, account_floor $1000). Shares `SM_CURATED_UNIVERSE` via the late-binding block so the scoring distribution is comparable. **Management-side** params (spread_stop_credit_mult, underlying tripwire) deliberately NOT set — manual keeps its legacy 50%-of-max-loss stop for ALL spreads (hand-opened AND bot-opened) so existing user-opened spreads (e.g. the AAL put credit opened 2026-05-14) are not retroactively tightened mid-trade. Bot-opened spreads on manual thus carry a fatter potential loss per trade vs SM modes — accepted tradeoff for not surprising the user.
+
+Tradeoff explicit: this mixes bot-opens with user hand-opens on the same account, so the A/B vs Tim's judgment becomes muddier. To tell them apart, look at the `open_order_id` field on the spread state — `None` on hand-opened/adopted spreads, set on bot-opened. Future-Tim looking at #manual-trades during the validation window should not assume every spread is theirs.
+
+Dashboard shows the shortcut status: the sidebar manual chip gets a ⚙ marker (tooltip explains), and when manual is in the current account selection a one-liner appears under the chips: "⚙ manual · auto-open spreads on since 2026-05-22 (shortcut $10k validation)."
+
+Test count after this change: **450 pytest** + **478 vitest / 78 files** (dashboard).
+
 ### Congress copy — `congress-copy/`
 Tracks 4 politicians (`config.py → POLITICIANS`):
 - **G000583 — Josh Gottheimer** (original)

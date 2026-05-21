@@ -268,6 +268,43 @@ MODES = {
         "screener_strike_pct":    0.10,
         "screener_dte_min":       14,
         "screener_dte_max":       28,
+
+        # ── Auto-open spreads (enabled 2026-05-22 — shortcut $10k validation
+        # of the SM auto-spread engine on existing manual infrastructure)
+        # ───────────────────────────────────────────────────────────────────
+        # Mixes bot-opens with user hand-opens on the same account. Both
+        # flow through the same handle_spread management path (50% profit
+        # close, 2× credit stop, DTE floor); the distinguisher is the
+        # `open_order_id` field on bot-opened spreads (None on hand-opened
+        # / adopted spreads).
+        #
+        # Balanced posture (same as sm1000/sm2000) — at $10k equity the
+        # 10% risk cap is $1,000, comfortably fits any $5-wide spread.
+        "auto_open_spreads":         True,
+        "bp_switch_threshold":       5000,
+        "wheelability_min":          80,
+        "max_risk_pct_equity":       0.10,
+        "min_net_credit":            0.05,
+        "max_concurrent_spreads":    4,       # 10x sm2000 capital → +1 vs sm2000
+        "account_floor":             1000,    # 10x sm levels (skip if equity < $1k)
+        "earnings_exclusion_days":   7,
+        "max_opens_per_cycle":       1,
+        "short_put_otm_pct":         0.10,
+        "spread_dte_min":            14,
+        "spread_dte_max":            28,
+        "max_underlying_price":      None,    # no price filter at this capital level
+
+        # Opener-side hardened-engine guards (mirror sm1000/sm2000 Balanced
+        # posture). NOTE: management-side guards (spread_stop_credit_mult,
+        # underlying tripwire) are deliberately NOT set on manual — that
+        # would retroactively tighten the stop on existing user-opened
+        # spreads (e.g. the AAL put credit). Manual keeps its legacy 50%
+        # of max_loss stop for ALL spreads (hand-opened AND bot-opened).
+        # Bot-opened spreads here trade a slightly fatter potential loss
+        # per trade vs SM modes in exchange for not surprising the user
+        # mid-trade on hand-opened positions.
+        "min_credit_to_width_pct":   0.33,
+        "trend_filter":              True,
     },
 
     "live": {
@@ -565,3 +602,6 @@ from screener_core import SM_CURATED_UNIVERSE as _SM_CURATED_UNIVERSE
 MODES["sm500"]["screener_universe"] = _SM_CURATED_UNIVERSE
 MODES["sm1000"]["screener_universe"] = _SM_CURATED_UNIVERSE
 MODES["sm2000"]["screener_universe"] = _SM_CURATED_UNIVERSE
+# Manual auto-spread shortcut (2026-05-22) shares the SM curated universe
+# so the $10k validation runs against the same scoring distribution.
+MODES["manual"]["screener_universe"] = _SM_CURATED_UNIVERSE
