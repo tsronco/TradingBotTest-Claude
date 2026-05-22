@@ -1029,6 +1029,98 @@ def get_recent_daily_closes(symbol: str, n: int = 20) -> list:
         return []
 
 
+def find_contract_by_delta(underlying_symbol, option_type, target_delta,
+                            exp_min_days, exp_max_days):
+    """Find the contract whose Δ is closest to target_delta within the expiry
+    window. Returns a contract-shaped dict ({symbol, strike_price,
+    expiration_date}) matching `find_best_contract` so callers can swap.
+
+    Uses the chain-snapshot endpoint (returns greeks + quotes in one shot)
+    rather than the contracts endpoint (no greeks). Falls back to None if
+    no snapshot has a delta — production-time chain data sometimes lags
+    greek computation; we'd rather skip the symbol that cycle than commit
+    to a strike we couldn't price.
+
+    target_delta is signed — pass −0.40 for the short put leg, NOT 0.40.
+    """
+    from datetime import date as _date, timedelta as _td
+    today = _date.today()
+    exp_min = (today + _td(days=exp_min_days)).isoformat()
+    exp_max = (today + _td(days=exp_max_days)).isoformat()
+
+    try:
+        resp = _alpaca_request(
+            "GET",
+            f"{OPTIONS_DATA_URL}/options/snapshots/{underlying_symbol}",
+            headers=HEADERS,
+            params={
+                "feed":               "indicative",
+                "type":               option_type,
+                "expiration_date_gte": exp_min,
+                "expiration_date_lte": exp_max,
+                "limit":              1000,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        snapshots = resp.json().get("snapshots", {})
+    except Exception as e:
+        log(f"find_contract_by_delta({underlying_symbol}) snapshot fetch failed: "
+            f"{type(e).__name__}: {e}")
+        return None
+
+    if not snapshots:
+        return None
+
+    # Pick the closest-delta entry. OCC symbol encodes strike + expiry so we
+    # can hand back the same shape `find_best_contract` returns.
+    best = None
+    best_diff = float("inf")
+    for occ, snap in snapshots.items():
+        greeks = snap.get("greeks") or {}
+        d = greeks.get("delta")
+        if d is None:
+            continue
+        diff = abs(float(d) - target_delta)
+        if diff < best_diff:
+            best_diff = diff
+            best = (occ, snap)
+
+    if best is None:
+        return None
+
+    occ, snap = best
+    strike, expiration = _parse_occ_strike_expiry(occ)
+    if strike is None or expiration is None:
+        return None
+    return {
+        "symbol":           occ,
+        "strike_price":     str(strike),
+        "expiration_date":  expiration,
+    }
+
+
+def _parse_occ_strike_expiry(occ: str) -> tuple[float | None, str | None]:
+    """Pull strike (float) and expiration (YYYY-MM-DD) out of an OCC symbol.
+
+    OCC format: <UNDERLYING><YYMMDD><C|P><strike*1000 padded to 8 digits>
+    e.g. QQQ260618P00702000 -> strike 702.0, expiration 2026-06-18.
+    """
+    import re
+    m = re.match(r"^[A-Z]+(\d{6})[CP](\d{8})$", occ)
+    if not m:
+        return None, None
+    yymmdd, strike_str = m.group(1), m.group(2)
+    try:
+        year  = 2000 + int(yymmdd[0:2])
+        month = int(yymmdd[2:4])
+        day   = int(yymmdd[4:6])
+        strike = int(strike_str) / 1000.0
+        return strike, f"{year:04d}-{month:02d}-{day:02d}"
+    except (ValueError, IndexError):
+        return None, None
+
+
 def find_best_contract(underlying_symbol, option_type, target_strike,
                         exp_min_days, exp_max_days):
     """Find the contract closest to target_strike within the expiry window."""
@@ -2554,17 +2646,24 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
 
     threshold = cfg["wheelability_min"]
     otm_pct   = cfg["short_put_otm_pct"]
+    target_delta = cfg.get("short_put_target_delta")
     dte_min   = cfg["spread_dte_min"]
     dte_max   = cfg["spread_dte_max"]
     max_risk_pct = cfg["max_risk_pct_equity"]
+    bypass_syms = set(cfg.get("wheelability_bypass_symbols") or [])
 
-    # (6) iterate best→worst
-    for sym in sorted(norm, key=lambda s: norm[s], reverse=True):
-        if norm[sym] < threshold:
-            # everything after this scores lower too — stop scanning
-            log(f"[auto-spread] best remaining {sym} wheelability "
-                f"{norm[sym]:.1f} < {threshold} — no trade")
-            break
+    # (6) iterate best→worst, but always include bypass symbols even if
+    # their score is below the wheelability floor. ETFs (QQQ/SPY/IWM)
+    # always score low on `bid/strike` and would otherwise be dropped at
+    # the floor; bypass evaluates them on the strength of the other
+    # gates (credit/width, risk cap, trend, BP, earnings) instead.
+    sorted_syms = sorted(norm, key=lambda s: norm[s], reverse=True)
+    eligible_syms = [s for s in sorted_syms
+                     if norm[s] >= threshold or s in bypass_syms]
+    if not eligible_syms:
+        log(f"[auto-spread] best remaining wheelability < {threshold} "
+            f"and no bypass candidates — no trade")
+    for sym in eligible_syms:
 
         if earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"]):
             log(f"[auto-spread] {sym} earnings within "
@@ -2595,11 +2694,24 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             continue
 
         price = scored_full[sym]["price"]
-        short_target = round_strike(price * (1 - otm_pct), price)
-        short_contract = find_best_contract(sym, "put", short_target, dte_min, dte_max)
-        if not short_contract:
-            log(f"[auto-spread] {sym} no short put contract found — skipping")
-            continue
+        if target_delta is not None:
+            # Delta-based selection — self-calibrates across IV regimes so
+            # ETFs (QQQ/SPY/IWM) and high-IV single stocks both land on a
+            # short with comparable risk/reward characteristics.
+            short_contract = find_contract_by_delta(
+                sym, "put", target_delta, dte_min, dte_max
+            )
+            if not short_contract:
+                log(f"[auto-spread] {sym} no short put at Δ {target_delta:.2f} "
+                    f"(chain snapshot missing or no greeks) — skipping")
+                continue
+        else:
+            short_target = round_strike(price * (1 - otm_pct), price)
+            short_contract = find_best_contract(sym, "put", short_target,
+                                                 dte_min, dte_max)
+            if not short_contract:
+                log(f"[auto-spread] {sym} no short put contract found — skipping")
+                continue
         short_occ    = short_contract["symbol"]
         short_strike = float(short_contract["strike_price"])
         expiration   = short_contract["expiration_date"]

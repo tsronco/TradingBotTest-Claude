@@ -1144,3 +1144,304 @@ def test_auto_open_spread_proceeds_above_sma20(monkeypatch):
 
     ws._auto_open_spread(state, account, cfg)
     assert trend_check_reached["hit"] is True
+
+
+# ── Delta-target short-leg selection + ETF wheelability bypass (2026-05-22) ─
+#
+# Two changes to _auto_open_spread on manual mode:
+#   1. When cfg["short_put_target_delta"] is set, the short put is selected
+#      by closest delta (find_contract_by_delta) instead of by closest
+#      strike to price*(1-otm_pct).
+#   2. Symbols in cfg["wheelability_bypass_symbols"] skip the percentile
+#      floor and proceed to construction (all other gates still apply).
+#
+# SM/cons/agg/live modes leave these unset → byte-identical legacy behavior.
+
+
+def test_parse_occ_strike_expiry_extracts_correctly():
+    """OCC parse pulls strike + expiration in the QQQ format."""
+    s, e = ws._parse_occ_strike_expiry("QQQ260618P00702000")
+    assert s == 702.0
+    assert e == "2026-06-18"
+
+
+def test_parse_occ_strike_expiry_handles_long_underlying():
+    """SPY too — verify multi-letter prefix + sub-dollar strike."""
+    s, e = ws._parse_occ_strike_expiry("SPY260605P00540500")
+    assert s == 540.5
+    assert e == "2026-06-05"
+
+
+def test_parse_occ_strike_expiry_rejects_garbage():
+    """Malformed OCC returns (None, None) — fail-closed, no exception."""
+    s, e = ws._parse_occ_strike_expiry("not-an-occ")
+    assert s is None and e is None
+
+
+def test_find_contract_by_delta_picks_closest(monkeypatch):
+    """Given a chain snapshot, picks the contract whose Δ is nearest the
+    target. Verifies the snapshot-endpoint path (greeks in one shot) and
+    the closest-delta tiebreak."""
+    chain = {
+        "QQQ260618P00694000": {"greeks": {"delta": -0.249}},
+        "QQQ260618P00702000": {"greeks": {"delta": -0.307}},
+        "QQQ260618P00711000": {"greeks": {"delta": -0.382}},
+        "QQQ260618P00715000": {"greeks": {"delta": -0.418}},
+        "QQQ260618P00720000": {"greeks": {"delta": -0.467}},
+    }
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"snapshots": chain}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **kw: FakeResp())
+
+    c = ws.find_contract_by_delta("QQQ", "put", -0.40, 14, 28)
+    # Δ -0.418 is closest to -0.40
+    assert c is not None
+    assert c["symbol"] == "QQQ260618P00715000"
+    assert float(c["strike_price"]) == 715.0
+    assert c["expiration_date"] == "2026-06-18"
+
+
+def test_find_contract_by_delta_skips_entries_missing_greeks(monkeypatch):
+    """Some snapshots lag greek computation — those entries must be skipped,
+    not blow up the picker."""
+    chain = {
+        "QQQ260618P00702000": {"greeks": None},  # missing entirely
+        "QQQ260618P00715000": {"greeks": {"delta": -0.418}},
+        "QQQ260618P00720000": {},  # no greeks key at all
+    }
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"snapshots": chain}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **kw: FakeResp())
+
+    c = ws.find_contract_by_delta("QQQ", "put", -0.40, 14, 28)
+    assert c is not None
+    assert c["symbol"] == "QQQ260618P00715000"
+
+
+def test_find_contract_by_delta_returns_none_on_fetch_failure(monkeypatch):
+    """Network failure → None, no exception escapes."""
+    def boom(*a, **kw): raise RuntimeError("network")
+    monkeypatch.setattr(ws, "_alpaca_request", boom)
+    c = ws.find_contract_by_delta("QQQ", "put", -0.40, 14, 28)
+    assert c is None
+
+
+def test_find_contract_by_delta_returns_none_on_empty_chain(monkeypatch):
+    """No snapshots returned → None."""
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return {"snapshots": {}}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **kw: FakeResp())
+    c = ws.find_contract_by_delta("QQQ", "put", -0.40, 14, 28)
+    assert c is None
+
+
+def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
+    """When short_put_target_delta is set, the short leg is picked via
+    find_contract_by_delta — find_best_contract is NOT called for the
+    short. Long leg still uses find_best_contract (width-walk)."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["short_put_target_delta"] = -0.40
+    cfg["wheelability_bypass_symbols"] = ["QQQ"]
+    cfg["trend_filter"] = False
+    cfg["wheelability_min"] = 80
+    # Verify the manual bp_switch_threshold bump is in place (the test would
+    # silently fail-bypass without it on a $5000 BP setup like the one below).
+    assert cfg["bp_switch_threshold"] >= 10000
+
+    delta_calls = []
+    def fake_by_delta(sym, opt_type, target_delta, dmin, dmax):
+        delta_calls.append((sym, opt_type, target_delta))
+        return _contract("QQQ260618P00715000", 715.0, "2026-06-18")
+
+    strike_calls = []
+    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax):
+        strike_calls.append((sym, opt_type, target_strike))
+        # Long candidate one strike below
+        return _contract(f"QQQ260618P00{int((target_strike)*1000):08d}",
+                         target_strike, "2026-06-18")
+
+    monkeypatch.setattr(ws, "find_contract_by_delta", fake_by_delta)
+    monkeypatch.setattr(ws, "find_best_contract", fake_by_strike)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "5000"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: ["QQQ"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw: {"score": 5.0, "price": 720.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [700.0] * 20)
+    # short_q used by both legs after the picker
+    quotes = {
+        "QQQ260618P00715000": {"bid": 12.76, "ask": 13.08},  # short, ~$12.92 mid
+        "QQQ260618P00706000": {"bid": 9.79,  "ask": 9.91},   # $9 wide long
+        "QQQ260618P00705000": {"bid": 9.41,  "ask": 9.73},
+        "QQQ260618P00710000": {"bid": 11.05, "ask": 11.06},
+    }
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, qty, nc, limit_credit=None:
+                            opened.append({"short": s, "long": l, "nc": nc})
+                            or {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "5000"}, cfg)
+
+    # Delta-target was used for the short leg
+    assert len(delta_calls) == 1
+    assert delta_calls[0] == ("QQQ", "put", -0.40)
+    # Long leg uses strike-based search (width walk)
+    assert any(c[0] == "QQQ" and c[1] == "put" for c in strike_calls)
+
+
+def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
+    """SM/cons/agg/live config (no short_put_target_delta) → falls back to
+    the 10%-OTM strike rule via find_best_contract for the short leg."""
+    cfg = dict(SM_CFG)  # sm1000 — no short_put_target_delta key
+    cfg["wheelability_min"] = 0
+    cfg["trend_filter"] = False
+
+    delta_calls = []
+    monkeypatch.setattr(ws, "find_contract_by_delta",
+                        lambda *a, **kw: delta_calls.append(a) or None)
+
+    strike_calls = []
+    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax):
+        strike_calls.append((sym, target_strike))
+        return _contract("CHEAP260618P00018000", 18.0, "2026-06-18")
+    monkeypatch.setattr(ws, "find_best_contract", fake_by_strike)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "1000",
+                                 "options_buying_power": "1000"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: ["CHEAP"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw: {"score": 100.0, "price": 20.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.55})
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda *a, **kw: {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "1000"}, cfg)
+
+    # Delta path NOT taken
+    assert delta_calls == []
+    # OTM strike-based search WAS used
+    assert any(c[0] == "CHEAP" for c in strike_calls)
+
+
+def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
+    """A bypass symbol (QQQ) with low percentile score still reaches the
+    construction loop. Other gates must still gate — but the wheelability
+    floor is skipped for these symbols."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_bypass_symbols"] = ["QQQ"]
+    cfg["short_put_target_delta"] = None  # use strike path for simplicity
+    cfg["wheelability_min"] = 80
+    cfg["trend_filter"] = False
+
+    reached = []
+    def fake_find(sym, opt_type, target_strike, dmin, dmax):
+        reached.append(sym)
+        return None  # return None so construction terminates cleanly
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "find_contract_by_delta",
+                        lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "5000"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: ["SOFI", "QQQ"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw:
+                            {"score": 100.0, "price": 14.0} if sym == "SOFI"
+                            else {"score": 5.0, "price": 720.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.55})
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda *a, **kw: {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "5000"}, cfg)
+
+    # Both symbols reached construction — SOFI on score, QQQ on bypass
+    assert "QQQ" in reached, "bypass symbol must reach construction"
+    assert "SOFI" in reached, "high-score symbol still reaches construction"
+
+
+def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
+    """A non-bypass symbol with a low percentile score is filtered out
+    (legacy behavior). This is the regression check: I did not accidentally
+    open the gate for everything when adding bypass."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_bypass_symbols"] = ["QQQ"]
+    cfg["short_put_target_delta"] = None
+    cfg["wheelability_min"] = 80
+    cfg["trend_filter"] = False
+
+    reached = []
+    def fake_find(sym, opt_type, target_strike, dmin, dmax):
+        reached.append(sym)
+        return None
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "find_contract_by_delta",
+                        lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "5000"})
+    # JUNK has a low score AND is not in bypass → must be filtered.
+    # GOOD has a high score so percentile-rank puts JUNK at 0 (without
+    # a comparison symbol the singleton would normalize to 100 and reach
+    # construction by score, not bypass — masking the regression check).
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: ["JUNK", "GOOD"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw:
+                            {"score": 1.0,   "price": 50.0} if sym == "JUNK"
+                            else {"score": 1000.0, "price": 14.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.55})
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda *a, **kw: {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "5000"}, cfg)
+
+    assert "JUNK" not in reached, "non-bypass low-score symbol must NOT be reached"
+    assert "GOOD" in reached, "high-score symbol still reached (sanity)"

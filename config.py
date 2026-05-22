@@ -281,7 +281,15 @@ MODES = {
         # Balanced posture (same as sm1000/sm2000) — at $10k equity the
         # 10% risk cap is $1,000, comfortably fits any $5-wide spread.
         "auto_open_spreads":         True,
-        "bp_switch_threshold":       5000,
+        # bp_switch_threshold is the BP below which the engine prefers a
+        # spread over a CSP. Inherited as 5000 from the SM Balanced posture,
+        # but on a $10k manual account BP usually sits well above that — the
+        # gate would block every spread open. wheel_skip_new_puts is True on
+        # manual so a CSP would never be opened either; net effect with the
+        # inherited threshold was "auto-open does nothing." Bumped to 50000
+        # (effectively disabled) so the spread path is always taken when
+        # auto_open_spreads is True. (2026-05-22)
+        "bp_switch_threshold":       50000,
         "wheelability_min":          80,
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
@@ -293,6 +301,26 @@ MODES = {
         "spread_dte_min":            14,
         "spread_dte_max":            28,
         "max_underlying_price":      None,    # no price filter at this capital level
+
+        # Delta-based short-leg selection (2026-05-22). When set, overrides
+        # the static `short_put_otm_pct` rule. The 10%-OTM rule is calibrated
+        # for high-IV single stocks; on a low-IV ETF (QQQ/SPY/IWM) 10% OTM
+        # lands at Δ ≈ −0.03 with negligible premium. Targeting Δ −0.40
+        # self-calibrates across IV regimes: same anchor produces a 10%-OTM
+        # strike on a high-IV cheap stock and a near-ATM strike on a low-IV
+        # ETF, so credit-to-width passes for both. Manual-only — cons/agg/
+        # live/SM modes leave this unset and fall back to OTM-pct selection.
+        "short_put_target_delta":    -0.40,
+
+        # ETF wheelability bypass (2026-05-22). The percentile-80 floor
+        # exists to skip "obviously bad" candidates in a single-stock pool.
+        # ETFs always score low on `premium_yield = bid/strike` (denominator
+        # is hundreds of dollars), so they'd never clear the floor even with
+        # delta-targeting. Bypass keeps the percentile filter for single
+        # stocks but lets ETFs proceed to construction, where the 33%
+        # credit-to-width gate + risk cap + trend filter + BP + earnings
+        # do the real quality work.
+        "wheelability_bypass_symbols": ["QQQ", "SPY", "IWM"],
 
         # Opener-side hardened-engine guards (mirror sm1000/sm2000 Balanced
         # posture). NOTE: management-side guards (spread_stop_credit_mult,
