@@ -4,10 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { fmtUsd } from '../lib/format';
 import Sparkline from '../components/Sparkline';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export default function Watchlist() {
   const qc = useQueryClient();
   const [newSymbol, setNewSymbol] = useState('');
+  const { handle } = useDisplayName();
 
   const list = useQuery({
     queryKey: ['watchlist'],
@@ -43,7 +45,7 @@ export default function Watchlist() {
   return (
     <div className="p-3 md:p-6 max-w-4xl">
       <div className="text-mid text-[12px] mb-4">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/watchlist</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">cat symbols</span>
       </div>

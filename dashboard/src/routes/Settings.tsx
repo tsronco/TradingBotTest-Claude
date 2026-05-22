@@ -2,27 +2,30 @@ import { useState } from 'react';
 import { ThresholdsTab } from '../components/settings/ThresholdsTab';
 import { TagsTab } from '../components/settings/TagsTab';
 import { RecoveryTab } from '../components/settings/RecoveryTab';
+import { ProfileTab } from '../components/settings/ProfileTab';
 import { ImportTab } from '../components/settings/ImportTab';
+import { useDisplayName } from '../hooks/useDisplayName';
 
-type Tab = 'thresholds' | 'tags' | 'recovery';
+type Tab = 'profile' | 'thresholds' | 'tags' | 'recovery';
 
 export default function Settings() {
-  const [tab, setTab] = useState<Tab>('thresholds');
+  const [tab, setTab] = useState<Tab>('profile');
+  const { handle } = useDisplayName();
 
   return (
     <div className="p-3 md:p-6 max-w-4xl">
       <div className="text-mid text-[12px]">
-        <span className="text-cyan">tim@dash</span>
+        <span className="text-cyan">{handle}@dash</span>
         <span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/settings</span>
         <span className="text-dim">$</span>{' '}
         <span className="text-fg">edit --tab={tab}</span>
       </div>
       <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Settings</h1>
-      <div className="text-mid text-[12px]"><span className="text-dim">// preferences · thresholds · recovery</span></div>
+      <div className="text-mid text-[12px]"><span className="text-dim">// profile · thresholds · tags · recovery</span></div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {(['thresholds', 'tags', 'recovery'] as Tab[]).map((t) => (
+        {(['profile', 'thresholds', 'tags', 'recovery'] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -35,6 +38,7 @@ export default function Settings() {
       </div>
 
       <div className="mt-6">
+        {tab === 'profile' && <ProfileTab />}
         {tab === 'thresholds' && <ThresholdsTab />}
         {tab === 'tags' && <TagsTab />}
         {tab === 'recovery' && <RecoveryTab />}
@@ -57,7 +61,7 @@ export default function Settings() {
 
       {/* bottom prompt */}
       <div className="mt-4 text-[12px]">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/settings</span><span className="text-dim">$</span>{' '}
         <span className="caret" />
       </div>

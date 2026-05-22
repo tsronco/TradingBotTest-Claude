@@ -6,6 +6,7 @@ import { usePeriod, useGranularity, type Period } from '../hooks/usePeriod';
 import { fmtUsd, fmtPct } from '../lib/format';
 import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
 import type { Mode } from '../lib/account-utils';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 interface AcctResp { account: { equity: string; last_equity: string } }
 
@@ -28,6 +29,7 @@ const HOME_MODE_TO_CARD: Record<Mode, { acctKey: HomeAcctKey; label: string }> =
 export default function Home() {
   const [mode] = useAccount();
   const [period] = usePeriod();
+  const { handle } = useDisplayName();
   const [gran] = useGranularity();
 
   // Aggregate equity across all accounts (always pull all — filter is presentational only)
@@ -95,7 +97,7 @@ export default function Home() {
     <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">portfolio</span>
         <span className="text-amber">--today</span>
@@ -170,7 +172,7 @@ export default function Home() {
 
       {/* bottom prompt */}
       <div className="mt-4 text-[12px]">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>{' '}
         <span className="caret" />
       </div>

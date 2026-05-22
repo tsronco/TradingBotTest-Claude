@@ -120,4 +120,36 @@ describe('gradeTrade', () => {
     expect(result.parse_failed).toBe(true);
     expect(result.raw).toBe('junk');
   });
+
+  it('injects the configured display name into the system prompt', async () => {
+    // kv.get is shared between rules:* lookups and config:display_name.
+    // Return the name only for the display-name key; pass-through for others.
+    kvGet.mockImplementation((key: string) => {
+      if (key === 'config:display_name') return Promise.resolve('Pat');
+      return Promise.resolve(null);
+    });
+    claudeCreate.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '{"letter":"B","review":"ok","calibration":"matched","tendencies_hit":[]}' }],
+      usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 0 },
+    });
+    const { gradeTrade } = await import('../../api/_lib/grading');
+    await gradeTrade({ trade, bars: [] });
+    const sysBlocks = claudeCreate.mock.calls[0][0].system as Array<{ text: string }>;
+    const sysText = sysBlocks.map((b) => b.text).join('\n');
+    expect(sysText).toContain('(Pat)');
+    expect(sysText).not.toContain('(Tim)');
+  });
+
+  it('falls back to "the trader" when no display name is configured', async () => {
+    // kvGet already returns null by default (see beforeEach)
+    claudeCreate.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '{"letter":"B","review":"ok","calibration":"matched","tendencies_hit":[]}' }],
+      usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 0 },
+    });
+    const { gradeTrade } = await import('../../api/_lib/grading');
+    await gradeTrade({ trade, bars: [] });
+    const sysBlocks = claudeCreate.mock.calls[0][0].system as Array<{ text: string }>;
+    const sysText = sysBlocks.map((b) => b.text).join('\n');
+    expect(sysText).toContain('(the trader)');
+  });
 });

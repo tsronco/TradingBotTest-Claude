@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
+import { useDisplayName } from '../../hooks/useDisplayName';
 
 function useEtClock(): string {
   const [now, setNow] = useState(() => new Date());
@@ -22,12 +23,14 @@ const TMUX_WINDOWS: { idx: number; label: string; match: (path: string) => boole
   { idx: 1, label: 'home',      match: (p) => p === '/' },
   { idx: 2, label: 'positions', match: (p) => p.startsWith('/positions') },
   { idx: 3, label: 'orders',    match: (p) => p.startsWith('/orders') },
-  { idx: 4, label: 'lookup',    match: (p) => p.startsWith('/lookup') },
+  { idx: 4, label: 'trades',    match: (p) => p.startsWith('/trades') || p.startsWith('/trade/') },
+  { idx: 5, label: 'lookup',    match: (p) => p.startsWith('/lookup') },
 ];
 
 export default function AppShell() {
   const clock = useEtClock();
   const location = useLocation();
+  const { handle } = useDisplayName();
   const activeIdx = TMUX_WINDOWS.find((w) => w.match(location.pathname))?.idx ?? 1;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -70,7 +73,7 @@ export default function AppShell() {
           <div className="flex items-center text-dim">
             <span className="text-mid">tmux</span>
             <span className="px-1 text-dim">·</span>
-            <span className="text-fg">tim@dash</span>
+            <span className="text-fg">{handle}@dash</span>
             <span className="text-dim">:</span>
             <span className="text-cyan">~/portfolio</span>
             <span className="text-dim ml-1 hidden md:inline">

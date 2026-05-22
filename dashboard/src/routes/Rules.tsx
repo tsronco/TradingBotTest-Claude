@@ -7,6 +7,7 @@ import ProposalsSection from '../components/rules/ProposalsSection';
 import CheatsheetsSection from '../components/rules/CheatsheetsSection';
 import GoalsSection from '../components/rules/GoalsSection';
 import { useBotRules, useProposals } from '../hooks/useRules';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 const SECTIONS = [
   { key: 'bot',         title: 'Bot rules',         defaultOpen: true  },
@@ -21,6 +22,7 @@ const SECTIONS = [
 const STORAGE_KEY = 'rules:expanded';
 
 export default function Rules() {
+  const { handle } = useDisplayName();
   const { data: bot } = useBotRules();
   const { data: proposalData } = useProposals();
   const openProposalCount = (proposalData?.proposals ?? []).filter((p) => p.status === 'open').length;
@@ -56,7 +58,7 @@ export default function Rules() {
   return (
     <div className="p-3 md:p-6 max-w-5xl">
       <div className="text-mid text-[12px] mb-4">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/rules</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">cat playbook</span>
       </div>

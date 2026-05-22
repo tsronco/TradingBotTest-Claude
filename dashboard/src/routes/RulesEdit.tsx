@@ -6,16 +6,18 @@ import TriggerBuilder from '../components/rules/TriggerBuilder';
 import type {
   ManualRule, Pattern, Cheatsheet, Goal, Proposal, Severity, Trigger,
 } from '../lib/rules-types';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export default function RulesEdit() {
   const [params] = useSearchParams();
   const section = params.get('section') ?? 'manual';
   const id = params.get('id');
+  const { handle } = useDisplayName();
 
   return (
     <div className="p-3 md:p-6 max-w-2xl">
       <div className="text-mid text-[12px] mb-4">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/rules/edit</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">{id ? `vim ${section} ${id}` : `new ${section}`}</span>
       </div>

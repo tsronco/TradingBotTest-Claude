@@ -2,18 +2,20 @@ import { NavLink } from 'react-router-dom';
 import { useLogout } from '../../hooks/useAuth';
 import { useAccount, type AccountMode } from '../../hooks/useAccount';
 import { accountsForSelection } from '../../lib/account-utils';
+import { useDisplayName } from '../../hooks/useDisplayName';
 
+// Top nav — daily trading + research, in usage order.
+// Settings is grouped at the bottom with changelog and sign-out (account-actions cluster).
 const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
   { to: '/', label: 'home', key: '1', end: true },
   { to: '/positions', label: 'positions', key: '2' },
   { to: '/orders', label: 'orders', key: '3' },
-  { to: '/lookup/SPY', label: 'lookup', key: '4' },
-  { to: '/settings', label: 'settings', key: '5' },
-  { to: '/trades', label: 'trades', key: '6' },
-  { to: '/rules', label: 'rules', key: '7' },
-  { to: '/watchlist', label: 'watchlist', key: '8' },
-  { to: '/calendar', label: 'calendar', key: '9' },
-  { to: '/performance', label: 'performance', key: '0' },
+  { to: '/trades', label: 'trades', key: '4' },
+  { to: '/lookup/SPY', label: 'lookup', key: '5' },
+  { to: '/watchlist', label: 'watchlist', key: '6' },
+  { to: '/calendar', label: 'calendar', key: '7' },
+  { to: '/rules', label: 'rules', key: '8' },
+  { to: '/performance', label: 'performance', key: '9' },
 ];
 
 const acctOpts: { value: AccountMode; label: string; key: string }[] = [
@@ -36,6 +38,7 @@ const acctOpts: { value: AccountMode; label: string; key: string }[] = [
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useLogout();
   const [mode, setMode] = useAccount();
+  const { upper: nameUpper } = useDisplayName();
 
   return (
     <aside className="term-sidebar border-r border-border bg-panel/40 min-h-[calc(100vh-28px)] flex flex-col">
@@ -43,7 +46,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="p-4 border-b border-border">
         <div className="text-dim text-[10px] tracking-[0.3em]">/// SYS</div>
         <div className="mt-2 leading-none">
-          <div className="text-hi text-[20px] font-bold tracking-[0.18em]">TIM_DASH</div>
+          <div className="text-hi text-[20px] font-bold tracking-[0.18em]">{nameUpper}_DASH</div>
           <div className="text-mid text-[10px] tracking-[0.45em] mt-1">T R A D I N G</div>
         </div>
         <div className="mt-3 text-[10px] text-dim flex items-center gap-1.5">
@@ -128,34 +131,54 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="flex-1" />
 
-      {/* changelog link — small, above sign-out */}
-      <NavLink
-        to="/changelog"
-        onClick={onNavigate}
-        className={({ isActive }) =>
-          `navrow text-left px-4 py-1.5 border-t border-border flex items-center gap-2 text-[11px] ${
-            isActive ? 'text-hi' : 'text-dim'
-          }`
-        }
-      >
-        {({ isActive }) => (
-          <>
-            <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
-            <span>changelog</span>
-          </>
-        )}
-      </NavLink>
+      {/* account-actions cluster — settings · changelog · sign-out grouped together at the bottom */}
+      <div className="border-t border-border">
+        <div className="px-4 py-1.5 text-[10px] tracking-[0.3em] text-dim">ACCOUNT</div>
+        <NavLink
+          to="/settings"
+          end={false}
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            `navrow max-md:py-2.5 flex items-center gap-2 px-4 py-1.5 border-l-2 text-[12px] ${
+              isActive ? 'active border-hi' : 'border-transparent text-fg'
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
+              <span className={isActive ? 'text-hi' : ''}>settings</span>
+            </>
+          )}
+        </NavLink>
 
-      {/* sign out */}
-      <button
-        type="button"
-        onClick={() => logout.mutate(undefined, { onSuccess: () => (window.location.href = '/login') })}
-        className="navrow text-left px-4 py-2.5 border-t border-border text-fg flex items-center gap-2"
-      >
-        <span className="text-red">⏻</span>
-        <span>sign_out</span>
-        <span className="ml-auto text-dim text-[10px]">^D</span>
-      </button>
+        <NavLink
+          to="/changelog"
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            `navrow text-left px-4 py-1.5 flex items-center gap-2 text-[11px] ${
+              isActive ? 'text-hi' : 'text-dim'
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
+              <span>changelog</span>
+            </>
+          )}
+        </NavLink>
+
+        <button
+          type="button"
+          onClick={() => logout.mutate(undefined, { onSuccess: () => (window.location.href = '/login') })}
+          className="navrow text-left px-4 py-2.5 border-t border-border text-fg flex items-center gap-2 w-full"
+        >
+          <span className="text-red">⏻</span>
+          <span>sign_out</span>
+          <span className="ml-auto text-dim text-[10px]">^D</span>
+        </button>
+      </div>
     </aside>
   );
 }

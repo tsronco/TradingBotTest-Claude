@@ -8,6 +8,7 @@ import { useAccount } from '../../hooks/useAccount';
 import type { AccountMode } from '../../hooks/useAccount';
 import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../../lib/account-utils';
 import { GreekHeader } from '../GreekLabel';
+import { daysToExpiration } from '../../lib/option-symbol';
 
 function accountForMode(mode: AccountMode): AnyAccountId {
   return modeToAccount(selectModeFromAccountMode(mode));
@@ -51,14 +52,45 @@ function fmtUSDate(iso: string): string {
   return `${m}/${d}/${y}`;
 }
 
+function fmtUSDateWithDTE(iso: string): string {
+  const dte = daysToExpiration(iso);
+  const dteLabel = dte < 0 ? 'expired' : `${dte} DTE`;
+  return `${fmtUSDate(iso)} (${dteLabel})`;
+}
+
 type SideFilter = 'puts' | 'calls' | 'both';
 
-export default function OptionsChain({ symbol }: { symbol: string }) {
+export interface ChainStrikeClick {
+  contract: OptionContract;
+  /** Which price the user clicked: bid → sell-side, ask → buy-side, row → row click w/o specific side */
+  side: 'bid' | 'ask' | 'row';
+  /** The price under the user's finger when they clicked. NaN when missing. */
+  price: number;
+}
+
+interface Props {
+  symbol: string;
+  /**
+   * If provided, the row + bid/ask buttons call this instead of navigating to /order/new.
+   * Used by the SpreadOrderForm to populate legs directly without leaving the page.
+   */
+  onPriceClick?: (info: ChainStrikeClick) => void;
+  /** Force a side filter (e.g. spread builder shows puts-only). When set, the side toggle is hidden. */
+  sideLock?: SideFilter;
+  /** Force a specific expiration (e.g. spread builder syncs to its own dropdown). When set, hides the chain's expiration dropdown. */
+  expirationLock?: string;
+  /** Optional small label rendered next to the expiration row (e.g. "pick SHORT leg"). */
+  contextLabel?: ReactNode;
+}
+
+export default function OptionsChain({ symbol, onPriceClick, sideLock, expirationLock, contextLabel }: Props) {
   // Greeks default OFF (both desktop and mobile) — keeps the mobile chain narrow.
   const [showAllGreeks, setShowAllGreeks] = useState(false);
-  const [selectedExp, setSelectedExp] = useState<string | null>(null);
+  const [selectedExpState, setSelectedExp] = useState<string | null>(null);
+  const selectedExp = expirationLock ?? selectedExpState;
   const [showAllStrikes, setShowAllStrikes] = useState(false);
-  const [side, setSide] = useState<SideFilter>('puts');
+  const [sideState, setSide] = useState<SideFilter>(sideLock ?? 'puts');
+  const side: SideFilter = sideLock ?? sideState;
   const navigate = useNavigate();
   const [accountMode] = useAccount();
 
@@ -110,11 +142,13 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
   }, [expirationsQ.data]);
 
   // Default selection = nearest expiration once data arrives.
+  // Skip when expirationLock is set (parent controls it).
   useEffect(() => {
-    if (expirations.length > 0 && (!selectedExp || !expirations.includes(selectedExp))) {
+    if (expirationLock) return;
+    if (expirations.length > 0 && (!selectedExpState || !expirations.includes(selectedExpState))) {
       setSelectedExp(expirations[0]);
     }
-  }, [expirations, selectedExp]);
+  }, [expirations, selectedExpState, expirationLock]);
 
   if (expirationsQ.isLoading || !expirationsQ.data) {
     return <div className="text-muted text-sm">Loading options chain…</div>;
@@ -160,41 +194,50 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
     <div>
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap text-[11px]">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-dim tracking-[0.15em]">EXP</span>
-          <select
-            value={exp}
-            onChange={(e) => setSelectedExp(e.target.value)}
-            className="bg-panel-2 text-fg border border-border rounded-sm px-2 py-0.5 text-[11px] focus:outline-none focus:border-hi"
-          >
-            {expirations.map((e) => (
-              <option key={e} value={e}>{fmtUSDate(e)}</option>
-            ))}
-          </select>
+          {expirationLock ? null : (
+            <>
+              <span className="text-dim tracking-[0.15em]">EXP</span>
+              <select
+                value={exp}
+                onChange={(e) => setSelectedExp(e.target.value)}
+                className="bg-panel-2 text-fg border border-border rounded-sm px-2 py-0.5 text-[11px] focus:outline-none focus:border-hi"
+              >
+                {expirations.map((e) => (
+                  <option key={e} value={e}>{fmtUSDateWithDTE(e)}</option>
+                ))}
+              </select>
+            </>
+          )}
           {isSnapshotsLoading && (
             <span className="text-dim text-[10px] tracking-[0.15em] animate-pulse ml-1">
               loading quotes…
             </span>
           )}
 
-          <div className="inline-flex gap-1 ml-1">
-            {(['puts', 'calls', 'both'] as const).map((s) => {
-              const isActive = side === s;
-              const activeColor =
-                s === 'puts' ? (isActive ? 'bg-red/15 text-red border-red/60' : '')
-                : s === 'calls' ? (isActive ? 'bg-cyan/15 text-cyan border-cyan/60' : '')
-                : (isActive ? 'bg-hi/15 text-hi border-hi/60' : '');
-              return (
-                <button
-                  key={s}
-                  onClick={() => setSide(s)}
-                  className={`pbtn ${isActive ? 'active' : ''} ${activeColor}`}
-                  type="button"
-                >
-                  [{s}{isActive ? '*' : ''}]
-                </button>
-              );
-            })}
-          </div>
+          {sideLock ? null : (
+            <div className="inline-flex gap-1 ml-1">
+              {(['puts', 'calls', 'both'] as const).map((s) => {
+                const isActive = side === s;
+                const activeColor =
+                  s === 'puts' ? (isActive ? 'bg-red/15 text-red border-red/60' : '')
+                  : s === 'calls' ? (isActive ? 'bg-cyan/15 text-cyan border-cyan/60' : '')
+                  : (isActive ? 'bg-hi/15 text-hi border-hi/60' : '');
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setSide(s)}
+                    className={`pbtn ${isActive ? 'active' : ''} ${activeColor}`}
+                    type="button"
+                  >
+                    [{s}{isActive ? '*' : ''}]
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {contextLabel && (
+            <div className="text-cyan text-[10px] tracking-[0.15em] uppercase ml-1">{contextLabel}</div>
+          )}
 
           {isFiltered ? (
             <button
@@ -278,20 +321,72 @@ export default function OptionsChain({ symbol }: { symbol: string }) {
               dividerInserted = true;
             }
 
+            // Build the click handler once per row. When onPriceClick is provided
+            // (embedded mode — e.g. SpreadOrderForm), bid/ask cells call it with
+            // the side hint. Otherwise the row navigates to /order/new with the
+            // clicked side + price prefilled (Robinhood-style behaviour).
+            //
+            // Bid → STO (you SELL at the bid). Ask → BTO (you BUY at the ask).
+            // Row click (anywhere not on a price button) defaults to STO @ mid,
+            // matching the wheel-first default in the order form.
+            function dispatchPriceClick(c: OptionContract, side: 'bid' | 'ask' | 'row', price: number) {
+              if (onPriceClick) {
+                onPriceClick({ contract: c, side, price });
+                return;
+              }
+              const params = new URLSearchParams({
+                contract: c.symbol,
+                action: 'open',
+                account: accountForMode(accountMode),
+              });
+              if (Number.isFinite(price) && price > 0) {
+                params.set('price', price.toFixed(2));
+              }
+              if (side === 'bid') params.set('side', 'STO');
+              else if (side === 'ask') params.set('side', 'BTO');
+              navigate(`/order/new?${params.toString()}`);
+            }
+
             for (const c of rows) {
               const cs = snapshots[c.symbol] ?? {};
               const g = cs.greeks ?? { delta: 0, gamma: 0, theta: 0, vega: 0 };
               const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
+              const bid = cs.latestQuote?.bp;
+              const ask = cs.latestQuote?.ap;
               elements.push(
                 <tr
                   key={c.symbol}
                   className="border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/order/new?contract=${c.symbol}&action=open&account=${accountForMode(accountMode)}`)}
+                  onClick={() => dispatchPriceClick(c, 'row', (bid ?? 0) > 0 && (ask ?? 0) > 0 ? ((bid! + ask!) / 2) : (bid ?? ask ?? 0))}
                 >
                   <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
                   <td className={`px-2 py-1 ${klass} font-semibold`}>{c.type === 'call' ? 'C' : 'P'}</td>
-                  <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.bp?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
-                  <td className="px-2 py-1 text-right text-fg">{cs.latestQuote?.ap?.toFixed(2) ?? <span className="text-dim">—</span>}</td>
+                  <td className="px-2 py-1 text-right p-0">
+                    {bid != null ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); dispatchPriceClick(c, 'bid', bid); }}
+                        title={`Sell at bid ${bid.toFixed(2)}`}
+                        aria-label={`bid ${bid.toFixed(2)} — sell to open`}
+                        className="w-full px-2 py-0.5 text-right text-red hover:bg-red/15 active:bg-red/25 transition-colors rounded-sm tnum"
+                      >
+                        {bid.toFixed(2)}
+                      </button>
+                    ) : <span className="text-dim px-2">—</span>}
+                  </td>
+                  <td className="px-2 py-1 text-right p-0">
+                    {ask != null ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); dispatchPriceClick(c, 'ask', ask); }}
+                        title={`Buy at ask ${ask.toFixed(2)}`}
+                        aria-label={`ask ${ask.toFixed(2)} — buy to open`}
+                        className="w-full px-2 py-0.5 text-right text-cyan hover:bg-cyan/15 active:bg-cyan/25 transition-colors rounded-sm tnum"
+                      >
+                        {ask.toFixed(2)}
+                      </button>
+                    ) : <span className="text-dim px-2">—</span>}
+                  </td>
                   <td className="px-2 py-1 text-right text-mid">{cs.impliedVolatility ? fmtPct(cs.impliedVolatility * 100) : <span className="text-dim">—</span>}</td>
                   <td className={`px-2 py-1 text-right ${deltaColorClass(g.delta)}`}>{g.delta?.toFixed(3) ?? <span className="text-dim">—</span>}</td>
                   {showAllGreeks && <td className="px-2 py-1 text-right text-mid">{g.gamma?.toFixed(4) ?? <span className="text-dim">—</span>}</td>}

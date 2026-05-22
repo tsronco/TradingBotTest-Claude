@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import OptionsChain from '../../src/components/lookup/OptionsChain';
+
+const navigateSpy = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => navigateSpy };
+});
 
 // Minimal mock for the account hook used inside OptionsChain
 vi.mock('../../src/hooks/useAccount', () => ({
@@ -76,6 +82,7 @@ function buildFetchMock(spot: number) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  navigateSpy.mockReset();
 });
 
 describe('OptionsChain — spot divider', () => {
@@ -140,6 +147,87 @@ describe('OptionsChain — spot divider', () => {
       expect(iDiv).toBeGreaterThan(-1);
       // Divider should be after the 105 row when all strikes are below spot
       expect(iDiv).toBeGreaterThan(i105);
+    });
+  });
+});
+
+describe('OptionsChain — clickable bid/ask buttons (item 1)', () => {
+  it('renders bid and ask as buttons with aria-labels', async () => {
+    globalThis.fetch = buildFetchMock(101);
+    renderChain('SPY');
+    // Wait for snapshot rows to populate
+    await waitFor(() => {
+      // At least one bid button should appear
+      expect(screen.getAllByRole('button', { name: /bid \d/i }).length).toBeGreaterThan(0);
+    });
+    expect(screen.getAllByRole('button', { name: /ask \d/i }).length).toBeGreaterThan(0);
+  });
+
+  it('clicking ask navigates to /order/new with side=BTO and the ask price', async () => {
+    globalThis.fetch = buildFetchMock(101);
+    renderChain('SPY');
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /ask 1\.10/i }).length).toBeGreaterThan(0);
+    });
+    const askBtn = screen.getByRole('button', { name: /ask 1\.10 — buy to open/i });
+    fireEvent.click(askBtn);
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    const url = navigateSpy.mock.calls[0][0] as string;
+    expect(url).toContain('/order/new?');
+    expect(url).toContain('contract=SPY260620P00100000');
+    expect(url).toContain('side=BTO');
+    expect(url).toContain('price=1.10');
+  });
+
+  it('clicking bid navigates to /order/new with side=STO and the bid price', async () => {
+    globalThis.fetch = buildFetchMock(101);
+    renderChain('SPY');
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /bid 1\.00/i }).length).toBeGreaterThan(0);
+    });
+    const bidBtn = screen.getByRole('button', { name: /bid 1\.00 — sell to open/i });
+    fireEvent.click(bidBtn);
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    const url = navigateSpy.mock.calls[0][0] as string;
+    expect(url).toContain('side=STO');
+    expect(url).toContain('price=1.00');
+  });
+
+  it('clicking ask in embedded mode (onPriceClick) calls the callback instead of navigating', async () => {
+    globalThis.fetch = buildFetchMock(101);
+    const onPriceClick = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <OptionsChain symbol="SPY" onPriceClick={onPriceClick} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /ask 1\.10/i }).length).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /ask 1\.10 — buy to open/i }));
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(onPriceClick).toHaveBeenCalledTimes(1);
+    const info = onPriceClick.mock.calls[0][0];
+    expect(info.side).toBe('ask');
+    expect(info.price).toBe(1.1);
+    expect(info.contract.symbol).toBe('SPY260620P00100000');
+  });
+});
+
+describe('OptionsChain — DTE in expiration dropdown (item 5)', () => {
+  it('shows (N DTE) next to each expiration date in the dropdown', async () => {
+    globalThis.fetch = buildFetchMock(101);
+    renderChain('SPY');
+    await waitFor(() => {
+      const select = document.querySelector('select') as HTMLSelectElement;
+      expect(select).toBeTruthy();
+      const labels = Array.from(select.options).map((o) => o.textContent ?? '');
+      // The expiration date is 2026-06-20; today's date when tests run is variable.
+      // We just assert the "DTE" suffix is present on at least one option.
+      expect(labels.some((l) => /\(\d+ DTE\)|\(expired\)/.test(l))).toBe(true);
     });
   });
 });

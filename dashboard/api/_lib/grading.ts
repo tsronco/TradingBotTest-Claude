@@ -1,10 +1,14 @@
 // dashboard/api/_lib/grading.ts
 import Anthropic from '@anthropic-ai/sdk';
 import { kv } from './kv.js';
+import { KV_KEYS } from './kv-keys.js';
 import type { Trade, GradeHindsight, Calibration } from './trade-types.js';
 import { calibrationFor, GRADE_LETTERS, type GradeLetter } from './trade-types.js';
 
-const SYSTEM_PROMPT = `You are an honest trading coach for a single trader (Tim). Your job is to grade a closed manual trade A+ to F based on what actually happened versus what the trader said when entering.
+const DEFAULT_TRADER_NAME = 'the trader';
+
+function buildSystemPrompt(traderName: string): string {
+  return `You are an honest trading coach for a single trader (${traderName}). Your job is to grade a closed manual trade A+ to F based on what actually happened versus what the trader said when entering.
 
 Hard rules:
 - Plain English only. Never use trader shorthand (LH, LL, HOD, RR, IV, RSI, theta, delta, gamma, vega) without defining it inline in the same sentence.
@@ -27,6 +31,7 @@ Output strict JSON. No prose outside the JSON. Schema:
 "over_2"  = trader was 2+ steps too high
 "under_1" = trader was 1 step too low
 "under_2" = trader was 2+ steps too low`;
+}
 
 interface CachedReference {
   manual: string;
@@ -42,6 +47,11 @@ async function loadCachedReference(): Promise<CachedReference> {
   const patterns = (await kv().get<any[]>('rules:patterns')) ?? [];
   const cheatsheets = (await kv().get<any[]>('rules:cheatsheets')) ?? [];
   return { manual, tendencies, patterns, cheatsheets };
+}
+
+async function loadTraderName(): Promise<string> {
+  const name = (await kv().get<string>(KV_KEYS.displayName))?.trim();
+  return name && name.length > 0 ? name : DEFAULT_TRADER_NAME;
 }
 
 function buildCachedBlock(ref: CachedReference): string {
@@ -137,7 +147,8 @@ interface GradeInput {
 export async function gradeTrade(input: GradeInput): Promise<GradeHindsight> {
   const { trade, bars } = input;
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' });
-  const ref = await loadCachedReference();
+  const [ref, traderName] = await Promise.all([loadCachedReference(), loadTraderName()]);
+  const systemPrompt = buildSystemPrompt(traderName);
   const cached = buildCachedBlock(ref);
   const fresh = buildFreshBlock(trade, bars);
 
@@ -146,7 +157,7 @@ export async function gradeTrade(input: GradeInput): Promise<GradeHindsight> {
       model: 'claude-sonnet-4-6',
       max_tokens: 600,
       system: [
-        { type: 'text', text: SYSTEM_PROMPT + systemSuffix },
+        { type: 'text', text: systemPrompt + systemSuffix },
         { type: 'text', text: cached, cache_control: { type: 'ephemeral' } },
       ] as any,
       messages: [{ role: 'user', content: fresh }],

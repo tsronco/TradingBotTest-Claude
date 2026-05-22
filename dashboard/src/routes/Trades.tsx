@@ -6,6 +6,7 @@ import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
 import RefreshButton from '../components/trades/RefreshButton';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 const ACCOUNTS = ALL_ACCOUNTS;
 const ASSET_CLASSES = ['stock', 'option'] as const;
@@ -15,13 +16,14 @@ const STATUSES = ['open', 'closed'] as const;
 export default function Trades() {
   const [filters, setFilters] = useState<TradesFilters>({ limit: 50, offset: 0 });
   const { data, isLoading } = useTrades(filters);
+  const { handle } = useDisplayName();
 
   const summary = data?.summary;
 
   return (
     <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px]">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'}</span>
       </div>
@@ -77,7 +79,7 @@ export default function Trades() {
             )}
             {data?.trades.map((t, i) => <TradeRow key={t.id} trade={t} gradeSummary={data.grades[i]} />)}
             {!isLoading && data && data.trades.length === 0 && (
-              <tr><td colSpan={10} className="text-dim text-[12px] p-3">tim@dash:~/portfolio/trades$ ls — total 0 — none</td></tr>
+              <tr><td colSpan={10} className="text-dim text-[12px] p-3">{handle}@dash:~/portfolio/trades$ ls — total 0 — none</td></tr>
             )}
           </tbody>
         </table>
@@ -103,7 +105,7 @@ export default function Trades() {
         <span className="text-dim">for keymap</span>
       </div>
       <div className="mt-4 text-[12px]">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
         <span className="caret" />
       </div>

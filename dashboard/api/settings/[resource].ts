@@ -24,14 +24,39 @@ const DEFAULT_THRESHOLDS = {
   sm2000_paper: 2500,
 };
 
+const DEFAULT_DISPLAY_NAME = 'trader';
+const DISPLAY_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9 _-]{0,23}$/;
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (!requireAuth(req, res)) return;
   const resource = String(req.query.resource ?? '');
+
+  // display-name GET is public (the Login page reads it before auth); POST gates on auth below.
+  if (resource === 'display-name') return handleDisplayName(req, res);
+
+  if (!requireAuth(req, res)) return;
 
   if (resource === 'thresholds') return handleThresholds(req, res);
   if (resource === 'tags') return handleTags(req, res);
   if (resource === 'backup-codes') return handleBackupCodes(req, res);
   return res.status(404).json({ error: 'unknown_resource' });
+}
+
+async function handleDisplayName(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    const name = (await kv().get<string>(KV_KEYS.displayName)) ?? DEFAULT_DISPLAY_NAME;
+    return res.status(200).json({ display_name: name });
+  }
+  if (req.method === 'POST') {
+    if (!requireAuth(req, res)) return;
+    const raw = String((req.body as { display_name?: string } | undefined)?.display_name ?? '').trim();
+    if (!DISPLAY_NAME_PATTERN.test(raw)) {
+      return res.status(400).json({ error: 'invalid_display_name' });
+    }
+    await kv().set(KV_KEYS.displayName, raw);
+    return res.status(200).json({ ok: true, display_name: raw });
+  }
+  res.setHeader('Allow', 'GET, POST');
+  return res.status(405).json({ error: 'method_not_allowed' });
 }
 
 async function handleThresholds(req: VercelRequest, res: VercelResponse) {

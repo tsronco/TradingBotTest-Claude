@@ -47,6 +47,7 @@ const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^auth:used-backup-codes$/,
   /^watchlist$/,
   /^rules:(manual|patterns|cheatsheets|goals|tendencies|proposals)$/,
+  /^config:display_name$/,
 ];
 
 export function isAllowedDashboardKey(key: string): boolean {
@@ -56,6 +57,7 @@ export function isAllowedDashboardKey(key: string): boolean {
 export const KV_KEYS = {
   watchlist: 'watchlist',
   totpThresholds: 'config:totp_thresholds',
+  displayName: 'config:display_name',
   sessionPrefix: 'session:',
   tagsList: 'tags:list',
   backupCodesHashed: 'auth:backup_codes_hashed',

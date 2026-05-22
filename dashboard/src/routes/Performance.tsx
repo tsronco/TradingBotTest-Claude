@@ -8,6 +8,7 @@ import WinRateByTagBar from '../components/performance/WinRateByTagBar';
 import PnLBySymbolTable from '../components/performance/PnLBySymbolTable';
 import TimeHeatmap from '../components/performance/TimeHeatmap';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 const ACCOUNTS = ['', ...ALL_ACCOUNTS] as const;
 const ASSET_CLASSES = ['', 'stock', 'option'] as const;
@@ -22,6 +23,7 @@ interface PerfData {
 }
 
 export default function Performance() {
+  const { handle } = useDisplayName();
   const [account, setAccount] = useState('');
   const [tag, setTag] = useState('');
   const [assetClass, setAssetClass] = useState('');
@@ -42,7 +44,7 @@ export default function Performance() {
   return (
     <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px] mb-4">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/performance</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">stat --range={dateRange}</span>
       </div>

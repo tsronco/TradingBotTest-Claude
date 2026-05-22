@@ -22,17 +22,24 @@ interface Props {
   account: OptionAccount;
   setAccount: (a: OptionAccount) => void;
   onReview: (p: { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any }) => void;
+  /** Pre-select side when arriving from a chain price click (bid→STO, ask→BTO). */
+  initialSide?: OptionSide | null;
+  /** Pre-fill limit price when arriving from a chain price click. */
+  initialPrice?: number | null;
 }
 
-export function OptionOrderForm({ contractSymbol, action, account, setAccount, onReview }: Props) {
+export function OptionOrderForm({ contractSymbol, action, account, setAccount, onReview, initialSide, initialPrice }: Props) {
   const parsed = parseOptionSymbol(contractSymbol);
   if (!parsed) return <div className="text-red">invalid contract symbol.</div>;
 
   const sideOptions: OptionSide[] = action === 'open' ? ['BTO', 'STO'] : ['BTC', 'STC'];
-  const [side, setSide] = useState<OptionSide>(sideOptions[1]); // default STO/STC for wheel use
+  const defaultSide: OptionSide = initialSide && sideOptions.includes(initialSide) ? initialSide : sideOptions[1];
+  const [side, setSide] = useState<OptionSide>(defaultSide); // default STO/STC for wheel use; overridable from chain click
   const [orderType, setOrderType] = useState<OrderType>('limit');
   const [qty, setQty] = useState(1);
-  const [limitPrice, setLimitPrice] = useState<number | ''>('');
+  const [limitPrice, setLimitPrice] = useState<number | ''>(
+    initialPrice != null && Number.isFinite(initialPrice) && initialPrice > 0 ? Number(initialPrice.toFixed(2)) : ''
+  );
   const [tif, setTif] = useState<Tif>('day');
   const [grade, setGrade] = useState<GradeLetter | null>(null);
   const [reasoning, setReasoning] = useState('');

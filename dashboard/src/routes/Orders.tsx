@@ -15,6 +15,7 @@ import {
   collectUnderlyings,
 } from '../lib/order-filters';
 import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 interface Order {
   id: string;
@@ -128,6 +129,7 @@ function OrdersTable({
   symbolFilter,
 }: OrdersTableProps) {
   const qc = useQueryClient();
+  const { handle } = useDisplayName();
   const [editing, setEditing] = useState<Order | null>(null);
   const cancel = useMutation({
     mutationFn: (id: string) =>
@@ -214,7 +216,7 @@ function OrdersTable({
 
       {filtered.length === 0 ? (
         <div className="px-5 pb-6 text-dim text-[12px]">
-          <span className="text-mid">tim@dash</span><span className="text-dim">$</span> ls orders/{statusLabel}/
+          <span className="text-mid">{handle}@dash</span><span className="text-dim">$</span> ls orders/{statusLabel}/
           {symbolFilter && <span className="text-cyan"> --symbol={symbolFilter}</span>}<br />
           <span className="text-dim">total 0 — {symbolFilter ? `no ${symbolFilter} ${statusLabel} orders in window` : 'none'}</span>
         </div>
@@ -359,6 +361,7 @@ interface VisibleCard {
 
 export default function Orders() {
   const [mode] = useAccount();
+  const { handle } = useDisplayName();
   const [symbol, setSymbol] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRangeKey>('month-rolling');
 
@@ -420,7 +423,7 @@ export default function Orders() {
     <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">orders</span>
         <span className="text-amber">--list</span>

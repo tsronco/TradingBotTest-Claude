@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import MonthGrid from '../components/calendar/MonthGrid';
 import DayDrawer from '../components/calendar/DayDrawer';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 interface DayBucket {
   realized_pnl: number;
@@ -16,6 +17,7 @@ const ACCOUNTS = ['', ...ALL_ACCOUNTS] as const;
 const ASSET_CLASSES = ['', 'stock', 'option'] as const;
 
 export default function Calendar() {
+  const { handle } = useDisplayName();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -52,7 +54,7 @@ export default function Calendar() {
   return (
     <div className="p-3 md:p-6 max-w-6xl">
       <div className="text-mid text-[12px] mb-4">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/calendar</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">show {monthStr}</span>
       </div>

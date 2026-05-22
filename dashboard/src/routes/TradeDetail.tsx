@@ -12,10 +12,12 @@ import { RuleViolationsPanel } from '../components/trade/RuleViolationsPanel';
 import AssignmentLink from '../components/trade/AssignmentLink';
 import { api } from '../lib/api';
 import type { Trade } from '../lib/trade-types';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export default function TradeDetail() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useTrade(id);
+  const { handle } = useDisplayName();
 
   if (isLoading) return <div className="p-3 md:p-6 text-mid">loading…</div>;
   if (error || !data) return <div className="p-3 md:p-6 text-red">trade not found.</div>;
@@ -23,7 +25,7 @@ export default function TradeDetail() {
   return (
     <div className="p-3 md:p-6 max-w-5xl space-y-4">
       <div className="text-mid text-[12px]">
-        <span className="text-cyan">tim@dash:~/portfolio/trade$</span>{' '}
+        <span className="text-cyan">{handle}@dash:~/portfolio/trade$</span>{' '}
         <span className="text-fg">show --id={id}</span>
       </div>
       {data.trade.parent_id && data.trade.source === 'assignment' && (
@@ -56,7 +58,7 @@ export default function TradeDetail() {
         <span className="text-dim">for keymap</span>
       </div>
       <div className="mt-4 text-[12px]">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trade</span><span className="text-dim">$</span>{' '}
         <span className="caret" />
       </div>
