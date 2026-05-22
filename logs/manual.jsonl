@@ -2359,3 +2359,10 @@
 {"timestamp": "2026-05-22T17:22:40.618190+00:00", "script": "wheel_strategy.py", "action": "auto_spread_open_failed", "result": "failure", "symbol": "NVDA", "notes": "HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders"}
 {"timestamp": "2026-05-22T17:22:40.619802+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "SNAP"]}}
 {"timestamp": "2026-05-22T17:22:41.507160+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 1, "skipped": 0}}
+{"timestamp": "2026-05-22T17:31:33.066097+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "AAL", "stage": 1, "contract": "AAL260618P00013500", "stock_price": 14.1}}
+{"timestamp": "2026-05-22T17:31:33.525522+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.705}}
+{"timestamp": "2026-05-22T17:31:59.206076+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "T", "details": {"price": 25.32}}
+{"timestamp": "2026-05-22T17:32:00.071247+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SOFI", "details": {"price": 15.77}}
+{"timestamp": "2026-05-22T17:32:05.263113+00:00", "script": "wheel_strategy.py", "action": "auto_spread_open_failed", "result": "failure", "symbol": "MU", "notes": "HTTPError: 403 Client Error: Forbidden for url: https://paper-api.alpaca.markets/v2/orders"}
+{"timestamp": "2026-05-22T17:32:05.265512+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "SNAP"]}}
+{"timestamp": "2026-05-22T17:32:05.997155+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 1, "skipped": 0}}
