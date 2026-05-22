@@ -42,7 +42,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Throttled to once per 15s (button shows a countdown). Underlying loop is idempotent — repeat ' +
       'clicks no-op cleanly. Inline summary after each run: "N synced · N closed · N assigned · N still open."',
   },
-
+  {
+    date: '2026-05-21',
+    category: 'feature',
+    title: 'Changelog page added (this one)',
     details:
       'New /changelog route renders a hand-curated history of every shipped change. ' +
       'Discipline: add a new entry at the top whenever we ship something — bot config tweak, ' +
