@@ -2692,6 +2692,8 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
     if not eligible_syms:
         log(f"[auto-spread] best remaining wheelability < {threshold} "
             f"and no bypass candidates — no trade")
+    max_opens = int(cfg.get("max_opens_per_cycle", 1))
+    opens_this_cycle = 0
     for sym in eligible_syms:
 
         if earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"]):
@@ -2915,7 +2917,11 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_open_failed",
                       result="failure", symbol=sym,
                       notes=f"{type(e).__name__}: {str(e)[:400]}")
-            return  # one attempt per cycle either way
+            # Try the next eligible symbol instead of burning the cycle
+            # on a single failure. Alpaca returns 403 occasionally for
+            # mleg orders on certain symbols (NVDA/MU observed 2026-05-22);
+            # we'd rather fall through to a working candidate than no-op.
+            continue
 
         order_id = order.get("id", "?") if isinstance(order, dict) else "?"
 
@@ -2962,7 +2968,13 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                       "width": width, "net_credit": net_credit,
                       "max_loss": max_loss, "expiration": expiration,
                   })
-        return  # max_opens_per_cycle = 1 — stop after one open
+        opens_this_cycle += 1
+        if opens_this_cycle >= max_opens:
+            return
+        # Otherwise keep iterating — manual mode runs with
+        # max_opens_per_cycle=2 so a single-stock spread + a bypass
+        # ETF spread can both fill on the same cycle.
+        continue
 
     # Fell through the whole eligible list with no order — a normal,
     # expected outcome (especially for sm500). Logged, not an error.

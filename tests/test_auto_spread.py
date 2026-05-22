@@ -1583,3 +1583,157 @@ def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
         assert call["exp_date"] == "2026-06-18", \
             f"long-leg picker must pin to short s expiration; got {call}"
 
+
+
+# ── max_opens_per_cycle: 2 + retry-on-403 (2026-05-22 follow-up) ──────────
+#
+# After confirming the score-race winner always grabs the single slot and
+# QQQ/SPY/IWM (in the bypass tail) never get reached, bumped manual's
+# max_opens_per_cycle to 2 and switched the open-failure path from `return`
+# to `continue` so a 403 on one symbol doesn't burn the whole cycle.
+
+
+def test_auto_open_failure_falls_through_to_next_symbol(monkeypatch):
+    """When _open_spread_mleg raises (e.g. Alpaca 403 on NVDA/MU), the
+    opener does NOT return — it logs the failure and tries the next
+    eligible symbol. Previously the cycle would no-op even though other
+    candidates were viable."""
+    # Two equally-priced symbols both pass the gauntlet. The FIRST one
+    # raises, the second one fills. With the legacy `return` we'd see
+    # zero opens; with the new `continue` we see one.
+    scored = {"BOOM": {"score": 100.0, "price": 20.0},
+              "GOOD": {"score": 99.0,  "price": 20.0}}
+    contracts = {
+        ("BOOM", 18.0): _contract("BOOM260612P00018000", 18.0),
+        ("BOOM", 17.0): _contract("BOOM260612P00017000", 17.0),
+        ("GOOD", 18.0): _contract("GOOD260612P00018000", 18.0),
+        ("GOOD", 17.0): _contract("GOOD260612P00017000", 17.0),
+    }
+    quotes = {
+        "BOOM260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "BOOM260612P00017000": {"bid": 0.15, "ask": 0.25},
+        "GOOD260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "GOOD260612P00017000": {"bid": 0.15, "ask": 0.25},
+    }
+    cfg, _ = _wire_sm(
+        monkeypatch,
+        equity=2000, options_bp=2000,
+        scored=scored,
+        earnings_within={s: False for s in scored},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    # Force both symbols through the wheelability floor — with only 2
+    # scored symbols, percentile-rank lands the lower one at 0 and the
+    # 80 floor would block GOOD before it's ever reached for fall-through.
+    cfg["wheelability_min"] = 0
+
+    opened = []
+    def fake_mleg(short_occ, long_occ, qty, net_credit, limit_credit=None):
+        if "BOOM" in short_occ:
+            raise RuntimeError("HTTP 403 Forbidden")
+        opened.append({"short": short_occ, "long": long_occ})
+        return {"id": "ord-good"}
+    monkeypatch.setattr(ws, "_open_spread_mleg", fake_mleg)
+
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+
+    assert len(opened) == 1, "failure on BOOM must not block GOOD"
+    assert opened[0]["short"] == "GOOD260612P00018000"
+
+
+def test_auto_open_manual_opens_two_per_cycle(monkeypatch):
+    """With manual cfg's max_opens_per_cycle=2, the loop opens up to TWO
+    spreads in a single cycle (e.g. one single-stock + one bypass ETF).
+    Verifies opens_this_cycle counter respects the cap and stops at 2."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min"] = 0  # let everything through
+    cfg["trend_filter"] = False
+    cfg["short_put_target_delta"] = None  # use strike-based path
+    cfg["min_credit_to_width_pct"] = None  # disable c/w gate for this test
+    cfg["max_risk_pct_equity"] = 0.50  # plenty of headroom
+
+    # 3 symbols available; should open exactly 2 (cap = 2)
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score": 99.0,  "price": 20.0},
+              "CCC": {"score": 98.0,  "price": 20.0}}
+    contracts_by_strike = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+        ("CCC", 18.0): _contract("CCC260612P00018000", 18.0),
+        ("CCC", 17.0): _contract("CCC260612P00017000", 17.0),
+    }
+
+    def fake_score(symbol, free_bp, **kw):
+        return scored.get(symbol)
+    monkeypatch.setattr(screener_core, "score_candidate", fake_score)
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "10000"})
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
+        cands = {k[1]: v for k, v in contracts_by_strike.items() if k[0] == u}
+        if not cands:
+            return None
+        best = min(cands, key=lambda s: abs(s - ts))
+        return cands[best]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                                    else {"bid": 0.15, "ask": 0.25})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None:
+                            opened.append(s) or {"id": "ord"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "10000"}, cfg)
+
+    assert len(opened) == 2, f"manual must open 2/cycle, got {len(opened)}"
+    # Highest-scoring two — AAA and BBB
+    assert "AAA260612P00018000" in opened
+    assert "BBB260612P00018000" in opened
+
+
+def test_auto_open_sm_modes_still_cap_at_one(monkeypatch):
+    """Regression: SM modes left at max_opens_per_cycle=1 must continue
+    to stop after one open. Only manual was bumped to 2."""
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score": 99.0,  "price": 20.0}}
+    contracts = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+    }
+    quotes = {
+        "AAA260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "AAA260612P00017000": {"bid": 0.15, "ask": 0.25},
+        "BBB260612P00018000": {"bid": 0.50, "ask": 0.60},
+        "BBB260612P00017000": {"bid": 0.15, "ask": 0.25},
+    }
+    cfg, opened = _wire_sm(  # _wire_sm uses sm1000 cfg
+        monkeypatch,
+        equity=2000, options_bp=2000,
+        scored=scored,
+        earnings_within={s: False for s in scored},
+        contracts_by_strike=contracts,
+        quotes=quotes,
+    )
+    state = {"_meta": {}}
+    ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1, "sm modes must still cap at 1"
+    assert cfg["max_opens_per_cycle"] == 1, "sm1000 max_opens must be 1"

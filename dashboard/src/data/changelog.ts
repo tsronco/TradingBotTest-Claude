@@ -30,6 +30,30 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'engine',
+    title: 'Manual auto-opener: 2 opens/cycle + retry-on-failure (lets ETF + single-stock both fill)',
+    details:
+      'Two follow-up changes after the first day of real auto-opens on manual revealed two ' +
+      'related problems:\n\n' +
+      '1) max_opens_per_cycle bumped 1 → 2 on manual. With max=1, every cycle the score-race ' +
+      'winner (always a single stock — premium_yield = bid/strike inherently favors cheap names) ' +
+      'grabs the only slot and the loop returns. ETFs in wheelability_bypass_symbols sit at the ' +
+      'bottom of the iteration with low raw scores and never get reached. Bumping to 2 lets the ' +
+      'single-stock winner AND a bypass ETF both fill on the same cycle. Risk cap (10% per spread), ' +
+      'concurrency cap (4 max), and credit-to-width gate (33%) still bound total exposure — ' +
+      'manual at $10k can safely hold 4 spreads of up to $1000 max loss each.\n\n' +
+      '2) Open-failure path switched from `return` to `continue`. When _open_spread_mleg raises ' +
+      '(observed today: Alpaca returned HTTP 403 Forbidden on NVDA and MU spread attempts), the ' +
+      'opener now logs the failure and falls through to the next eligible symbol. Previously the ' +
+      "single attempt burned the whole cycle's slot. NVDA 403 then MU 403 then nothing — three " +
+      'wasted cycles in a row.\n\n' +
+      'SM modes (sm500/sm1000/sm2000) left at max_opens_per_cycle=1 — the SM Balanced posture is ' +
+      'deliberately one-shot per cycle. Only manual was bumped.\n\n' +
+      '+3 pytest tests (failure-fall-through, manual-opens-two-per-cycle, SM-modes-still-cap-at-1). ' +
+      'Bot total: 469 pytest. Picked up on the next cron tick.',
+  },
+  {
+    date: '2026-05-22',
     category: 'fix',
     title: 'Auto-spread opener: long-leg pinned to short-leg expiration (no more diagonals)',
     details:
