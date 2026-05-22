@@ -19,6 +19,7 @@ import { alpacaFor } from '../_lib/alpaca.js';
 import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { etOffsetMinutes } from '../_lib/et-time.js';
+import { runGradeOpenTrades } from '../cron/[job].js';
 
 interface OrderDraft {
   account: 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live'
@@ -98,9 +99,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST' && action === 'regrade') return regrade(req, res);
   if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
   if (req.method === 'POST' && action === 'import') return importFromAlpaca(req, res);
+  if (req.method === 'POST' && action === 'refresh') return refresh(req, res);
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'method_not_allowed' });
+}
+
+/**
+ * On-demand sync — runs the same logic as the grade-open-trades cron from
+ * a dashboard button click. Idempotent (no-op on already-synced trades).
+ *
+ * Used when the user knows something happened on Alpaca (bot closed a
+ * position, manual close on Alpaca's web UI, just imported some trades)
+ * and doesn't want to wait for the next 5-min cron tick. Returns the
+ * same shape as the cron handler so the UI can show a "synced N · closed
+ * N · graded N" summary inline.
+ *
+ * Throttle is enforced client-side (button disables for 15s). No server
+ * throttle because the underlying loop is idempotent and capped at
+ * MAX_PER_TICK trades per call — repeat clicks just no-op.
+ */
+async function refresh(_req: VercelRequest, res: VercelResponse) {
+  try {
+    const result = await runGradeOpenTrades();
+    return res.status(200).json({ ok: true, ...result });
+  } catch (e) {
+    console.error('[refresh] runGradeOpenTrades failed', e);
+    return res.status(500).json({
+      error: 'refresh_failed',
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
 
 function validate(draft: OrderDraft): string[] {

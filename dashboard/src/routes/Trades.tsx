@@ -5,6 +5,7 @@ import { useTrades, type TradesFilters } from '../hooks/useTrades';
 import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
+import RefreshButton from '../components/trades/RefreshButton';
 
 const ACCOUNTS = ALL_ACCOUNTS;
 const ASSET_CLASSES = ['stock', 'option'] as const;
@@ -24,7 +25,10 @@ export default function Trades() {
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'}</span>
       </div>
-      <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi mt-2">Trades</h1>
+      <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
+        <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi">Trades</h1>
+        <RefreshButton />
+      </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
         <SummaryCard label="count" value={summary ? String(summary.count) : '—'} />

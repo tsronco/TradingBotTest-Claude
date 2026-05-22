@@ -29,9 +29,20 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: '2026-05-21',
+    date: '2026-05-22',
     category: 'feature',
-    title: 'Changelog page added (this one)',
+    title: 'Manual refresh button on /trades — force sync against Alpaca without waiting for cron',
+    details:
+      'New [↻ refresh] button top-right of /trades. Runs the same logic as the 5-min grade-open-trades ' +
+      'cron on-demand: walks every open trade, syncs delayed fills, detects external closes (via Path ' +
+      "3 added yesterday), AI-grades anything that just closed, drains any new option assignments.\n\n" +
+      'Use it when you know something just happened on Alpaca and don\'t want to wait ~5 min for the ' +
+      'next cron tick — e.g. right after using the Import from Alpaca button, or when the bot closed ' +
+      "a position and you'd like the dashboard to catch up immediately.\n\n" +
+      'Throttled to once per 15s (button shows a countdown). Underlying loop is idempotent — repeat ' +
+      'clicks no-op cleanly. Inline summary after each run: "N synced · N closed · N assigned · N still open."',
+  },
+
     details:
       'New /changelog route renders a hand-curated history of every shipped change. ' +
       'Discipline: add a new entry at the top whenever we ship something — bot config tweak, ' +

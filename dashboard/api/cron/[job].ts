@@ -63,9 +63,30 @@ function modeFromAccount(account: string): Mode {
 }
 
 async function gradeOpenTrades(res: VercelResponse) {
+  const result = await runGradeOpenTrades();
+  return res.status(200).json({ ok: true, ...result });
+}
+
+/**
+ * Pure logic for the grade-open-trades job. Walks every open trade,
+ * syncs fill data, detects closes, AI-grades the closes, and drains
+ * any pending option assignments into follow-on stock trades.
+ *
+ * Exported so the on-demand refresh action (POST /api/trades/refresh)
+ * can run the same logic from a button click without going through the
+ * cron auth path. Idempotent — safe to call repeatedly.
+ */
+export async function runGradeOpenTrades(): Promise<{
+  graded: number;
+  synced: number;
+  remaining_open: number;
+  assignments_spawned: number;
+  assignments_skipped: number;
+}> {
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
 
   let graded = 0;
+  let synced = 0;
   let remaining = openIds.length;
 
   for (const id of openIds) {
@@ -83,7 +104,9 @@ async function gradeOpenTrades(res: VercelResponse) {
     // the trade is permanently stuck showing "submitted · limit $X" with
     // no entry price, and grade-on-close uses submitted_at as the start
     // instead of the actual fill time.
+    const beforeFilledAt = trade.filled_at;
     trade = await syncFillData(trade);
+    if (trade.filled_at && trade.filled_at !== beforeFilledAt) synced += 1;
 
     const closeInfo = await detectClose(trade);
     if (!closeInfo) continue;
@@ -147,13 +170,13 @@ async function gradeOpenTrades(res: VercelResponse) {
   // Drain assignments-pending — spawn follow-on stock trades for assigned puts
   const drainResult = await drainAssignmentsAndSpawn();
 
-  return res.status(200).json({
-    ok: true,
+  return {
     graded,
+    synced,
     remaining_open: remaining,
     assignments_spawned: drainResult.spawned,
     assignments_skipped: drainResult.skipped,
-  });
+  };
 }
 
 async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: number }> {
