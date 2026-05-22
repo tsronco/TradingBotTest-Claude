@@ -323,20 +323,26 @@ def test_all_modes_declare_spread_management_flag():
 
 def test_all_modes_declare_spread_thresholds():
     """Every mode must declare the three spread management thresholds
-    consistently. Default values are: 50% early close, 50% stop loss,
-    DTE floor of 2."""
+    consistently. Default values are: 50% early close, 50% stop loss
+    (manual was loosened 0.50 → 0.75 on 2026-05-22 after a same-day
+    MU whipsaw stop), DTE floor of 2."""
     import config
     expected = {
         "spread_early_close_pct": 0.50,
         "spread_stop_loss_pct":   0.50,
         "spread_dte_floor":       2,
     }
+    # Per-mode overrides — assert intentional deviations, not legacy drift.
+    overrides = {
+        "manual": {"spread_stop_loss_pct": 0.75},
+    }
     for mode_name, mode_cfg in config.MODES.items():
         for key, value in expected.items():
             assert key in mode_cfg, f"mode {mode_name} missing {key}"
-            assert mode_cfg[key] == value, (
+            expected_val = overrides.get(mode_name, {}).get(key, value)
+            assert mode_cfg[key] == expected_val, (
                 f"mode {mode_name} {key}={mode_cfg[key]!r}, "
-                f"expected {value!r}"
+                f"expected {expected_val!r}"
             )
 
 

@@ -759,12 +759,14 @@ def test_handle_spread_profit_takes_priority_over_dte(monkeypatch):
 
 def test_apply_mode_manual_enables_spread_management():
     """apply_mode('manual') sets SPREAD_MANAGEMENT to True and reads
-    the three threshold globals from config."""
+    the three threshold globals from config. SPREAD_STOP_LOSS_PCT
+    loosened 0.50 → 0.75 on 2026-05-22 after a same-day MU whipsaw
+    stop on a routine 1% intraday move."""
     import config
     wheel_strategy.apply_mode("manual")
     assert wheel_strategy.SPREAD_MANAGEMENT is True
     assert wheel_strategy.SPREAD_EARLY_CLOSE_PCT == 0.50
-    assert wheel_strategy.SPREAD_STOP_LOSS_PCT == 0.50
+    assert wheel_strategy.SPREAD_STOP_LOSS_PCT == 0.75
     assert wheel_strategy.SPREAD_DTE_FLOOR == 2
 
 

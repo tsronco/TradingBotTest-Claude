@@ -30,6 +30,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'config',
+    title: 'Manual spread stop-loss loosened 50% → 75% of max loss',
+    details:
+      "Shipped same evening as the MU stop-out. MU auto-opened at 13:02 (short \\$755, " +
+      "$4.99 mid credit, $501 max loss) and stopped out 19 minutes later at 13:21 on " +
+      "a routine ~1% intraday move on the underlying. At Δ −0.40 short delta the " +
+      "spread lives close enough to ATM that a 50%-of-max-loss trigger fires on " +
+      "transient noise that would have reverted later that day. Loosening to 75% " +
+      "gives theta more room to work and reduces whipsaw stop frequency.\n\n" +
+      "Tradeoff: bigger realized loss per stop (~\\$375 vs \\$250 on a $500 max-loss " +
+      "spread) when the move IS real. The bet is that fewer-but-larger losses + more " +
+      "wins surviving to 50% profit beats more-but-smaller losses + winners stopped " +
+      "out early.\n\n" +
+      "Manual-only. SM modes (sm500/sm1000/sm2000) keep their tighter 0.50 + 2× credit " +
+      "stop (the hardened-engine guardrails added 2026-05-19 after the SM bleed). " +
+      "cons/agg/live keep 0.50 too — though spread_management is False on those so " +
+      "it's moot in practice.",
+  },
+  {
+    date: '2026-05-22',
     category: 'engine',
     title: 'Manual auto-opener: bypass priority + inline concurrency cap',
     details:

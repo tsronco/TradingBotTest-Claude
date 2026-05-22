@@ -247,7 +247,16 @@ MODES = {
         # loss + DTE floor). Conservative/aggressive/live stay False.
         "spread_management":      True,
         "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
+        # Stop-loss loosened 0.50 → 0.75 on 2026-05-22 evening after MU
+        # auto-open stopped out 19 minutes after entry on routine 1%
+        # intraday noise. At Δ −0.40 short delta the spread lives close
+        # enough to ITM that a 50%-max-loss trigger fires on transient
+        # moves that would reverse later. 0.75 gives theta more room to
+        # work; downside is bigger realized loss per stop ($375 vs $250
+        # on a $500 max-loss spread). Tradeoff: lower stop-out frequency
+        # at the cost of larger loss when a real adverse move materializes.
+        # Manual-only — SM modes keep their tighter 0.50 + 2× credit stop.
+        "spread_stop_loss_pct":   0.75,
         "spread_dte_floor":       2,
 
         # Wheel parameters mirror conservative — used for the 50% close on
