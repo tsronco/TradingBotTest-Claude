@@ -15,6 +15,7 @@ import WheelabilityPanel from '../components/lookup/WheelabilityPanel';
 import NewsPanel from '../components/lookup/NewsPanel';
 import FundamentalsPanel from '../components/lookup/FundamentalsPanel';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 function accountForMode(mode: AccountMode): AnyAccountId {
   return modeToAccount(selectModeFromAccountMode(mode));
@@ -27,6 +28,7 @@ export default function Lookup() {
   const sym = symbol.toUpperCase();
 
   const [accountMode] = useAccount();
+  const { handle } = useDisplayName();
 
   const addToWatchlist = useMutation({
     mutationFn: () => api('/api/kv/watchlist', { method: 'POST', body: JSON.stringify({ symbol: sym }) }),
@@ -52,7 +54,7 @@ export default function Lookup() {
     <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">lookup</span>
         <span className="text-amber">--symbol=<span className="text-fg">{sym || '?'}</span></span>

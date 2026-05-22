@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { SpreadOrderForm } from '../../src/components/order/SpreadOrderForm';
 
 // Matches the real /api/alpaca/chain response shape:
@@ -40,7 +41,9 @@ function renderForm(props: Partial<Parameters<typeof SpreadOrderForm>[0]> = {}) 
   };
   return render(
     <QueryClientProvider client={qc}>
-      <SpreadOrderForm {...defaults} {...props} />
+      <MemoryRouter>
+        <SpreadOrderForm {...defaults} {...props} />
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -284,5 +287,60 @@ describe('SpreadOrderForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /review/i }));
     await waitFor(() => expect(onReview).toHaveBeenCalled());
     expect(onReview.mock.calls[0][0].exposure).toBe(75);
+  });
+
+  it('embeds an OptionsChain that shows premiums upfront after expiration is picked', async () => {
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+
+    // The chain block should render its "click bid / click ask" instructions
+    await waitFor(() => {
+      expect(screen.getByText(/click bid \(sell\)/i)).toBeInTheDocument();
+    });
+
+    // Bid and ask buttons from the chain should appear (with the prices from chainResponse).
+    // strike 12.5 has bp=0.36, ap=0.42
+    expect(screen.getByRole('button', { name: /bid 0\.36 — sell to open/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ask 0\.42 — buy to open/i })).toBeInTheDocument();
+  });
+
+  it('clicking a bid in the embedded chain populates the SHORT strike', async () => {
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+
+    await waitFor(() => screen.getByRole('button', { name: /bid 0\.36 — sell to open/i }));
+    fireEvent.click(screen.getByRole('button', { name: /bid 0\.36 — sell to open/i }));
+
+    // Short dropdown should now show strike 12.5 selected
+    const shortSelect = screen.getByLabelText(/short strike/i) as HTMLSelectElement;
+    expect(shortSelect.value).toBe('12.5');
+  });
+
+  it('clicking an ask in the embedded chain populates the LONG strike (when below short)', async () => {
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+
+    // Set short via the dropdown first
+    await waitFor(() => screen.getByLabelText(/short strike/i));
+    fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
+
+    // Now click ask on strike 11.5 (below short) → populates long
+    await waitFor(() => screen.getByRole('button', { name: /ask 0\.14 — buy to open/i }));
+    fireEvent.click(screen.getByRole('button', { name: /ask 0\.14 — buy to open/i }));
+
+    const longSelect = screen.getByLabelText(/long strike/i) as HTMLSelectElement;
+    expect(longSelect.value).toBe('11.5');
+  });
+
+  it('shows DTE in the expiration dropdown options', async () => {
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    const select = screen.getByLabelText(/expiration/i) as HTMLSelectElement;
+    const optionTexts = Array.from(select.options).map((o) => o.textContent ?? '');
+    // At least one of the expiration options should carry a DTE suffix or "expired"
+    expect(optionTexts.some((t) => /\(\d+ DTE\)|\(expired\)/.test(t))).toBe(true);
   });
 });

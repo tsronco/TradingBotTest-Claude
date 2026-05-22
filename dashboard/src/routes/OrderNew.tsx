@@ -6,9 +6,11 @@ import { OptionOrderForm } from '../components/order/OptionOrderForm';
 import { SpreadOrderForm } from '../components/order/SpreadOrderForm';
 import { ConfirmModal } from '../components/order/ConfirmModal';
 import type { RuleWarning } from '../lib/trade-types';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export default function OrderNew() {
   const [params] = useSearchParams();
+  const { handle } = useDisplayName();
   const [preview, setPreview] = useState<
     { exposure: number; requires_totp: boolean; rule_warnings: RuleWarning[]; draft: any } | null
   >(null);
@@ -25,7 +27,7 @@ export default function OrderNew() {
     return (
       <div className="p-3 md:p-6">
         <div className="text-mid text-[12px]">
-          <span className="text-cyan">tim@dash:~/portfolio$</span> pick a symbol → /lookup/SYM
+          <span className="text-cyan">{handle}@dash:~/portfolio$</span> pick a symbol → /lookup/SYM
         </div>
       </div>
     );
@@ -44,7 +46,7 @@ export default function OrderNew() {
   return (
     <div className="p-3 md:p-6 max-w-3xl">
       <div className="text-mid text-[12px]">
-        <span className="text-cyan">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/order</span><span className="text-dim">$</span>{' '}
         <span className="text-fg">new {flag}</span>
       </div>
@@ -52,7 +54,15 @@ export default function OrderNew() {
         {isSpread ? (
           <SpreadOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
         ) : isOption ? (
-          <OptionOrderForm contractSymbol={contract!} action={action ?? 'open'} account={account} setAccount={setAccount} onReview={setPreview} />
+          <OptionOrderForm
+            contractSymbol={contract!}
+            action={action ?? 'open'}
+            account={account}
+            setAccount={setAccount}
+            onReview={setPreview}
+            initialSide={params.get('side') as 'BTO' | 'STO' | 'BTC' | 'STC' | null}
+            initialPrice={params.get('price') ? Number(params.get('price')) : null}
+          />
         ) : (
           <StockOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
         )}
@@ -70,7 +80,7 @@ export default function OrderNew() {
 
       {/* bottom prompt */}
       <div className="mt-4 text-[12px]">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/order</span><span className="text-dim">$</span>{' '}
         <span className="caret" />
       </div>

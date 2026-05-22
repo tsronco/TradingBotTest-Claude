@@ -6,6 +6,7 @@ import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
 import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 interface Position {
   symbol: string;
@@ -53,6 +54,7 @@ const MODE_TO_CARD: Record<PosMode, { acctKey: PosAcctKey; label: string }> = {
 };
 
 function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {
+  const { handle } = useDisplayName();
   const positionsQ = useQuery({
     queryKey: ['positions', mode],
     queryFn: () => api<{ positions: Position[] }>(`/api/alpaca/positions?mode=${mode}`),
@@ -169,7 +171,7 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
 
       {positions.length === 0 ? (
         <div className="px-5 py-6 text-dim text-[12px]">
-          <span className="text-mid">tim@dash</span><span className="text-dim">$</span> ls positions/<br />
+          <span className="text-mid">{handle}@dash</span><span className="text-dim">$</span> ls positions/<br />
           <span className="text-dim">total 0 — no open positions</span>
         </div>
       ) : (
@@ -293,12 +295,13 @@ export default function Positions() {
   const [mode] = useAccount();
   const selectedModes = accountsForSelection(mode);
   const cardCount = selectedModes.length;
+  const { handle } = useDisplayName();
 
   return (
     <div className="p-3 md:p-6 max-w-[1480px]">
       {/* prompt header */}
       <div className="flex items-baseline gap-2 mb-4 text-[12px] flex-wrap">
-        <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+        <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
         <span className="text-fg">positions</span>
         <span className="text-amber">--list</span>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDisplayName } from '../hooks/useDisplayName';
 
 export default function Login() {
   const nav = useNavigate();
   const loc = useLocation();
+  const { handle } = useDisplayName();
   const [password, setPassword] = useState('');
   const [totp, setTotp] = useState('');
   const [mode, setMode] = useState<'totp' | 'backup'>('totp');
@@ -56,14 +58,14 @@ export default function Login() {
           <span className="w-2 h-2 rounded-full bg-hi/80 pulse" />
           <span className="text-mid ml-2">tmux</span>
           <span className="text-dim">·</span>
-          <span className="text-fg">tim@dash</span>
+          <span className="text-fg">{handle}@dash</span>
           <span className="text-dim">:</span>
           <span className="text-cyan">~/portfolio</span>
         </div>
 
         {/* prompt header */}
         <div className="flex items-baseline gap-2 mb-2 text-[12px] flex-wrap">
-          <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+          <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
           <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>
           <span className="text-fg">login</span>
           <span className="text-amber">--auth=<span className="text-fg">{mode}</span></span>
@@ -182,7 +184,7 @@ export default function Login() {
 
         {/* bottom prompt */}
         <div className="mt-4 text-[12px]">
-          <span className="text-mid">tim@dash</span><span className="text-dim">:</span>
+          <span className="text-mid">{handle}@dash</span><span className="text-dim">:</span>
           <span className="text-cyan">~/portfolio</span><span className="text-dim">$</span>{' '}
           <span className="caret" />
         </div>

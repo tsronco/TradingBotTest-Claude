@@ -14,6 +14,8 @@ import { TagPicker } from './TagPicker';
 import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
+import { daysToExpiration } from '../../lib/option-symbol';
+import OptionsChain, { type ChainStrikeClick } from '../lookup/OptionsChain';
 
 interface ChainContractRaw {
   symbol: string;
@@ -242,11 +244,15 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
         >
           <option value="">pick…</option>
-          {expirations.map((e) => (
-            <option key={e} value={e}>
-              {e}
-            </option>
-          ))}
+          {expirations.map((e) => {
+            const dte = daysToExpiration(e);
+            const dteLabel = dte < 0 ? 'expired' : `${dte} DTE`;
+            return (
+              <option key={e} value={e}>
+                {e} ({dteLabel})
+              </option>
+            );
+          })}
         </select>
       </div>
 
@@ -294,6 +300,47 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           </select>
         </div>
       </div>
+
+      {/* embedded options chain — premiums visible upfront. Click bid on a strike
+          to set it as the SHORT leg (you sell at the bid); click ask to set it
+          as the LONG leg (you buy at the ask). Locked to puts + the selected
+          expiration. Dropdowns above still work as a fallback. */}
+      {expiration && (
+        <div className="border border-border rounded-sm p-3 bg-panel/40">
+          <div className="text-dim text-[10px] tracking-[0.25em] mb-2 flex items-center justify-between gap-2 flex-wrap">
+            <span>━━━ options chain — click bid (sell) → short · click ask (buy) → long ─</span>
+            <span className="text-mid normal-case tracking-normal">
+              short: <span className={shortStrike != null ? 'text-red' : 'text-dim'}>{shortStrike != null ? `$${shortStrike.toFixed(2)}` : 'pick'}</span>
+              <span className="text-dim mx-1">·</span>
+              long: <span className={longStrike != null ? 'text-cyan' : 'text-dim'}>{longStrike != null ? `$${longStrike.toFixed(2)}` : 'pick'}</span>
+            </span>
+          </div>
+          <OptionsChain
+            symbol={symbol}
+            sideLock="puts"
+            expirationLock={expiration}
+            onPriceClick={(info: ChainStrikeClick) => {
+              const strike = Number(info.contract.strike_price);
+              if (info.side === 'bid' || info.side === 'row') {
+                // Sell-side click → short leg. If this would put short ≤ long, clear long.
+                setShortStrike(strike);
+                if (longStrike != null && strike <= longStrike) setLongStrike(null);
+                setLimitCredit(0);
+              } else if (info.side === 'ask') {
+                // Buy-side click → long leg. Must be strictly below short.
+                if (shortStrike != null && strike >= shortStrike) {
+                  // Promote to short instead — user clicked above the current short.
+                  setShortStrike(strike);
+                  if (longStrike != null && strike <= longStrike) setLongStrike(null);
+                } else {
+                  setLongStrike(strike);
+                }
+                setLimitCredit(0);
+              }
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-1 md:flex-row md:items-center">
         <label htmlFor="qty" className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">Qty (spreads)</label>

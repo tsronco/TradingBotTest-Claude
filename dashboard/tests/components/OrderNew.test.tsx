@@ -47,4 +47,32 @@ describe('OrderNew route', () => {
     await waitFor(() => screen.getByText(/--spread=put_credit/));
     expect(screen.getByText(/--symbol=AAL/)).toBeInTheDocument();
   });
+
+  it('prefills limit price and side when arriving with ?side=STO&price=1.23 (chain bid click)', async () => {
+    // Use an option contract route. The chain-probe fetch returns the contract symbol,
+    // OptionOrderForm reads the URL params we passed via OrderNew and seeds state.
+    renderOrderNew('/order/new?contract=AAL260529P00012500&action=open&side=STO&price=1.23');
+    await waitFor(() => screen.getByText(/option · opening · conservative_paper/i));
+
+    // The STO side chip should be active
+    const stoBtn = screen.getByRole('button', { name: /STO/i });
+    expect(stoBtn.className).toMatch(/active/);
+    const btoBtn = screen.getByRole('button', { name: /BTO/i });
+    expect(btoBtn.className).not.toMatch(/active/);
+
+    // The limit price input should be prefilled with 1.23
+    const limitInput = document.querySelector('input[type="number"]:not([min])') as HTMLInputElement;
+    // There are multiple number inputs; find the one whose value is 1.23
+    const allNumberInputs = Array.from(document.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
+    expect(allNumberInputs.some((el) => el.value === '1.23')).toBe(true);
+    // suppress lint about unused var
+    void limitInput;
+  });
+
+  it('prefills BTO when arriving with ?side=BTO (chain ask click)', async () => {
+    renderOrderNew('/order/new?contract=AAL260529P00012500&action=open&side=BTO&price=0.42');
+    await waitFor(() => screen.getByText(/option · opening · conservative_paper/i));
+    const btoBtn = screen.getByRole('button', { name: /BTO/i });
+    expect(btoBtn.className).toMatch(/active/);
+  });
 });

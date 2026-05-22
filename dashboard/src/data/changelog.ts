@@ -30,6 +30,38 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'ui',
+    title: 'Dashboard UX batch: clickable bid/ask, embedded chain in spread form, display-name profile, DTE in expirations, navbar reorder',
+    details:
+      'Six related polish items shipped together:\n\n' +
+      '1) Options-chain bid/ask cells are now real buttons. Click bid → /order/new opens with side=STO ' +
+      'and the bid price prefilled as the limit (you sell at the bid). Click ask → side=BTO with the ask ' +
+      'prefilled (you buy at the ask). Same brokerage-style behaviour as Alpaca/Robinhood/etc.\n\n' +
+      '2) SpreadOrderForm now embeds the same OptionsChain right below its expiration dropdown — ' +
+      "premiums are visible upfront for every strike, no more clicking through dropdowns blind. Click bid " +
+      'on a strike → populates the SHORT leg. Click ask on a strike below the short → populates the LONG ' +
+      'leg. (Clicking ask on a strike above current short auto-promotes it to short.) The chain is ' +
+      'locked to puts + the selected expiration. Existing strike dropdowns kept as keyboard fallback.\n\n' +
+      '3) Display name is now configurable in Settings → profile. Default "trader". Replaces the ' +
+      'hardcoded "tim" in every terminal-prompt header (e.g. `pat@dash:~/portfolio$`) and the ' +
+      '`TIM_DASH` sidebar logo (now `PAT_DASH` etc.). GET endpoint is public (login page can read it ' +
+      'before auth); POST requires auth + a regex-validated name (1–24 chars, starts with a letter).\n\n' +
+      "4) The AI coach's grading prompt now addresses the trader by their configured display name " +
+      '(e.g. "You are an honest trading coach for a single trader (Pat)"). Falls back to "the trader" ' +
+      'when no name is set.\n\n' +
+      '5) Expiration dropdowns (OptionsChain on /lookup + SpreadOrderForm) now show "(N DTE)" next to ' +
+      'each date — e.g. `06/19/2026 (28 DTE)`. Computed from today at render time, so always accurate. ' +
+      '"(expired)" for past dates.\n\n' +
+      '6) Sidebar reorder: settings moved to a bottom "ACCOUNT" cluster with changelog + sign-out, ' +
+      'freeing top-nav real estate for the daily-trading + research pages in usage order: home, ' +
+      'positions, orders, trades, lookup, watchlist, calendar, rules, performance. Top-bar tmux ' +
+      'indicator now lists trades as window 4 (was lookup).\n\n' +
+      'Tests: +21 vitest (clickable bid/ask × 4, embedded chain × 4, DTE × 2, display-name API × 8, ' +
+      'grading-prompt name injection × 2, order prefill from URL × 2 — minus 1 existing test ' +
+      'restructured). New totals: 526 vitest / 84 files (was 505/83). Bot pytest unaffected at 450.',
+  },
+  {
+    date: '2026-05-22',
     category: 'config',
     title: 'SM universe: added broad-market ETFs SPY, QQQ, IWM (55 names total)',
     details:
