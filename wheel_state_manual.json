@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T17:32:05.264995Z"
+    "last_checked": "2026-05-22T17:41:50.731063Z"
   },
   "F": {
     "stage": 1,
@@ -69,7 +69,7 @@
     "last_action": "Manual mode: not opening new puts (user-driven)."
   },
   "AAL": {
-    "stage": 1,
+    "stage": "spread_active",
     "spread_type": "put_credit",
     "short_leg": {
       "occ": "AAL260618P00013500",
@@ -78,29 +78,48 @@
       "qty": 1
     },
     "long_leg": {
-      "occ": "AAL260612P00012500",
+      "occ": "AAL260618P00012500",
       "strike": 12.5,
-      "entry_premium": 0.245,
+      "entry_premium": 0.29,
       "qty": 1
     },
     "expiration": "2026-06-18",
-    "net_credit": 0.335,
-    "max_loss": 0.665,
+    "net_credit": 0.29,
+    "max_loss": 0.71,
     "width": 1.0,
-    "opened_at": "2026-05-22T17:12:02.867915Z",
-    "open_order_id": "0e190e28-4da6-46b6-aed8-7873d68141f3",
-    "open_limit_credit": 0.3,
+    "opened_at": "2026-05-22T17:41:34.205994Z",
+    "open_order_id": null,
+    "open_limit_credit": null,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring AAL260618P00013500: $0.66 vs entry $0.58",
-    "current_contract": "AAL260618P00013500",
-    "contract_order_id": null,
-    "contract_entry_price": 0.58,
-    "contract_entry_date": "2026-05-22T17:21:38.433932Z",
-    "contract_expiration": "2026-06-18",
-    "contract_type": "put",
-    "contract_strike": 13.5,
-    "contract_qty": 1
+    "last_action": "Adopted spread short=$13.50 long=$12.50 credit=$0.29"
+  },
+  "INTC": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "INTC260612P00118000",
+      "strike": 118.0,
+      "entry_premium": 7.43,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "INTC260612P00113000",
+      "strike": 113.0,
+      "entry_premium": 5.35,
+      "qty": 1
+    },
+    "expiration": "2026-06-12",
+    "net_credit": 2.08,
+    "max_loss": 2.92,
+    "width": 5.0,
+    "opened_at": "2026-05-22T17:41:50.449046Z",
+    "open_order_id": "c6aef99e-8df8-48d3-8d86-7f82cda097fc",
+    "open_limit_credit": 1.39,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$118.00 long=$113.00 credit=$2.08"
   }
 }
