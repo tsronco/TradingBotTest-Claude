@@ -1122,11 +1122,25 @@ def _parse_occ_strike_expiry(occ: str) -> tuple[float | None, str | None]:
 
 
 def find_best_contract(underlying_symbol, option_type, target_strike,
-                        exp_min_days, exp_max_days):
-    """Find the contract closest to target_strike within the expiry window."""
+                        exp_min_days, exp_max_days, exp_date=None):
+    """Find the contract closest to target_strike within the expiry window.
+
+    When `exp_date` is provided (YYYY-MM-DD string), restricts the search to
+    that exact expiration — used by the auto-spread long-leg picker to force
+    the long to the same expiration as the already-chosen short (otherwise
+    the strike-distance × expiration-distance scoring can produce a diagonal
+    instead of a vertical). Existing callers that don't pass exp_date keep
+    the original behaviour byte-for-byte.
+    """
     today = date.today()
-    exp_min = (today + timedelta(days=exp_min_days)).isoformat()
-    exp_max = (today + timedelta(days=exp_max_days)).isoformat()
+    if exp_date is not None:
+        # Hard-constrain the API query to a single expiration. Bound the
+        # DTE window check on top so we don't bypass the caller's intent.
+        exp_min = exp_date
+        exp_max = exp_date
+    else:
+        exp_min = (today + timedelta(days=exp_min_days)).isoformat()
+        exp_max = (today + timedelta(days=exp_max_days)).isoformat()
     strike_low  = target_strike - 15
     strike_high = target_strike + 15
 
@@ -1147,8 +1161,8 @@ def find_best_contract(underlying_symbol, option_type, target_strike,
 
     def score(c):
         strike_diff = abs(float(c["strike_price"]) - target_strike)
-        exp_date    = date.fromisoformat(c["expiration_date"])
-        exp_diff    = abs((exp_date - target_exp).days)
+        exp_date_c  = date.fromisoformat(c["expiration_date"])
+        exp_diff    = abs((exp_date_c - target_exp).days)
         return strike_diff * 2 + exp_diff  # weight strike match more heavily
 
     return min(contracts, key=score)
@@ -2538,7 +2552,22 @@ def _open_spread_mleg(short_occ: str, long_occ: str, qty: int,
     mid) so the order fills instead of resting at an untradeable mid.
     When None, falls back to the mid (legacy behavior — keeps direct
     callers and the four non-SM modes byte-identical).
+
+    Raises ValueError if the two OCC symbols don't share an expiration —
+    Alpaca's mleg endpoint will happily accept a diagonal (different
+    expirations), but the bot's pairing + management code requires a
+    vertical. Reject early rather than open a spread the bot can't
+    pair on the next cycle.
     """
+    short_exp = _parse_occ_strike_expiry(short_occ)[1]
+    long_exp  = _parse_occ_strike_expiry(long_occ)[1]
+    if short_exp is None or long_exp is None or short_exp != long_exp:
+        raise ValueError(
+            f"_open_spread_mleg refused mismatched expirations: "
+            f"short={short_occ} (exp={short_exp}) "
+            f"long={long_occ} (exp={long_exp}) — would have placed a "
+            f"diagonal, not a vertical"
+        )
     if limit_credit is None:
         eff_credit = abs(net_credit)
     else:
@@ -2734,8 +2763,14 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             long_target = short_strike - inc * step
             if long_target <= 0:
                 break
+            # Force the long leg to the SHORT's expiration — without this
+            # the picker's strike-vs-target_exp scoring can land on a
+            # different expiration than the short (e.g. short 06/18, long
+            # 06/12 = a diagonal instead of a vertical, observed in the
+            # 2026-05-22 AAL open).
             long_contract = find_best_contract(sym, "put", long_target,
-                                                dte_min, dte_max)
+                                                dte_min, dte_max,
+                                                exp_date=expiration)
             if not long_contract:
                 continue
             long_strike = float(long_contract["strike_price"])
