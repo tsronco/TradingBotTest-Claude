@@ -30,6 +30,35 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'engine',
+    title: 'Manual auto-opener: delta-target short selection + ETF wheelability bypass',
+    details:
+      'Two structural changes so manual mode can auto-open spreads on broad-market ETFs ' +
+      '(QQQ/SPY/IWM), not just high-IV cheap single stocks. Manual-only — cons/agg/live/SM all ' +
+      'unchanged.\n\n' +
+      '1) Short-leg selection switched from the 10%-OTM strike rule to a Δ −0.40 delta target. ' +
+      'The 10%-OTM rule is calibrated for high-IV single stocks; on a low-IV ETF it lands at ' +
+      'Δ ≈ −0.03 with negligible premium, so the credit-to-width gate (33%) never passes. ' +
+      'Targeting Δ −0.40 self-calibrates across IV regimes — same anchor produces a 10%-OTM ' +
+      'strike on a high-IV cheap stock and a near-ATM strike on a low-IV ETF, both with c/w ' +
+      'comfortably above the floor. New helper find_contract_by_delta() uses the chain-snapshot ' +
+      'endpoint (greeks in one shot).\n\n' +
+      '2) Added wheelability_bypass_symbols = [QQQ, SPY, IWM]. The percentile-80 floor uses ' +
+      'premium_yield = bid/strike, which always lands ETFs near the bottom (denominator is ' +
+      'hundreds of dollars) regardless of strike target. Bypass skips the floor for these ' +
+      'three symbols — every other gate still applies (credit/width, risk cap, trend filter, ' +
+      'BP, earnings).\n\n' +
+      'Also bumped manual\'s bp_switch_threshold 5000 → 50000. The 5000 value was inherited ' +
+      'from sm1000\'s Balanced posture, where BP is always under $1k so the gate is moot; on a ' +
+      '$10k manual account BP sits above 5000 most of the time, blocking every spread open. ' +
+      'wheel_skip_new_puts is True on manual so a CSP would never be opened anyway — the BP ' +
+      'switch is effectively disabled, and the spread path is always taken when ' +
+      'auto_open_spreads is True.\n\n' +
+      '+11 pytest tests (delta picker, OCC parsing, bypass gating, legacy-path regression). ' +
+      'Bot total: 461 pytest. Picked up by the next cron tick.',
+  },
+  {
+    date: '2026-05-22',
     category: 'ui',
     title: 'Dashboard UX batch: clickable bid/ask, embedded chain in spread form, display-name profile, DTE in expirations, navbar reorder',
     details:
