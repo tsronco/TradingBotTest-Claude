@@ -52,13 +52,16 @@ describe('grade-open-trades — assignment detection (M5.1)', () => {
       detected_at: '2026-04-15T20:00:00Z',
     });
 
+    // Upstash auto-serializes objects on rpush; enqueueAssignmentPending now
+    // passes the raw entry object (see assignment-spawn.ts comment).
     expect(kvRpush).toHaveBeenCalledWith(
       'trades:index:assignments-pending',
-      expect.stringContaining(tradeId),
+      expect.objectContaining({
+        parent_trade_id: tradeId,
+        qty: 100,
+        account: 'conservative_paper',
+      }),
     );
-    const json = kvRpush.mock.calls[0][1];
-    expect(JSON.parse(json).qty).toBe(100);
-    expect(JSON.parse(json).account).toBe('conservative_paper');
   });
 
   it('gating logic only fires for STO put trades that closed via assigned (sentinel)', () => {

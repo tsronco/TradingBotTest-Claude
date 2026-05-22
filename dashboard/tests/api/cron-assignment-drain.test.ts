@@ -79,14 +79,15 @@ describe('grade-open-trades — assignment drain (M5.2)', () => {
   });
 
   it('drain creates a linked stock trade with parent_id + inherited grades', async () => {
-    const pendingEntry = JSON.stringify({
+    // Upstash returns parsed objects on lrange — see assignment-spawn.ts.
+    const pendingEntry = {
       parent_trade_id: parentPut.id,
       underlying: 'F',
       strike: 12,
       qty: 100,
       account: 'conservative_paper',
       detected_at: '2026-04-15T20:00:00Z',
-    });
+    };
 
     kvLrange.mockImplementation(async (k: string) => {
       if (k === 'trades:index:open') return [];
@@ -141,12 +142,12 @@ describe('grade-open-trades — assignment drain (M5.2)', () => {
   });
 
   it('drain is idempotent — does not spawn a second child for same parent', async () => {
-    const pendingEntry = JSON.stringify({
+    const pendingEntry = {
       parent_trade_id: parentPut.id,
       underlying: 'F', strike: 12, qty: 100,
       account: 'conservative_paper',
       detected_at: '2026-04-15T20:00:00Z',
-    });
+    };
 
     kvLrange.mockImplementation(async (k: string) => {
       if (k === 'trades:index:open') return [];
@@ -176,12 +177,12 @@ describe('grade-open-trades — assignment drain (M5.2)', () => {
   });
 
   it('drain skips entries when parent trade is missing', async () => {
-    const pendingEntry = JSON.stringify({
+    const pendingEntry = {
       parent_trade_id: 'T-missing',
       underlying: 'F', strike: 12, qty: 100,
       account: 'conservative_paper',
       detected_at: '2026-04-15T20:00:00Z',
-    });
+    };
     kvLrange.mockImplementation(async (k: string) => {
       if (k === 'trades:index:open') return [];
       if (k === 'trades:index:assignments-pending') return [pendingEntry];

@@ -17,21 +17,26 @@ import type { AssignmentEntry } from './rules-types.js';
 import type { Trade, GradeRecord } from './trade-types.js';
 import { allocateTradeId, currentMonth } from './trade-ids.js';
 
+// IMPORTANT — Upstash @upstash/redis auto-serializes objects on write and
+// auto-parses JSON on read. Manually JSON.stringify-ing on the way in then
+// JSON.parse-ing on the way out double-encodes and explodes (the parse-side
+// sees an already-parsed object, calls JSON.parse("[object Object]"),
+// SyntaxError). Don't add manual JSON handling here.
+
 /** Append an assignment entry to the inbox. */
 export async function enqueueAssignmentPending(entry: AssignmentEntry): Promise<void> {
-  await kv().rpush(assignmentsPendingKey(), JSON.stringify(entry));
+  await kv().rpush(assignmentsPendingKey(), entry);
 }
 
 /** Read all pending entries (does not remove them; call removeAssignment per entry after spawn). */
 export async function drainAssignments(): Promise<AssignmentEntry[]> {
-  const raw = (await kv().lrange(assignmentsPendingKey(), 0, -1)) as string[] | null;
-  if (!raw || raw.length === 0) return [];
-  return raw.map((s) => JSON.parse(s) as AssignmentEntry);
+  const raw = await kv().lrange<AssignmentEntry>(assignmentsPendingKey(), 0, -1);
+  return raw ?? [];
 }
 
 /** Remove a specific entry from the inbox after its follow-on trade has been spawned. */
 export async function removeAssignment(entry: AssignmentEntry): Promise<void> {
-  await kv().lrem(assignmentsPendingKey(), 1, JSON.stringify(entry));
+  await kv().lrem(assignmentsPendingKey(), 1, entry);
 }
 
 /**
