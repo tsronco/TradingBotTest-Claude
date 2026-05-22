@@ -2202,3 +2202,12 @@
 {"timestamp": "2026-05-22T14:22:09.834271+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 42, "equity": 10227.41}}
 {"timestamp": "2026-05-22T14:22:09.835530+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
 {"timestamp": "2026-05-22T14:22:10.214752+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-22T14:31:41.013321+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.705}}
+{"timestamp": "2026-05-22T14:32:21.485412+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SOFI", "details": {"price": 15.42}}
+{"timestamp": "2026-05-22T14:32:22.449172+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "CCL", "details": {"price": 25.93}}
+{"timestamp": "2026-05-22T14:32:24.156982+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "ORLY", "details": {"price": 92.0}}
+{"timestamp": "2026-05-22T14:32:27.006258+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "VALE", "details": {"price": 16.34}}
+{"timestamp": "2026-05-22T14:32:29.207499+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "BAC", "details": {"price": 51.755}}
+{"timestamp": "2026-05-22T14:32:29.875347+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 46, "equity": 10227.76}}
+{"timestamp": "2026-05-22T14:32:29.876684+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
+{"timestamp": "2026-05-22T14:32:30.663885+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
