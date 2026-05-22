@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T18:58:05.394479Z"
+    "last_checked": "2026-05-22T19:08:18.138875Z"
   },
   "TSLA": {
     "stage": 1,
@@ -43,10 +43,10 @@
   },
   "BAC": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": null,
+    "current_contract": "BAC260612P00045000",
+    "contract_order_id": "8e2dd822-4684-4e7b-8395-c17d69fcd993",
     "contract_entry_price": null,
-    "contract_entry_date": null,
+    "contract_entry_date": "2026-05-22T19:08:10.587559Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 45.0,
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open BAC260612P00045000 @ $0.09. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260612P00145000: $1.33 vs entry $0.51",
+    "last_action": "Monitoring XOM260612P00145000: $1.28 vs entry $0.51",
     "contract_qty": 1
   },
   "KO": {
@@ -161,11 +161,11 @@
   },
   "PFE": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "954fb665-3015-466e-92ea-0fa06a1f1a47",
+    "current_contract": "PFE260612P00025000",
+    "contract_order_id": "29a5cfb8-345b-439f-8c98-9983b2505994",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-14T14:18:01.193466Z",
-    "contract_expiration": "2026-06-05",
+    "contract_entry_date": "2026-05-22T19:08:15.661818Z",
+    "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 25.0,
     "cost_basis_per_share": null,
@@ -175,7 +175,7 @@
     "total_premium_today": 9.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open PFE260612P00025000 @ $0.21. Awaiting fill.",
     "contract_qty": 1
   },
   "F": {
@@ -236,7 +236,7 @@
     "stage": 1,
     "current_contract": "INTC260612P00110000",
     "contract_order_id": "185523d0-bf4e-4917-9f88-47baf3882238",
-    "contract_entry_price": null,
+    "contract_entry_price": 4.35,
     "contract_entry_date": "2026-05-22T18:08:21.560350Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
@@ -248,7 +248,7 @@
     "total_premium_today": 350.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on INTC260612P00110000.",
+    "last_action": "Monitoring INTC260612P00110000: $4.50 vs entry $4.35",
     "contract_qty": 1
   }
 }
