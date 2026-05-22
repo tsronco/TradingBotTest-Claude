@@ -30,6 +30,28 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'config',
+    title: 'SM universe: added broad-market ETFs SPY, QQQ, IWM (55 names total)',
+    details:
+      'Added the three big index ETFs to the curated universe. Reasoning: ETFs are immune to ' +
+      'single-name earnings risk (no IV crush from a bad print), structurally "happy to own," and ' +
+      'add some non-stock diversification to a list that was getting heavy on tech + financials.\n\n' +
+      "Tradeoff: ETFs have lower IV than individual stocks, so premiums are thinner — the 33% " +
+      'credit-to-width gate will let through fewer of these than meme-tier names like MU or PLTR. ' +
+      "That's intentional; we want quality over volume.\n\n" +
+      'Verified live chains before adding:\n' +
+      '• SPY ($742.91) — deep liquidity, tight absolute spreads, clean OI\n' +
+      '• QQQ ($714.97) — same\n' +
+      '• IWM ($282.48) — same, with OI 272-1570 on near-the-money strikes\n\n' +
+      'Considered + REJECTED: VOO ($682.89) showed zero bids at target deltas (no live takers ' +
+      'near our strikes — would silently fail every cycle). VB ($286.38) had a 195% bid/ask ' +
+      'spread on the top candidate with OI 13 — too thin for the wheel.\n\n' +
+      'All three are $5-strike at these prices → $500 raw width on a min-width spread. Fits ' +
+      'manual ($1k risk cap) cleanly; SM accounts will gate them out on the budget check ($100-200 ' +
+      "cap can't accommodate $500 max loss). That's fine — same graceful fallback as MU/NVDA.",
+  },
+  {
+    date: '2026-05-22',
     category: 'feature',
     title: 'Manual refresh button on /trades — force sync against Alpaca without waiting for cron',
     details:

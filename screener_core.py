@@ -58,6 +58,9 @@ DEFAULT_CONSERVATIVE_UNIVERSE: list[str] = sorted({
     "BP", "PBR", "RIG",
     # ── Additional consumer / retail ──
     "CL", "ORLY", "WBA",
+    # ── Broad-market ETFs (no single-name earnings risk; lower IV ↔ thinner
+    # premiums, but happy-to-own + deep liquidity for the index trackers)
+    "SPY", "QQQ", "IWM",
     # ── ≤$25 tier (sm500-eligible: liquid options, would own at assignment) ──
     "SOFI", "NIO", "CCL", "AAL", "NOK", "SNAP", "WBD", "PARA", "NCLH",
     "HOOD", "RIVN", "CLF", "VALE", "KGC", "GOLD", "AES", "KEY", "RF",
@@ -109,6 +112,11 @@ SM_CURATED_UNIVERSE: list[str] = sorted({
     "F", "GM", "DAL", "LUV", "AAL", "CCL",
     # Materials
     "VALE", "KGC",
+    # Broad-market ETFs (no earnings risk; structurally fit manual+adoption
+    # tier — $5 strikes at $200-750 prices put $5-wide spread max loss at
+    # $400-500, which fits manual's $1k cap but not the SM caps; SM modes
+    # will gate them out naturally on the budget check)
+    "SPY", "QQQ", "IWM",
 })
 
 
