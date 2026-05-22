@@ -2687,14 +2687,32 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
     # the floor; bypass evaluates them on the strength of the other
     # gates (credit/width, risk cap, trend, BP, earnings) instead.
     sorted_syms = sorted(norm, key=lambda s: norm[s], reverse=True)
-    eligible_syms = [s for s in sorted_syms
-                     if norm[s] >= threshold or s in bypass_syms]
+    # Bypass symbols (QQQ/SPY/IWM) go FIRST, then score-sorted single stocks.
+    # The bypass design originally only let ETFs through the percentile floor;
+    # it didn't promote them in iteration order, so single stocks at the top
+    # of the score sort always consumed both max_opens_per_cycle slots and
+    # ETFs in the tail never got tried (observed every cycle 2026-05-22).
+    # Putting bypass first guarantees QQQ/SPY/IWM at least get an attempt
+    # every cycle; the remaining single-stock candidates fill any slots the
+    # bypass symbols didn't claim (e.g. when none clears the c/w + risk gates).
+    bypass_first = [s for s in sorted_syms if s in bypass_syms]
+    others       = [s for s in sorted_syms
+                    if s not in bypass_syms and norm[s] >= threshold]
+    eligible_syms = bypass_first + others
     if not eligible_syms:
         log(f"[auto-spread] best remaining wheelability < {threshold} "
             f"and no bypass candidates — no trade")
     max_opens = int(cfg.get("max_opens_per_cycle", 1))
     opens_this_cycle = 0
     for sym in eligible_syms:
+        # Inline concurrency check: open_spreads was counted at the top of
+        # this cycle, but with max_opens_per_cycle > 1 we may now be at the
+        # cap mid-loop. Stop before exceeding it (observed 2026-05-22: with
+        # 3 open + 2 new opens, total went to 5 against a cap of 4).
+        if open_spreads + opens_this_cycle >= cap:
+            log(f"[auto-spread] concurrency cap reached mid-cycle "
+                f"({open_spreads + opens_this_cycle}/{cap}) — stopping")
+            break
 
         if earnings.next_earnings_within(sym, cfg["earnings_exclusion_days"]):
             log(f"[auto-spread] {sym} earnings within "

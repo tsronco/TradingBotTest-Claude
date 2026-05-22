@@ -31,6 +31,30 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
     category: 'engine',
+    title: 'Manual auto-opener: bypass priority + inline concurrency cap',
+    details:
+      'Two follow-ups to the same-day auto-opener changes. After shipping ' +
+      'max_opens_per_cycle=2 + wheelability bypass, observed two real bugs:\n\n' +
+      '1) Bypass symbols (QQQ/SPY/IWM) STILL never got attempted. Original bypass ' +
+      'design let them through the percentile floor but kept them at the BOTTOM of ' +
+      "the score-sorted iteration. With 49 single stocks ahead of them and only 2 " +
+      'slots per cycle, the single stocks always ate both slots before the loop ' +
+      'reached the bypass tail. Fix: bypass symbols are now iterated FIRST every ' +
+      "cycle, then score-sorted single stocks fill the remaining slots. Every cycle " +
+      'QQQ/SPY/IWM get at least one attempt at the gauntlet (c/w 33%, risk cap, ' +
+      "trend, BP, earnings) — they still need to clear those, but they're no longer " +
+      'starved by single-stock score dominance.\n\n' +
+      '2) Concurrency cap was checked only at the TOP of the cycle. With ' +
+      'max_opens_per_cycle=2 just shipped, observed 3 existing + 2 new = 5 spreads ' +
+      'against a cap of 4 (one cycle of overshoot). Fix: inline check after each ' +
+      'open — break out of the loop when open_spreads + opens_this_cycle reaches ' +
+      'cap, never exceed it again.\n\n' +
+      '+2 pytest tests (bypass-tried-first, inline-cap-stops-mid-cycle). ' +
+      'Bot total: 471 pytest. Picks up on next cron tick.',
+  },
+  {
+    date: '2026-05-22',
+    category: 'engine',
     title: 'Manual auto-opener: 2 opens/cycle + retry-on-failure (lets ETF + single-stock both fill)',
     details:
       'Two follow-up changes after the first day of real auto-opens on manual revealed two ' +
