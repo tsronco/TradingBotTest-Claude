@@ -175,7 +175,7 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda sym, days: earnings_within.get(sym, False))
 
-    def fake_find(underlying, opt_type, target_strike, dmin, dmax):
+    def fake_find(underlying, opt_type, target_strike, dmin, dmax, exp_date=None):
         # nearest available strike for this underlying
         cands = {k[1]: v for k, v in contracts_by_strike.items()
                  if k[0] == underlying}
@@ -886,7 +886,7 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
 
-    def fake_find(u, t, ts, dmin, dmax):
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
         cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
@@ -1257,7 +1257,7 @@ def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
         return _contract("QQQ260618P00715000", 715.0, "2026-06-18")
 
     strike_calls = []
-    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax):
+    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax, exp_date=None):
         strike_calls.append((sym, opt_type, target_strike))
         # Long candidate one strike below
         return _contract(f"QQQ260618P00{int((target_strike)*1000):08d}",
@@ -1317,7 +1317,7 @@ def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
                         lambda *a, **kw: delta_calls.append(a) or None)
 
     strike_calls = []
-    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax):
+    def fake_by_strike(sym, opt_type, target_strike, dmin, dmax, exp_date=None):
         strike_calls.append((sym, target_strike))
         return _contract("CHEAP260618P00018000", 18.0, "2026-06-18")
     monkeypatch.setattr(ws, "find_best_contract", fake_by_strike)
@@ -1361,7 +1361,7 @@ def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
     cfg["trend_filter"] = False
 
     reached = []
-    def fake_find(sym, opt_type, target_strike, dmin, dmax):
+    def fake_find(sym, opt_type, target_strike, dmin, dmax, exp_date=None):
         reached.append(sym)
         return None  # return None so construction terminates cleanly
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
@@ -1408,7 +1408,7 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
     cfg["trend_filter"] = False
 
     reached = []
-    def fake_find(sym, opt_type, target_strike, dmin, dmax):
+    def fake_find(sym, opt_type, target_strike, dmin, dmax, exp_date=None):
         reached.append(sym)
         return None
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
@@ -1445,3 +1445,141 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
 
     assert "JUNK" not in reached, "non-bypass low-score symbol must NOT be reached"
     assert "GOOD" in reached, "high-score symbol still reached (sanity)"
+
+
+# ── Diagonal-spread bug fix (2026-05-22) ──────────────────────────────
+# The first real auto-open on manual ended up as a diagonal (short 06/18
+# AAL $13.50, long 06/12 AAL $12.50) because find_best_contract for the
+# long leg picked the expiration nearest its own (target_exp = today +
+# midpoint), not the short s expiration. Two layers of fix:
+#   1. find_best_contract gains an optional exp_date that hard-pins the
+#      query to a single expiration. The opener now passes the short s
+#      expiration when finding the long leg.
+#   2. _open_spread_mleg validates same-expiration up front and raises
+#      ValueError on mismatch — defense in depth so future callers cant
+#      accidentally place a diagonal.
+
+
+def test_find_best_contract_respects_exp_date(monkeypatch):
+    """When exp_date is set, the API query is locked to that expiration —
+    the picker cannot wander to a closer-target_exp neighbour."""
+    captured = {}
+    def fake_api_get(path, params=None):
+        captured["path"] = path
+        captured["params"] = params
+        # Return a single matching contract so the picker has something
+        # to choose. Any other date would be filtered out by Alpaca.
+        return {"option_contracts": [
+            {"symbol": "AAL260618P00012500",
+             "strike_price": "12.50",
+             "expiration_date": "2026-06-18"},
+        ]}
+    monkeypatch.setattr(ws, "api_get", fake_api_get)
+    c = ws.find_best_contract("AAL", "put", 12.50, 14, 28, exp_date="2026-06-18")
+    assert c is not None
+    assert c["symbol"] == "AAL260618P00012500"
+    # The API params force a single expiration both sides
+    assert captured["params"]["expiration_date_gte"] == "2026-06-18"
+    assert captured["params"]["expiration_date_lte"] == "2026-06-18"
+
+
+def test_find_best_contract_no_exp_date_uses_window(monkeypatch):
+    """When exp_date is unset (legacy callers), the picker keeps the
+    DTE window behaviour — regression check."""
+    captured = {}
+    monkeypatch.setattr(ws, "api_get",
+                        lambda path, params=None: captured.update(params=params)
+                        or {"option_contracts": [
+                            {"symbol": "AAL260612P00012500",
+                             "strike_price": "12.50",
+                             "expiration_date": "2026-06-12"}]})
+    ws.find_best_contract("AAL", "put", 12.50, 14, 28)
+    assert captured["params"]["expiration_date_gte"] != captured["params"]["expiration_date_lte"]
+
+
+def test_open_spread_mleg_rejects_mismatched_expirations(monkeypatch):
+    """Defense-in-depth: even if a future caller forgets to pin expiration,
+    the mleg primitive refuses to submit a diagonal."""
+    posted = []
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: posted.append((p, b)) or {"id": "x"})
+    import pytest
+    with pytest.raises(ValueError) as exc:
+        ws._open_spread_mleg(
+            short_occ="AAL260618P00013500",  # 06/18
+            long_occ="AAL260612P00012500",   # 06/12 — mismatch!
+            qty=1,
+            net_credit=0.34,
+        )
+    assert "diagonal" in str(exc.value).lower()
+    assert posted == [], "no order should have been submitted"
+
+
+def test_open_spread_mleg_accepts_matched_expirations(monkeypatch):
+    """Verticals (same expiration) still pass through unchanged."""
+    posted = []
+    monkeypatch.setattr(ws, "api_post",
+                        lambda p, b: posted.append((p, b)) or {"id": "x"})
+    ws._open_spread_mleg(
+        short_occ="AAL260618P00013500",
+        long_occ="AAL260618P00012500",  # same expiration
+        qty=1, net_credit=0.34,
+    )
+    assert len(posted) == 1
+    assert posted[0][0] == "/orders"
+    assert posted[0][1]["order_class"] == "mleg"
+
+
+def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
+    """End-to-end: when the auto-opener picks a short via delta-target,
+    the long-leg picker is called with exp_date set to the shorts
+    expiration. This is the AAL diagonal regression check."""
+    import config
+    cfg = dict(config.get_mode("manual"))
+    cfg["short_put_target_delta"] = -0.40
+    cfg["wheelability_bypass_symbols"] = ["AAL"]
+    cfg["trend_filter"] = False
+    cfg["wheelability_min"] = 80
+
+    # Short returned at 06/18 expiration
+    monkeypatch.setattr(ws, "find_contract_by_delta",
+                        lambda *a, **kw: {"symbol": "AAL260618P00013500",
+                                          "strike_price": "13.50",
+                                          "expiration_date": "2026-06-18"})
+
+    long_call_args = []
+    def fake_find_long(sym, opt_type, target_strike, dmin, dmax, exp_date=None):
+        long_call_args.append({"target_strike": target_strike,
+                               "exp_date": exp_date,
+                               "dmin": dmin, "dmax": dmax})
+        return None  # terminate construction cleanly
+    monkeypatch.setattr(ws, "find_best_contract", fake_find_long)
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "5000"})
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: ["AAL"])
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw: {"score": 5.0, "price": 14.0})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [13.0] * 20)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.56, "ask": 0.60})
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda *a, **kw: {"id": "ord-1"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    ws._auto_open_spread({"_meta": {}},
+                         {"options_buying_power": "5000"}, cfg)
+
+    # Every long-leg find call must carry exp_date = short s expiration
+    assert len(long_call_args) >= 1
+    for call in long_call_args:
+        assert call["exp_date"] == "2026-06-18", \
+            f"long-leg picker must pin to short s expiration; got {call}"
+

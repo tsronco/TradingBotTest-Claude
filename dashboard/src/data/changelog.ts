@@ -30,6 +30,35 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-22',
+    category: 'fix',
+    title: 'Auto-spread opener: long-leg pinned to short-leg expiration (no more diagonals)',
+    details:
+      "First real auto-open on manual (AAL 06/18 \\$13.50 short + 06/12 \\$12.50 long) " +
+      'came out as a diagonal, not a vertical. Root cause: find_best_contract scored ' +
+      'candidates by strike-distance × expiration-distance with target_exp = today + 21d, ' +
+      "so when looking for the long it preferred 06/12 (exp_diff 0) over 06/18 (exp_diff 6). " +
+      "The downstream pairing code in _detect_spread_pairs correctly requires matching " +
+      'expirations, so the next cycle couldn\'t pair them and adopted the short as a bare ' +
+      "Stage 1 CSP — leaving the user with a diagonal Alpaca position that the bot didn't " +
+      'recognize as a spread.\n\n' +
+      'Two fixes shipped together:\n\n' +
+      '1) find_best_contract gained an optional exp_date kwarg. When set, the API query ' +
+      'is hard-locked to a single expiration. The auto-opener now passes the short s ' +
+      'expiration to the long-leg picker, guaranteeing the same expiration for both legs.\n\n' +
+      '2) _open_spread_mleg validates same-expiration up front and raises ValueError on ' +
+      'mismatch — defense in depth so a future code path that forgets to pin can\'t place ' +
+      'a diagonal.\n\n' +
+      '+5 pytest tests (exp_date wiring, legacy regression, mleg mismatch rejection, mleg ' +
+      'match acceptance, end-to-end auto-opener long-leg pinning). Bot total: 466 pytest.\n\n' +
+      "Note: the AAL diagonal opened today is live on the manual paper account and won't " +
+      'be retroactively repaired by this fix — the bot is now managing the short as a bare ' +
+      'Stage 1 CSP and the long as an orphan long put (long_options_strategy.py). User needs ' +
+      'to decide: close both legs manually, buy a matching 06/18 \\$12.50 long to convert to ' +
+      "a real vertical, or let it ride (short is naked from 06/12 to 06/18 if AAL doesn't " +
+      'breach \\$12.50 by 06/12).',
+  },
+  {
+    date: '2026-05-22',
     category: 'engine',
     title: 'Manual auto-opener: delta-target short selection + ETF wheelability bypass',
     details:
