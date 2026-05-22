@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T17:12:03.614127Z"
+    "last_checked": "2026-05-22T17:22:40.619422Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.12 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.14 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
@@ -69,7 +69,7 @@
     "last_action": "Manual mode: not opening new puts (user-driven)."
   },
   "AAL": {
-    "stage": "spread_active",
+    "stage": 1,
     "spread_type": "put_credit",
     "short_leg": {
       "occ": "AAL260618P00013500",
@@ -93,6 +93,14 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$13.50 long=$12.50 credit=$0.34"
+    "last_action": "Monitoring AAL260618P00013500: $0.66 vs entry $0.58",
+    "current_contract": "AAL260618P00013500",
+    "contract_order_id": null,
+    "contract_entry_price": 0.58,
+    "contract_entry_date": "2026-05-22T17:21:38.433932Z",
+    "contract_expiration": "2026-06-18",
+    "contract_type": "put",
+    "contract_strike": 13.5,
+    "contract_qty": 1
   }
 }
