@@ -1737,3 +1737,149 @@ def test_auto_open_sm_modes_still_cap_at_one(monkeypatch):
     ws._auto_open_spread(state, {"options_buying_power": "2000"}, cfg)
     assert len(opened) == 1, "sm modes must still cap at 1"
     assert cfg["max_opens_per_cycle"] == 1, "sm1000 max_opens must be 1"
+
+
+# ── Bypass priority + inline concurrency cap (2026-05-22 follow-up) ───────
+#
+# After shipping max_opens_per_cycle=2 + retry-on-failure, observed that
+# QQQ STILL never opened because the score-sorted iteration put ETFs at
+# the BOTTOM (low premium-yield scores) and the 2 slots were always eaten
+# by higher-scoring single stocks first. Also confirmed the concurrency-
+# cap edge case: 3 open + 2 new opens this cycle = 5 spreads vs cap 4.
+# Two fixes shipped together.
+
+
+def test_auto_open_bypass_symbols_tried_first(monkeypatch):
+    """Bypass symbols MUST be tried before single stocks, regardless of
+    score. With max_opens_per_cycle=2, ensures QQQ et al actually get
+    attempts every cycle instead of being starved by higher-scoring
+    single stocks consuming all slots."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["short_put_target_delta"] = None  # strike path for easier mocking
+    cfg["wheelability_bypass_symbols"] = ["QQQ"]
+    cfg["wheelability_min"] = 80
+    cfg["trend_filter"] = False
+    cfg["min_credit_to_width_pct"] = None
+    cfg["max_risk_pct_equity"] = 0.50
+
+    # GOOD scores 100 (top), QQQ scores 5 (bottom, but in bypass set).
+    # Without the bypass-first reorder, GOOD would be tried first; with
+    # the reorder, QQQ is tried first.
+    scored = {"GOOD": {"score": 100.0, "price": 20.0},
+              "QQQ":  {"score":   5.0, "price": 720.0}}
+    contracts = {
+        ("GOOD", 18.0): _contract("GOOD260612P00018000", 18.0),
+        ("GOOD", 17.0): _contract("GOOD260612P00017000", 17.0),
+        ("QQQ",  648.0): _contract("QQQ260612P00648000",  648.0),
+        ("QQQ",  643.0): _contract("QQQ260612P00643000",  643.0),
+    }
+
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw: scored.get(sym))
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "10000"})
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
+        cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
+        if not cands:
+            return None
+        return cands[min(cands, key=lambda s: abs(s - ts))]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ or "648000" in occ
+                                    else {"bid": 0.15, "ask": 0.25})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+
+    open_order = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None:
+                            open_order.append(s) or {"id": "ord"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    ws._auto_open_spread({"_meta": {}},
+                         {"options_buying_power": "10000"}, cfg)
+
+    # QQQ must be opened FIRST despite its low score
+    assert len(open_order) == 2
+    assert "QQQ" in open_order[0], \
+        f"bypass symbol must be tried first; first open was {open_order[0]}"
+    assert "GOOD" in open_order[1], \
+        f"non-bypass should fill second slot; second open was {open_order[1]}"
+
+
+def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
+    """With max_opens_per_cycle=2 and 3 spreads already open against a
+    cap of 4, only ONE more spread should open this cycle (filling the
+    4th slot), then break — not blow past cap to 5."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["short_put_target_delta"] = None
+    cfg["wheelability_bypass_symbols"] = []  # disable bypass for this test
+    cfg["wheelability_min"] = 0
+    cfg["trend_filter"] = False
+    cfg["min_credit_to_width_pct"] = None
+    cfg["max_risk_pct_equity"] = 0.50
+    cfg["max_concurrent_spreads"] = 4
+
+    # Three spreads already in state — simulate cycle 4 of a busy week
+    state = {
+        "_meta": {},
+        "EXISTING1": {"stage": "spread_active", "short_leg": {"occ": "x"},
+                      "long_leg": {"occ": "y"}, "expiration": "2026-06-12"},
+        "EXISTING2": {"stage": "spread_active", "short_leg": {"occ": "x"},
+                      "long_leg": {"occ": "y"}, "expiration": "2026-06-12"},
+        "EXISTING3": {"stage": "spread_active", "short_leg": {"occ": "x"},
+                      "long_leg": {"occ": "y"}, "expiration": "2026-06-12"},
+    }
+
+    # Two new high-score candidates — both viable but only 1 slot left
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score":  99.0, "price": 20.0}}
+    contracts = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+    }
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda sym, bp, **kw: scored.get(sym))
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000",
+                                 "options_buying_power": "10000"})
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
+        cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
+        if not cands:
+            return None
+        return cands[min(cands, key=lambda s: abs(s - ts))]
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                                    else {"bid": 0.15, "ask": 0.25})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within",
+                        lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes",
+                        lambda s, n=20: [10.0] * 20)
+
+    open_order = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None:
+                            open_order.append(s) or {"id": "ord"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    ws._auto_open_spread(state, {"options_buying_power": "10000"}, cfg)
+
+    # max_opens=2 but cap=4 with 3 already open → only 1 new spread fits
+    assert len(open_order) == 1, \
+        f"inline cap must stop after 1 open (3 existing + 1 new = 4); got {len(open_order)}"
