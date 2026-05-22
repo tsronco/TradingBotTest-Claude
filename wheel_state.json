@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T13:38:19.815557Z"
+    "last_checked": "2026-05-22T13:48:27.802119Z"
   },
   "TSLA": {
     "stage": 1,
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260612P00045000 @ $0.07. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260612P00045000.",
     "contract_qty": 1
   },
   "XOM": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260612P00125000: $1.77 vs entry $1.85",
+    "last_action": "Monitoring PLTR260612P00125000: $1.60 vs entry $1.85",
     "contract_qty": 1
   },
   "SOFI": {
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260605P00025000: $0.11 vs entry $0.18",
+    "last_action": "Monitoring PFE260605P00025000: $0.12 vs entry $0.18",
     "contract_qty": 1
   },
   "F": {
@@ -202,7 +202,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open F260612P00012500 @ $0.08. Awaiting fill.",
+    "last_action": "Awaiting fill on F260612P00012500.",
     "contract_qty": 1
   },
   "T": {
@@ -234,9 +234,9 @@
   },
   "INTC": {
     "stage": 1,
-    "current_contract": "INTC260529P00115000",
+    "current_contract": null,
     "contract_order_id": "c6836f77-a2d1-49ba-94a7-7086f473dce3",
-    "contract_entry_price": 6.65,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-08T16:58:05.223751Z",
     "contract_expiration": "2026-05-29",
     "contract_type": "put",
@@ -244,11 +244,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 384.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 734.0,
+    "total_premium_today": 350.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260529P00115000: $3.74 vs entry $6.65",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   }
 }
