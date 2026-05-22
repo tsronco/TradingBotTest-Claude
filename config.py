@@ -296,7 +296,13 @@ MODES = {
         "max_concurrent_spreads":    4,       # 10x sm2000 capital → +1 vs sm2000
         "account_floor":             1000,    # 10x sm levels (skip if equity < $1k)
         "earnings_exclusion_days":   7,
-        "max_opens_per_cycle":       1,
+        # 2 opens/cycle so a single-stock spread + a bypass ETF spread can
+        # both fill on the same cycle. Without this, the score-race winner
+        # always grabs the only slot and ETFs (which sit at the bottom of
+        # the sort with low premium-yield scores) never get reached. Risk
+        # cap + concurrency cap + credit-to-width gate still limit total
+        # exposure. Manual-only — SM/cons/agg/live stay at 1.
+        "max_opens_per_cycle":       2,
         "short_put_otm_pct":         0.10,
         "spread_dte_min":            14,
         "spread_dte_max":            28,
