@@ -2164,3 +2164,9 @@
 {"timestamp": "2026-05-22T13:31:54.189440+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 41, "equity": 10228.55}}
 {"timestamp": "2026-05-22T13:31:54.190693+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
 {"timestamp": "2026-05-22T13:31:54.606754+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-22T13:41:36.812155+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.74}}
+{"timestamp": "2026-05-22T13:42:15.862982+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 138.69}}
+{"timestamp": "2026-05-22T13:42:18.193070+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PFE", "details": {"price": 26.1}}
+{"timestamp": "2026-05-22T13:42:18.193307+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 42, "equity": 10228.51}}
+{"timestamp": "2026-05-22T13:42:18.194414+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
+{"timestamp": "2026-05-22T13:42:18.870645+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
