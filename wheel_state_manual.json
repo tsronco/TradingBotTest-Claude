@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T17:01:57.357023Z"
+    "last_checked": "2026-05-22T17:12:03.614127Z"
   },
   "F": {
     "stage": 1,
@@ -67,5 +67,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
+  },
+  "AAL": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "AAL260618P00013500",
+      "strike": 13.5,
+      "entry_premium": 0.58,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "AAL260612P00012500",
+      "strike": 12.5,
+      "entry_premium": 0.245,
+      "qty": 1
+    },
+    "expiration": "2026-06-18",
+    "net_credit": 0.335,
+    "max_loss": 0.665,
+    "width": 1.0,
+    "opened_at": "2026-05-22T17:12:02.867915Z",
+    "open_order_id": "0e190e28-4da6-46b6-aed8-7873d68141f3",
+    "open_limit_credit": 0.3,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$13.50 long=$12.50 credit=$0.34"
   }
 }
