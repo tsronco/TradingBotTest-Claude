@@ -2323,3 +2323,13 @@
 {"timestamp": "2026-05-22T16:41:51.736127+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 48, "equity": 10228.21}}
 {"timestamp": "2026-05-22T16:41:51.737471+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
 {"timestamp": "2026-05-22T16:41:52.126311+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-22T16:51:40.036983+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.675}}
+{"timestamp": "2026-05-22T16:52:20.146118+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "CCL", "details": {"price": 26.075}}
+{"timestamp": "2026-05-22T16:52:21.176041+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "T", "details": {"price": 25.305}}
+{"timestamp": "2026-05-22T16:52:22.045770+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PFE", "details": {"price": 25.955}}
+{"timestamp": "2026-05-22T16:52:22.981623+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "WFC", "details": {"price": 76.38}}
+{"timestamp": "2026-05-22T16:52:23.948501+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SOFI", "details": {"price": 15.56}}
+{"timestamp": "2026-05-22T16:52:28.638156+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 136.635}}
+{"timestamp": "2026-05-22T16:52:28.638396+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 47, "equity": 10227.01}}
+{"timestamp": "2026-05-22T16:52:28.639592+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
+{"timestamp": "2026-05-22T16:52:29.409368+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
