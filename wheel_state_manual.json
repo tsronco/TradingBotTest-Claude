@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-22T17:41:50.731063Z"
+    "last_checked": "2026-05-22T17:51:53.190185Z"
   },
   "F": {
     "stage": 1,
@@ -111,15 +111,42 @@
       "qty": 1
     },
     "expiration": "2026-06-12",
-    "net_credit": 2.08,
-    "max_loss": 2.92,
+    "net_credit": 1.5,
+    "max_loss": 3.5,
     "width": 5.0,
     "opened_at": "2026-05-22T17:41:50.449046Z",
-    "open_order_id": "c6aef99e-8df8-48d3-8d86-7f82cda097fc",
+    "open_order_id": null,
     "open_limit_credit": 1.39,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$118.00 long=$113.00 credit=$2.08"
+    "last_action": "Spread open order filled \u2014 now managing."
+  },
+  "MSFT": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "MSFT260618P00412500",
+      "strike": 412.5,
+      "entry_premium": 8.89,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "MSFT260618P00407500",
+      "strike": 407.5,
+      "entry_premium": 6.93,
+      "qty": 1
+    },
+    "expiration": "2026-06-18",
+    "net_credit": 1.96,
+    "max_loss": 3.04,
+    "width": 5.0,
+    "opened_at": "2026-05-22T17:51:52.880905Z",
+    "open_order_id": "624b31a6-8d2c-4548-8801-5148638e690d",
+    "open_limit_credit": 1.45,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$412.50 long=$407.50 credit=$1.96"
   }
 }
