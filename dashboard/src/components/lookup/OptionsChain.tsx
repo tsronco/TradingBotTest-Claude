@@ -68,6 +68,15 @@ export interface ChainStrikeClick {
   price: number;
 }
 
+/** Visual selection marker — boxes the matching bid (red) or ask (cyan) cell
+ *  and tints the row. Multiple highlights allowed (spread builder uses two). */
+export interface ChainHighlight {
+  strike: number;
+  side: 'bid' | 'ask';
+  /** 'short' = red ring, 'long' = cyan ring. Defaults to matching `side`. */
+  role?: 'short' | 'long';
+}
+
 interface Props {
   symbol: string;
   /**
@@ -81,9 +90,11 @@ interface Props {
   expirationLock?: string;
   /** Optional small label rendered next to the expiration row (e.g. "pick SHORT leg"). */
   contextLabel?: ReactNode;
+  /** Selected legs to outline in the chain (e.g. spread builder's short+long picks). */
+  highlights?: ChainHighlight[];
 }
 
-export default function OptionsChain({ symbol, onPriceClick, sideLock, expirationLock, contextLabel }: Props) {
+export default function OptionsChain({ symbol, onPriceClick, sideLock, expirationLock, contextLabel, highlights }: Props) {
   // Greeks default OFF (both desktop and mobile) — keeps the mobile chain narrow.
   const [showAllGreeks, setShowAllGreeks] = useState(false);
   const [selectedExpState, setSelectedExp] = useState<string | null>(null);
@@ -353,10 +364,26 @@ export default function OptionsChain({ symbol, onPriceClick, sideLock, expiratio
               const klass = c.type === 'call' ? 'text-cyan' : 'text-red';
               const bid = cs.latestQuote?.bp;
               const ask = cs.latestQuote?.ap;
+              const strikeNum = Number(c.strike_price);
+              const bidHL = highlights?.find((h) => h.side === 'bid' && h.strike === strikeNum);
+              const askHL = highlights?.find((h) => h.side === 'ask' && h.strike === strikeNum);
+              const rowHL = bidHL ?? askHL;
+              const rowTint =
+                rowHL?.role === 'long' || (rowHL && rowHL.side === 'ask' && rowHL.role !== 'short')
+                  ? 'bg-cyan/5'
+                  : rowHL
+                  ? 'bg-red/5'
+                  : '';
+              const bidRing = bidHL
+                ? (bidHL.role === 'long' ? 'ring-1 ring-inset ring-cyan bg-cyan/15' : 'ring-1 ring-inset ring-red bg-red/15')
+                : '';
+              const askRing = askHL
+                ? (askHL.role === 'short' ? 'ring-1 ring-inset ring-red bg-red/15' : 'ring-1 ring-inset ring-cyan bg-cyan/15')
+                : '';
               elements.push(
                 <tr
                   key={c.symbol}
-                  className="border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer"
+                  className={`border-b border-border/50 hover:bg-panel-2/40 transition-colors cursor-pointer ${rowTint}`}
                   onClick={() => dispatchPriceClick(c, 'row', (bid ?? 0) > 0 && (ask ?? 0) > 0 ? ((bid! + ask!) / 2) : (bid ?? ask ?? 0))}
                 >
                   <td className="px-2 py-1 text-fg">{fmtUsd(Number(c.strike_price))}</td>
@@ -368,7 +395,7 @@ export default function OptionsChain({ symbol, onPriceClick, sideLock, expiratio
                         onClick={(e) => { e.stopPropagation(); dispatchPriceClick(c, 'bid', bid); }}
                         title={`Sell at bid ${bid.toFixed(2)}`}
                         aria-label={`bid ${bid.toFixed(2)} — sell to open`}
-                        className="w-full px-2 py-0.5 text-right text-red hover:bg-red/15 active:bg-red/25 transition-colors rounded-sm tnum"
+                        className={`w-full px-2 py-0.5 text-right text-red hover:bg-red/15 active:bg-red/25 transition-colors rounded-sm tnum ${bidRing}`}
                       >
                         {bid.toFixed(2)}
                       </button>
@@ -381,7 +408,7 @@ export default function OptionsChain({ symbol, onPriceClick, sideLock, expiratio
                         onClick={(e) => { e.stopPropagation(); dispatchPriceClick(c, 'ask', ask); }}
                         title={`Buy at ask ${ask.toFixed(2)}`}
                         aria-label={`ask ${ask.toFixed(2)} — buy to open`}
-                        className="w-full px-2 py-0.5 text-right text-cyan hover:bg-cyan/15 active:bg-cyan/25 transition-colors rounded-sm tnum"
+                        className={`w-full px-2 py-0.5 text-right text-cyan hover:bg-cyan/15 active:bg-cyan/25 transition-colors rounded-sm tnum ${askRing}`}
                       >
                         {ask.toFixed(2)}
                       </button>

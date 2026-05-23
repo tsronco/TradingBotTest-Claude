@@ -30,6 +30,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-23',
+    category: 'ui',
+    title: 'Spread builder: selected legs highlighted in the chain',
+    details:
+      'When you click a bid or ask on the spread order form, the chosen cell ' +
+      'now gets a colored box (red ring on the short bid, cyan ring on the ' +
+      'long ask) and the matching row gets a subtle tint. Makes it obvious ' +
+      'which strikes you\'ve picked without scrolling back up to the dropdowns.',
+  },
+  {
+    date: '2026-05-23',
     category: 'feature',
     title: 'Options Strategy Builder page + 4 vertical spread types',
     details:

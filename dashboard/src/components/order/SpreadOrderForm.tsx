@@ -393,6 +393,10 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
             symbol={symbol}
             sideLock={cfg.legType === 'put' ? 'puts' : 'calls'}
             expirationLock={expiration}
+            highlights={[
+              ...(shortStrike != null ? [{ strike: shortStrike, side: 'bid' as const, role: 'short' as const }] : []),
+              ...(longStrike != null ? [{ strike: longStrike, side: 'ask' as const, role: 'long' as const }] : []),
+            ]}
             onPriceClick={(info: ChainStrikeClick) => {
               const strike = Number(info.contract.strike_price);
               const isShortClick = info.side === 'bid' || info.side === 'row';
