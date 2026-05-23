@@ -765,7 +765,7 @@ Test counts after this effort: **473 vitest / 77 files** (dashboard); **380 pyte
 
 ### Deferred — possible v3-era settings page expansion (NOT committed)
 
-Discussed 2026-05-13, parked because the security tradeoffs feel heavier than the convenience win. Revisit later only if the friction of editing `config.py` becomes a real pain point. **Do not start without re-discussing.**
+Discussed 2026-05-13 and re-discussed 2026-05-23 (Tim asked for it, then re-parked because we're still tweaking too much for stable config to make sense yet). **Do not start without re-discussing.** Full tier breakdown, open architectural questions, and phasing plan live in [docs/settings-page-expansion-reference.md](docs/settings-page-expansion-reference.md) — start there when picking this up.
 
 The idea: move bot/dashboard config out of files and into the `/settings` page so it can be edited without opening `config.py`. Three storage tiers were considered:
 
