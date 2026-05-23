@@ -109,6 +109,60 @@ describe('POST /api/trades/preview', () => {
     expect(json.draft.kind).toBe('spread');
   });
 
+  it('previews a put_debit spread payload (positive limit_price)', async () => {
+    kvGet.mockImplementation((key: string) => {
+      if (key === 'config:totp_thresholds') {
+        return Promise.resolve({ manual_paper: 2500 });
+      }
+      return Promise.resolve(null);
+    });
+    ruleCheckMock.mockResolvedValueOnce([]);
+    const handler = (await import('../../api/trades/[action]')).default;
+    const req = mockReq({ action: 'preview' }, {
+      kind: 'spread',
+      account: 'manual_paper',
+      symbol: 'AAL',
+      spread_type: 'put_debit',
+      // For put debit: BUY higher-strike put (long), SELL lower-strike put (short)
+      short_leg: { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+      long_leg:  { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+      expiration: '2026-05-29',
+      qty: 1,
+      limit_price: 0.25, // positive = debit
+      entry_grade: 'B+',
+      entry_reasoning: 'Bearish AAL below $12.50',
+    });
+    const res = mockRes();
+    await handler(req, res);
+    const json = (res.json as any).mock.calls[0][0];
+    // For debit spread: max_loss = net_debit = 0.25 → exposure = 0.25 * 100 * 1 = 25
+    expect(json.exposure).toBeCloseTo(25, 2);
+    expect(json.requires_totp).toBe(false);
+  });
+
+  it('rejects an unrecognized spread_type with 400', async () => {
+    kvGet.mockResolvedValue(null);
+    const handler = (await import('../../api/trades/[action]')).default;
+    const req = mockReq({ action: 'preview' }, {
+      kind: 'spread',
+      account: 'manual_paper',
+      symbol: 'AAL',
+      spread_type: 'iron_condor', // not in VALID_SPREAD_TYPES
+      short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+      long_leg:  { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+      expiration: '2026-05-29',
+      qty: 1,
+      limit_price: -0.25,
+      entry_grade: 'B+',
+      entry_reasoning: 'oops',
+    });
+    const res = mockRes();
+    await handler(req, res);
+    expect((res.status as any).mock.calls[0][0]).toBe(400);
+    const json = (res.json as any).mock.calls[0][0];
+    expect(json.error).toBe('invalid_spread_type');
+  });
+
   it('returns validation_errors for missing reasoning', async () => {
     kvGet.mockResolvedValue(null);
     const handler = (await import('../../api/trades/[action]')).default;

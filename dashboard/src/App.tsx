@@ -7,6 +7,8 @@ import Orders from './routes/Orders';
 import Lookup from './routes/Lookup';
 import Settings from './routes/Settings';
 import OrderNew from './routes/OrderNew';
+import StrategyBuilder from './routes/StrategyBuilder';
+import StrategyPickContract from './routes/StrategyPickContract';
 import Rules from './routes/Rules';
 import RulesEdit from './routes/RulesEdit';
 import TradeDetail from './routes/TradeDetail';
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="/lookup/:symbol" element={<Lookup />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/order/new" element={<OrderNew />} />
+            <Route path="/strategy/:symbol" element={<StrategyBuilder />} />
+            <Route path="/strategy/:symbol/pick" element={<StrategyPickContract />} />
             <Route path="/trade/:id" element={<TradeDetail />} />
             <Route path="/trades" element={<Trades />} />
             <Route path="/rules" element={<Rules />} />

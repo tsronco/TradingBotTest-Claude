@@ -65,14 +65,22 @@ export interface SpreadLeg {
   qty: number;
 }
 
+export type SpreadType = 'put_credit' | 'put_debit' | 'call_credit' | 'call_debit';
+
 export interface SpreadDetails {
-  spread_type: 'put_credit';      // call_credit / debit added later
-  short_leg: SpreadLeg;
-  long_leg: SpreadLeg;
+  spread_type: SpreadType;
+  short_leg: SpreadLeg;           // leg you sold (STO)
+  long_leg: SpreadLeg;            // leg you bought (BTO)
   expiration: string;             // ISO date "2026-05-29"
   width: number;                  // |short_strike - long_strike|
+  // For credit spreads (put_credit, call_credit): net_credit set, net_debit
+  // is 0; max_loss = width - net_credit, max_profit = net_credit.
+  // For debit spreads (put_debit, call_debit): net_debit set, net_credit
+  // is 0; max_loss = net_debit, max_profit = width - net_debit.
   net_credit: number;             // updated from order target to actual on fill
-  max_loss: number;               // width - net_credit
+  net_debit?: number;             // present on debit spreads
+  max_loss: number;               // collateral / worst-case dollar loss per spread (× 100)
+  max_profit?: number;            // best-case dollar profit per spread (× 100); optional for backward-compat on legacy records
 }
 
 export interface Trade {

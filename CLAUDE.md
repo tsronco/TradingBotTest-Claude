@@ -370,7 +370,13 @@ Close mechanic: try Alpaca multi-leg (`order_class: mleg`) first; on rejection, 
 
 **Daily summary visibility (Phase 3)**: `daily_summary.py` now renders a `Wheel — Open Spreads` field with one row per `spread_active` entry, showing symbol, spread type, strikes, net credit, live P&L %, P&L $, and DTE. Live P&L is computed from the current mid of each leg via `wheel_strategy.get_option_quote`. If a quote is unavailable, P&L cells show `—`. Field is omitted when no spreads are open. Applies to all four per-mode summaries; non-manual modes hold zero spreads today so the field naturally doesn't render.
 
-**Dashboard order form (Phase 4)**: `/order/new?spread=put_credit&symbol=<SYMBOL>` opens a two-leg spread order form. Reachable via a "Build Put Credit Spread" button on every `/lookup/<SYMBOL>` page when the symbol has an options chain. Live mode is disabled in the account dropdown with a tooltip. Default `max_risk_per_spread` rule of $500 (warn-level) is auto-seeded on first `/api/rules?resource=manual` GET; configurable on `/rules` like other manual rules. Trade record stores both legs in `trade.spread` (see `SpreadDetails` in `dashboard/api/_lib/trade-types.ts`); `/trades` renders one row per spread; `/trade/:id` shows both legs in a SpreadMetadata card and both strike levels as horizontal price lines on the chart. AI hindsight grading prompt branches for spread context. Spread close remains bot-driven (Phase 2 management) — no dashboard close action.
+**Dashboard order form (Phase 4)**: `/order/new?spread=put_credit&symbol=<SYMBOL>` opens a two-leg spread order form. As of 2026-05-23, reachable via a "Build Options Strategy" button on every `/lookup/<SYMBOL>` page when the symbol has an options chain — that button routes to the new Robinhood-style picker at `/strategy/:symbol`. Live mode is disabled in the account dropdown with a tooltip. Default `max_risk_per_spread` rule of $500 (warn-level) is auto-seeded on first `/api/rules?resource=manual` GET; configurable on `/rules` like other manual rules. Trade record stores both legs in `trade.spread` (see `SpreadDetails` in `dashboard/api/_lib/trade-types.ts`); `/trades` renders one row per spread; `/trade/:id` shows both legs in a SpreadMetadata card and both strike levels as horizontal price lines on the chart. AI hindsight grading prompt branches for spread context. Spread close remains bot-driven (Phase 2 management) — no dashboard close action.
+
+**Strategy Builder + 4 vertical spread types (Phase 5, 2026-05-23)**: New `/strategy/:symbol` page replaces the old single-purpose "Build Put Credit Spread" link with a 13-card Robinhood-style picker grouped into Single Leg / Vertical Spreads / Straddles and Strangles / Calendar Spreads. Each card shows a mini SVG payoff curve generated from the same engine the full PayoffChart uses (`dashboard/src/components/strategy/PayoffSparkline.tsx`), with sample legs scaled relative to current spot. 8 cards are wired today: the 4 single-leg strategies (Long Call/Put, Covered Call, CSP) route through a `/strategy/:symbol/pick` chain-picker subroute (chain locked to the right leg type; clicking a strike lands in the existing `OptionOrderForm` pre-filled with the forced BTO/STO from the strategy intent), and the 4 vertical spreads (Call Debit, Call Credit, Put Debit, Put Credit) route to `/order/new?spread=<type>&symbol=<SYM>` — the existing `SpreadOrderForm` is now generalized to handle all 4 types via a `spreadType` prop. The 5 coming-soon cards (Long Straddle/Strangle, the 3 calendar spreads) render visibly but click-disabled.
+
+`SpreadDetails.spread_type` (in `dashboard/api/_lib/trade-types.ts`) widened from `'put_credit'` to the `SpreadType` union (`put_credit | put_debit | call_credit | call_debit`). Added optional `net_debit` + `max_profit` fields so debit-spread P&L records correctly without overloading the credit field; existing put_credit records stay byte-identical (net_debit undefined, max_profit equals net_credit). The form's `limit_price` sign convention is unchanged: negative = credit (you receive), positive = debit (you pay), with `spreadMath()` in `api/trades/[action].ts` deriving credit vs debit from the sign.
+
+Bot management posture is unchanged: only `put_credit` on `manual_paper` has `handle_spread` auto-management (75% / 2× stop / 50% profit / DTE≤2 close); every other spread type renders an amber banner on the form ("Bot will track this … but won't auto-close. Manage it manually.") matching today's posture for cons/agg spreads. Live stays disabled across all spread types. Picker + form changes are purely additive — no API endpoints added, Vercel function count unchanged at 10/12.
 
 **What's NOT yet implemented:**
 - Live-mode wiring — `spread_management: False` on conservative, aggressive, AND live. A future plan flips live on after at least 2 weeks of manual paper validation.
@@ -620,6 +626,8 @@ Two real-world cases (NVTS user-opened CSP that the bot bought-to-close; AAL spr
 
 Tests: +14 vitest tests (3 covering Path 3: NVTS option, AAL spread, orphan-leg refusal, plus position-exists no-op and no-activity-yet no-op; 8 covering import: validation, spread pairing, single STO, dedup, 5s window guard, plus pure-fn parseOcc + groupFillsIntoSpreadsAndSingles tests). New totals: **492 vitest / 80 files** (was 478/78). Bot tests unaffected at 450 pytest.
 
+Strategy-builder + 4-vertical generalization (2026-05-23) brought the dashboard to **607 vitest / 90 files** (+115 tests, +10 files): 15 strategy-catalog (route intents + payoff shapes), 7 StrategyBuilder (13-card render, click routing, coming-soon disabled), 6 StrategyPickContract (leg/side intent forcing, chain side lock), 5 SpreadOrderForm (all 4 vertical types, banner visibility), 4 OrderNew (new spread params + invalid rejection), 1 ConfirmModal (debit-spread summary), 2 trades-preview (put_debit exposure + invalid spread_type), 1 Lookup (new button href). Bot pytest count unchanged.
+
 ### Architecture
 
 ```
@@ -656,7 +664,7 @@ dashboard/
 │   ├── hooks/             # useAuth · useAccount · useBotState · useSettings
 │   ├── lib/               # api · format · wheelability · option-symbol · trade-types · rule-check
 │   └── styles/globals.css # Tailwind v4 with @theme block
-├── tests/                 # 473 vitest tests / 77 files
+├── tests/                 # 607 vitest tests / 90 files
 ├── scripts/generate-backup-codes.ts
 ├── package.json · vite.config.ts · vitest.config.ts · tailwind.config.ts
 ├── postcss.config.js · tsconfig.{,app,node}.json

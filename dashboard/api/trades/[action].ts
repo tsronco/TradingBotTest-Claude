@@ -8,6 +8,7 @@ import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.j
 import {
   GRADE_LETTERS,
   type GradeLetter,
+  type SpreadType,
   type Trade,
   type TradeImportSummary,
 } from '../_lib/trade-types.js';
@@ -62,12 +63,14 @@ interface SpreadPayload {
   kind: 'spread';
   account: OrderDraft['account'];
   symbol: string;
-  spread_type: 'put_credit';
-  short_leg: SpreadLegPayload;
-  long_leg: SpreadLegPayload;
+  spread_type: SpreadType;
+  short_leg: SpreadLegPayload;    // leg the user is selling (STO)
+  long_leg: SpreadLegPayload;     // leg the user is buying (BTO)
   expiration: string;
   qty: number;
-  limit_price: number;            // negative for credit spreads
+  // Negative for credit spreads (you receive), positive for debit spreads (you pay).
+  // The form encodes this convention; spreadMath() derives credit/debit/max_loss/max_profit.
+  limit_price: number;
   entry_grade: string;
   entry_reasoning: string;
   tags?: string[];
@@ -75,15 +78,42 @@ interface SpreadPayload {
   rule_warnings_at_entry?: any[];
 }
 
+const VALID_SPREAD_TYPES: ReadonlySet<SpreadType> = new Set<SpreadType>([
+  'put_credit', 'put_debit', 'call_credit', 'call_debit',
+]);
+
 function isSpreadPayload(body: any): body is SpreadPayload {
   return body && body.kind === 'spread';
 }
 
+function isCreditSpread(t: SpreadType): boolean {
+  return t === 'put_credit' || t === 'call_credit';
+}
+
 function spreadMath(p: SpreadPayload) {
   const width = Math.abs(p.short_leg.strike - p.long_leg.strike);
-  const net_credit = Math.abs(p.limit_price);
-  const max_loss = width - net_credit;
-  return { width, net_credit, max_loss };
+  // limit_price convention: negative = credit (you receive), positive = debit (you pay).
+  // Trust the form's sign rather than re-deriving from spread_type so that a
+  // call-debit form sending +1.20 and a put-credit form sending -0.10 both
+  // route through one math path.
+  if (p.limit_price <= 0) {
+    const net_credit = Math.abs(p.limit_price);
+    return {
+      width,
+      net_credit,
+      net_debit: 0,
+      max_loss: width - net_credit,
+      max_profit: net_credit,
+    };
+  }
+  const net_debit = p.limit_price;
+  return {
+    width,
+    net_credit: 0,
+    net_debit,
+    max_loss: net_debit,
+    max_profit: width - net_debit,
+  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -257,6 +287,9 @@ async function preview(req: VercelRequest, res: VercelResponse) {
 
 async function previewSpread(req: VercelRequest, res: VercelResponse) {
   const p = req.body as SpreadPayload;
+  if (!VALID_SPREAD_TYPES.has(p.spread_type)) {
+    return res.status(400).json({ error: 'invalid_spread_type', got: p.spread_type });
+  }
   const { width, net_credit, max_loss } = spreadMath(p);
   const thresholds = (await kv().get<typeof DEFAULT_THRESHOLDS>(KV_KEYS.totpThresholds)) ?? DEFAULT_THRESHOLDS;
 
@@ -292,8 +325,11 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
   if (p.account === 'live' && process.env.LIVE_ENABLED !== 'true') {
     return res.status(403).json({ error: 'live_trading_disabled' });
   }
+  if (!VALID_SPREAD_TYPES.has(p.spread_type)) {
+    return res.status(400).json({ error: 'invalid_spread_type', got: p.spread_type });
+  }
 
-  const { width, net_credit, max_loss } = spreadMath(p);
+  const { width, net_credit, net_debit, max_loss, max_profit } = spreadMath(p);
   const thresholds = (await kv().get<typeof DEFAULT_THRESHOLDS>(KV_KEYS.totpThresholds)) ?? DEFAULT_THRESHOLDS;
   const exposure = computeExposure({
     asset_class: 'spread',
@@ -407,7 +443,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     contract_symbol: p.short_leg.occ,
     strike: p.short_leg.strike,
     expiration: p.expiration,
-    contract_type: 'put',
+    contract_type: p.spread_type === 'put_credit' || p.spread_type === 'put_debit' ? 'put' : 'call',
     greeks_at_entry: null,
     alpaca_order_id: alpacaOrder.id,
     alpaca_close_order_id: null,
@@ -427,7 +463,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     modify_history: [],
     schema: 1,
     spread: {
-      spread_type: 'put_credit',
+      spread_type: p.spread_type,
       short_leg: {
         occ: p.short_leg.occ,
         strike: p.short_leg.strike,
@@ -445,7 +481,9 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
       expiration: p.expiration,
       width,
       net_credit,
+      net_debit: net_debit > 0 ? net_debit : undefined,
       max_loss,
+      max_profit,
     },
   };
 

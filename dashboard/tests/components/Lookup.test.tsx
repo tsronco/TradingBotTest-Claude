@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('Lookup — Build Put Credit Spread button', () => {
+describe('Lookup — Build Options Strategy button', () => {
   it('shows the button when /api/alpaca/chain returns contracts', async () => {
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (typeof url === 'string' && url.includes('/api/alpaca/chain')) {
@@ -53,9 +53,41 @@ describe('Lookup — Build Put Credit Spread button', () => {
 
     await waitFor(() => {
       const link =
-        screen.queryByRole('link', { name: /build put credit spread/i }) ??
-        screen.queryByRole('button', { name: /build put credit spread/i });
+        screen.queryByRole('link', { name: /build options strategy/i }) ??
+        screen.queryByRole('button', { name: /build options strategy/i });
       expect(link).not.toBeNull();
+    });
+  });
+
+  it('links to /strategy/:symbol when the button is rendered', async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/alpaca/chain')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              contracts: [
+                {
+                  symbol: 'AAL260529P00012500',
+                  underlying_symbol: 'AAL',
+                  strike_price: '12.50',
+                  expiration_date: '2026-05-29',
+                  type: 'put',
+                },
+              ],
+              snapshots: {},
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+    });
+
+    renderLookup('/lookup/AAL');
+
+    await waitFor(() => {
+      const link = screen.getByRole('link', { name: /build options strategy/i });
+      expect(link).toHaveAttribute('href', '/strategy/AAL');
     });
   });
 
@@ -73,7 +105,7 @@ describe('Lookup — Build Put Credit Spread button', () => {
 
     // Wait for the page to settle (NOOPTQ symbol appears in the header)
     await waitFor(() => screen.getAllByText(/NOOPTQ/i)[0]);
-    expect(screen.queryByRole('link', { name: /build put credit spread/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /build put credit spread/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /build options strategy/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /build options strategy/i })).toBeNull();
   });
 });

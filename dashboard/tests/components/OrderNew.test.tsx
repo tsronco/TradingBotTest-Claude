@@ -48,6 +48,37 @@ describe('OrderNew route', () => {
     expect(screen.getByText(/--symbol=AAL/)).toBeInTheDocument();
   });
 
+  it('renders SpreadOrderForm for ?spread=call_credit (newly-supported type)', async () => {
+    renderOrderNew('/order/new?spread=call_credit&symbol=AAL');
+    await waitFor(() => expect(screen.getByRole('button', { name: /review/i })).toBeInTheDocument());
+    // Spread-specific controls confirm we routed to SpreadOrderForm, not StockOrderForm
+    expect(screen.getByLabelText(/expiration/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/short strike/i)).toBeInTheDocument();
+    // Title appears in the form header. The lowercased duplicate inside the
+    // bot-management banner ("Bot will track this call credit spread…")
+    // means we get matches at multiple text nodes — assert ≥1 instead.
+    expect(screen.getAllByText(/Call Credit Spread/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders SpreadOrderForm for ?spread=put_debit', async () => {
+    renderOrderNew('/order/new?spread=put_debit&symbol=AAL');
+    await waitFor(() => expect(screen.getByRole('button', { name: /review/i })).toBeInTheDocument());
+    expect(screen.getAllByText(/Put Debit Spread/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders SpreadOrderForm for ?spread=call_debit', async () => {
+    renderOrderNew('/order/new?spread=call_debit&symbol=AAL');
+    await waitFor(() => expect(screen.getByRole('button', { name: /review/i })).toBeInTheDocument());
+    expect(screen.getAllByText(/Call Debit Spread/i).length).toBeGreaterThan(0);
+  });
+
+  it('ignores an unrecognized ?spread= value (falls through to stock/symbol form)', async () => {
+    renderOrderNew('/order/new?spread=bogus&symbol=AAL');
+    await waitFor(() => screen.getByText(/--type=null/i));
+    // Breadcrumb shows the symbol+type form, not the spread form
+    expect(screen.queryByText(/Put Credit Spread/i)).toBeNull();
+  });
+
   it('prefills limit price and side when arriving with ?side=STO&price=1.23 (chain bid click)', async () => {
     // Use an option contract route. The chain-probe fetch returns the contract symbol,
     // OptionOrderForm reads the URL params we passed via OrderNew and seeds state.
