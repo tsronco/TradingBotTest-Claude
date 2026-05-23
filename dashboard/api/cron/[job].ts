@@ -123,6 +123,35 @@ export async function runGradeOpenTrades(): Promise<{
       }
     }
 
+    // Auto-applied outcome tags. Computed at close time so the user doesn't
+    // have to remember which short puts got assigned, which CCs got called
+    // away, etc. Tags only add — never remove user-set tags.
+    //   - STO put + closed_by='assigned'  → 'assigned' (also inherited by the
+    //     spawned stock trade via buildAssignmentTrade tag-inheritance)
+    //   - STO call + closed_by='assigned' → 'called_away' (no child spawn —
+    //     shares are simply gone)
+    //   - STO put/call + closed_by='expired' + realized_pnl > 0
+    //                                    → 'expired_worthless' (kept the full premium)
+    const autoTags: string[] = [];
+    if (
+      trade.asset_class === 'option'
+      && trade.side === 'STO'
+      && closeInfo.closed_by === 'assigned'
+    ) {
+      autoTags.push(trade.contract_type === 'call' ? 'called_away' : 'assigned');
+    }
+    if (
+      trade.asset_class === 'option'
+      && trade.side === 'STO'
+      && closeInfo.closed_by === 'expired'
+      && (closeInfo.realized_pnl ?? 0) > 0
+    ) {
+      autoTags.push('expired_worthless');
+    }
+    const mergedTags = autoTags.length > 0
+      ? Array.from(new Set([...(trade.tags ?? []), ...autoTags]))
+      : trade.tags;
+
     // Update trade record
     const closedTrade: Trade = {
       ...trade,
@@ -132,6 +161,7 @@ export async function runGradeOpenTrades(): Promise<{
       closed_by: closeInfo.closed_by,
       alpaca_close_order_id: closeInfo.alpaca_close_order_id ?? trade.alpaca_close_order_id,
       earnings_during_hold,
+      tags: mergedTags,
     };
     await kv().set(tradeKey(id), closedTrade);
 

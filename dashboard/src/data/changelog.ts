@@ -30,6 +30,29 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-23',
+    category: 'feature',
+    title: 'Tag library expanded + outcome tags auto-applied at close',
+    details:
+      'Seeded the tag picker with 16 new tags: the missing spread types ' +
+      '(put_debit, call_credit, call_debit), outcome tags (assigned, ' +
+      'called_away, rolled, expired_worthless), source tags (bot_opened, ' +
+      'adopted, congress_copy, imported), behavior diagnostics ' +
+      '(revenge_trade, fomo, gut_feel), and IV context (high_iv, low_iv). ' +
+      'Seed list auto-merges into the live KV list on next /settings/tags ' +
+      'GET — no migration needed.\n\n' +
+      'Three of the outcome tags are now applied automatically by the ' +
+      'grade-open-trades cron when it detects the close type:\n' +
+      '  • STO put + assigned       → assigned\n' +
+      '  • STO call + assigned      → called_away\n' +
+      '  • STO + expired + pnl > 0  → expired_worthless\n\n' +
+      'The "assigned" tag also inherits to the spawned stock trade via the ' +
+      'existing tag-inheritance path. Behavior, IV, and source tags stay ' +
+      'manual for now — they\'re judgment calls or bot-side state the ' +
+      'dashboard cron can\'t observe directly. "rolled" detection (close + ' +
+      're-open on the same underlying within minutes) is a future ask.',
+  },
+  {
+    date: '2026-05-23',
     category: 'ui',
     title: 'Order forms: live "Total Cost / Credit" + "Collateral Held" panel',
     details:

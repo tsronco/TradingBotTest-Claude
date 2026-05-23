@@ -6,10 +6,25 @@ import { KV_KEYS } from '../_lib/kv-keys.js';
 import { regenerateBackupCodes } from '../_lib/backup-codes.js';
 import { verifyTotp } from '../_lib/totp.js';
 
+// Seed tags. The handler merges any seed tags missing from the live KV list
+// into the list on next GET, so adding new ones here automatically surfaces
+// them to the user without a manual migration.
 const SEED_TAGS = [
+  // setups
   'breakout', 'morning_setup', 'pullback', 'earnings_play',
+  // wheel + sizing
   'wheel', 'wheel_50pct', 'delta_target', 'sized_down',
   'scale_in', 'trim', 'stop_hit',
+  // spread types
+  'put_credit', 'put_debit', 'call_credit', 'call_debit',
+  // outcomes (some auto-applied by the cron — see api/cron/[job].ts)
+  'assigned', 'called_away', 'rolled', 'expired_worthless',
+  // source / who opened it
+  'bot_opened', 'adopted', 'congress_copy', 'imported',
+  // behavior diagnostics
+  'revenge_trade', 'fomo', 'gut_feel',
+  // market context
+  'high_iv', 'low_iv',
 ];
 
 // SM accounts behave like manual (hand-traded small accounts) — mirror manual's
@@ -93,9 +108,18 @@ async function handleThresholds(req: VercelRequest, res: VercelResponse) {
 }
 
 async function handleTags(req: VercelRequest, res: VercelResponse) {
-  const list = (await kv().get<string[]>(KV_KEYS.tagsList)) ?? SEED_TAGS;
+  let list = (await kv().get<string[]>(KV_KEYS.tagsList)) ?? SEED_TAGS;
 
-  if (req.method === 'GET') return res.status(200).json({ tags: list });
+  if (req.method === 'GET') {
+    // Auto-merge: surface any seed tags that aren't in the live list yet
+    // (lets us add tags by editing SEED_TAGS without a migration).
+    const missing = SEED_TAGS.filter((t) => !list.includes(t));
+    if (missing.length > 0) {
+      list = [...list, ...missing];
+      await kv().set(KV_KEYS.tagsList, list);
+    }
+    return res.status(200).json({ tags: list });
+  }
 
   if (req.method === 'POST') {
     const tag = String((req.body as { tag?: string } | undefined)?.tag ?? '').trim().toLowerCase();
