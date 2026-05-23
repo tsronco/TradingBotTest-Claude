@@ -113,6 +113,8 @@ export interface Trade {
   source?: 'manual' | 'assignment';
   spread?: SpreadDetails;
   ai_grade_inherited?: boolean;
+  cost_basis_at_entry?: number | null;
+  earnings_during_hold?: boolean;
 }
 
 export interface GradeEntry {

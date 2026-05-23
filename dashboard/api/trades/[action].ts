@@ -16,6 +16,7 @@ import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey,
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
+import { resolveCostBasisForCc } from '../_lib/cost-basis.js';
 import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { etOffsetMinutes } from '../_lib/et-time.js';
@@ -608,6 +609,27 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     if (g) greeks_at_entry = { delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega, iv: g.implied_volatility };
   }
 
+  const cost_basis_at_entry = await resolveCostBasisForCc(
+    {
+      asset_class: draft.asset_class,
+      side: draft.side,
+      contract_type: draft.contract_type ?? null,
+      symbol: draft.symbol,
+    },
+    async (underlying) => {
+      try {
+        return await alpacaTrade<{ avg_entry_price?: string }>(
+          modeFromAccount(draft.account) as any,
+          `/v2/positions/${encodeURIComponent(underlying)}`,
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes(' 404 ')) return null;
+        throw e;
+      }
+    },
+  );
+
   const id = await allocateTradeId();
   const now = new Date();
   const trade: Trade = {
@@ -644,6 +666,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     rule_warnings_at_entry: rule_warnings,
     modify_history: [],
     schema: 1,
+    cost_basis_at_entry,
   };
 
   await kv().set(tradeKey(id), trade);

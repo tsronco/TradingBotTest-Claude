@@ -17,6 +17,7 @@ import { runMatchers, type Finding, type ClosedTradeView } from '../_lib/tendenc
 import { proposeNewRule, proposeDemote } from '../_lib/proposal-prompts.js';
 import type { Tendency, Proposal, ManualRule } from '../_lib/rules-types.js';
 import { newId } from '../_lib/rules-types.js';
+import { fetchEarningsDates, earningsInWindow } from '../_lib/fundamentals-fetch.js';
 
 const MAX_PER_TICK = 3;
 
@@ -111,6 +112,17 @@ export async function runGradeOpenTrades(): Promise<{
     const closeInfo = await detectClose(trade);
     if (!closeInfo) continue;
 
+    let earnings_during_hold = trade.earnings_during_hold ?? false;
+    if (trade.earnings_during_hold === undefined && trade.filled_at) {
+      try {
+        const dates = await fetchEarningsDates(trade.symbol);
+        earnings_during_hold = earningsInWindow(dates, trade.filled_at, closeInfo.closed_at);
+      } catch (e) {
+        console.log('[earnings_during_hold] fetch failed', trade.id, trade.symbol, e);
+        earnings_during_hold = false;
+      }
+    }
+
     // Update trade record
     const closedTrade: Trade = {
       ...trade,
@@ -119,6 +131,7 @@ export async function runGradeOpenTrades(): Promise<{
       realized_pnl: closeInfo.realized_pnl,
       closed_by: closeInfo.closed_by,
       alpaca_close_order_id: closeInfo.alpaca_close_order_id ?? trade.alpaca_close_order_id,
+      earnings_during_hold,
     };
     await kv().set(tradeKey(id), closedTrade);
 
@@ -930,7 +943,7 @@ function tradeToClosedView(t: Trade, grade: GradeRecord | null): ClosedTradeView
     })),
     strike: t.strike,
     expiration: t.expiration,
-    cost_basis_at_entry: null,           // populated by future grade-cron extension; null is fine
-    earnings_during_hold: false,         // ditto
+    cost_basis_at_entry: t.cost_basis_at_entry ?? null,
+    earnings_during_hold: t.earnings_during_hold ?? false,
   };
 }
