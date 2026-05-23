@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-23',
     category: 'ui',
+    title: 'Order forms: live "Total Cost / Credit" + "Collateral Held" panel',
+    details:
+      'Every order form (stock, single option, spread) now shows a small ' +
+      'panel above the Review button with two lines: "Total Cost" (red) ' +
+      'when cash leaves your account, or "Total Credit" (cyan) when cash ' +
+      'comes in — plus "Collateral Held," the buying power locked while ' +
+      'the position is open. Updates live as you change strikes, qty, or ' +
+      'limit price. Stock buy → cost = qty × price, collateral = same. ' +
+      'STO option → credit = premium, collateral = strike × 100 × qty. ' +
+      'Credit spread → credit = net × 100 × qty, collateral = max loss. ' +
+      'Debit spread → debit = net × 100 × qty, no extra collateral.',
+  },
+  {
+    date: '2026-05-23',
+    category: 'ui',
     title: 'Spread builder: selected legs highlighted in the chain',
     details:
       'When you click a bid or ask on the spread order form, the chosen cell ' +

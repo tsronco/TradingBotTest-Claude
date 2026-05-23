@@ -22,6 +22,7 @@ import FillHint from './FillHint';
 import type { Leg } from '../../lib/payoff';
 import { daysToExpiration } from '../../lib/option-symbol';
 import OptionsChain, { type ChainStrikeClick } from '../lookup/OptionsChain';
+import CashSummary from './CashSummary';
 
 interface ChainContractRaw {
   symbol: string;
@@ -503,6 +504,17 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
           currentPrice={spotPrice}
         />
       )}
+
+      {shortContract && longContract && qty > 0 && (() => {
+        // Use the user's limit when they've set one; fall back to live mid.
+        const net = limitNet > 0 ? limitNet : liveNet;
+        const amount = net * 100 * qty;
+        // Credit spread: cash in now (credit), collateral = max loss locked.
+        // Debit spread:  cash out now (debit), no extra collateral (the debit IS the max loss).
+        const direction: 'debit' | 'credit' = cfg.isCredit ? 'credit' : 'debit';
+        const collateral = cfg.isCredit ? maxLoss * 100 * qty : 0;
+        return <CashSummary direction={direction} amount={amount} collateral={collateral} />;
+      })()}
 
       {shortContract && longContract && (
         <div className="text-mid">

@@ -9,6 +9,7 @@ import type { GradeLetter, RuleWarning, StockSide, OrderType, Tif } from '../../
 import { AccountBpIndicator } from './AccountBpIndicator';
 import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
+import CashSummary from './CashSummary';
 import type { Leg } from '../../lib/payoff';
 import { accountToMode, type Mode } from '../../lib/account-utils';
 
@@ -235,6 +236,17 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
       <Section label="━━━ tags ──────────────">
         <TagPicker value={tags} onChange={setTags} />
       </Section>
+
+      {(() => {
+        const px = limitPrice !== '' ? Number(limitPrice) : (ask + bid) / 2 || last || 0;
+        const notional = (px || 0) * (qty || 0);
+        if (notional <= 0) return null;
+        // Buy → cash leaves (debit), cash account locks the notional as collateral.
+        // Sell (closing) → cash enters (credit), no new collateral.
+        const direction = side === 'buy' ? 'debit' : 'credit';
+        const collateral = side === 'buy' ? notional : 0;
+        return <CashSummary direction={direction} amount={notional} collateral={collateral} />;
+      })()}
 
       <div className="pt-3 border-t border-dashed border-border flex justify-between items-center">
         <span className="text-mid text-[12px]">

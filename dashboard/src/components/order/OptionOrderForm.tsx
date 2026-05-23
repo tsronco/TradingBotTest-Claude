@@ -11,6 +11,7 @@ import { GREEK_DEFS } from '../GreekLabel';
 import { AccountBpIndicator } from './AccountBpIndicator';
 import PayoffChart from './PayoffChart';
 import FillHint from './FillHint';
+import CashSummary from './CashSummary';
 import type { Leg } from '../../lib/payoff';
 import { accountToMode, type Mode } from '../../lib/account-utils';
 
@@ -291,6 +292,22 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ tags ──────────────</div>
         <TagPicker value={tags} onChange={setTags} />
       </div>
+
+      {(() => {
+        const px = limitPrice !== '' ? Number(limitPrice) : (ask + bid) / 2 || 0;
+        const q = qty || 0;
+        if (!px || !q) return null;
+        const premium = px * 100 * q;
+        // BTO/BTC = cash leaves (debit). STO/STC = cash enters (credit).
+        const isDebit = side === 'BTO' || side === 'BTC';
+        const direction: 'debit' | 'credit' = isDebit ? 'debit' : 'credit';
+        // Collateral: STO short put/call → strike × 100 × qty (matches existing
+        // exposure calc; user covers from cash for CSP, or holds shares for CC
+        // but the form can't tell so we show the cash equivalent). Long opens
+        // and any close → no new collateral.
+        const collateral = side === 'STO' ? parsed.strike * 100 * q : 0;
+        return <CashSummary direction={direction} amount={premium} collateral={collateral} />;
+      })()}
 
       <div className="pt-3 border-t border-dashed border-border flex justify-between items-center">
         <span className="text-mid text-[12px]">bid {fmtUsd(bid)} · ask {fmtUsd(ask)}</span>
