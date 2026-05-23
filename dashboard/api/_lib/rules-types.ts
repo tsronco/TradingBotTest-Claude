@@ -10,6 +10,7 @@ export const TRIGGER_TYPES = [
   'open_position_count_gt', 'earnings_within_days',
   'strike_below_cost_basis', 'tag_present',
   'max_risk_per_spread',
+  'recent_loss_within_minutes', 'tag_in', 'dte_at_entry_between',
 ] as const;
 export type TriggerType = (typeof TRIGGER_TYPES)[number];
 
@@ -25,7 +26,10 @@ export type Trigger =
   | { type: 'earnings_within_days'; value: number }
   | { type: 'strike_below_cost_basis' }
   | { type: 'tag_present'; tag: string }
-  | { type: 'max_risk_per_spread'; max_dollars: number };
+  | { type: 'max_risk_per_spread'; max_dollars: number }
+  | { type: 'recent_loss_within_minutes'; minutes: number }
+  | { type: 'tag_in'; tags: string[] }
+  | { type: 'dte_at_entry_between'; min: number; max: number };
 
 /**
  * Runtime validator for Trigger payloads coming from the wire (e.g., POST
@@ -58,6 +62,12 @@ export function isTrigger(x: unknown): x is Trigger {
       return typeof o.tag === 'string';
     case 'max_risk_per_spread':
       return typeof o.max_dollars === 'number';
+    case 'recent_loss_within_minutes':
+      return typeof o.minutes === 'number';
+    case 'tag_in':
+      return Array.isArray(o.tags) && o.tags.every((s) => typeof s === 'string');
+    case 'dte_at_entry_between':
+      return typeof o.min === 'number' && typeof o.max === 'number';
     default:
       return false;
   }
@@ -113,6 +123,11 @@ export const MATCHER_NAMES = [
   'held_through_earnings',
   'override_loss_pattern',
   'over_grading_self',
+  'revenge_trade_pattern',
+  'loss_concentration_by_tag',
+  'dte_bucket_loss_pattern',
+  'chase_modify_pattern',
+  'winner_cut_short',
 ] as const;
 export type MatcherName = (typeof MATCHER_NAMES)[number];
 

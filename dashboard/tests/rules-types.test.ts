@@ -15,17 +15,18 @@ import {
 } from '../api/_lib/rules-types';
 
 describe('rules-types', () => {
-  it('exposes all 12 trigger types', () => {
+  it('exposes all 15 trigger types', () => {
     expect(TRIGGER_TYPES).toEqual([
       'symbol_in', 'symbol_not_in', 'side', 'asset_class',
       'option_type', 'option_dte_lt', 'option_dte_gt',
       'open_position_count_gt', 'earnings_within_days',
       'strike_below_cost_basis', 'tag_present',
       'max_risk_per_spread',
+      'recent_loss_within_minutes', 'tag_in', 'dte_at_entry_between',
     ]);
   });
 
-  it('exposes all 6 matcher names', () => {
+  it('exposes all 11 matcher names', () => {
     expect(MATCHER_NAMES).toEqual([
       'loss_concentration_by_symbol',
       'loss_concentration_by_side',
@@ -33,6 +34,11 @@ describe('rules-types', () => {
       'held_through_earnings',
       'override_loss_pattern',
       'over_grading_self',
+      'revenge_trade_pattern',
+      'loss_concentration_by_tag',
+      'dte_bucket_loss_pattern',
+      'chase_modify_pattern',
+      'winner_cut_short',
     ]);
   });
 

@@ -9,16 +9,20 @@
 // rephrase a finding into journal-quality rule prose.
 
 import { gradeIndex } from './trade-types.js';
-import type { GradeLetter } from './trade-types.js';
+import type { GradeLetter, ClosedBy, AccountId } from './trade-types.js';
 import type { MatcherName, Trigger, Severity } from './rules-types.js';
 
 export interface ClosedTradeView {
   id: string;
   symbol: string;
+  account: AccountId;
   asset_class: 'stock' | 'option';
   option_type: 'put' | 'call' | null;
   side: string;
+  submitted_at: string;
+  filled_at: string | null;
   closed_at: string;
+  closed_by: ClosedBy;
   realized_pnl: number;
   user_grade: GradeLetter;
   ai_grade: GradeLetter | null;
@@ -26,6 +30,10 @@ export interface ClosedTradeView {
   rule_violations: Array<{ rule: string; severity: Severity; override_reason?: string }>;
   strike: number | null;
   expiration: string | null;
+  /** Days-to-expiration at order-entry time. Null for stocks. */
+  dte_at_entry: number | null;
+  /** True iff modify_history shows a monotonic worsening walk (chasing the fill). */
+  chased_during_open: boolean;
   /** Cost basis of the underlying at the time a covered call was sold. Null when N/A. */
   cost_basis_at_entry: number | null;
   /** True iff an earnings event fell between entry and exit. Populated by the grade-cron. */
@@ -52,6 +60,11 @@ export function runMatchers(trades: ClosedTradeView[]): Finding[] {
   const f4 = heldThroughEarnings(trades);         if (f4) out.push(f4);
   const f5 = overrideLossPattern(trades);         out.push(...f5);
   const f6 = overGradingSelf(trades);             if (f6) out.push(f6);
+  const f7 = revengeTradePattern(trades);         if (f7) out.push(f7);
+  out.push(...lossConcentrationByTag(trades));
+  out.push(...dteBucketLossPattern(trades));
+  const f10 = chaseModifyPattern(trades);         if (f10) out.push(f10);
+  const f11 = winnerCutShort(trades);             if (f11) out.push(f11);
   return out;
 }
 
@@ -181,6 +194,174 @@ function overrideLossPattern(trades: ClosedTradeView[]): Finding[] {
     }
   }
   return findings;
+}
+
+const SYSTEM_TAGS = new Set(['imported']);
+
+function isOutcomeTrade(t: ClosedTradeView): boolean {
+  return t.closed_by !== 'canceled';
+}
+
+function revengeTradePattern(trades: ClosedTradeView[]): Finding | null {
+  const eligible = trades.filter(isOutcomeTrade);
+  const byAcct = groupBy(eligible, (t) => t.account);
+  const revengeIds: string[] = [];
+  let revengeLosers = 0;
+  for (const ts of Object.values(byAcct)) {
+    const sorted = [...ts].sort((a, b) => Date.parse(a.submitted_at) - Date.parse(b.submitted_at));
+    for (const t of sorted) {
+      const submitMs = Date.parse(t.submitted_at);
+      if (!Number.isFinite(submitMs)) continue;
+      let prior: ClosedTradeView | null = null;
+      let priorMs = -Infinity;
+      for (const cand of sorted) {
+        if (cand.id === t.id) continue;
+        const closedMs = Date.parse(cand.closed_at);
+        if (!Number.isFinite(closedMs)) continue;
+        if (closedMs >= submitMs) continue;
+        if (closedMs > priorMs) { prior = cand; priorMs = closedMs; }
+      }
+      if (!prior) continue;
+      if (prior.realized_pnl >= 0) continue;
+      const gapMin = (submitMs - priorMs) / 60000;
+      if (gapMin > 60) continue;
+      revengeIds.push(t.id);
+      if (t.realized_pnl < 0) revengeLosers++;
+    }
+  }
+  if (revengeIds.length < 3) return null;
+  if (revengeLosers / revengeIds.length < 0.5) return null;
+  return {
+    matcher: 'revenge_trade_pattern',
+    finding: `${revengeIds.length} revenge trades opened within 60min of a loss, ${revengeLosers} lost money`,
+    evidence_trade_ids: revengeIds,
+    key: 'revenge_trade_pattern:global',
+    actionable: true,
+    suggested_severity: 'block',
+    suggested_triggers: [{ type: 'recent_loss_within_minutes', minutes: 60 }],
+  };
+}
+
+function lossConcentrationByTag(trades: ClosedTradeView[]): Finding[] {
+  const eligible = trades.filter(isOutcomeTrade);
+  const byTag: Record<string, ClosedTradeView[]> = {};
+  for (const t of eligible) {
+    for (const tag of t.tags) {
+      if (SYSTEM_TAGS.has(tag)) continue;
+      (byTag[tag] ??= []).push(t);
+    }
+  }
+  const findings: Finding[] = [];
+  for (const [tag, ts] of Object.entries(byTag)) {
+    if (ts.length < 4) continue;
+    const wins = ts.filter((t) => t.realized_pnl > 0).length;
+    const winRate = wins / ts.length;
+    const total = ts.reduce((s, t) => s + t.realized_pnl, 0);
+    if (winRate < 0.4 && total < 0) {
+      findings.push({
+        matcher: 'loss_concentration_by_tag',
+        finding: `${ts.length} trades tagged '${tag}', ${(winRate * 100).toFixed(0)}% win rate, total P&L ${total.toFixed(0)}`,
+        evidence_trade_ids: ts.map((t) => t.id),
+        key: `loss_concentration_by_tag:${tag}`,
+        actionable: true,
+        suggested_severity: 'warn',
+        suggested_triggers: [{ type: 'tag_in', tags: [tag] }],
+      });
+    }
+  }
+  return findings;
+}
+
+function dteBucket(dte: number): { label: string; min: number; max: number } | null {
+  if (dte < 0) return null;
+  if (dte <= 7)  return { label: '0-7',   min: 0,  max: 7 };
+  if (dte <= 14) return { label: '8-14',  min: 8,  max: 14 };
+  if (dte <= 28) return { label: '15-28', min: 15, max: 28 };
+  return { label: '29+', min: 29, max: 9999 };
+}
+
+function dteBucketLossPattern(trades: ClosedTradeView[]): Finding[] {
+  const eligible = trades.filter((t) =>
+    isOutcomeTrade(t) && t.asset_class === 'option' && t.dte_at_entry != null,
+  );
+  const buckets: Record<string, { ts: ClosedTradeView[]; min: number; max: number }> = {};
+  for (const t of eligible) {
+    const b = dteBucket(t.dte_at_entry!);
+    if (!b) continue;
+    (buckets[b.label] ??= { ts: [], min: b.min, max: b.max }).ts.push(t);
+  }
+  const findings: Finding[] = [];
+  for (const [label, { ts, min, max }] of Object.entries(buckets)) {
+    if (ts.length < 5) continue;
+    const wins = ts.filter((t) => t.realized_pnl > 0).length;
+    const winRate = wins / ts.length;
+    if (winRate < 0.4) {
+      findings.push({
+        matcher: 'dte_bucket_loss_pattern',
+        finding: `${ts.length} option trades opened ${label} DTE, ${(winRate * 100).toFixed(0)}% win rate`,
+        evidence_trade_ids: ts.map((t) => t.id),
+        key: `dte_bucket_loss_pattern:${label}`,
+        actionable: true,
+        suggested_severity: 'warn',
+        suggested_triggers: [{ type: 'dte_at_entry_between', min, max }],
+      });
+    }
+  }
+  return findings;
+}
+
+function chaseModifyPattern(trades: ClosedTradeView[]): Finding | null {
+  const chased = trades.filter((t) =>
+    isOutcomeTrade(t) && t.chased_during_open && t.realized_pnl < 0,
+  );
+  if (chased.length < 3) return null;
+  return {
+    matcher: 'chase_modify_pattern',
+    finding: `${chased.length} trades modified 2+ times in the chase direction, all lost money`,
+    evidence_trade_ids: chased.map((t) => t.id),
+    key: 'chase_modify_pattern:global',
+    actionable: true,
+    suggested_severity: 'warn',
+    suggested_triggers: [],
+  };
+}
+
+function winnerCutShort(trades: ClosedTradeView[]): Finding | null {
+  const eligible = trades.filter((t) =>
+    isOutcomeTrade(t)
+    && t.asset_class === 'option'
+    && t.closed_by !== 'assigned' && t.closed_by !== 'expired'
+    && t.filled_at != null && t.expiration != null,
+  );
+  if (eligible.length < 10) return null;
+  const pcts: Array<{ pct: number; win: boolean }> = [];
+  for (const t of eligible) {
+    const filledMs = Date.parse(t.filled_at!);
+    const expMs = Date.parse(`${t.expiration!}T20:00:00Z`);
+    const closedMs = Date.parse(t.closed_at);
+    const total = expMs - filledMs;
+    if (total <= 0) continue;
+    const held = (closedMs - filledMs) / total;
+    pcts.push({ pct: held, win: t.realized_pnl > 0 });
+  }
+  if (pcts.length < 10) return null;
+  const winners = pcts.filter((x) => x.win);
+  const losers = pcts.filter((x) => !x.win);
+  if (winners.length === 0 || losers.length === 0) return null;
+  const avgWin = winners.reduce((s, x) => s + x.pct, 0) / winners.length;
+  const avgLoss = losers.reduce((s, x) => s + x.pct, 0) / losers.length;
+  if (avgWin < 0.4 && avgLoss > 0.7) {
+    return {
+      matcher: 'winner_cut_short',
+      finding: `On ${pcts.length} closed options, winners held ${(avgWin * 100).toFixed(0)}% of available time, losers ${(avgLoss * 100).toFixed(0)}%`,
+      evidence_trade_ids: eligible.map((t) => t.id),
+      key: 'winner_cut_short:global',
+      actionable: false,
+      suggested_severity: 'warn',
+      suggested_triggers: [],
+    };
+  }
+  return null;
 }
 
 function overGradingSelf(trades: ClosedTradeView[]): Finding | null {

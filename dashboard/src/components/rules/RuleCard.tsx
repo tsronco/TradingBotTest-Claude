@@ -20,6 +20,9 @@ function summarizeTrigger(t: Trigger): string {
     case 'strike_below_cost_basis':  return `strike < cost basis`;
     case 'tag_present':              return `tag = "${t.tag}"`;
     case 'max_risk_per_spread':      return `max risk per spread ≤ $${t.max_dollars}`;
+    case 'recent_loss_within_minutes': return `last loss within ${t.minutes} min`;
+    case 'tag_in':                   return `tag ∈ {${t.tags.join(', ')}}`;
+    case 'dte_at_entry_between':     return `DTE at entry ∈ [${t.min}, ${t.max}]`;
   }
 }
 

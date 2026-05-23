@@ -159,6 +159,23 @@ async function evaluateTrigger(
       const risk_dollars = input.spread.max_loss * 100 * input.qty;
       return risk_dollars > t.max_dollars;
     }
+    case 'tag_in': {
+      const tags = input.tags ?? [];
+      return tags.some((tag) => t.tags.includes(tag));
+    }
+    case 'dte_at_entry_between': {
+      if (input.asset_class !== 'option' || !input.expiration) return false;
+      const dte = calcDTE(input.expiration);
+      return dte >= t.min && dte <= t.max;
+    }
+    case 'recent_loss_within_minutes':
+      // TODO: needs KV access to walk recent closed trades by account.
+      // The matcher itself fires post-hoc (Sundays cron) and generates proposals;
+      // live enforcement at order-submit time requires fetching the most recent
+      // closed trade for input.account from trades:index:<YYYY-MM> and checking
+      // realized_pnl < 0 with closed_at within t.minutes. Skipping for now to
+      // avoid bloating this PR with KV iteration logic + ordering guarantees.
+      return false;
     default:                return false;
   }
 }

@@ -18,6 +18,9 @@ const DEFAULTS: Record<TriggerType, Trigger> = {
   strike_below_cost_basis:  { type: 'strike_below_cost_basis' },
   tag_present:              { type: 'tag_present', tag: '' },
   max_risk_per_spread:      { type: 'max_risk_per_spread', max_dollars: 500 },
+  recent_loss_within_minutes: { type: 'recent_loss_within_minutes', minutes: 60 },
+  tag_in:                   { type: 'tag_in', tags: [] },
+  dte_at_entry_between:     { type: 'dte_at_entry_between', min: 0, max: 7 },
 };
 
 export default function TriggerBuilder({ triggers, onChange }: Props) {
@@ -162,6 +165,56 @@ function TriggerValueInput({ trigger, onChange }: { trigger: Trigger; onChange: 
           onChange={(e) => onChange({ ...trigger, max_dollars: parseInt(e.target.value || '0', 10) })}
           className={`${inputCls} w-24`}
         />
+      );
+    case 'recent_loss_within_minutes':
+      return (
+        <input
+          type="number"
+          min={1}
+          max={1440}
+          aria-label="minutes since last loss"
+          value={trigger.minutes}
+          onChange={(e) => onChange({ ...trigger, minutes: parseInt(e.target.value || '0', 10) })}
+          className={`${inputCls} w-20`}
+        />
+      );
+    case 'tag_in':
+      return (
+        <input
+          type="text"
+          placeholder="earnings_play, swing"
+          aria-label="tags"
+          value={trigger.tags.join(', ')}
+          onChange={(e) => onChange({
+            ...trigger,
+            tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+          })}
+          className={`${inputCls} flex-1 min-w-[10rem]`}
+        />
+      );
+    case 'dte_at_entry_between':
+      return (
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            max={365}
+            aria-label="dte min"
+            value={trigger.min}
+            onChange={(e) => onChange({ ...trigger, min: parseInt(e.target.value || '0', 10) })}
+            className={`${inputCls} w-16`}
+          />
+          <span className="text-[10px] text-dim">to</span>
+          <input
+            type="number"
+            min={0}
+            max={365}
+            aria-label="dte max"
+            value={trigger.max}
+            onChange={(e) => onChange({ ...trigger, max: parseInt(e.target.value || '0', 10) })}
+            className={`${inputCls} w-16`}
+          />
+        </div>
       );
   }
 }

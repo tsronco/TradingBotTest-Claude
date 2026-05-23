@@ -925,13 +925,26 @@ async function loadClosedTrades(days: number): Promise<ClosedTradeView[]> {
 }
 
 function tradeToClosedView(t: Trade, grade: GradeRecord | null): ClosedTradeView {
+  const entryRef = t.filled_at ?? t.submitted_at;
+  let dte_at_entry: number | null = null;
+  if (t.expiration && entryRef) {
+    const exp = Date.parse(`${t.expiration}T20:00:00Z`);
+    const ref = Date.parse(entryRef);
+    if (!isNaN(exp) && !isNaN(ref)) {
+      dte_at_entry = Math.max(0, Math.round((exp - ref) / 86400000));
+    }
+  }
   return {
     id: t.id,
     symbol: t.symbol,
+    account: t.account,
     asset_class: t.asset_class,
     option_type: t.contract_type,
     side: t.side,
+    submitted_at: t.submitted_at,
+    filled_at: t.filled_at,
     closed_at: t.closed_at!,
+    closed_by: t.closed_by,
     realized_pnl: t.realized_pnl ?? 0,
     user_grade: t.entry_grade,
     ai_grade: grade?.hindsight?.letter ?? null,
@@ -943,7 +956,31 @@ function tradeToClosedView(t: Trade, grade: GradeRecord | null): ClosedTradeView
     })),
     strike: t.strike,
     expiration: t.expiration,
+    dte_at_entry,
+    chased_during_open: computeChased(t),
     cost_basis_at_entry: t.cost_basis_at_entry ?? null,
     earnings_during_hold: t.earnings_during_hold ?? false,
   };
+}
+
+function computeChased(t: Trade): boolean {
+  const hist = t.modify_history ?? [];
+  if (hist.length < 2) return false;
+  const prices: number[] = [];
+  if (t.limit_price != null) prices.push(t.limit_price);
+  for (const ev of hist) {
+    if (ev.limit_price == null) return false;
+    prices.push(ev.limit_price);
+  }
+  if (prices.length < 3) return false;
+  const isSell = t.side === 'sell' || t.side === 'STO' || t.side === 'STC';
+  for (let i = 1; i < prices.length; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (isSell) {
+      if (diff >= 0) return false;
+    } else {
+      if (diff <= 0) return false;
+    }
+  }
+  return true;
 }
