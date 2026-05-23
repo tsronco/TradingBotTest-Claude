@@ -343,4 +343,44 @@ describe('SpreadOrderForm', () => {
     // At least one of the expiration options should carry a DTE suffix or "expired"
     expect(optionTexts.some((t) => /\(\d+ DTE\)|\(expired\)/.test(t))).toBe(true);
   });
+
+  // Regression: picking an expiration re-fetches the chain filtered to that
+  // expiration. Before the fix, that overwrote the full chain in state and
+  // collapsed the expiration dropdown to just the picked date — only a page
+  // reload restored the list. Now the dropdown stays populated.
+  it('keeps all expirations in the dropdown after picking one (no shrink-after-pick bug)', async () => {
+    // Override fetch: the expiration-scoped refetch returns ONLY contracts
+    // matching the requested expiration (mimics the real backend).
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+        return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+      }
+      const match = typeof url === 'string' ? url.match(/expiration=([^&]+)/) : null;
+      if (match) {
+        const exp = match[1];
+        const filtered = {
+          contracts: chainResponse.contracts.filter((c) => c.expiration_date === exp),
+          snapshots: chainResponse.snapshots,
+        };
+        return Promise.resolve(new Response(JSON.stringify(filtered), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+    });
+
+    renderForm();
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    const select = screen.getByLabelText(/expiration/i) as HTMLSelectElement;
+
+    // Before pick: both expirations available (3 options including "pick…")
+    expect(select.options.length).toBe(3);
+
+    // Pick the first real expiration → triggers filtered refetch
+    fireEvent.change(select, { target: { value: '2026-05-29' } });
+
+    // After pick + refetch: dropdown must still list BOTH expirations
+    await waitFor(() => {
+      const refetched = screen.getByLabelText(/expiration/i) as HTMLSelectElement;
+      expect(refetched.options.length).toBe(3);
+    });
+  });
 });

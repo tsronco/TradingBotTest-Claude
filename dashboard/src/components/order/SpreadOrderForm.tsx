@@ -74,6 +74,12 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
     spotSnap?.latestTrade?.p ?? spotSnap?.dailyBar?.c ?? 0;
 
   const [chain, setChain] = useState<ChainResponse | null>(null);
+  // All available expirations, captured once from the initial unfiltered chain
+  // fetch. The expiration-scoped refetch below overwrites `chain` to pull
+  // snapshots (bid/ask) for the picked expiration, which would otherwise
+  // collapse the dropdown to a single date — keep this list separate so the
+  // user can still switch expirations without reloading.
+  const [allExpirations, setAllExpirations] = useState<string[]>([]);
   const [expiration, setExpiration] = useState<string>('');
   const [shortStrike, setShortStrike] = useState<number | null>(null);
   const [longStrike, setLongStrike] = useState<number | null>(null);
@@ -91,7 +97,14 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
   useEffect(() => {
     fetch(`/api/alpaca/chain?symbol=${symbol}`)
       .then((r) => r.json() as Promise<ChainResponse>)
-      .then(setChain)
+      .then((c) => {
+        setChain(c);
+        const set = new Set<string>();
+        for (const ct of c.contracts ?? []) {
+          if (ct.type === 'put') set.add(ct.expiration_date);
+        }
+        setAllExpirations(Array.from(set).sort());
+      })
       .catch((e) => setErr(String(e)));
   }, [symbol]);
 
@@ -102,15 +115,6 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
       .then(setChain)
       .catch((e) => setErr(String(e)));
   }, [symbol, expiration]);
-
-  // Derive the expiration dropdown from contracts (sorted ascending, puts only).
-  const expirations = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of chain?.contracts ?? []) {
-      if (c.type === 'put') set.add(c.expiration_date);
-    }
-    return Array.from(set).sort();
-  }, [chain]);
 
   // Normalize the put contracts at the selected expiration, sorted high→low.
   const strikesAtExpiry: NormalizedContract[] = useMemo(() => {
@@ -244,7 +248,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview }: Props
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-auto max-md:min-h-[44px]"
         >
           <option value="">pick…</option>
-          {expirations.map((e) => {
+          {allExpirations.map((e) => {
             const dte = daysToExpiration(e);
             const dteLabel = dte < 0 ? 'expired' : `${dte} DTE`;
             return (
