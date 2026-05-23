@@ -29,6 +29,50 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-23',
+    category: 'feature',
+    title: 'Options Strategy Builder page + 4 vertical spread types',
+    details:
+      'New /strategy/:symbol page (Robinhood-style picker) replaces the single ' +
+      '"Build Put Credit Spread" link on /lookup. Renders a grid of 13 strategy ' +
+      'cards across 4 sections (Single Leg, Vertical Spreads, Straddles and ' +
+      'Strangles, Calendar Spreads) — each card shows a mini SVG payoff curve ' +
+      'derived from the same payoff engine the full PayoffChart uses, so each ' +
+      'card scales naturally to whatever symbol you\'re on (sample strikes are ' +
+      'relative to spot, not hardcoded).\n\n' +
+      'Wired cards (8 total): Long Call, Long Put, Covered Call, Cash-Secured ' +
+      'Put (single-leg flow → /strategy/:symbol/pick → chain locked to the ' +
+      'right leg type → click any strike to land in the existing OptionOrderForm ' +
+      'pre-filled with the forced BTO/STO from the strategy intent); plus all 4 ' +
+      'vertical spreads (Call Debit / Call Credit / Put Debit / Put Credit) → ' +
+      'the existing SpreadOrderForm, now generalized to all 4 types.\n\n' +
+      'Coming-soon cards (5 total): Long Straddle, Long Strangle, Long Call ' +
+      'Calendar, Long Put Calendar, Short Put Calendar — render visibly but ' +
+      'are disabled. Adding these later means wiring 3-leg / multi-expiration ' +
+      'shapes in SpreadDetails + the order form.\n\n' +
+      'Schema change: SpreadDetails.spread_type widened from \'put_credit\' to ' +
+      'the SpreadType union (put_credit | put_debit | call_credit | call_debit). ' +
+      'Added optional net_debit + max_profit fields so debit-spread P&L is ' +
+      'recorded correctly without overloading net_credit. Existing put_credit ' +
+      'records are byte-unaffected (net_debit is undefined, max_profit equals ' +
+      'net_credit). limit_price sign convention stays the same: negative for ' +
+      'credit (you receive), positive for debit (you pay).\n\n' +
+      'Bot-management posture: only put_credit on manual_paper is bot-managed ' +
+      '(handle_spread runs the 75%/2× stop / 50% profit / DTE-≤2 close logic). ' +
+      'Every other spread type renders an amber banner in the form: "Bot will ' +
+      'track this <type> but won\'t auto-close. Manage it manually." This ' +
+      'matches today\'s posture where cons/agg spreads (even put_credit) are ' +
+      'already hand-managed. Live stays disabled across all spread types.\n\n' +
+      'Tests: +15 strategy-catalog (intent routing, payoff shapes), +7 ' +
+      'StrategyBuilder (cards render, disabled coming-soon, click routing), ' +
+      '+6 StrategyPickContract (intent forcing, chain side lock), +5 ' +
+      'SpreadOrderForm (all 4 vertical types, banner visibility), +4 OrderNew ' +
+      '(new spread params recognized + invalid rejected), +1 ConfirmModal ' +
+      '(debit-spread summary), +2 API trades-preview (put_debit + invalid ' +
+      'spread_type rejection), +1 Lookup (new button href). Total: 607 vitest / ' +
+      '90 files (was 492 / 80). Bot pytest count unchanged.',
+  },
+  {
     date: '2026-05-22',
     category: 'config',
     title: 'Manual spread stop-loss loosened 50% → 75% of max loss',

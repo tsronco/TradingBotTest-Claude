@@ -34,7 +34,7 @@ export default function Lookup() {
     mutationFn: () => api('/api/kv/watchlist', { method: 'POST', body: JSON.stringify({ symbol: sym }) }),
   });
 
-  // Probe the option chain so we can show the spread builder link only when
+  // Probe the option chain so we can show the strategy-builder link only when
   // the symbol actually has options. Cash-only / non-optionable names hide it.
   const chainProbe = useQuery({
     queryKey: ['chain-probe', sym],
@@ -158,10 +158,10 @@ export default function Lookup() {
               </div>
               {sym && hasOptions && (
                 <Link
-                  to={`/order/new?spread=put_credit&symbol=${sym}`}
+                  to={`/strategy/${sym}`}
                   className="mt-2 block bg-panel-2 border border-border rounded-sm py-1.5 text-xs text-cyan hover:bg-cyan/10 hover:border-cyan/50 text-center transition-colors"
                 >
-                  Build Put Credit Spread
+                  Build Options Strategy
                 </Link>
               )}
             </ErrorBoundary>

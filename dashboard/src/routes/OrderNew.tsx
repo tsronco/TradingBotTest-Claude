@@ -5,8 +5,12 @@ import { StockOrderForm } from '../components/order/StockOrderForm';
 import { OptionOrderForm } from '../components/order/OptionOrderForm';
 import { SpreadOrderForm } from '../components/order/SpreadOrderForm';
 import { ConfirmModal } from '../components/order/ConfirmModal';
-import type { RuleWarning } from '../lib/trade-types';
+import type { RuleWarning, SpreadType } from '../lib/trade-types';
 import { useDisplayName } from '../hooks/useDisplayName';
+
+const VALID_SPREAD_TYPES: ReadonlySet<SpreadType> = new Set<SpreadType>([
+  'put_credit', 'put_debit', 'call_credit', 'call_debit',
+]);
 
 export default function OrderNew() {
   const [params] = useSearchParams();
@@ -33,12 +37,12 @@ export default function OrderNew() {
     );
   }
 
-  const spreadType = params.get('spread');
-  const isSpread = spreadType === 'put_credit';
+  const spreadParam = params.get('spread') as SpreadType | null;
+  const isSpread = !!spreadParam && VALID_SPREAD_TYPES.has(spreadParam);
   const isOption = !isSpread && !!contract;
 
   const flag = isSpread
-    ? `--spread=${spreadType} --symbol=${symbol}`
+    ? `--spread=${spreadParam} --symbol=${symbol}`
     : isOption
     ? `--contract=${contract} --action=${action}`
     : `--symbol=${symbol} --type=${type}`;
@@ -52,7 +56,13 @@ export default function OrderNew() {
       </div>
       <div className="mt-6">
         {isSpread ? (
-          <SpreadOrderForm symbol={symbol!} account={account} setAccount={setAccount} onReview={setPreview} />
+          <SpreadOrderForm
+            symbol={symbol!}
+            account={account}
+            setAccount={setAccount}
+            onReview={setPreview}
+            spreadType={spreadParam ?? 'put_credit'}
+          />
         ) : isOption ? (
           <OptionOrderForm
             contractSymbol={contract!}

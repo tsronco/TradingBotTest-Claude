@@ -162,9 +162,14 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 function SpreadOrderSummary({ draft }: { draft: any }) {
-  const credit = Math.abs(draft.limit_price ?? 0);
+  const limit = Number(draft.limit_price ?? 0);
+  // Sign convention from SpreadOrderForm: negative = credit (you receive),
+  // positive = debit (you pay).
+  const isCredit = limit <= 0;
+  const net = Math.abs(limit);
   const width = Math.abs(draft.short_leg.strike - draft.long_leg.strike);
-  const maxLoss = width - credit;
+  const maxLoss = isCredit ? width - net : net;
+  const maxProfit = isCredit ? net : width - net;
   const qty = draft.qty ?? 1;
   const typeLabel = String(draft.spread_type ?? '').replace(/_/g, ' ');
   return (
@@ -174,7 +179,8 @@ function SpreadOrderSummary({ draft }: { draft: any }) {
         v={`${draft.symbol} ${typeLabel} $${draft.short_leg.strike.toFixed(2)} / $${draft.long_leg.strike.toFixed(2)} × ${qty}`}
       />
       <Row k="expiration" v={draft.expiration} />
-      <Row k="net credit" v={`${fmtUsd(credit)} (${fmtUsd(credit * 100 * qty)})`} />
+      <Row k={isCredit ? 'net credit' : 'net debit'} v={`${fmtUsd(net)} (${fmtUsd(net * 100 * qty)})`} />
+      <Row k="max profit" v={`${fmtUsd(maxProfit)} (${fmtUsd(maxProfit * 100 * qty)})`} />
       <Row k="max loss" v={`${fmtUsd(maxLoss)} (${fmtUsd(maxLoss * 100 * qty)})`} />
       <Row k="collateral" v={fmtUsd(maxLoss * 100 * qty)} />
     </>

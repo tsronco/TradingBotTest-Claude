@@ -55,7 +55,37 @@ describe('ConfirmModal', () => {
     expect(screen.getByText(/11\.50/)).toBeInTheDocument();
     // Credit and max loss in $ terms (credit 0.25 → $0.25 per-share / $25 total;
     // max loss = width 1.00 − credit 0.25 = $0.75 per-share / $75 total)
-    expect(screen.getByText(/\$0\.25/)).toBeInTheDocument();
+    // $0.25 appears in BOTH the "net credit" row and the "max profit" row
+    // (max_profit == net_credit for a credit spread), so assert ≥1 match.
+    expect(screen.getAllByText(/\$0\.25/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/\$0\.75.*\$75\.00/)).toBeInTheDocument();
+  });
+
+  it('renders a debit spread with net debit + flipped max profit', () => {
+    const preview = {
+      exposure: 25,
+      requires_totp: false,
+      rule_warnings: [],
+      draft: {
+        kind: 'spread',
+        account: 'manual_paper',
+        symbol: 'AAL',
+        spread_type: 'put_debit',
+        short_leg: { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
+        long_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
+        expiration: '2026-05-29',
+        qty: 1,
+        limit_price: 0.25, // positive = debit
+        entry_grade: 'B',
+        entry_reasoning: 'bear setup',
+      },
+    };
+    withRouter(<ConfirmModal preview={preview} onClose={() => {}} />);
+    // For a debit spread: net_debit = $0.25, max_loss = net_debit = $0.25,
+    // max_profit = width 1.00 − debit 0.25 = $0.75 per-share / $75 total.
+    expect(screen.getByText(/put debit/i)).toBeInTheDocument();
+    expect(screen.getByText(/net debit/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$0\.25/).length).toBeGreaterThan(0);
     expect(screen.getByText(/\$0\.75.*\$75\.00/)).toBeInTheDocument();
   });
 });

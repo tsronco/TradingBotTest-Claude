@@ -14,12 +14,19 @@ const chainResponse = {
     { symbol: 'AAL260529P00011500', strike_price: '11.5', expiration_date: '2026-05-29', type: 'put' as const },
     { symbol: 'AAL260529P00010500', strike_price: '10.5', expiration_date: '2026-05-29', type: 'put' as const },
     { symbol: 'AAL260619P00012500', strike_price: '12.5', expiration_date: '2026-06-19', type: 'put' as const },
+    // Calls — used by call_credit / call_debit tests
+    { symbol: 'AAL260529C00013000', strike_price: '13.0', expiration_date: '2026-05-29', type: 'call' as const },
+    { symbol: 'AAL260529C00014000', strike_price: '14.0', expiration_date: '2026-05-29', type: 'call' as const },
+    { symbol: 'AAL260529C00015000', strike_price: '15.0', expiration_date: '2026-05-29', type: 'call' as const },
   ],
   snapshots: {
     AAL260529P00012500: { latestQuote: { bp: 0.36, ap: 0.42 } },
     AAL260529P00011500: { latestQuote: { bp: 0.10, ap: 0.14 } },
     AAL260529P00010500: { latestQuote: { bp: 0.03, ap: 0.06 } },
     AAL260619P00012500: { latestQuote: { bp: 0.50, ap: 0.56 } },
+    AAL260529C00013000: { latestQuote: { bp: 0.45, ap: 0.52 } },
+    AAL260529C00014000: { latestQuote: { bp: 0.20, ap: 0.26 } },
+    AAL260529C00015000: { latestQuote: { bp: 0.08, ap: 0.12 } },
   },
 };
 
@@ -342,6 +349,129 @@ describe('SpreadOrderForm', () => {
     const optionTexts = Array.from(select.options).map((o) => o.textContent ?? '');
     // At least one of the expiration options should carry a DTE suffix or "expired"
     expect(optionTexts.some((t) => /\(\d+ DTE\)|\(expired\)/.test(t))).toBe(true);
+  });
+
+  describe('spread_type generalization (all 4 verticals)', () => {
+    function captureSubmit() {
+      let captured: any = null;
+      globalThis.fetch = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/settings/tags')) {
+          return Promise.resolve(new Response(JSON.stringify(tagsResponse), { status: 200 }));
+        }
+        if (typeof url === 'string' && url.startsWith('/api/trades/preview')) {
+          captured = JSON.parse(init?.body as string);
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ exposure: 100, requires_totp: false, rule_warnings: [], draft: captured }),
+              { status: 200 }
+            )
+          );
+        }
+        return Promise.resolve(new Response(JSON.stringify(chainResponse), { status: 200 }));
+      });
+      return () => captured;
+    }
+
+    it('put_credit (default): negative limit_price (credit) + put legs + short ABOVE long', async () => {
+      const getCaptured = captureSubmit();
+      renderForm({ spreadType: 'put_credit' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+      fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '12.5' } });
+      fireEvent.change(screen.getByLabelText(/long strike/i), { target: { value: '11.5' } });
+      fireEvent.click(screen.getByRole('button', { name: /^A$/ }));
+      fireEvent.change(screen.getByLabelText(/reasoning/i), { target: { value: 'bullish put credit' } });
+      fireEvent.click(screen.getByRole('button', { name: /review/i }));
+      await waitFor(() => expect(getCaptured()).not.toBeNull());
+      const c = getCaptured();
+      expect(c.spread_type).toBe('put_credit');
+      expect(c.limit_price).toBeLessThan(0); // credit
+      expect(c.short_leg.strike).toBe(12.5);
+      expect(c.long_leg.strike).toBe(11.5);
+    });
+
+    it('put_debit: positive limit_price (debit) + put legs + short BELOW long', async () => {
+      const getCaptured = captureSubmit();
+      renderForm({ spreadType: 'put_debit' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+      // For put_debit the user BUYS the higher strike put (long) and SELLS the lower strike put (short)
+      fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '11.5' } });
+      // long-strike dropdown should now show strikes ABOVE 11.5 (cfg.shortVsLong = 'below' so long > short)
+      const longSelect = screen.getByLabelText(/long strike/i) as HTMLSelectElement;
+      const longValues = Array.from(longSelect.options).map((o) => o.value).filter((v) => v);
+      expect(longValues).toContain('12.5');
+      expect(longValues).not.toContain('10.5');
+      fireEvent.change(longSelect, { target: { value: '12.5' } });
+      fireEvent.click(screen.getByRole('button', { name: /^B\+$/ }));
+      fireEvent.change(screen.getByLabelText(/reasoning/i), { target: { value: 'bearish put debit' } });
+      fireEvent.click(screen.getByRole('button', { name: /review/i }));
+      await waitFor(() => expect(getCaptured()).not.toBeNull());
+      const c = getCaptured();
+      expect(c.spread_type).toBe('put_debit');
+      expect(c.limit_price).toBeGreaterThan(0); // debit
+      expect(c.short_leg.strike).toBe(11.5);
+      expect(c.long_leg.strike).toBe(12.5);
+    });
+
+    it('call_credit: negative limit_price (credit) + call legs + short BELOW long', async () => {
+      const getCaptured = captureSubmit();
+      renderForm({ spreadType: 'call_credit' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+      fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '13' } });
+      const longSelect = screen.getByLabelText(/long strike/i) as HTMLSelectElement;
+      const longValues = Array.from(longSelect.options).map((o) => o.value).filter((v) => v);
+      // shortVsLong='below' → long must be > short
+      expect(longValues).toContain('14');
+      expect(longValues).toContain('15');
+      fireEvent.change(longSelect, { target: { value: '14' } });
+      fireEvent.click(screen.getByRole('button', { name: /^B$/ }));
+      fireEvent.change(screen.getByLabelText(/reasoning/i), { target: { value: 'bearish call credit' } });
+      fireEvent.click(screen.getByRole('button', { name: /review/i }));
+      await waitFor(() => expect(getCaptured()).not.toBeNull());
+      const c = getCaptured();
+      expect(c.spread_type).toBe('call_credit');
+      expect(c.limit_price).toBeLessThan(0); // credit
+      expect(c.short_leg.strike).toBe(13);
+      expect(c.long_leg.strike).toBe(14);
+    });
+
+    it('call_debit: positive limit_price (debit) + call legs + short ABOVE long', async () => {
+      const getCaptured = captureSubmit();
+      renderForm({ spreadType: 'call_debit' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      fireEvent.change(screen.getByLabelText(/expiration/i), { target: { value: '2026-05-29' } });
+      fireEvent.change(screen.getByLabelText(/short strike/i), { target: { value: '15' } });
+      const longSelect = screen.getByLabelText(/long strike/i) as HTMLSelectElement;
+      const longValues = Array.from(longSelect.options).map((o) => o.value).filter((v) => v);
+      // shortVsLong='above' → long must be < short
+      expect(longValues).toContain('13');
+      expect(longValues).toContain('14');
+      fireEvent.change(longSelect, { target: { value: '13' } });
+      fireEvent.click(screen.getByRole('button', { name: /^B-$/ }));
+      fireEvent.change(screen.getByLabelText(/reasoning/i), { target: { value: 'bullish call debit' } });
+      fireEvent.click(screen.getByRole('button', { name: /review/i }));
+      await waitFor(() => expect(getCaptured()).not.toBeNull());
+      const c = getCaptured();
+      expect(c.spread_type).toBe('call_debit');
+      expect(c.limit_price).toBeGreaterThan(0); // debit
+      expect(c.short_leg.strike).toBe(15);
+      expect(c.long_leg.strike).toBe(13);
+    });
+
+    it('renders the "Bot will track but not auto-close" banner for non-managed types', async () => {
+      // put_debit on manual_paper is not bot-managed (only put_credit on manual is)
+      renderForm({ spreadType: 'put_debit' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      expect(screen.getByText(/bot will track this/i)).toBeInTheDocument();
+    });
+
+    it('hides the bot-management banner for put_credit on manual_paper', async () => {
+      renderForm({ spreadType: 'put_credit', account: 'manual_paper' });
+      await waitFor(() => screen.getByLabelText(/expiration/i));
+      expect(screen.queryByText(/bot will track this/i)).toBeNull();
+    });
   });
 
   // Regression: picking an expiration re-fetches the chain filtered to that
