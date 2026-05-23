@@ -7,13 +7,13 @@
 // Severity ordering on output: block first, warn next, info last.
 
 import { kv } from './kv.js';
-import { rulesKey, botRulesKey } from './kv-keys.js';
+import { rulesKey, botRulesKey, tradesIndexMonthKey, tradeKey } from './kv-keys.js';
 import { fetchEarningsDate } from './fundamentals-fetch.js';
 import type {
   ManualRule, Trigger, BotRulesPayload,
 } from './rules-types.js';
 import type {
-  AssetClass, AccountId, RuleWarning, RuleSeverity, OrderSide,
+  AssetClass, AccountId, RuleWarning, RuleSeverity, OrderSide, Trade,
 } from './trade-types.js';
 
 export interface RuleCheckInput {
@@ -169,15 +169,51 @@ async function evaluateTrigger(
       return dte >= t.min && dte <= t.max;
     }
     case 'recent_loss_within_minutes':
-      // TODO: needs KV access to walk recent closed trades by account.
-      // The matcher itself fires post-hoc (Sundays cron) and generates proposals;
-      // live enforcement at order-submit time requires fetching the most recent
-      // closed trade for input.account from trades:index:<YYYY-MM> and checking
-      // realized_pnl < 0 with closed_at within t.minutes. Skipping for now to
-      // avoid bloating this PR with KV iteration logic + ordering guarantees.
-      return false;
+      return await checkRecentLossWithinMinutes(input.account, t.minutes);
     default:                return false;
   }
+}
+
+// Walks the most-recent closed trades for `account` (current month, then prior
+// month as fallback) and returns true iff the most-recent close was a loss
+// AND closed within `minutes` of now. Bounded to the last 50 IDs per month to
+// keep KV traffic predictable. Returns false on a fresh account with no closed
+// trades — avoids false positives.
+async function checkRecentLossWithinMinutes(
+  account: AccountId,
+  minutes: number,
+): Promise<boolean> {
+  const now = Date.now();
+  const windowMs = minutes * 60_000;
+  const months = recentMonthKeys(2);
+  for (const month of months) {
+    const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+    if (ids.length === 0) continue;
+    const tail = ids.slice(-50).reverse();
+    for (const id of tail) {
+      const trade = await kv().get<Trade>(tradeKey(id));
+      if (!trade) continue;
+      if (trade.account !== account) continue;
+      if (!trade.closed_at) continue;
+      const closedAt = Date.parse(trade.closed_at);
+      if (!Number.isFinite(closedAt)) return false;
+      if ((trade.realized_pnl ?? 0) >= 0) return false;
+      return (now - closedAt) <= windowMs;
+    }
+  }
+  return false;
+}
+
+function recentMonthKeys(count: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = 0; i < count; i++) {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    out.push(`${y}-${m}`);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+  }
+  return out;
 }
 
 // --- Legacy stub rules (preserved from Phase 2 for backward compat) ---

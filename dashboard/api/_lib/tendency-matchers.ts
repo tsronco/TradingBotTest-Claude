@@ -16,7 +16,7 @@ export interface ClosedTradeView {
   id: string;
   symbol: string;
   account: AccountId;
-  asset_class: 'stock' | 'option';
+  asset_class: 'stock' | 'option' | 'spread';
   option_type: 'put' | 'call' | null;
   side: string;
   submitted_at: string;

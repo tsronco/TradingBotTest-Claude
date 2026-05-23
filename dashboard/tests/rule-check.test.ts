@@ -300,6 +300,128 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
     expect(violations.filter((v) => v.rule === 'r1')).toHaveLength(0);
   });
 
+  describe('recent_loss_within_minutes', () => {
+    const mkTrade = (over: Record<string, unknown>) => ({
+      id: 'T-2026-05-01-001',
+      account: 'manual_paper',
+      asset_class: 'option',
+      symbol: 'AAL',
+      side: 'STO',
+      qty: 1,
+      submitted_at: '2026-05-01T10:00:00Z',
+      filled_at: '2026-05-01T10:00:01Z',
+      closed_at: null,
+      realized_pnl: null,
+      ...over,
+    });
+
+    const monthKey = () => {
+      const d = new Date();
+      return `trades:index:${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+
+    it('fires when most-recent closed trade is a loss within the window', async () => {
+      const closedAt = new Date(Date.now() - 10 * 60_000).toISOString();
+      kvGet.mockImplementation(async (k: string) => {
+        if (k === 'rules:manual') return [mkRule({
+          severity: 'warn',
+          triggers: [{ type: 'recent_loss_within_minutes', minutes: 30 }],
+        })];
+        if (k === monthKey()) return ['T-x-1'];
+        if (k === 'trade:T-x-1') return mkTrade({
+          account: 'manual_paper', closed_at: closedAt, realized_pnl: -25,
+        });
+        return null;
+      });
+      const { runRuleChecks } = await import('../api/_lib/rule-check');
+      const violations = await runRuleChecks({
+        asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
+        account: 'manual_paper',
+      });
+      expect(violations.find((v) => v.rule === 'r-1')).toBeDefined();
+    });
+
+    it('does NOT fire when most-recent closed trade is older than window', async () => {
+      const closedAt = new Date(Date.now() - 90 * 60_000).toISOString();
+      kvGet.mockImplementation(async (k: string) => {
+        if (k === 'rules:manual') return [mkRule({
+          severity: 'warn',
+          triggers: [{ type: 'recent_loss_within_minutes', minutes: 30 }],
+        })];
+        if (k === monthKey()) return ['T-x-1'];
+        if (k === 'trade:T-x-1') return mkTrade({
+          account: 'manual_paper', closed_at: closedAt, realized_pnl: -25,
+        });
+        return null;
+      });
+      const { runRuleChecks } = await import('../api/_lib/rule-check');
+      const violations = await runRuleChecks({
+        asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
+        account: 'manual_paper',
+      });
+      expect(violations.find((v) => v.rule === 'r-1')).toBeUndefined();
+    });
+
+    it('does NOT fire when most-recent closed trade is a winner', async () => {
+      const closedAt = new Date(Date.now() - 10 * 60_000).toISOString();
+      kvGet.mockImplementation(async (k: string) => {
+        if (k === 'rules:manual') return [mkRule({
+          severity: 'warn',
+          triggers: [{ type: 'recent_loss_within_minutes', minutes: 30 }],
+        })];
+        if (k === monthKey()) return ['T-x-1'];
+        if (k === 'trade:T-x-1') return mkTrade({
+          account: 'manual_paper', closed_at: closedAt, realized_pnl: 25,
+        });
+        return null;
+      });
+      const { runRuleChecks } = await import('../api/_lib/rule-check');
+      const violations = await runRuleChecks({
+        asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
+        account: 'manual_paper',
+      });
+      expect(violations.find((v) => v.rule === 'r-1')).toBeUndefined();
+    });
+
+    it('does NOT fire when account has no closed trades', async () => {
+      kvGet.mockImplementation(async (k: string) => {
+        if (k === 'rules:manual') return [mkRule({
+          severity: 'warn',
+          triggers: [{ type: 'recent_loss_within_minutes', minutes: 30 }],
+        })];
+        return null;
+      });
+      const { runRuleChecks } = await import('../api/_lib/rule-check');
+      const violations = await runRuleChecks({
+        asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
+        account: 'manual_paper',
+      });
+      expect(violations.find((v) => v.rule === 'r-1')).toBeUndefined();
+    });
+
+    it('only considers trades from the matching account', async () => {
+      const closedAt = new Date(Date.now() - 5 * 60_000).toISOString();
+      kvGet.mockImplementation(async (k: string) => {
+        if (k === 'rules:manual') return [mkRule({
+          severity: 'warn',
+          triggers: [{ type: 'recent_loss_within_minutes', minutes: 30 }],
+        })];
+        if (k === monthKey()) return ['T-x-1'];
+        // Recent loss exists, but on a DIFFERENT account
+        if (k === 'trade:T-x-1') return mkTrade({
+          account: 'conservative_paper', closed_at: closedAt, realized_pnl: -25,
+        });
+        return null;
+      });
+      const { runRuleChecks } = await import('../api/_lib/rule-check');
+      const violations = await runRuleChecks({
+        asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
+        account: 'manual_paper',
+      });
+      expect(violations.find((v) => v.rule === 'r-1')).toBeUndefined();
+    });
+  });
+
   it('blocks when severity is block and spread risk exceeds cap', async () => {
     kvGet.mockImplementation(async (k: string) => {
       if (k === 'rules:manual') return [mkRule({
