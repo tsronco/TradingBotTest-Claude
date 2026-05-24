@@ -1201,7 +1201,37 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
   }
   const sinceTs = Date.parse(since);
   if (!Number.isFinite(sinceTs)) return res.status(400).json({ error: 'invalid_since_timestamp' });
+  try {
+    const summary = await runImport({ account, since });
+    return res.status(200).json({ imported: summary });
+  } catch (e) {
+    return res.status(502).json({
+      error: 'alpaca_activities_fetch_failed',
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
 
+/**
+ * Pure import worker — pulls FILL activities since `since` for the given
+ * account, pairs option fills into spreads when possible, and writes
+ * dashboard trade records for opening fills (STO/BTO). Used by both the
+ * HTTP /api/trades/import endpoint AND the grade-open-trades cron's
+ * auto-import pass. Closes get picked up separately by the cron's
+ * external-close detection on the next tick.
+ *
+ * extraTags is added to every imported trade in addition to 'imported'
+ * (cron uses ['bot_opened'] for accounts where every trade is bot-opened).
+ */
+export async function runImport({
+  account,
+  since,
+  extraTags = [],
+}: {
+  account: OrderDraft['account'];
+  since: string;
+  extraTags?: string[];
+}): Promise<TradeImportSummary> {
   const summary: TradeImportSummary = {
     imported: 0,
     skipped_existing: 0,
@@ -1210,21 +1240,14 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
     created_trade_ids: [],
   };
 
+  const baseTags = ['imported', ...extraTags.filter((t) => t !== 'imported')];
   const mode = modeFromAccount(account);
-  let activities: RawFill[] = [];
-  try {
-    const raw = await alpacaTrade<RawFill[]>(
-      mode as any,
-      '/v2/account/activities',
-      { activity_types: 'FILL', after: since.slice(0, 10), page_size: 500 },
-    );
-    activities = Array.isArray(raw) ? raw : [];
-  } catch (e) {
-    return res.status(502).json({
-      error: 'alpaca_activities_fetch_failed',
-      detail: e instanceof Error ? e.message : String(e),
-    });
-  }
+  const raw = await alpacaTrade<RawFill[]>(
+    mode as any,
+    '/v2/account/activities',
+    { activity_types: 'FILL', after: since.slice(0, 10), page_size: 500 },
+  );
+  const activities: RawFill[] = Array.isArray(raw) ? raw : [];
 
   // Only OPENING fills are imported here — closes will be picked up by the
   // cron's external-close detection on the next tick.
@@ -1300,7 +1323,7 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
         closed_avg_price: null,
         realized_pnl: null,
         closed_by: null,
-        tags: ['imported'],
+        tags: baseTags,
         // Imports have no user-assigned grade. The schema requires a letter,
         // so we seed 'C' (neutral) and tag with 'imported' so the calibration
         // math + grading consumers can filter these out if needed.
@@ -1410,7 +1433,7 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
         closed_avg_price: null,
         realized_pnl: null,
         closed_by: null,
-        tags: ['imported'],
+        tags: baseTags,
         entry_grade: 'C',
         entry_reasoning: 'Imported from Alpaca activity log (originally opened outside dashboard)',
         journal: '',
@@ -1441,7 +1464,7 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).json({ imported: summary });
+  return summary;
 }
 
 async function updateTrade(req: VercelRequest, res: VercelResponse) {

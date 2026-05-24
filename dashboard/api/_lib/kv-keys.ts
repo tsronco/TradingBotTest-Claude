@@ -48,6 +48,7 @@ const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^watchlist$/,
   /^rules:(manual|patterns|cheatsheets|goals|tendencies|proposals)$/,
   /^config:display_name$/,
+  /^import:cursor:(conservative_paper|aggressive_paper|manual_paper|live|sm500_paper|sm1000_paper|sm2000_paper)$/,
 ];
 
 export function isAllowedDashboardKey(key: string): boolean {
@@ -111,4 +112,8 @@ export function assignmentsPendingKey(): string {
 
 export function assignmentChildKey(parentTradeId: string): string {
   return `assignment-child:${parentTradeId}`;
+}
+
+export function importCursorKey(account: string): string {
+  return `import:cursor:${account}`;
 }

@@ -1,7 +1,9 @@
 // dashboard/src/routes/Trades.tsx
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTrades, type TradesFilters } from '../hooks/useTrades';
+import { api } from '../lib/api';
 import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
@@ -17,6 +19,11 @@ export default function Trades() {
   const [filters, setFilters] = useState<TradesFilters>({ limit: 50, offset: 0 });
   const { data, isLoading } = useTrades(filters);
   const { handle } = useDisplayName();
+  const tagsQ = useQuery({
+    queryKey: ['settings-tags'],
+    queryFn: () => api<{ tags: string[] }>('/api/settings/tags'),
+    staleTime: 5 * 60_000,
+  });
 
   const summary = data?.summary;
 
@@ -25,7 +32,7 @@ export default function Trades() {
       <div className="text-mid text-[12px]">
         <span className="text-cyan">{handle}@dash</span><span className="text-dim">:</span>
         <span className="text-cyan">~/portfolio/trades</span><span className="text-dim">$</span>{' '}
-        <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'}</span>
+        <span className="text-fg">list --account={filters.account ?? 'all'} --status={filters.status ?? 'all'} --tag={filters.tag ?? 'any'}</span>
       </div>
       <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
         <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi">Trades</h1>
@@ -56,6 +63,29 @@ export default function Trades() {
         <FilterPbtn label="grade" value={filters.grade} options={GRADES as unknown as readonly string[]} onChange={(v) => setFilters({ ...filters, grade: v, offset: 0 })} />
         <FilterPbtn label="status" value={filters.status} options={STATUSES} onChange={(v) => setFilters({ ...filters, status: v as 'open' | 'closed' | undefined, offset: 0 })} />
       </div>
+
+      {tagsQ.data?.tags && tagsQ.data.tags.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          <span className="text-dim text-[10px] tracking-[0.25em]">TAG:</span>
+          <button
+            type="button"
+            className={`pbtn ${filters.tag === undefined ? 'active' : ''}`}
+            onClick={() => setFilters({ ...filters, tag: undefined, offset: 0 })}
+          >
+            [any]
+          </button>
+          {tagsQ.data.tags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`pbtn ${filters.tag === t ? 'active' : ''}`}
+              onClick={() => setFilters({ ...filters, tag: filters.tag === t ? undefined : t, offset: 0 })}
+            >
+              [{t}]
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 border border-border bg-panel/60 overflow-x-auto rtable">
         <table className="w-full text-[10px] tnum">

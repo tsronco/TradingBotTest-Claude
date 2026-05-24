@@ -1,7 +1,7 @@
 // dashboard/api/cron/[job].ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
-import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey } from '../_lib/kv-keys.js';
+import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey, importCursorKey } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Mode } from '../_lib/alpaca.js';
@@ -213,13 +213,71 @@ export async function runGradeOpenTrades(): Promise<{
   // Drain assignments-pending — spawn follow-on stock trades for assigned puts
   const drainResult = await drainAssignmentsAndSpawn();
 
+  // Auto-import bot-opened trades from every bot-touched account so they show
+  // up on /trades automatically (was previously a one-shot manual operation
+  // in Settings). Failures per account are swallowed so one bad account
+  // doesn't block grading or the other imports. See runAutoImport() below.
+  const importResult = await runAutoImport();
+
   return {
     graded,
     synced,
     remaining_open: remaining,
     assignments_spawned: drainResult.spawned,
     assignments_skipped: drainResult.skipped,
+    auto_imported: importResult,
   };
+}
+
+// Per-account auto-import tag policy:
+//   - cons/agg/sm* accounts are 100% bot-driven, so any fill found in the
+//     activity log that isn't already in our trades index must have been
+//     opened by the bot → tag 'bot_opened' in addition to 'imported'.
+//   - manual/live accounts mix bot-opens (auto-spread on manual since
+//     2026-05-22; live = real money) with hand-opens via Alpaca's web UI,
+//     so we can't reliably attribute either way → tag 'imported' only.
+const AUTO_IMPORT_ACCOUNTS: Array<{ account: string; extraTags: string[] }> = [
+  { account: 'conservative_paper', extraTags: ['bot_opened'] },
+  { account: 'aggressive_paper',   extraTags: ['bot_opened'] },
+  { account: 'manual_paper',       extraTags: [] },
+  { account: 'live',               extraTags: [] },
+  { account: 'sm500_paper',        extraTags: ['bot_opened'] },
+  { account: 'sm1000_paper',       extraTags: ['bot_opened'] },
+  { account: 'sm2000_paper',       extraTags: ['bot_opened'] },
+];
+
+// First-run cursor — start 7 days back so we don't sweep the entire account
+// history on the first auto-import (Tim's already used the one-shot importer
+// for historical backfill).
+const AUTO_IMPORT_INITIAL_LOOKBACK_MS = 7 * 86400000;
+
+async function runAutoImport(): Promise<Record<string, number | string>> {
+  // Dynamic import breaks the module-init cycle with trades/[action] (which
+  // imports runGradeOpenTrades from this file). Top-level static import would
+  // work in V8 ESM but Vercel's bundler doesn't guarantee that — safer this
+  // way and the call is rare (once per cron tick).
+  const { runImport } = await import('../trades/[action].js');
+  const result: Record<string, number | string> = {};
+  const now = new Date();
+  for (const { account, extraTags } of AUTO_IMPORT_ACCOUNTS) {
+    if (account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+      result[account] = 'skipped_live_disabled';
+      continue;
+    }
+    const cursorKey = importCursorKey(account);
+    const stored = await kv().get<string>(cursorKey);
+    const since = stored ?? new Date(now.getTime() - AUTO_IMPORT_INITIAL_LOOKBACK_MS).toISOString();
+    try {
+      const summary = await runImport({ account: account as any, since, extraTags });
+      // Advance the cursor only on success so a failed tick can retry the
+      // same window next time without missing fills.
+      await kv().set(cursorKey, now.toISOString());
+      result[account] = summary.imported;
+    } catch (e) {
+      result[account] = `error: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  return result;
 }
 
 async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: number }> {

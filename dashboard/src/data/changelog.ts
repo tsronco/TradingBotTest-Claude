@@ -31,6 +31,31 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-23',
     category: 'feature',
+    title: '/trades: tag filter chips + auto-import bot trades every cron tick',
+    details:
+      'Two changes to make /trades the single source of truth across all 7 ' +
+      'accounts:\n\n' +
+      '1. Tag filter row added under the existing filter chips. Click any ' +
+      'tag chip to filter the table to just trades carrying that tag (e.g. ' +
+      '"bot_opened", "assigned", "wheel_50pct"). Backend already supported ' +
+      'the tag param — this just wires the UI.\n\n' +
+      '2. The grade-open-trades cron now auto-imports bot-opened trades ' +
+      'from every bot-touched account each tick (every 5 min during market ' +
+      'hours). Per-account cursor stored at import:cursor:<account>; first ' +
+      'run looks back 7 days. Cursor only advances on success so a failed ' +
+      'tick retries the same window next time. Tag policy:\n' +
+      '  • cons/agg/sm500/1000/2000 → \'imported\' + \'bot_opened\' (100% bot)\n' +
+      '  • manual/live              → \'imported\' (mixed; user attributes)\n\n' +
+      'Refactor: the body of /api/trades/import was extracted to a pure ' +
+      'runImport({ account, since, extraTags }) function so both the HTTP ' +
+      'endpoint and the cron call it. Dynamic import in the cron breaks the ' +
+      'module-init cycle with trades/[action].ts (which already imports ' +
+      'runGradeOpenTrades from cron/[job].ts). No new Vercel functions ' +
+      '(still 10/12).',
+  },
+  {
+    date: '2026-05-23',
+    category: 'feature',
     title: 'Tag library expanded + outcome tags auto-applied at close',
     details:
       'Seeded the tag picker with 16 new tags: the missing spread types ' +
