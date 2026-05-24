@@ -83,6 +83,7 @@ export async function runGradeOpenTrades(): Promise<{
   remaining_open: number;
   assignments_spawned: number;
   assignments_skipped: number;
+  auto_imported: Record<string, number | string>;
 }> {
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
 
