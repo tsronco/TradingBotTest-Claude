@@ -115,16 +115,59 @@ export default function Trades() {
         </table>
       </div>
 
-      <div className="mt-3 flex justify-end gap-2">
-        <button type="button" className="pbtn" disabled={(filters.offset ?? 0) === 0}
-                onClick={() => setFilters({ ...filters, offset: Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 50)) })}>
-          [&lt; prev]
-        </button>
-        <button type="button" className="pbtn" disabled={!data || ((filters.offset ?? 0) + (filters.limit ?? 50)) >= (data?.total ?? 0)}
-                onClick={() => setFilters({ ...filters, offset: (filters.offset ?? 0) + (filters.limit ?? 50) })}>
-          [next &gt;]
-        </button>
-      </div>
+      {(() => {
+        const total = data?.total ?? 0;
+        const limit = filters.limit ?? 50;
+        const offset = filters.offset ?? 0;
+        // limit >= total acts as "all" — one page, both nav buttons disabled.
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+        const currentPage = Math.floor(offset / limit) + 1;
+        const onFirst = currentPage === 1;
+        const onLast = currentPage >= totalPages;
+        return (
+          <div className="mt-3 flex justify-between items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-dim text-[10px] tracking-[0.25em]">SHOW:</span>
+              {([25, 50, 100, 'all'] as const).map((opt) => {
+                const optLimit = opt === 'all' ? 9999 : opt;
+                const isActive = limit === optLimit;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`pbtn ${isActive ? 'active' : ''}`}
+                    onClick={() => setFilters({ ...filters, limit: optLimit, offset: 0 })}
+                  >
+                    [{opt}]
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-dim text-[10px] tracking-[0.25em]">
+                PAGE {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className="pbtn"
+                disabled={onFirst}
+                onClick={() => setFilters({ ...filters, offset: Math.max(0, offset - limit) })}
+              >
+                {onFirst ? '[< prev]' : `[< prev(${currentPage - 1})]`}
+              </button>
+              <button
+                type="button"
+                className="pbtn"
+                disabled={onLast || !data}
+                title={onLast ? 'no more pages' : undefined}
+                onClick={() => setFilters({ ...filters, offset: offset + limit })}
+              >
+                {onLast ? '[next >]' : `[next(${currentPage + 1}) >]`}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* footer ribbon per brand */}
       <div className="footer-ribbon mt-6 flex items-center gap-3 text-[11px] text-dim">

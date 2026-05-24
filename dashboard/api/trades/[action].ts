@@ -732,7 +732,9 @@ async function list(req: VercelRequest, res: VercelResponse) {
   const status = q.status ? String(q.status) : null;
   const from = q.from ? String(q.from) : null;
   const to = q.to ? String(q.to) : null;
-  const limit = Math.min(200, Number(q.limit ?? 50));
+  // Cap at 10k — the /trades page's "all" chip sends 9999 to mean
+  // "no per-page cap." Any limit above that is treated as 10k.
+  const limit = Math.min(10000, Number(q.limit ?? 50));
   const offset = Math.max(0, Number(q.offset ?? 0));
 
   // collect month keys covering the date range — fall back to current + last 12 months

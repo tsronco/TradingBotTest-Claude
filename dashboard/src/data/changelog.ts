@@ -30,6 +30,21 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-05-23',
+    category: 'ui',
+    title: '/trades: per-page chip + page counter on prev/next',
+    details:
+      'Pagination footer rebuilt:\n' +
+      '  • SHOW chips: [25] [50] [100] [all] on the left. "all" sends 9999 ' +
+      'to the API (capped server-side at 10k).\n' +
+      '  • PAGE x / y indicator between the show chips and the nav buttons.\n' +
+      '  • prev(N) and next(N) show the destination page number — e.g. on ' +
+      'page 1 of 5 you see [< prev] (disabled) and [next(2) >]. On the ' +
+      'last page next is disabled with a "no more pages" tooltip.\n\n' +
+      'Backend cap raised 200 → 10,000 so "all" actually means all (KV ' +
+      'reads are sequential but the explicit user choice is fine).',
+  },
+  {
+    date: '2026-05-23',
     category: 'feature',
     title: '/trades: tag filter chips + auto-import bot trades every cron tick',
     details:
