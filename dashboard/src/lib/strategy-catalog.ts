@@ -57,6 +57,16 @@ export interface StrategyDef {
    * hardcoding a $100 placeholder.
    */
   sampleLegs(spot: number): Leg[];
+  /**
+   * Optional override for card payoff preview. When set, PayoffSparkline
+   * uses these (price, pl) points directly instead of computing from
+   * sampleLegs. Used for calendar spreads, whose true P&L curve depends on
+   * a vol model (front/back IV decay) — the leg-based expiry-payoff
+   * approximation just renders a flat line and looks broken. The override
+   * lets us draw a hand-tuned tent/well shape that conveys the strategy
+   * intent honestly without lying about the math.
+   */
+  previewPoints?(spot: number): Array<{ price: number; pl: number }>;
 }
 
 // Helper — synthesize a per-share premium for a struck contract. The
@@ -203,9 +213,12 @@ export const STRATEGY_CATALOG: StrategyDef[] = [
   },
 
   // --- Calendar Spreads --- (coming soon)
-  // Calendar P&L curves require a vol model (front/back IV); using a
-  // simple expiry-payoff approximation here is misleading. The cards
-  // render a tent-shape placeholder via a long-straddle-ish stand-in.
+  // Calendar P&L curves require a vol model (front/back IV decay); the
+  // expiry-only payoff is a flat line and looks broken. Each card uses a
+  // previewPoints override to draw a hand-tuned tent (long calendar — peaks
+  // at the strike, slides off on either side) or well (short calendar —
+  // inverted). Sample legs are kept for downstream consumers that may want
+  // them; the sparkline ignores them when previewPoints is set.
   {
     id: 'long_call_calendar_spread',
     name: 'Long Call Calendar Spread',
@@ -218,6 +231,7 @@ export const STRATEGY_CATALOG: StrategyDef[] = [
       { kind: 'option', dir: 'short', type: 'call', strike: round5(spot), premium: approxPremium(spot) * 0.6, contracts: 1 },
       { kind: 'option', dir: 'long',  type: 'call', strike: round5(spot), premium: approxPremium(spot) * 1.2, contracts: 1 },
     ],
+    previewPoints: (spot) => calendarTent(spot, 'long'),
   },
   {
     id: 'long_put_calendar_spread',
@@ -231,6 +245,7 @@ export const STRATEGY_CATALOG: StrategyDef[] = [
       { kind: 'option', dir: 'short', type: 'put', strike: round5(spot), premium: approxPremium(spot) * 0.6, contracts: 1 },
       { kind: 'option', dir: 'long',  type: 'put', strike: round5(spot), premium: approxPremium(spot) * 1.2, contracts: 1 },
     ],
+    previewPoints: (spot) => calendarTent(spot, 'long'),
   },
   {
     id: 'short_put_calendar_spread',
@@ -244,8 +259,36 @@ export const STRATEGY_CATALOG: StrategyDef[] = [
       { kind: 'option', dir: 'long',  type: 'put', strike: round5(spot), premium: approxPremium(spot) * 0.6, contracts: 1 },
       { kind: 'option', dir: 'short', type: 'put', strike: round5(spot), premium: approxPremium(spot) * 1.2, contracts: 1 },
     ],
+    previewPoints: (spot) => calendarTent(spot, 'short'),
   },
 ];
+
+/**
+ * Hand-tuned bell shape for calendar-spread cards. `kind: 'long'` produces
+ * a tent (positive peak at the strike, slopes into negative on the wings —
+ * long calendar / debit). `kind: 'short'` flips it (well at the strike,
+ * positive wings — short calendar / credit). Not a real vol model — just
+ * conveys the shape honestly so the card doesn't look broken.
+ */
+function calendarTent(
+  spot: number,
+  kind: 'long' | 'short',
+): Array<{ price: number; pl: number }> {
+  const strike = round5(spot);
+  const span = strike * 0.20;
+  const peak = approxPremium(spot) * 0.6;
+  const floor = -peak * 0.5;
+  const pts: Array<{ price: number; pl: number }> = [];
+  const N = 64;
+  for (let i = 0; i <= N; i++) {
+    const price = strike - span + (i / N) * span * 2;
+    const dist = (price - strike) / (span * 0.35);
+    const bell = Math.exp(-dist * dist);
+    const pl = kind === 'long' ? floor + (peak - floor) * bell : -floor - (peak - floor) * bell;
+    pts.push({ price, pl });
+  }
+  return pts;
+}
 
 export const STRATEGY_SECTIONS: StrategySection[] = [
   'Single Leg',

@@ -17,7 +17,9 @@ const DIRECTION_COLOR: Record<StrategyDef['direction'], string> = {
 
 export default function StrategyCard({ strategy, spot, onClick }: Props) {
   const disabled = strategy.status === 'coming_soon';
-  const legs = strategy.sampleLegs(spot > 0 ? spot : 100);
+  const effectiveSpot = spot > 0 ? spot : 100;
+  const legs = strategy.sampleLegs(effectiveSpot);
+  const pointsOverride = strategy.previewPoints?.(effectiveSpot);
 
   return (
     <button
@@ -34,7 +36,7 @@ export default function StrategyCard({ strategy, spot, onClick }: Props) {
       }`}
     >
       <div className="h-[110px] w-full bg-panel-2/40">
-        <PayoffSparkline legs={legs} currentPrice={spot > 0 ? spot : 100} />
+        <PayoffSparkline legs={legs} currentPrice={effectiveSpot} pointsOverride={pointsOverride} />
       </div>
       <div className="p-3">
         <div className="flex items-baseline justify-between gap-2">

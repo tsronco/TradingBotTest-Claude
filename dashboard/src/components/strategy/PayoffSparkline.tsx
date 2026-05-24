@@ -11,16 +11,32 @@ import type { Leg } from '../../lib/payoff';
 interface Props {
   legs: Leg[];
   currentPrice: number;
+  /**
+   * Optional pre-computed payoff points. When set, the sparkline renders
+   * these directly and skips the leg-based payoff engine — used by
+   * calendar-spread cards (see strategy-catalog.calendarTent) whose true
+   * P&L curve isn't expressible as expiry-only leg math.
+   */
+  pointsOverride?: Array<{ price: number; pl: number }>;
 }
 
 const VIEW_W = 240;
 const VIEW_H = 110;
 
-export default function PayoffSparkline({ legs, currentPrice }: Props) {
+export default function PayoffSparkline({ legs, currentPrice, pointsOverride }: Props) {
   const result = useMemo(
-    () => buildPayoff(legs, currentPrice, 64),
+    () => {
+      if (pointsOverride && pointsOverride.length >= 2) {
+        const prices = pointsOverride.map((p) => p.price);
+        return {
+          points: pointsOverride,
+          window: { lo: Math.min(...prices), hi: Math.max(...prices) },
+        };
+      }
+      return buildPayoff(legs, currentPrice, 64);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(legs), currentPrice]
+    [JSON.stringify(legs), currentPrice, JSON.stringify(pointsOverride)]
   );
 
   if (result.points.length < 2) {

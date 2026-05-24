@@ -29,6 +29,27 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-24',
+    category: 'ui',
+    title: 'Spread form gets TIF chip + calendar cards get a real payoff preview',
+    details:
+      'Two small fixes:\n\n' +
+      '1. SpreadOrderForm now has a TIF (day / gtc) chip row matching the ' +
+      'stock and option forms. Defaults to day. Plumbed through ' +
+      '/api/trades/preview + submit (added optional tif to SpreadPayload) ' +
+      'and used for both the Alpaca mleg order\'s time_in_force AND the ' +
+      'stored trade record. Existing callers that omit tif still default ' +
+      'to day so nothing breaks.\n\n' +
+      '2. The 3 calendar-spread cards on /strategy/:symbol previously ' +
+      'rendered as solid color blocks because their expiry-only payoff is ' +
+      'a flat line (the real P&L depends on front/back IV decay). Added ' +
+      'an optional previewPoints override to StrategyDef + a calendarTent ' +
+      'helper that produces a hand-tuned bell (tent for long calendars, ' +
+      'well for short calendars). Honest about what calendars actually do ' +
+      'without lying about the math. The cards stay coming-soon — only the ' +
+      'preview shape changed.',
+  },
+  {
     date: '2026-05-23',
     category: 'ui',
     title: '/trades: per-page chip + page counter on prev/next',

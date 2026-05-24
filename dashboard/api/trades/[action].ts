@@ -71,6 +71,7 @@ interface SpreadPayload {
   // Negative for credit spreads (you receive), positive for debit spreads (you pay).
   // The form encodes this convention; spreadMath() derives credit/debit/max_loss/max_profit.
   limit_price: number;
+  tif?: 'day' | 'gtc';            // defaults to 'day' for back-compat with existing callers
   entry_grade: string;
   entry_reasoning: string;
   tags?: string[];
@@ -406,7 +407,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     qty: String(p.qty),
     type: 'limit',
     limit_price: String(p.limit_price),
-    time_in_force: 'day',
+    time_in_force: p.tif ?? 'day',
     legs: [
       { symbol: p.short_leg.occ, side: 'sell', ratio_qty: '1', position_intent: 'sell_to_open' },
       { symbol: p.long_leg.occ,  side: 'buy',  ratio_qty: '1', position_intent: 'buy_to_open'  },
@@ -439,7 +440,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     limit_price: p.limit_price,
     stop_price: null,
     trail_pct: null,
-    tif: 'day',
+    tif: p.tif ?? 'day',
     contract_symbol: p.short_leg.occ,
     strike: p.short_leg.strike,
     expiration: p.expiration,

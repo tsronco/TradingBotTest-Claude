@@ -106,6 +106,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
   const [longStrike, setLongStrike] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [limitNet, setLimitNet] = useState<number>(0); // abs value (credit OR debit)
+  const [tif, setTif] = useState<'day' | 'gtc'>('day');
   const [grade, setGrade] = useState<GradeLetter | null>(null);
   const [reasoning, setReasoning] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -237,6 +238,7 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
           expiration,
           qty,
           limit_price,
+          tif,
           entry_grade: grade ?? '',
           entry_reasoning: reasoning,
           tags,
@@ -478,6 +480,22 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
           onChange={(e) => setLimitNet(Number(e.target.value))}
           className="bg-panel-2 border border-border px-2 py-1 text-fg w-full md:w-24 max-md:min-h-[44px]"
         />
+      </div>
+
+      <div className="flex flex-col gap-1 md:flex-row md:items-center">
+        <span className="text-dim text-[10px] tracking-[0.25em] mb-2 md:mb-0 md:mr-2">TIF</span>
+        <div className="flex gap-1">
+          {(['day', 'gtc'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`pbtn max-md:min-h-[44px] ${tif === t ? 'active' : ''}`}
+              onClick={() => setTif(t)}
+            >
+              [{t}{tif === t ? '*' : ''}]
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* payoff chart — rendered when both legs selected. */}
