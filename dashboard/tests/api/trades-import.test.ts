@@ -50,6 +50,45 @@ function mockRes() {
 }
 
 describe('POST /api/trades/import', () => {
+  it('paginates when Alpaca returns a full page (>100 fills since `since`)', async () => {
+    // Alpaca's /v2/account/activities caps page_size at 100. The runImport
+    // worker walks pages via the `page_token` cursor until it gets a partial
+    // page back. This test asserts the loop actually invokes alpacaTrade
+    // multiple times and stops correctly.
+    const fullPage = Array.from({ length: 100 }, (_, i) => ({
+      id: `fill-${i}`,
+      activity_type: 'FILL',
+      transaction_time: '2026-05-20T13:30:00Z',
+      symbol: 'AAPL', side: 'buy', price: '180.00', qty: '1', order_id: `o-${i}`,
+    }));
+    const partialPage = [{
+      id: 'fill-last',
+      activity_type: 'FILL',
+      transaction_time: '2026-05-20T13:35:00Z',
+      symbol: 'AAPL', side: 'buy', price: '180.00', qty: '1', order_id: 'o-last',
+    }];
+    alpacaTradeMock
+      .mockResolvedValueOnce(fullPage)
+      .mockResolvedValueOnce(fullPage)
+      .mockResolvedValueOnce(partialPage);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(alpacaTradeMock).toHaveBeenCalledTimes(3);
+    // page_size must be 100 (Alpaca's max), not 500
+    expect(alpacaTradeMock.mock.calls[0][2]).toMatchObject({ page_size: 100 });
+    // Second + third calls carry a page_token (the prior page's last id)
+    expect(alpacaTradeMock.mock.calls[1][2]).toMatchObject({ page_token: 'fill-99' });
+    expect(alpacaTradeMock.mock.calls[2][2]).toMatchObject({ page_token: 'fill-99' });
+  });
+
   it('rejects missing account or since', async () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();

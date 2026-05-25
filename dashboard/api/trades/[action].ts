@@ -1245,12 +1245,29 @@ export async function runImport({
 
   const baseTags = ['imported', ...extraTags.filter((t) => t !== 'imported')];
   const mode = modeFromAccount(account);
-  const raw = await alpacaTrade<RawFill[]>(
-    mode as any,
-    '/v2/account/activities',
-    { activity_types: 'FILL', after: since.slice(0, 10), page_size: 500 },
-  );
-  const activities: RawFill[] = Array.isArray(raw) ? raw : [];
+
+  // Alpaca caps page_size at 100 on /v2/account/activities. Paginate via the
+  // `page_token` cursor (last record's id) until we get a partial or empty page.
+  // Hard cap at 50 pages (5000 fills) so a runaway never wedges the cron.
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 50;
+  const activities: RawFill[] = [];
+  let pageToken: string | undefined;
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const params: Record<string, string | number> = {
+      activity_types: 'FILL',
+      after: since.slice(0, 10),
+      page_size: PAGE_SIZE,
+    };
+    if (pageToken) params.page_token = pageToken;
+    const page = await alpacaTrade<RawFill[]>(mode as any, '/v2/account/activities', params);
+    if (!Array.isArray(page) || page.length === 0) break;
+    activities.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    const lastId = page[page.length - 1]?.id;
+    if (!lastId) break;
+    pageToken = lastId;
+  }
 
   // Only OPENING fills are imported here — closes will be picked up by the
   // cron's external-close detection on the next tick.
