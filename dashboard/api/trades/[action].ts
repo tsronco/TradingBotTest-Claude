@@ -14,7 +14,7 @@ import {
 } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
-  KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey,
+  KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey, importCursorKey,
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
 import { resolveCostBasisForCc } from '../_lib/cost-basis.js';
@@ -1206,6 +1206,10 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
   if (!Number.isFinite(sinceTs)) return res.status(400).json({ error: 'invalid_since_timestamp' });
   try {
     const summary = await runImport({ account, since });
+    // Advance the auto-import cursor so the next cron tick starts from "now"
+    // instead of re-walking the same window. Idempotent — dedup would catch
+    // duplicates anyway, but this saves an Alpaca round-trip per account.
+    await kv().set(importCursorKey(account), new Date().toISOString());
     return res.status(200).json({ imported: summary });
   } catch (e) {
     return res.status(502).json({

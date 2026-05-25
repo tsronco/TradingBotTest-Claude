@@ -50,6 +50,24 @@ function mockRes() {
 }
 
 describe('POST /api/trades/import', () => {
+  it('advances the auto-import cursor on success (so Tuesday cron does not re-walk this window)', async () => {
+    alpacaTradeMock.mockResolvedValue([]); // empty result is fine — we only care about cursor advance
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'conservative_paper', since: '2026-04-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const cursorCall = kvSet.mock.calls.find((c: any[]) => c[0] === 'import:cursor:conservative_paper');
+    expect(cursorCall).toBeDefined();
+    // ISO timestamp of "now"
+    expect(cursorCall![1]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
   it('paginates when Alpaca returns a full page (>100 fills since `since`)', async () => {
     // Alpaca's /v2/account/activities caps page_size at 100. The runImport
     // worker walks pages via the `page_token` cursor until it gets a partial
