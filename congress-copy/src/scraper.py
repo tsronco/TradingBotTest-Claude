@@ -30,10 +30,10 @@ MONTH_MAP = {
     "jul": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
 }
 
-# "Air Products and Chemicals Inc | APD:US" or "Air Products...\nAPD:US" → ticker = APD
-# Page renders the separator as `|` visually but inner_text() returns a newline.
-# Match the trailing TICKER[:EXCH] token regardless of separator.
-TICKER_RE = re.compile(r"(?:[|\n]|^)\s*([A-Z]{1,6})(?::[A-Z]+)?\s*$")
+# "3M Co MMM:US" (current — plain space sep) or legacy "Air Products...\nAPD:US"
+# (pipe/newline sep). Match the trailing TICKER[:EXCH] token after any whitespace,
+# pipe, or start-of-string.
+TICKER_RE = re.compile(r"(?:[\s|]|^)([A-Z]{1,6})(?::[A-Z]+)?\s*$")
 
 
 def _parse_dollar_range(text: str) -> Optional[tuple[Decimal, Decimal]]:
@@ -130,11 +130,11 @@ def fetch_recent_disclosures(politician_slug: str, max_pages: int = 3) -> list[D
 def _extract_rows(page: Page, politician_slug: str) -> list[Disclosure]:
     """Extract Disclosure rows from CapitolTrades politician trades table.
 
-    Current layout (verified 2026-04-25):
-      cell[0]: 'Company Name | TICKER:US'
-      cell[1]: filed/published date '9 Apr | 2026'
-      cell[2]: traded date '4 Mar | 2026'
-      cell[3]: filing delay 'days | 34' (unused)
+    Current layout (verified 2026-05-24):
+      cell[0]: 'Company Name TICKER:US'   (space sep, was '| ' separated)
+      cell[1]: filed/published date '20 May 2026'   (was '20 May | 2026')
+      cell[2]: traded date '28 Apr 2026'
+      cell[3]: filing delay 'days 21' (unused)
       cell[4]: 'BUY' or 'SELL'
       cell[5]: dollar range '1K-15K'
       cell[6]: link (no asset-kind text)

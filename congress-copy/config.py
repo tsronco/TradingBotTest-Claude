@@ -8,7 +8,7 @@ POLITICIANS: list[dict[str, str]] = [
     {"slug": "G000583", "name": "Josh Gottheimer"},   # original
     {"slug": "P000197", "name": "Nancy Pelosi"},      # very active historically
     {"slug": "T000278", "name": "Tommy Tuberville"},  # frequent disclosures
-    {"slug": "G000597", "name": "Daniel Goldman"},    # newer member, fairly active
+    {"slug": "G000599", "name": "Daniel Goldman"},    # newer member, fairly active
 ]
 
 # Position sizing tiers: (max_range_high_usd, dollars_to_commit)
