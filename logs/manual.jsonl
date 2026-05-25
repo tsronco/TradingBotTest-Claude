@@ -2514,3 +2514,5 @@
 {"timestamp": "2026-05-25T14:01:35.108707+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-05-25T14:11:34.264699+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AAL", "INTC", "MSFT", "NVDA", "SNAP"]}}
 {"timestamp": "2026-05-25T14:11:34.689907+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-25T14:21:34.623210+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AAL", "INTC", "MSFT", "NVDA", "SNAP"]}}
+{"timestamp": "2026-05-25T14:21:35.252286+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
