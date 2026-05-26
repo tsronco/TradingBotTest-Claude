@@ -1663,3 +1663,6 @@
 {"timestamp": "2026-05-26T19:58:12.232731+00:00", "script": "wheel_strategy.py", "action": "auto_spread_opened", "result": "success", "symbol": "MU", "details": {"wheelability": 96.0, "short_occ": "MU260618P00805000", "long_occ": "MU260618P00800000", "short_strike": 805.0, "long_strike": 800.0, "width": 5.0, "net_credit": 3.16, "max_loss": 1.84, "expiration": "2026-06-18"}, "alpaca_order_id": "bdf02568-bff0-45f0-a138-32f96015f437"}
 {"timestamp": "2026-05-26T19:58:12.233379+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-05-26T19:58:12.614041+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-26T20:06:35.398819+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-26T20:06:35.690307+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["MU"]}}
+{"timestamp": "2026-05-26T20:06:35.956679+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
