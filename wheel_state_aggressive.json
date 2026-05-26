@@ -44,7 +44,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 244.0,
-    "total_premium_today": 13.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -68,7 +68,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 281.0,
-    "total_premium_today": 20.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring RIOT260605P00025000: $1.12 vs entry $1.04",
