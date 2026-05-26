@@ -2601,3 +2601,11 @@
 {"timestamp": "2026-05-26T13:11:36.920361+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-05-26T13:21:48.233374+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AAL", "INTC", "MSFT", "NVDA", "SNAP"]}}
 {"timestamp": "2026-05-26T13:21:48.970660+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-26T13:31:55.124686+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.665}}
+{"timestamp": "2026-05-26T13:31:55.233329+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 4, "max_concurrent_spreads": 4}}
+{"timestamp": "2026-05-26T13:31:55.234824+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["AAL", "INTC", "MSFT", "NVDA", "SNAP"]}}
+{"timestamp": "2026-05-26T13:31:55.725993+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "AAL260618P00012500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-26T13:31:55.726218+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "INTC260612P00113000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-26T13:31:55.726329+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "MSFT260618P00407500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-26T13:31:55.726475+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "NVDA260618P00207500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-05-26T13:31:55.726553+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 5, "closed": 0, "held": 1, "skipped": 4}}
