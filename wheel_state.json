@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-26T15:58:32.665197Z"
+    "last_checked": "2026-05-26T17:48:29.860822Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260605P00405000: $3.76 vs entry $5.90",
+    "last_action": "Monitoring TSLA260605P00405000: $3.32 vs entry $5.90",
     "contract_qty": 1
   },
   "BAC": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260612P00145000: $1.61 vs entry $0.51",
+    "last_action": "Monitoring XOM260612P00145000: $1.75 vs entry $0.51",
     "contract_qty": 1
   },
   "KO": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260612P00125000: $1.37 vs entry $1.85",
+    "last_action": "Monitoring PLTR260612P00125000: $1.41 vs entry $1.85",
     "contract_qty": 1
   },
   "SOFI": {
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260612P00025000: $0.20 vs entry $0.21",
+    "last_action": "Monitoring PFE260612P00025000: $0.22 vs entry $0.21",
     "contract_qty": 1
   },
   "F": {
@@ -202,7 +202,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring F260612P00012500: $0.04 vs entry $0.03",
+    "last_action": "Monitoring F260612P00012500: $0.02 vs entry $0.03",
     "contract_qty": 1
   },
   "T": {
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260612P00025000: $0.47 vs entry $0.41",
+    "last_action": "Monitoring T260612P00025000: $0.43 vs entry $0.41",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260612P00110000: $3.91 vs entry $4.35",
+    "last_action": "Monitoring INTC260612P00110000: $4.20 vs entry $4.35",
     "contract_qty": 1
   }
 }
