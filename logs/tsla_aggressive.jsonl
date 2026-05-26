@@ -14891,3 +14891,6 @@
 {"timestamp": "2026-05-26T20:39:28.950318+00:00", "script": "strategy.py", "action": "no_state_file", "result": "failure", "notes": "missing /home/runner/work/TradingBotTest-Claude/TradingBotTest-Claude/strategy_state_aggressive.json"}
 {"timestamp": "2026-05-26T20:39:29.321269+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU", "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
 {"timestamp": "2026-05-26T20:39:29.561982+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-05-26T20:49:27.045669+00:00", "script": "strategy.py", "action": "no_state_file", "result": "failure", "notes": "missing /home/runner/work/TradingBotTest-Claude/TradingBotTest-Claude/strategy_state_aggressive.json"}
+{"timestamp": "2026-05-26T20:49:27.531663+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU", "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
+{"timestamp": "2026-05-26T20:49:27.809734+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
