@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T15:50:10.375939Z",
+    "last_checked": "2026-05-27T16:10:52.693890Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 COIN260605C00205000 @ $0.97. Awaiting fill.",
+    "last_action": "Awaiting fill on COIN260605C00205000.",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260605P00014000: $0.63 vs entry $0.66",
+    "last_action": "Monitoring MARA260605P00014000: $0.66 vs entry $0.66",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260605P00025000: $0.97 vs entry $1.04",
+    "last_action": "Monitoring RIOT260605P00025000: $0.91 vs entry $1.04",
     "contract_qty": 1
   },
   "SMCI": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $2.65 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $2.86 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.30 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.44 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -246,7 +246,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260529P00155000: $6.95 vs entry $1.34",
+    "last_action": "Monitoring XOM260529P00155000: $7.25 vs entry $1.34",
     "contract_qty": 1
   },
   "KO": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.56 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.51 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
