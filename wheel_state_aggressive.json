@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T16:10:52.693890Z",
+    "last_checked": "2026-05-27T16:21:12.824390Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $2.86 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $3.00 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.44 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.45 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.51 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.47 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
