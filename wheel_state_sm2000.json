@@ -1,32 +1,5 @@
 {
   "_meta": {
-    "last_checked": "2026-05-26T19:58:12.233030Z"
-  },
-  "MU": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "MU260618P00805000",
-      "strike": 805.0,
-      "entry_premium": 45.145,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "MU260618P00800000",
-      "strike": 800.0,
-      "entry_premium": 41.985,
-      "qty": 1
-    },
-    "expiration": "2026-06-18",
-    "net_credit": 3.16,
-    "max_loss": 1.84,
-    "width": 5.0,
-    "opened_at": "2026-05-26T19:58:11.526616Z",
-    "open_order_id": "bdf02568-bff0-45f0-a138-32f96015f437",
-    "open_limit_credit": 2.04,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$805.00 long=$800.00 credit=$3.16"
+    "last_checked": "2026-05-27T13:50:33.861012Z"
   }
 }
