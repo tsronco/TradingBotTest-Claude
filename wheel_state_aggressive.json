@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T19:40:32.569542Z",
+    "last_checked": "2026-05-27T19:51:03.532827Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
     "stage": 2,
     "current_contract": "COIN260605C00205000",
-    "contract_order_id": "70163710-a606-44e6-8c3c-84a27f317b26",
+    "contract_order_id": "177f70f6-2e59-458d-8753-cf9a051cc0df",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-27T15:49:43.371269Z",
+    "contract_entry_date": "2026-05-27T19:50:50.557607Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "call",
     "contract_strike": 205.0,
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Awaiting fill on COIN260605C00205000.",
+    "last_action": "Sold-to-open 1\u00d7 COIN260605C00205000 @ $0.79. Awaiting fill.",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260605P00014000: $0.62 vs entry $0.66",
+    "last_action": "Monitoring MARA260605P00014000: $0.63 vs entry $0.66",
     "contract_qty": 1
   },
   "RIOT": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $3.15 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $3.25 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -127,7 +127,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260603C00230000: $0.51 vs entry $0.55",
+    "last_action": "Monitoring NVDA260603C00230000: $0.56 vs entry $0.55",
     "contract_qty": 1
   },
   "AMD": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.39 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.23 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -284,7 +284,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260529P00130000: $0.75 vs entry $0.64",
+    "last_action": "Monitoring PLTR260529P00130000: $0.81 vs entry $0.64",
     "contract_qty": 1
   },
   "SOFI": {
