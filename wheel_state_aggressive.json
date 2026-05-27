@@ -1,22 +1,22 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T15:41:14.676430Z",
+    "last_checked": "2026-05-27T15:50:10.375939Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
     "stage": 2,
     "current_contract": "COIN260605C00205000",
-    "contract_order_id": "d305132f-7fce-4a03-b44e-3b097fe6a09b",
-    "contract_entry_price": 2.68,
-    "contract_entry_date": "2026-05-26T13:51:30.547403Z",
+    "contract_order_id": "70163710-a606-44e6-8c3c-84a27f317b26",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-05-27T15:49:43.371269Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "call",
     "contract_strike": 205.0,
     "cost_basis_per_share": 194.3,
     "shares_qty": 100,
     "total_cost": 19430.0,
-    "total_premium_collected": 389.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 553.0,
+    "total_premium_today": 164.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260605C00205000: $1.08 vs entry $2.68",
+    "last_action": "Sold-to-open 1\u00d7 COIN260605C00205000 @ $0.97. Awaiting fill.",
     "contract_qty": 1
   },
   "MARA": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $2.50 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $2.65 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.23 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.30 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.58 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.56 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
