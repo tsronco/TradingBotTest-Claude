@@ -1,16 +1,16 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T13:58:28.623108Z"
+    "last_checked": "2026-05-27T14:28:48.386796Z"
   },
   "TSLA": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "2e47cb0d-0e2f-4a44-932f-d8a050cc61fc",
+    "current_contract": "TSLA260618P00390000",
+    "contract_order_id": "3c8634e7-2cf2-4125-9d10-02f92b274a31",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-13T15:48:00.997822Z",
-    "contract_expiration": "2026-06-05",
+    "contract_entry_date": "2026-05-27T14:28:28.012147Z",
+    "contract_expiration": "2026-06-18",
     "contract_type": "put",
-    "contract_strike": 405.0,
+    "contract_strike": 390.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open TSLA260618P00390000 @ $4.42. Awaiting fill.",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260618P00045000 @ $0.10. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260618P00045000.",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260612P00145000: $2.87 vs entry $0.51",
+    "last_action": "Monitoring XOM260612P00145000: $2.82 vs entry $0.51",
     "contract_qty": 1
   },
   "KO": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260612P00125000: $2.31 vs entry $1.85",
+    "last_action": "Monitoring PLTR260612P00125000: $1.70 vs entry $1.85",
     "contract_qty": 1
   },
   "SOFI": {
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open SOFI260618P00014000 @ $0.17. Awaiting fill.",
+    "last_action": "Awaiting fill on SOFI260618P00014000.",
     "contract_qty": 1
   },
   "PFE": {
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260612P00025000: $0.15 vs entry $0.21",
+    "last_action": "Monitoring PFE260612P00025000: $0.13 vs entry $0.21",
     "contract_qty": 1
   },
   "F": {
@@ -202,7 +202,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring F260612P00012500: $0.03 vs entry $0.03",
+    "last_action": "Monitoring F260612P00012500: $0.04 vs entry $0.03",
     "contract_qty": 1
   },
   "T": {
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260612P00025000: $0.43 vs entry $0.41",
+    "last_action": "Monitoring T260612P00025000: $0.51 vs entry $0.41",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260612P00110000: $4.70 vs entry $4.35",
+    "last_action": "Monitoring INTC260612P00110000: $4.91 vs entry $4.35",
     "contract_qty": 1
   }
 }
