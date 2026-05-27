@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T18:01:44.142555Z",
+    "last_checked": "2026-05-27T18:11:19.061513Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260605P00014000: $0.61 vs entry $0.66",
+    "last_action": "Monitoring MARA260605P00014000: $0.63 vs entry $0.66",
     "contract_qty": 1
   },
   "RIOT": {
@@ -99,14 +99,14 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $2.90 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $2.92 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
     "stage": 2,
     "current_contract": "NVDA260603C00230000",
     "contract_order_id": "4b6944fd-0a38-4c55-8886-042bb879badf",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.55,
     "contract_entry_date": "2026-05-27T18:01:28.354444Z",
     "contract_expiration": "2026-06-03",
     "contract_type": "call",
@@ -127,7 +127,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 NVDA260603C00230000 @ $0.55. Awaiting fill.",
+    "last_action": "Monitoring NVDA260603C00230000: $0.55 vs entry $0.55",
     "contract_qty": 1
   },
   "AMD": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.33 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.38 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -253,7 +253,7 @@
     "stage": 1,
     "current_contract": "KO260605P00080000",
     "contract_order_id": "48b89b64-6e01-4c70-bea1-1cd3b7bb230e",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.27,
     "contract_entry_date": "2026-05-27T18:01:36.887637Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "put",
@@ -265,7 +265,7 @@
     "total_premium_today": 18.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open KO260605P00080000 @ $0.27. Awaiting fill.",
+    "last_action": "Monitoring KO260605P00080000: $0.30 vs entry $0.27",
     "contract_qty": 1
   },
   "PLTR": {
@@ -284,7 +284,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260529P00130000: $0.88 vs entry $0.64",
+    "last_action": "Monitoring PLTR260529P00130000: $0.87 vs entry $0.64",
     "contract_qty": 1
   },
   "SOFI": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.41 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.42 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
@@ -331,7 +331,7 @@
     "total_premium_today": 2.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open PFE260605P00025000 @ $0.08. Awaiting fill.",
+    "last_action": "Awaiting fill on PFE260605P00025000.",
     "contract_qty": 1
   }
 }
