@@ -15,7 +15,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 1225.0,
-    "total_premium_today": 366.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -145,7 +145,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 39.0,
-    "total_premium_today": 10.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {

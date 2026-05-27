@@ -16,7 +16,7 @@
     "shares_qty": 100,
     "total_cost": 19430.0,
     "total_premium_collected": 553.0,
-    "total_premium_today": 164.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -115,7 +115,7 @@
     "shares_qty": 100,
     "total_cost": 21980.0,
     "total_premium_collected": 540.0,
-    "total_premium_today": 46.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -262,7 +262,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 40.0,
-    "total_premium_today": 18.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring KO260605P00080000: $0.29 vs entry $0.27",
@@ -328,7 +328,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 39.0,
-    "total_premium_today": 2.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Awaiting fill on PFE260605P00025000.",
