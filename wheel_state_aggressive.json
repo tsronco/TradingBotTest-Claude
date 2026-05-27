@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-27T19:51:03.532827Z",
+    "last_checked": "2026-05-27T19:59:59.995883Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 COIN260605C00205000 @ $0.79. Awaiting fill.",
+    "last_action": "Awaiting fill on COIN260605C00205000.",
     "contract_qty": 1
   },
   "MARA": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $3.25 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $3.30 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -127,7 +127,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260603C00230000: $0.56 vs entry $0.55",
+    "last_action": "Monitoring NVDA260603C00230000: $0.54 vs entry $0.55",
     "contract_qty": 1
   },
   "AMD": {
@@ -227,7 +227,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring BAC260529C00050000: $1.23 vs entry $1.24",
+    "last_action": "Monitoring BAC260529C00050000: $1.27 vs entry $1.24",
     "contract_qty": 1
   },
   "XOM": {
@@ -246,7 +246,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring XOM260529P00155000: $6.78 vs entry $1.34",
+    "last_action": "Monitoring XOM260529P00155000: $6.95 vs entry $1.34",
     "contract_qty": 1
   },
   "KO": {
@@ -284,7 +284,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260529P00130000: $0.81 vs entry $0.64",
+    "last_action": "Monitoring PLTR260529P00130000: $0.90 vs entry $0.64",
     "contract_qty": 1
   },
   "SOFI": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.45 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $0.42 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
