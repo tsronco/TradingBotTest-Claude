@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
+import WatchlistTicker from './WatchlistTicker';
 import { useDisplayName } from '../../hooks/useDisplayName';
 
 function useEtClock(): string {
@@ -101,6 +102,8 @@ export default function AppShell() {
           </div>
         </div>
       </div>
+
+      <WatchlistTicker />
 
       <div className="above-crt grid shell-grid" style={{ gridTemplateColumns: '220px minmax(0, 1fr)' }}>
         {drawerOpen && (
