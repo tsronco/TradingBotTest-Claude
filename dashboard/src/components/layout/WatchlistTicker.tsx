@@ -21,11 +21,11 @@ export default function WatchlistTicker() {
 
   return (
     <div
-      className="above-crt sticky top-7 z-20 border-b border-border bg-panel/60 backdrop-blur-[1px] overflow-hidden ticker-bar"
+      className="above-crt sticky top-7 z-20 mb-4 border-b border-border bg-panel/60 backdrop-blur-[1px] overflow-hidden ticker-bar"
       aria-label="Watchlist ticker"
     >
       <div
-        className="ticker-track flex items-center gap-6 py-1 whitespace-nowrap"
+        className="ticker-track flex items-center gap-6 py-0.5 whitespace-nowrap"
         style={{ animationDuration: `${duration}s` }}
       >
         {symbols.map((s) => <TickerItem key={`a-${s}`} symbol={s} />)}
