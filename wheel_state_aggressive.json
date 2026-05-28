@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-28T17:50:07.191303Z",
+    "last_checked": "2026-05-28T18:00:38.161278Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260605C00205000: $1.18 vs entry $0.46",
+    "last_action": "Monitoring COIN260605C00205000: $1.15 vs entry $0.46",
     "contract_qty": 1
   },
   "MARA": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $7.24 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $6.93 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -127,7 +127,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260603C00230000: $0.45 vs entry $0.55",
+    "last_action": "Monitoring NVDA260603C00230000: $0.65 vs entry $0.55",
     "contract_qty": 1
   },
   "AMD": {
@@ -265,7 +265,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260605P00080000: $0.55 vs entry $0.27",
+    "last_action": "Monitoring KO260605P00080000: $0.60 vs entry $0.27",
     "contract_qty": 1
   },
   "PLTR": {
@@ -284,7 +284,7 @@
     "total_premium_today": 49.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260605P00130000: $0.68 vs entry $1.09",
+    "last_action": "Monitoring PLTR260605P00130000: $0.67 vs entry $1.09",
     "contract_qty": 1
   },
   "SOFI": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $0.98 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $1.09 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
