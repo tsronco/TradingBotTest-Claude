@@ -21,11 +21,11 @@ export default function WatchlistTicker() {
 
   return (
     <div
-      className="above-crt sticky top-7 z-20 mb-4 border-b border-border bg-panel/60 backdrop-blur-[1px] overflow-hidden ticker-bar"
+      className="above-crt sticky top-7 z-20 mb-3 border-b border-border bg-panel/60 backdrop-blur-[1px] overflow-hidden ticker-bar leading-none"
       aria-label="Watchlist ticker"
     >
       <div
-        className="ticker-track flex items-center gap-6 py-0.5 whitespace-nowrap"
+        className="ticker-track flex items-center gap-6 py-1 whitespace-nowrap leading-none"
         style={{ animationDuration: `${duration}s` }}
       >
         {symbols.map((s) => <TickerItem key={`a-${s}`} symbol={s} />)}
@@ -69,7 +69,7 @@ function TickerItem({ symbol }: { symbol: string }) {
   return (
     <Link
       to={`/lookup/${symbol}`}
-      className="inline-flex items-center gap-2 text-[11px] px-2 rounded-sm hover:bg-panel-2/50"
+      className="inline-flex items-center gap-2 text-[11px] leading-none px-2 rounded-sm hover:bg-panel-2/50"
     >
       <span className="text-cyan font-mono">{symbol}</span>
       <span className="tnum text-fg">{last != null ? fmtUsd(last) : '—'}</span>
