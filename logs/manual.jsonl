@@ -3743,3 +3743,5 @@
 {"timestamp": "2026-05-28T19:51:52.101069+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "NVDA260618P00207500", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-28T19:51:52.101192+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "QQQ260612P00712000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-05-28T19:51:52.101285+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 6, "closed": 0, "held": 0, "skipped": 5}}
+{"timestamp": "2026-05-28T20:01:33.480661+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AAL", "INTC", "MSFT", "NVDA", "QQQ", "SNAP"]}}
+{"timestamp": "2026-05-28T20:01:33.782021+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
