@@ -103,6 +103,8 @@ export default function AppShell() {
         </div>
       </div>
 
+      <WatchlistTicker />
+
       <div className="above-crt grid shell-grid" style={{ gridTemplateColumns: '220px minmax(0, 1fr)' }}>
         {drawerOpen && (
           <div
@@ -119,7 +121,6 @@ export default function AppShell() {
           <Sidebar onNavigate={() => setDrawerOpen(false)} />
         </div>
         <main className="relative min-w-0 overflow-hidden">
-          <WatchlistTicker />
           <Outlet />
         </main>
       </div>
