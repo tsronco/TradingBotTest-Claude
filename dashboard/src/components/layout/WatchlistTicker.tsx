@@ -21,7 +21,7 @@ export default function WatchlistTicker() {
 
   return (
     <div
-      className="above-crt sticky top-7 z-20 mb-3 border-b border-border bg-panel/60 backdrop-blur-[1px] overflow-hidden ticker-bar leading-none"
+      className="above-crt relative z-20 mb-3 border-b border-border bg-panel/60 overflow-hidden ticker-bar leading-none"
       aria-label="Watchlist ticker"
     >
       <div
