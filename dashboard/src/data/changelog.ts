@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-27',
+    category: 'ui',
+    title: 'Watchlist scrolling ticker under the tmux bar',
+    details:
+      'New WatchlistTicker component sits inside the main column, flush ' +
+      'against the tmux bar. Renders each watchlist symbol as a chip ' +
+      '(symbol · price · day% with arrow · 30d sparkline) inside a CSS ' +
+      'marquee. Content rendered 2x so translateX(-50%) gives a seamless ' +
+      'loop. Animation duration scales with symbol count, pauses on hover, ' +
+      'honors prefers-reduced-motion. Bar hides itself when the watchlist ' +
+      'is empty. Reuses the existing [\'watchlist\'], [\'quote\', symbol], ' +
+      'and [\'bars\', symbol, \'30d-1Day\'] query keys so visiting one ' +
+      'route warms the other.',
+  },
+  {
     date: '2026-05-24',
     category: 'ui',
     title: 'Spread form gets TIF chip + calendar cards get a real payoff preview',
