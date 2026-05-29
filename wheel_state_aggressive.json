@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T18:39:42.001747Z",
+    "last_checked": "2026-05-29T18:49:54.508023Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260605C00205000: $2.68 vs entry $0.46",
+    "last_action": "Monitoring COIN260605C00205000: $2.58 vs entry $0.46",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260605P00014000: $0.37 vs entry $0.66",
+    "last_action": "Monitoring MARA260605P00014000: $0.38 vs entry $0.66",
     "contract_qty": 1
   },
   "RIOT": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $11.05 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $10.89 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -127,7 +127,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260603C00230000: $0.70 vs entry $0.55",
+    "last_action": "Monitoring NVDA260603C00230000: $0.75 vs entry $0.55",
     "contract_qty": 1
   },
   "AMD": {
@@ -265,7 +265,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260605P00080000: $0.98 vs entry $0.27",
+    "last_action": "Monitoring KO260605P00080000: $0.97 vs entry $0.27",
     "contract_qty": 1
   },
   "PLTR": {
@@ -284,7 +284,7 @@
     "total_premium_today": 83.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260605P00145000: $0.93 vs entry $1.87",
+    "last_action": "Monitoring PLTR260605P00145000: $1.01 vs entry $1.87",
     "contract_qty": 1
   },
   "SOFI": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $2.30 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $2.23 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
