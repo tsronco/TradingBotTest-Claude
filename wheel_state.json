@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T19:18:14.111003Z"
+    "last_checked": "2026-05-29T19:38:15.745623Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $3.73 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $3.67 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
@@ -96,9 +96,9 @@
   },
   "KO": {
     "stage": 1,
-    "current_contract": "KO260605P00070000",
+    "current_contract": null,
     "contract_order_id": "fc409e91-79e7-49b3-bfed-f2eea752deac",
-    "contract_entry_price": 0.04,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-13T13:38:06.948929Z",
     "contract_expiration": "2026-06-05",
     "contract_type": "put",
@@ -106,11 +106,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 6.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 8.0,
+    "total_premium_today": 2.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260605P00070000: $0.04 vs entry $0.04",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $1.91 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $1.87 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
@@ -202,7 +202,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring F260612P00016000: $0.14 vs entry $0.14",
+    "last_action": "Monitoring F260612P00016000: $0.15 vs entry $0.14",
     "contract_qty": 1
   },
   "T": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260612P00110000: $3.96 vs entry $4.35",
+    "last_action": "Monitoring INTC260612P00110000: $3.85 vs entry $4.35",
     "contract_qty": 1
   }
 }
