@@ -2065,3 +2065,9 @@
 {"timestamp": "2026-05-29T14:15:58.840142+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 11, "equity": 500.0}}
 {"timestamp": "2026-05-29T14:15:58.841333+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-05-29T14:15:59.211905+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-29T14:25:41.190425+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-05-29T14:26:25.226396+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "RIG", "details": {"price": 6.225}}
+{"timestamp": "2026-05-29T14:26:26.370795+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SNAP", "details": {"price": 5.75}}
+{"timestamp": "2026-05-29T14:26:31.172273+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 11, "equity": 500.0}}
+{"timestamp": "2026-05-29T14:26:31.173472+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-05-29T14:26:31.899924+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
