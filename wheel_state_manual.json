@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T16:51:34.496195Z"
+    "last_checked": "2026-05-29T17:02:00.873318Z"
   },
   "F": {
     "stage": 1,
@@ -149,31 +149,31 @@
     "cycle_history": [],
     "last_action": "Adopted spread short=$724.00 long=$712.00 credit=$3.37"
   },
-  "MU": {
+  "AMD": {
     "stage": "spread_active",
     "spread_type": "put_credit",
     "short_leg": {
-      "occ": "MU260618P00935000",
-      "strike": 935.0,
-      "entry_premium": 71.93,
+      "occ": "AMD260626P00495000",
+      "strike": 495.0,
+      "entry_premium": 30.79,
       "qty": 1
     },
     "long_leg": {
-      "occ": "MU260618P00930000",
-      "strike": 930.0,
-      "entry_premium": 68.285,
+      "occ": "AMD260626P00485000",
+      "strike": 485.0,
+      "entry_premium": 25.525,
       "qty": 1
     },
-    "expiration": "2026-06-18",
-    "net_credit": 1.5,
-    "max_loss": 3.5,
-    "width": 5.0,
-    "opened_at": "2026-05-29T16:41:46.758228Z",
-    "open_order_id": null,
-    "open_limit_credit": 1.47,
+    "expiration": "2026-06-26",
+    "net_credit": 5.265,
+    "max_loss": 4.735,
+    "width": 10.0,
+    "opened_at": "2026-05-29T17:02:00.292873Z",
+    "open_order_id": "9cbdb3a1-5aeb-4c8f-81a4-4077c653673a",
+    "open_limit_credit": 3.49,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
+    "last_action": "Auto-opened put credit spread short=$495.00 long=$485.00 credit=$5.26"
   }
 }
