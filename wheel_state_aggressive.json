@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T16:40:39.064651Z",
+    "last_checked": "2026-05-29T16:50:42.604581Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260605C00205000: $2.62 vs entry $0.46",
+    "last_action": "Monitoring COIN260605C00205000: $2.44 vs entry $0.46",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260605P00014000: $0.55 vs entry $0.66",
+    "last_action": "Monitoring MARA260605P00014000: $0.59 vs entry $0.66",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260605P00025000: $0.40 vs entry $0.34",
+    "last_action": "Monitoring RIOT260605P00025000: $0.43 vs entry $0.34",
     "contract_qty": 1
   },
   "SMCI": {
@@ -99,7 +99,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260529C00035000: $10.52 vs entry $0.32",
+    "last_action": "Monitoring SMCI260529C00035000: $10.53 vs entry $0.32",
     "contract_qty": 1
   },
   "NVDA": {
@@ -312,7 +312,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260529C00016000: $2.35 vs entry $0.32",
+    "last_action": "Monitoring SOFI260529C00016000: $2.34 vs entry $0.32",
     "contract_qty": 1
   },
   "PFE": {
@@ -331,7 +331,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260605P00025000: $0.04 vs entry $0.06",
+    "last_action": "Monitoring PFE260605P00025000: $0.05 vs entry $0.06",
     "contract_qty": 1
   }
 }
