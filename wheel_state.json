@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T16:58:30.772340Z"
+    "last_checked": "2026-05-29T17:08:21.447736Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $3.74 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $3.72 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260612P00145000: $3.15 vs entry $0.51",
+    "last_action": "Monitoring XOM260612P00145000: $3.10 vs entry $0.51",
     "contract_qty": 1
   },
   "KO": {
