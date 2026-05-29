@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T14:38:10.135783Z"
+    "last_checked": "2026-05-29T14:58:31.687956Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,14 +38,14 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $4.73 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $4.70 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
-    "current_contract": "BAC260618P00045000",
+    "current_contract": null,
     "contract_order_id": "ce61525e-56f1-4b08-940d-b68ac9c032e9",
-    "contract_entry_price": 0.1,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-27T13:58:17.099547Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "put",
@@ -53,11 +53,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 20.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 25.0,
+    "total_premium_today": 5.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260618P00045000: $0.06 vs entry $0.10",
+    "last_action": "Insufficient options BP to sell put.",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260612P00145000: $2.94 vs entry $0.51",
+    "last_action": "Monitoring XOM260612P00145000: $2.50 vs entry $0.51",
     "contract_qty": 1
   },
   "KO": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260612P00110000: $3.56 vs entry $4.35",
+    "last_action": "Monitoring INTC260612P00110000: $4.00 vs entry $4.35",
     "contract_qty": 1
   }
 }
