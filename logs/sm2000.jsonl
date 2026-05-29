@@ -2327,3 +2327,9 @@
 {"timestamp": "2026-05-29T16:27:34.044206+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 53, "equity": 2000.0}}
 {"timestamp": "2026-05-29T16:27:34.045459+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-05-29T16:27:34.421726+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-05-29T16:37:00.173322+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-29T16:37:43.530799+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": 0.03, "min_net_credit": 0.05, "short_mid": 0.105, "long_mid": 0.075}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-05-29T16:38:08.348105+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NFLX", "details": {"price": 86.2}}
+{"timestamp": "2026-05-29T16:38:08.348345+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 53, "equity": 2000.0}}
+{"timestamp": "2026-05-29T16:38:08.349755+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-05-29T16:38:09.043558+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
