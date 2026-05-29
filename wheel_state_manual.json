@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T15:21:35.654480Z"
+    "last_checked": "2026-05-29T15:31:38.962217Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.12 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.13 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
