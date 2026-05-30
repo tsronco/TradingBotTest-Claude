@@ -165,6 +165,40 @@ def _wheel_claimed_long_occs() -> set:
     return claimed
 
 
+def _unpaired_hedge_long_occs(all_positions: list) -> set:
+    """OCC symbols of long puts that hedge a short put still in the account.
+
+    A long put with a short put at a HIGHER strike and the SAME expiration is
+    the long leg of a put credit spread. Even when wheel_strategy hasn't paired
+    them into spread_active state (e.g. a split-fill qty mismatch), this leg is
+    a hedge — stop-lossing it here would leave the short naked. Detect the
+    relationship straight from live positions and skip those longs, mirroring
+    wheel_strategy's naked-leg guard on the short side (2026-05-30).
+    """
+    shorts: dict = {}   # (ticker, expiry) -> [short strikes]
+    longs: list = []    # (occ, ticker, expiry, strike)
+    for pos in all_positions:
+        if pos.get("asset_class") != "us_option":
+            continue
+        parsed = parse_occ_symbol(pos.get("symbol", ""))
+        if parsed is None or parsed["type"] != "put":
+            continue
+        try:
+            qty = int(float(pos["qty"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        key = (parsed["ticker"], parsed["expiry"].isoformat())
+        if qty < 0:
+            shorts.setdefault(key, []).append(parsed["strike"])
+        elif qty > 0:
+            longs.append((pos["symbol"], key, parsed["strike"]))
+    hedges = set()
+    for occ, key, strike in longs:
+        if any(s_strike > strike for s_strike in shorts.get(key, [])):
+            hedges.add(occ)
+    return hedges
+
+
 # ── Alpaca helpers specific to long-options ───────────────────────────────
 
 def list_all_positions() -> list[dict]:
@@ -223,15 +257,25 @@ def place_sell_to_close(option_symbol: str, limit_price: float, qty: int):
     return order
 
 
-def compute_close_price(option_symbol: str) -> float | None:
+def compute_close_price(option_symbol: str, urgent: bool = False) -> float | None:
     """Pick a sell limit price for closing a long option.
 
-    Preferred: bid-ask midpoint (current fair value).
-    Fallback:  last trade price.
-    Returns None if neither is available — caller must skip the close.
+    `urgent=True` (stop-loss / time-exit) prices at the BID so the order
+    actually fills — a mid-priced limit on the illiquid, dying options these
+    exits usually hit just rests unfilled and re-fires a stop-loss alert every
+    morning while the position rots to zero (AAL 06/12 $12.50 put, 5/26–5/29).
+    When we've decided to get out, take the bid.
+
+    `urgent=False` (take-profit) keeps the bid-ask midpoint — there's no rush
+    to bank a winner, so don't give away the spread.
+
+    Fallback for both: last trade price. Returns None if nothing is priceable.
     """
     quote = get_option_quote(option_symbol)
     if quote:
+        if urgent:
+            # Hit the bid (floored at a cent) to transact now.
+            return round(max(quote["bid"], 0.01), 2)
         return round((quote["bid"] + quote["ask"]) / 2, 2)
     last = get_option_last_price(option_symbol)
     if last is not None:
@@ -309,7 +353,10 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
                   notes=f"action={action} pnl={info.get('pnl_pct', 0):.2%}")
         return False
 
-    close_price = compute_close_price(symbol)
+    # Stop-loss and time-exit are decisions to GET OUT — price marketable so
+    # the order fills instead of resting at the mid (the AAL daily-churn bug).
+    urgent = action in ("stop_loss", "time_exit")
+    close_price = compute_close_price(symbol, urgent=urgent)
     if close_price is None or close_price <= 0:
         log(f"[{symbol}] cannot price for close — skipping")
         log_event(LOG_STREAM, "long_options_strategy.py", "close_no_price",
@@ -403,8 +450,17 @@ def run_long_options_cycle():
         skipped = 0
 
         # Hedge legs of wheel-managed credit spreads must never be touched
-        # here — selling the long put would leave the short leg naked.
+        # here — selling the long put would leave the short leg naked. Two
+        # sources: (1) spreads the wheel has paired into spread_active state,
+        # and (2) un-paired hedges detected straight from live positions (a
+        # long put with a short put above it at the same expiry) — the latter
+        # closes the gap that orphaned the AAL 06/12 long and churned a stuck
+        # stop-loss for days.
         claimed_by_wheel = _wheel_claimed_long_occs()
+        try:
+            claimed_by_wheel |= _unpaired_hedge_long_occs(list_all_positions())
+        except Exception as e:
+            log(f"hedge-detection skipped: {type(e).__name__}: {e}")
 
         for pos in positions:
             symbol = pos.get("symbol", "?")

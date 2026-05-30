@@ -29,6 +29,38 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-30',
+    category: 'engine',
+    title: 'Spread engine: stop the per-trade bleed (open near mid, mid-based stop, hedge guards)',
+    details:
+      'Bot-opened put credit spreads were losing on nearly every trade. Root ' +
+      'cause: the engine decided on MID prices but executed and stopped on the ' +
+      'worst-case bid/ask cross, so on wide chains it opened cheap, stopped out ' +
+      'on the spread itself, and orphaned hedge legs that then rotted.\n\n' +
+      'Five coordinated fixes (manual + SM modes; conservative/aggressive/live ' +
+      'byte-unaffected):\n' +
+      '1. Open near the mid. The opener used to cross the full bid/ask ' +
+      '(short_bid - long_ask), giving away the whole spread on entry — MU ' +
+      'opened at $1.50 against a $3.65 mid. Now rests between mid and ' +
+      'marketable (40% concession, never below 60% of mid).\n' +
+      '2. Liquidity gate. Reject opens whose executable credit is below 60% of ' +
+      'the mid — the chain is too wide to transact reliably. Would have blocked ' +
+      'the MU trade outright.\n' +
+      '3. Mid-based stop. The stop is judged on the mid, not the worst-case ' +
+      'executable cost, so the bid/ask width alone can no longer fake a 50%/75% ' +
+      'loss minutes after a fill (MU stopped out -$175 in 20 min).\n' +
+      '4. Manual underlying tripwire + 20-min settling window. Manual now closes ' +
+      'when the stock trades through the short strike (pure risk protection), and ' +
+      'suppresses the loss-stop for 20 min post-open so a fresh spread cannot ' +
+      'insta-stop on quote noise.\n' +
+      '5. Hedge guards + marketable closes. A short put with an un-paired long ' +
+      'hedge is held, not 50%-closed naked (the AAL bleed); the long hedge is ' +
+      'protected from long_options; and orphan / urgent closes now price ' +
+      'marketable so they actually fill instead of resting at the mid and ' +
+      'churning a stuck stop-loss for days (AAL 06/12 $12.50 put).\n\n' +
+      '+25 pytest (now 496).',
+  },
+  {
     date: '2026-05-27',
     category: 'ui',
     title: 'Watchlist scrolling ticker under the tmux bar',

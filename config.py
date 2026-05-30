@@ -338,16 +338,27 @@ MODES = {
         "wheelability_bypass_symbols": ["QQQ", "SPY", "IWM"],
 
         # Opener-side hardened-engine guards (mirror sm1000/sm2000 Balanced
-        # posture). NOTE: management-side guards (spread_stop_credit_mult,
-        # underlying tripwire) are deliberately NOT set on manual — that
-        # would retroactively tighten the stop on existing user-opened
-        # spreads (e.g. the AAL put credit). Manual keeps its legacy 50%
-        # of max_loss stop for ALL spreads (hand-opened AND bot-opened).
-        # Bot-opened spreads here trade a slightly fatter potential loss
-        # per trade vs SM modes in exchange for not surprising the user
-        # mid-trade on hand-opened positions.
+        # posture). Manual keeps its looser 0.75-of-max-loss stop *threshold*
+        # (not retightened to the SM 2× credit stop) so hand-opened spreads
+        # aren't surprised mid-trade — but as of 2026-05-30 the stop is judged
+        # on the MID (quote-noise-robust) and the underlying-price tripwire is
+        # ON, because manual bot-opened spreads were losing on every trade:
+        # a wide bid/ask was tripping the stop on quote noise minutes after a
+        # bad fill (MU −$175 in 20 min). The tripwire only closes when the
+        # stock actually trades through the short strike — pure risk
+        # protection, applies to all manual spreads.
         "min_credit_to_width_pct":   0.33,
         "trend_filter":              True,
+        "spread_underlying_tripwire": True,   # close if stock crosses short strike
+        "spread_settle_minutes":      20,     # no loss-stop in first 20 min post-open
+        # Opening-price posture (2026-05-30). Rest the mleg between the mid and
+        # the marketable cross instead of crossing fully and giving away the
+        # whole bid/ask width on entry. 0.40 = give up 40% of the gap toward
+        # marketable; never accept < 60% of the mid (skip rather than open a
+        # giveaway). The pending-order machinery handles a resting unfilled
+        # order, so non-fills are harmless.
+        "spread_open_concession_pct":        0.40,
+        "spread_open_min_credit_pct_of_mid": 0.60,
     },
 
     "live": {
@@ -477,6 +488,12 @@ MODES = {
         "min_credit_to_width_pct":   0.40,    # stricter than sm1000/sm2000
         "spread_stop_credit_mult":   2.0,
         "trend_filter":              True,
+        # Opening-price posture + settling guard (2026-05-30). Rest near the
+        # mid instead of crossing the full bid/ask on entry; suppress the
+        # loss-stop for 20 min post-open so a wide chain can't insta-trip.
+        "spread_open_concession_pct":        0.40,
+        "spread_open_min_credit_pct_of_mid": 0.60,
+        "spread_settle_minutes":      20,
         "screener_universe":         None,    # set in the late-binding block
     },
 
@@ -538,6 +555,10 @@ MODES = {
         "min_credit_to_width_pct":   0.33,    # net_credit >= width * this
         "spread_stop_credit_mult":   2.0,     # close at 2x credit (vs 50% max loss)
         "trend_filter":              True,    # require price >= 20-day SMA
+        # Opening-price posture + settling guard (2026-05-30) — rest near mid.
+        "spread_open_concession_pct":        0.40,
+        "spread_open_min_credit_pct_of_mid": 0.60,
+        "spread_settle_minutes":      20,
     },
 
     "sm2000": {
@@ -598,6 +619,10 @@ MODES = {
         "min_credit_to_width_pct":   0.33,
         "spread_stop_credit_mult":   2.0,
         "trend_filter":              True,
+        # Opening-price posture + settling guard (2026-05-30) — rest near mid.
+        "spread_open_concession_pct":        0.40,
+        "spread_open_min_credit_pct_of_mid": 0.60,
+        "spread_settle_minutes":      20,
     },
 }
 

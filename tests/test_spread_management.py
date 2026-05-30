@@ -602,17 +602,21 @@ def test_handle_spread_crossed_quote_skips_cycle(monkeypatch):
 
 
 def test_handle_spread_stop_loss_triggers_close(monkeypatch):
-    """Loss per share >= 50% of max_loss → stop_loss_50pct."""
+    """Mid-based loss per share >= 50% of max_loss → stop_loss_pct.
+
+    The stop is judged on the MID (2026-05-30 fix), not the worst-case
+    executable cost, so the bid/ask width can't fake a loss.
+    """
     state = {"PLTR": _far_expiry_state()}
     monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
         {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
         {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
     ])
-    # close_cost = short_ask 0.71 - long_bid 0.08 = 0.63
-    # loss = 0.63 - 0.22 = 0.41 >= 50% of 0.78 max_loss (0.39)
+    # short_mid 0.72 - long_mid 0.09 = 0.63 close_cost_mid
+    # loss_mid = 0.63 - 0.22 = 0.41 >= 50% of 0.78 max_loss (0.39)
     monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
-        "PLTR260619P00008000": {"bid": 0.69, "ask": 0.71},
-        "PLTR260619P00007000": {"bid": 0.08, "ask": 0.10},
+        "PLTR260619P00008000": {"bid": 0.71, "ask": 0.73},   # mid 0.72
+        "PLTR260619P00007000": {"bid": 0.08, "ask": 0.10},   # mid 0.09
     }[sym])
     monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
     closes = []
@@ -620,7 +624,34 @@ def test_handle_spread_stop_loss_triggers_close(monkeypatch):
                         lambda state, ticker, reason: closes.append((ticker, reason)))
 
     wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
-    assert closes == [("PLTR", "stop_loss_50pct")]
+    assert closes == [("PLTR", "stop_loss_pct")]
+
+
+def test_handle_spread_stop_does_not_fire_on_wide_bidask(monkeypatch):
+    """The bid/ask width alone must NOT trip the stop (the MU bug).
+
+    Mid loss is tiny, but the worst-case executable cost (short_ask - long_bid)
+    is huge; the old code stopped out on that executable cost moments after a
+    bad fill. The mid-based stop holds.
+    """
+    state = {"PLTR": _far_expiry_state()}
+    monkeypatch.setattr(wheel_strategy, "get_positions", lambda: [
+        {"symbol": "PLTR260619P00008000", "asset_class": "us_option", "qty": "-1", "avg_entry_price": "-0.33"},
+        {"symbol": "PLTR260619P00007000", "asset_class": "us_option", "qty": "1", "avg_entry_price": "0.11"},
+    ])
+    # short_ask - long_bid = 0.80 - 0.02 = 0.78 (worst case, would trip old stop)
+    # short_mid - long_mid = 0.45 - 0.11 = 0.34 → loss_mid 0.12, under 0.39. HOLD.
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda sym: {
+        "PLTR260619P00008000": {"bid": 0.10, "ask": 0.80},   # mid 0.45
+        "PLTR260619P00007000": {"bid": 0.02, "ask": 0.20},   # mid 0.11
+    }[sym])
+    monkeypatch.setattr(wheel_strategy, "get_latest_price", lambda sym: 9.0)
+    closes = []
+    monkeypatch.setattr(wheel_strategy, "_close_spread",
+                        lambda state, ticker, reason: closes.append((ticker, reason)))
+
+    wheel_strategy.handle_spread(state, "PLTR", account={"cash": "10000"})
+    assert closes == []  # bid/ask width alone did not trip the stop
 
 
 def test_handle_spread_dte_floor_with_itm_triggers_close(monkeypatch):
@@ -1115,9 +1146,39 @@ def test_handle_spread_sm_underlying_tripwire_not_fired_above_strike(monkeypatch
     assert "hit" not in closed
 
 
-def test_handle_spread_non_sm_underlying_tripwire_inactive(monkeypatch, apply_sm_mode):
-    """Manual mode must NOT get the tripwire — byte-unaffected."""
+def test_handle_spread_manual_underlying_tripwire_fires(monkeypatch, apply_sm_mode):
+    """Manual NOW gets the underlying tripwire (2026-05-30 spread-loss fix).
+
+    A put credit spread whose stock has traded through the short strike is
+    closed immediately regardless of (possibly junk) option quotes — pure risk
+    protection that applies to every manual spread.
+    """
     apply_sm_mode("manual")
+
+    state = _seeded_sm_spread_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: 13.95)  # below short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert closed["hit"] == ("AMD", "underlying_tripwire")
+
+
+def test_handle_spread_conservative_tripwire_inactive(monkeypatch, apply_sm_mode):
+    """Conservative/aggressive get neither the tripwire nor spread management —
+    SPREAD_UNDERLYING_TRIPWIRE stays off there (byte-unaffected)."""
+    apply_sm_mode("conservative")
+    assert ws.SPREAD_UNDERLYING_TRIPWIRE is False
 
     state = _seeded_sm_spread_state()
     monkeypatch.setattr(ws, "get_positions", lambda: [
@@ -1135,4 +1196,4 @@ def test_handle_spread_non_sm_underlying_tripwire_inactive(monkeypatch, apply_sm
         lambda st, t, reason: closed.setdefault("hit", (t, reason)))
 
     ws.handle_spread(state, "AMD", account={"cash": 1000})
-    assert "hit" not in closed  # manual didn't fire — no tripwire active
+    assert "hit" not in closed  # conservative: tripwire never armed

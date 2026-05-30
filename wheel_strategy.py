@@ -88,6 +88,25 @@ SPREAD_OPEN_MIN_LIMIT = 0.01  # floor for the opening mleg limit credit so a
                               # thin/negative natural bid still posts a 1-cent
                               # credit order (stale path cancels it if it never
                               # fills) rather than flipping to a debit.
+# Opening-price posture (2026-05-30 spread-loss fix). The opener used to place
+# the mleg at the FULL marketable cross (short_bid - long_ask), giving away the
+# entire bid/ask width on entry — MU 2026-05-29 opened at $1.50 when the mid was
+# $3.65. We now rest the order between the mid and the marketable cross, giving
+# up at most CONCESSION_PCT of that gap and never accepting less than
+# MIN_CREDIT_PCT_OF_MID of the mid. The pending-order machinery (open_order_id /
+# _resolve_pending_spread / stale-cancel) safely handles a resting unfilled
+# order, so we no longer need the full cross to avoid the old reopen loop.
+SPREAD_OPEN_CONCESSION_PCT      = 0.0   # 0 = rest at mid; 1 = full marketable cross
+SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID = 0.0 # floor as a fraction of the mid
+# Management hardening (2026-05-30). The stop used to evaluate on the WORST-case
+# executable close (short_ask - long_bid); on a wide chain that trips a "50% of
+# max loss" stop on the bid/ask spread itself the moment the order fills (MU
+# stopped out 20 min after opening). The underlying-price tripwire (stock vs
+# short strike) and a mid-based stop are robust to that. SM modes already get
+# the tripwire via spread_stop_credit_mult; these flags extend the protection to
+# manual and make the stop quote-noise-resistant on every auto-managed mode.
+SPREAD_UNDERLYING_TRIPWIRE = False  # close when the stock crosses the short strike
+SPREAD_SETTLE_MINUTES      = 0      # suppress the loss-stop for N min after open
 
 
 def apply_mode(mode_name: str) -> None:
@@ -107,6 +126,8 @@ def apply_mode(mode_name: str) -> None:
     global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
     global SPREAD_STOP_CREDIT_MULT
     global AUTO_OPEN_SPREADS
+    global SPREAD_OPEN_CONCESSION_PCT, SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID
+    global SPREAD_UNDERLYING_TRIPWIRE, SPREAD_SETTLE_MINUTES
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -160,6 +181,18 @@ def apply_mode(mode_name: str) -> None:
     SPREAD_STOP_CREDIT_MULT = cfg.get("spread_stop_credit_mult", None)
 
     AUTO_OPEN_SPREADS      = cfg.get("auto_open_spreads", False)
+
+    # Opening-price posture + management hardening (2026-05-30 spread-loss fix).
+    # Defaults keep non-spread modes byte-identical (concession 1.0 reproduces
+    # the legacy full-marketable cross only where a mode opts in via config).
+    SPREAD_OPEN_CONCESSION_PCT        = cfg.get("spread_open_concession_pct", 1.0)
+    SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID = cfg.get("spread_open_min_credit_pct_of_mid", 0.0)
+    # Tripwire is implied wherever the SM credit-multiple stop is set, and can be
+    # turned on explicitly (manual) via config.
+    SPREAD_UNDERLYING_TRIPWIRE = bool(
+        cfg.get("spread_underlying_tripwire", SPREAD_STOP_CREDIT_MULT is not None)
+    )
+    SPREAD_SETTLE_MINUTES = cfg.get("spread_settle_minutes", 0)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -437,20 +470,34 @@ def _close_spread(state: dict, ticker: str, reason: str) -> None:
         return
 
     # Map reason → presentation
+    _profit_pct_txt = f"{SPREAD_EARLY_CLOSE_PCT:.0%}"
+    _stop_pct_txt   = f"{SPREAD_STOP_LOSS_PCT:.0%}"
     title_map = {
-        "early_close_50pct": f"✅ Spread closed (50% profit) — {ticker}",
-        "stop_loss_50pct":   f"🛑 Spread stopped out — {ticker}",
-        "dte_floor_itm":     f"⏰ Spread closed (DTE floor, ITM) — {ticker}",
+        "early_close_50pct":   f"✅ Spread closed ({_profit_pct_txt} profit) — {ticker}",
+        "stop_loss_pct":       f"🛑 Spread stopped out — {ticker}",
+        "stop_loss_50pct":     f"🛑 Spread stopped out — {ticker}",
+        "stop_loss_2x_credit": f"🛑 Spread stopped out — {ticker}",
+        "underlying_tripwire": f"🛑 Spread closed (stock crossed short strike) — {ticker}",
+        "dte_floor_itm":       f"⏰ Spread closed (DTE floor, ITM) — {ticker}",
     }
     color_map = {
-        "early_close_50pct": Color.GREEN,
-        "stop_loss_50pct":   Color.YELLOW,
-        "dte_floor_itm":     Color.YELLOW,
+        "early_close_50pct":   Color.GREEN,
+        "stop_loss_pct":       Color.YELLOW,
+        "stop_loss_50pct":     Color.YELLOW,
+        "stop_loss_2x_credit": Color.YELLOW,
+        "underlying_tripwire": Color.RED,
+        "dte_floor_itm":       Color.YELLOW,
     }
     reason_text = {
-        "early_close_50pct": "bought to close at 50% of credit captured",
-        "stop_loss_50pct":   "bought to close at 50% of max loss (stop)",
-        "dte_floor_itm":     "bought to close — ≤2 DTE, short leg ITM",
+        "early_close_50pct":   f"bought to close at {_profit_pct_txt} of credit captured",
+        "stop_loss_pct":       f"bought to close at {_stop_pct_txt} of max loss (stop)",
+        "stop_loss_50pct":     f"bought to close at {_stop_pct_txt} of max loss (stop)",
+        "stop_loss_2x_credit": (
+            f"bought to close — cost reached "
+            f"{(SPREAD_STOP_CREDIT_MULT or 2.0):.1f}× the credit received (stop)"
+        ),
+        "underlying_tripwire": "bought to close — stock traded through the short strike",
+        "dte_floor_itm":       "bought to close — ≤2 DTE, short leg ITM",
     }
     title = title_map.get(reason, f"✅ Spread closed — {ticker}")
     color = color_map.get(reason, Color.YELLOW)
@@ -524,16 +571,26 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
     if short_present and long_present:
         return  # caller error; nothing to do here
 
-    def _mid_or_entry(occ: str, entry: float) -> float:
+    # Marketable close price (2026-05-30 spread-loss fix). The orphan close used
+    # to rest at the MID, which never fills on the illiquid dying options these
+    # orphans usually are — yet state was deleted immediately, dropping the
+    # surviving leg out of spread tracking and into long_options_strategy, where
+    # it churned a stuck stop-loss for days (AAL 06/12 $12.50 put). Price to
+    # actually transact: pay the ask to buy back a short, hit the bid to sell a
+    # long. Falls back to the entry premium only when no quote is available.
+    def _marketable_or_entry(occ: str, side: str, entry: float) -> float:
         q = get_option_quote(occ)
-        if q:
-            return round((q["bid"] + q["ask"]) / 2, 2)
-        return entry
+        if not q:
+            return entry
+        if side == "buy":   # BTC the short — pay the ask to get filled
+            return round(max(q["ask"], SPREAD_OPEN_MIN_LIMIT), 2)
+        # STC the long — hit the bid to get filled
+        return round(max(q["bid"], SPREAD_OPEN_MIN_LIMIT), 2)
 
     if short_present and not long_present:
         # Long leg gone (expired alone, manually closed, etc.) — BTC the short
         try:
-            place_buy_to_close(short_occ, _mid_or_entry(short_occ, sym_state["short_leg"]["entry_premium"]))
+            place_buy_to_close(short_occ, _marketable_or_entry(short_occ, "buy", sym_state["short_leg"]["entry_premium"]))
             description = (
                 f"Long leg gone from Alpaca; bought-to-close remaining short "
                 f"`{short_occ}` to clean up the orphan."
@@ -556,7 +613,7 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
     if long_present and not short_present:
         # Short leg gone (assigned overnight, etc.) — STC the long
         try:
-            place_sell_to_close(long_occ, _mid_or_entry(long_occ, sym_state["long_leg"]["entry_premium"]))
+            place_sell_to_close(long_occ, _marketable_or_entry(long_occ, "sell", sym_state["long_leg"]["entry_premium"]))
             description = (
                 f"Short leg gone from Alpaca; sold-to-close remaining long "
                 f"`{long_occ}` to clean up the orphan."
@@ -733,13 +790,27 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])
 
-    # 2a. Underlying-price tripwire (SM modes only, SPREAD_STOP_CREDIT_MULT set).
-    # If the stock has traded through the short strike, close immediately —
-    # robust to degenerate/illiquid option quotes where the 2x-credit stop
-    # could otherwise miss the trigger by reading a stale mid. Runs BEFORE
-    # the profit trigger because position-based risk takes precedence over
-    # price-based gains; the spec is explicit about this ordering.
-    if SPREAD_STOP_CREDIT_MULT is not None:
+    # Mid-based close cost for the STOP only (2026-05-30 spread-loss fix). The
+    # PROFIT trigger keeps using the worst-case executable cost above (so we
+    # never claim a false 50% win), but evaluating the STOP on that same
+    # worst-case price trips a "loss" on the bid/ask width itself — MU stopped
+    # out 20 min after opening purely because short_ask - long_bid was already
+    # wide. The mid (short_mid - long_mid) is the symmetric, quote-noise-robust
+    # value to judge a real loss against; the underlying tripwire below is the
+    # backstop for genuine adverse moves.
+    short_mid = (short_q["bid"] + short_q["ask"]) / 2.0
+    long_mid  = (long_q["bid"] + long_q["ask"]) / 2.0
+    close_cost_mid = round(short_mid - long_mid, 4)
+    loss_per_share_mid = round(close_cost_mid - float(sym_state["net_credit"]), 4)
+
+    # 2a. Underlying-price tripwire. If the stock has traded through the short
+    # strike, close immediately — robust to degenerate/illiquid option quotes
+    # where the option-quote stop could otherwise miss the trigger by reading a
+    # stale mid. Runs BEFORE the profit trigger because position-based risk
+    # takes precedence over price-based gains; the spec is explicit about this
+    # ordering. SM modes enable this via spread_stop_credit_mult; manual enables
+    # it via spread_underlying_tripwire (2026-05-30).
+    if SPREAD_UNDERLYING_TRIPWIRE:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
         # get_latest_price raises on HTTP/network failure; wrap so the
@@ -768,25 +839,32 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
         _close_spread(state, ticker, reason="early_close_50pct")
         return
 
-    # 3. Stop loss trigger
-    # SM modes (SPREAD_STOP_CREDIT_MULT set): fire when buy-back cost
-    # reaches N x the credit received — a small, bounded dollar loss that
-    # the 10-min cron can actually catch before slippage.
-    # Other modes: legacy 50%-of-max-loss behavior, unchanged.
-    if SPREAD_STOP_CREDIT_MULT is not None:
+    # 3. Stop loss trigger — evaluated on the MID (close_cost_mid), not the
+    # worst-case executable cost, so the bid/ask width can't fake a loss.
+    # Suppressed for SPREAD_SETTLE_MINUTES after open so a freshly-filled spread
+    # on a wide chain can't insta-stop on quote noise before it settles (the
+    # underlying tripwire above still fires on a real adverse move during the
+    # settling window).
+    if _within_settling_window(sym_state):
+        log(f"[{ticker}] spread within {SPREAD_SETTLE_MINUTES}m settling window "
+            f"— skipping loss-stop check this cycle")
+    elif SPREAD_STOP_CREDIT_MULT is not None:
+        # SM modes: fire when the mid buy-back cost reaches N x the credit
+        # received — a small, bounded dollar loss the 10-min cron can catch.
         net_credit = float(sym_state["net_credit"])
         stop_price = net_credit * SPREAD_STOP_CREDIT_MULT
-        if close_cost >= stop_price:
-            log(f"[{ticker}] spread close_cost=${close_cost:.2f} >= "
+        if close_cost_mid >= stop_price:
+            log(f"[{ticker}] spread close_cost_mid=${close_cost_mid:.2f} >= "
                 f"{SPREAD_STOP_CREDIT_MULT:.1f}x credit ${net_credit:.2f} "
                 f"(${stop_price:.2f}) — stopping out")
             _close_spread(state, ticker, reason="stop_loss_2x_credit")
             return
     else:
-        if pnl["loss_per_share"] >= max_loss * SPREAD_STOP_LOSS_PCT:
-            log(f"[{ticker}] spread loss=${pnl['loss_per_share']:.2f} >= "
+        # Other modes: % of max loss, judged on the mid loss.
+        if loss_per_share_mid >= max_loss * SPREAD_STOP_LOSS_PCT:
+            log(f"[{ticker}] spread loss(mid)=${loss_per_share_mid:.2f} >= "
                 f"{SPREAD_STOP_LOSS_PCT:.0%} of max_loss=${max_loss:.2f} — stopping out")
-            _close_spread(state, ticker, reason="stop_loss_50pct")
+            _close_spread(state, ticker, reason="stop_loss_pct")
             return
 
     # 4. DTE floor with ITM check
@@ -1404,6 +1482,69 @@ def _spread_order_age_hours(sym_state) -> float:
         return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
     except (ValueError, TypeError):
         return 0.0
+
+
+def _within_settling_window(sym_state) -> bool:
+    """True if the spread opened/was adopted less than SPREAD_SETTLE_MINUTES ago.
+
+    Used to suppress the loss-stop on a freshly-filled spread so a wide bid/ask
+    on an illiquid chain can't insta-trip a "loss" before the quote settles
+    (MU 2026-05-29 stopped out 20 min after opening on pure quote noise). The
+    underlying-price tripwire is intentionally NOT gated by this — a genuine
+    adverse move should always close, settling window or not. Returns False
+    when SPREAD_SETTLE_MINUTES is 0 (feature off) or opened_at is missing.
+    """
+    if not SPREAD_SETTLE_MINUTES:
+        return False
+    # Unknown open time must NOT suppress the stop — _spread_order_age_hours
+    # returns 0.0 on a missing/unparseable opened_at, which would otherwise read
+    # as "just opened" forever and disable the stop entirely. Only a genuinely
+    # recent, parseable open counts as settling.
+    if not sym_state.get("opened_at"):
+        return False
+    age_h = _spread_order_age_hours(sym_state)
+    return (age_h * 60.0) < SPREAD_SETTLE_MINUTES
+
+
+def _short_put_has_live_hedge(symbol: str, sym_state: dict, positions: list) -> bool:
+    """True if this Stage-1 short PUT still has an un-paired long PUT hedge.
+
+    A short put with a long put at a LOWER strike and the SAME expiration is the
+    short leg of a put credit spread. When _detect_spread_pairs fails to pair
+    them (e.g. a split-fill qty mismatch), the short falls through to single-leg
+    Stage-1 adoption — and handle_stage1 would buy it back at 50% profit while
+    the long hedge is abandoned to long_options_strategy, which rots it to a
+    loss. That is exactly the "short closes at 50% gain, long closes at full
+    loss" bleed the user reported on AAL. When this returns True the caller
+    holds the position instead of managing it naked.
+    """
+    if sym_state.get("stage") != 1 or sym_state.get("contract_type") != "put":
+        return False
+    short_strike = sym_state.get("contract_strike")
+    short_exp = sym_state.get("contract_expiration")
+    if short_strike is None or not short_exp:
+        return False
+    short_exp_date = str(short_exp)[:10]  # ISO date prefix
+    for pos in positions:
+        if pos.get("asset_class") != "us_option":
+            continue
+        try:
+            qty = int(float(pos["qty"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        if qty <= 0:  # hedge leg is LONG (positive qty)
+            continue
+        parsed = _parse_occ(pos.get("symbol", ""))
+        if not parsed:
+            continue
+        t, opt_type, strike, expiry = parsed
+        if t != symbol or opt_type != "put":
+            continue
+        if expiry.isoformat() != short_exp_date:
+            continue
+        if strike < float(short_strike):
+            return True
+    return False
 
 
 def _contract_expired(sym_state) -> bool:
@@ -2495,6 +2636,38 @@ def credit_ratio_passes(net_credit: float, width: float, min_ratio: float) -> bo
     return (net_credit / width) >= min_ratio
 
 
+def compute_open_limit_credit(mid_credit: float, marketable_credit: float,
+                              concession_pct: float, min_pct_of_mid: float,
+                              floor: float = SPREAD_OPEN_MIN_LIMIT) -> float:
+    """Pick the credit to place a credit-spread opening limit at.
+
+    We believe `mid_credit` (short_mid - long_mid) is fair value. Crossing all
+    the way to `marketable_credit` (short_bid - long_ask) guarantees an instant
+    fill but gives away the entire bid/ask width on entry — that is how MU
+    opened at $1.50 against a $3.65 mid on 2026-05-29.
+
+    Instead we rest the limit between the mid and the marketable cross: give up
+    at most `concession_pct` of the (mid - marketable) gap, and never accept
+    less than `min_pct_of_mid` of the mid. Floored at `floor`.
+
+      concession_pct = 0.0  -> rest exactly at the mid (best price, may not fill)
+      concession_pct = 1.0  -> full marketable cross (legacy behavior)
+
+    A resting unfilled order is safe now that the opener tracks open_order_id
+    and stale-cancels — non-fills cost nothing, a bad fill costs real money.
+    """
+    if mid_credit <= 0:
+        # Degenerate mid — fall back to the marketable cross, floored.
+        return max(round(marketable_credit, 2), floor)
+    gap = max(mid_credit - marketable_credit, 0.0)
+    target = mid_credit - concession_pct * gap
+    # Never accept less than the configured fraction of the mid...
+    target = max(target, min_pct_of_mid * mid_credit)
+    # ...and never demand MORE than the mid (an above-mid ask never fills).
+    target = min(target, mid_credit)
+    return max(round(target, 2), floor)
+
+
 def pick_best_ratio_width(candidates: list) -> dict | None:
     """Pick the candidate with the highest net_credit/width ratio.
 
@@ -2894,6 +3067,29 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                                "long_ask": round(chosen["long_ask"], 4)})
             continue
 
+        # Liquidity gate (2026-05-30 spread-loss fix). All the credit gates
+        # above run on the MID, so a spread whose bid/ask is so wide that it can
+        # only transact for a fraction of fair value slips through — MU
+        # 2026-05-29 had a $3.65 mid but a $1.50 executable cross (41% of mid),
+        # opened, and stopped out for -$175 in 20 minutes. Require the
+        # executable credit to be at least SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID of
+        # the mid; otherwise the chain is too wide to open AND later close
+        # reliably, so skip. Same fraction the opening-limit floor uses.
+        min_pct = SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID
+        if min_pct > 0 and exec_credit < min_pct * net_credit:
+            log(f"[auto-spread] {sym} executable credit ${exec_credit:.4f} is "
+                f"{exec_credit / net_credit:.0%} of the ${net_credit:.4f} mid "
+                f"(< {min_pct:.0%}) — bid/ask too wide to transact, skipping")
+            log_event(LOG_STREAM, "wheel_strategy.py", "auto_spread_skip",
+                      result="skipped", symbol=sym,
+                      notes="exec_below_pct_of_mid",
+                      details={"exec_credit": exec_credit,
+                               "mid_net_credit": net_credit,
+                               "exec_pct_of_mid": round(exec_credit / net_credit, 4)
+                                                  if net_credit else None,
+                               "min_pct_of_mid": min_pct})
+            continue
+
         if _working_spread_order_exists(short_occ, chosen["long_occ"]):
             log(f"[auto-spread] {sym} already has a working order on a "
                 f"spread leg — skipping to avoid a duplicate")
@@ -2910,18 +3106,21 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         # pnl["loss_per_share"] against max_loss * SPREAD_STOP_LOSS_PCT, so a
         # contract-multiplied value (width*100) makes the stop unreachable.
         max_loss   = round(width - net_credit, 4)
-        # Marketable opening limit: sell the short at its bid, buy the long
-        # at its ask (the price the spread can actually transact at), but
-        # never demand MORE credit than the mid, and floor at one cent.
-        marketable_credit = max(
-            round(short_q["bid"] - chosen["long_ask"], 2),
-            SPREAD_OPEN_MIN_LIMIT,
+        # Opening limit (2026-05-30 spread-loss fix). The full marketable cross
+        # (short_bid - long_ask) gave away the entire bid/ask width on entry.
+        # Rest between the mid (net_credit) and that cross per the mode's
+        # concession posture; never demand more than the mid, floor at one cent.
+        marketable_credit = round(short_q["bid"] - chosen["long_ask"], 2)
+        limit_credit = compute_open_limit_credit(
+            mid_credit=net_credit,
+            marketable_credit=marketable_credit,
+            concession_pct=SPREAD_OPEN_CONCESSION_PCT,
+            min_pct_of_mid=SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID,
         )
-        marketable_credit = min(marketable_credit, net_credit)
         try:
             order = _open_spread_mleg(short_occ, chosen["long_occ"],
                                       1, net_credit,
-                                      limit_credit=marketable_credit)
+                                      limit_credit=limit_credit)
         except Exception as e:
             log(f"[auto-spread] _open_spread_mleg failed for {sym}: "
                 f"{type(e).__name__}: {e}")
@@ -2957,7 +3156,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
         ss["open_order_id"] = order_id if order_id != "?" else None
-        ss["open_limit_credit"] = marketable_credit
+        ss["open_limit_credit"] = limit_credit
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "
             f"long=${chosen['long_strike']:.2f} credit=${net_credit:.2f}"
@@ -3068,6 +3267,18 @@ def run_wheel():
         # (COIN/MARA/RIOT/SMCI/NVDA/AMD/MU) before the baseline fallback
         # tier (TSLA/BAC/XOM/etc.). To change the order, edit
         # CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS in config.py.
+        # Lazy, once-per-cycle positions cache for the naked-leg guard. Only
+        # fetched the first time a Stage-1 put needs the hedge check, so
+        # cons/agg cycles (no spread legs) pay nothing.
+        _positions_cache = {}
+        def _wheel_positions():
+            if "v" not in _positions_cache:
+                try:
+                    _positions_cache["v"] = get_positions()
+                except Exception:
+                    _positions_cache["v"] = []
+            return _positions_cache["v"]
+
         for symbol in SYMBOLS:
             sym_state = state.setdefault(symbol, _empty_symbol_state())
             try:
@@ -3081,7 +3292,19 @@ def run_wheel():
                     handle_spread(state, symbol, account)
                     continue
                 if sym_state["stage"] == 1:
-                    handle_stage1(symbol, sym_state, stock_price, account)
+                    # Naked-leg guard: if this short put still has an un-paired
+                    # long hedge in the account, hold rather than 50%-close it
+                    # naked (which would orphan the hedge — the AAL bleed).
+                    if _short_put_has_live_hedge(symbol, sym_state, _wheel_positions()):
+                        log(f"[{symbol}] naked-leg guard — short put has an "
+                            f"un-paired long hedge; holding (not managing as a "
+                            f"single leg)")
+                        log_event(LOG_STREAM, "wheel_strategy.py",
+                                  "naked_leg_guard_hold", result="skipped",
+                                  symbol=symbol,
+                                  details={"contract": sym_state.get("current_contract")})
+                    else:
+                        handle_stage1(symbol, sym_state, stock_price, account)
                 elif sym_state["stage"] == 2:
                     handle_stage2(symbol, sym_state, stock_price, account)
 
