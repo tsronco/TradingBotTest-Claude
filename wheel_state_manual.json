@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-01T14:11:43.255061Z"
+    "last_checked": "2026-06-01T14:21:38.785596Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.13 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.14 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
@@ -165,15 +165,15 @@
       "qty": 1
     },
     "expiration": "2026-06-18",
-    "net_credit": 2.14,
-    "max_loss": 2.86,
+    "net_credit": 2.05,
+    "max_loss": 2.95,
     "width": 5.0,
     "opened_at": "2026-06-01T13:42:35.020377Z",
-    "open_order_id": "2909896e-25d2-4a49-9c0e-b70cce4f5bfb",
+    "open_order_id": null,
     "open_limit_credit": 2.01,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order 2909896e-25d2-4a49-9c0e-b70cce4f5bfb."
+    "last_action": "Spread open order filled \u2014 now managing."
   }
 }
