@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-01T13:32:46.355201Z"
+    "last_checked": "2026-06-01T13:42:35.577855Z"
   },
   "F": {
     "stage": 1,
@@ -122,33 +122,6 @@
     "cycle_history": [],
     "last_action": "Adopted spread short=$724.00 long=$712.00 credit=$3.37"
   },
-  "AMD": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "AMD260626P00495000",
-      "strike": 495.0,
-      "entry_premium": 30.79,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "AMD260626P00485000",
-      "strike": 485.0,
-      "entry_premium": 25.525,
-      "qty": 1
-    },
-    "expiration": "2026-06-26",
-    "net_credit": 3.5,
-    "max_loss": 6.5,
-    "width": 10.0,
-    "opened_at": "2026-05-29T17:02:00.292873Z",
-    "open_order_id": null,
-    "open_limit_credit": 3.49,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
-  },
   "SOFI": {
     "stage": "spread_active",
     "spread_type": "put_credit",
@@ -165,15 +138,42 @@
       "qty": 1
     },
     "expiration": "2026-06-18",
-    "net_credit": 0.395,
-    "max_loss": 0.605,
+    "net_credit": 0.36,
+    "max_loss": 0.64,
     "width": 1.0,
     "opened_at": "2026-06-01T13:32:45.805088Z",
-    "open_order_id": "400a15ad-07c2-4309-8ac0-f22485b8dfa6",
+    "open_order_id": null,
     "open_limit_credit": 0.36,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$17.50 long=$16.50 credit=$0.40"
+    "last_action": "Spread open order filled \u2014 now managing."
+  },
+  "PLTR": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "PLTR260618P00157500",
+      "strike": 157.5,
+      "entry_premium": 6.605,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "PLTR260618P00152500",
+      "strike": 152.5,
+      "entry_premium": 4.465,
+      "qty": 1
+    },
+    "expiration": "2026-06-18",
+    "net_credit": 2.14,
+    "max_loss": 2.86,
+    "width": 5.0,
+    "opened_at": "2026-06-01T13:42:35.020377Z",
+    "open_order_id": "2909896e-25d2-4a49-9c0e-b70cce4f5bfb",
+    "open_limit_credit": 2.01,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$157.50 long=$152.50 credit=$2.14"
   }
 }
