@@ -44,7 +44,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 286.0,
-    "total_premium_today": 42.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -87,7 +87,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 184.0,
-    "total_premium_today": 32.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -216,7 +216,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 149.0,
-    "total_premium_today": 124.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -306,7 +306,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 563.0,
-    "total_premium_today": 149.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring PLTR260612P00155000: $3.88 vs entry $3.85",
@@ -325,7 +325,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 32.0,
-    "total_premium_today": 32.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
