@@ -18003,3 +18003,6 @@
 {"timestamp": "2026-06-01T19:49:44.500321+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "PFE", "stage": 1, "contract": "PFE260605P00025000", "stock_price": 25.615}}
 {"timestamp": "2026-06-01T19:49:44.502086+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU", "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
 {"timestamp": "2026-06-01T19:49:45.108901+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-01T20:00:22.056073+00:00", "script": "strategy.py", "action": "no_state_file", "result": "failure", "notes": "missing /home/runner/work/TradingBotTest-Claude/TradingBotTest-Claude/strategy_state_aggressive.json"}
+{"timestamp": "2026-06-01T20:00:22.638449+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU", "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE"]}}
+{"timestamp": "2026-06-01T20:00:23.066594+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
