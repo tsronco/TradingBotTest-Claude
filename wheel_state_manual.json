@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-05-29T19:51:35.395054Z"
+    "last_checked": "2026-06-01T13:32:46.355201Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.13 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.10 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
@@ -67,33 +67,6 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "INTC": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "INTC260612P00118000",
-      "strike": 118.0,
-      "entry_premium": 7.43,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "INTC260612P00113000",
-      "strike": 113.0,
-      "entry_premium": 5.35,
-      "qty": 1
-    },
-    "expiration": "2026-06-12",
-    "net_credit": 1.5,
-    "max_loss": 3.5,
-    "width": 5.0,
-    "opened_at": "2026-05-22T17:41:50.449046Z",
-    "open_order_id": null,
-    "open_limit_credit": 1.39,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
   },
   "NVDA": {
     "stage": "spread_active",
@@ -175,5 +148,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
+  },
+  "SOFI": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "SOFI260618P00017500",
+      "strike": 17.5,
+      "entry_premium": 0.745,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "SOFI260618P00016500",
+      "strike": 16.5,
+      "entry_premium": 0.35,
+      "qty": 1
+    },
+    "expiration": "2026-06-18",
+    "net_credit": 0.395,
+    "max_loss": 0.605,
+    "width": 1.0,
+    "opened_at": "2026-06-01T13:32:45.805088Z",
+    "open_order_id": "400a15ad-07c2-4309-8ac0-f22485b8dfa6",
+    "open_limit_credit": 0.36,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$17.50 long=$16.50 credit=$0.40"
   }
 }
