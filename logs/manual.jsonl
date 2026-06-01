@@ -4345,3 +4345,9 @@
 {"timestamp": "2026-06-01T17:51:36.118816+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "NVDA260618P00207500", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-01T17:51:36.118988+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SOFI260618P00016500", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-01T17:51:36.119087+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
+{"timestamp": "2026-06-01T18:01:35.687297+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260605C00006000", "stock_price": 5.85}}
+{"timestamp": "2026-06-01T18:01:36.351814+00:00", "script": "wheel_strategy.py", "action": "auto_spread_concurrency_cap", "result": "skipped", "details": {"open_spreads": 4, "max_concurrent_spreads": 4}}
+{"timestamp": "2026-06-01T18:01:36.353302+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["MU", "NVDA", "PINS", "SNAP", "SOFI"]}}
+{"timestamp": "2026-06-01T18:01:36.704749+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "NVDA260618P00207500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-06-01T18:01:36.704949+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SOFI260618P00016500", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-06-01T18:01:36.705055+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
