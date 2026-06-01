@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-01T18:31:35.248714Z"
+    "last_checked": "2026-06-01T19:01:54.343475Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.13 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.14 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
@@ -122,33 +122,6 @@
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
   },
-  "PINS": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "PINS260626P00020000",
-      "strike": 20.0,
-      "entry_premium": 0.785,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "PINS260626P00019000",
-      "strike": 19.0,
-      "entry_premium": 0.41,
-      "qty": 1
-    },
-    "expiration": "2026-06-26",
-    "net_credit": 0.375,
-    "max_loss": 0.625,
-    "width": 1.0,
-    "opened_at": "2026-06-01T14:32:17.839556Z",
-    "open_order_id": "849fac85-53d9-4d6f-8835-66ddf5ae6d90",
-    "open_limit_credit": 0.33,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order 849fac85-53d9-4d6f-8835-66ddf5ae6d90."
-  },
   "MU": {
     "stage": "spread_active",
     "spread_type": "put_credit",
@@ -175,5 +148,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Awaiting fill on spread open order e5f91f2d-0384-497b-958c-032f7265caab."
+  },
+  "LYFT": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "LYFT260626P00015000",
+      "strike": 15.0,
+      "entry_premium": 0.755,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "LYFT260626P00014000",
+      "strike": 14.0,
+      "entry_premium": 0.375,
+      "qty": 1
+    },
+    "expiration": "2026-06-26",
+    "net_credit": 0.38,
+    "max_loss": 0.62,
+    "width": 1.0,
+    "opened_at": "2026-06-01T19:01:54.046562Z",
+    "open_order_id": "85441749-f48f-4954-a43c-f761d3f5256f",
+    "open_limit_credit": 0.32,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$15.00 long=$14.00 credit=$0.38"
   }
 }
