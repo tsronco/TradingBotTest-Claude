@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-01T14:21:38.785596Z"
+    "last_checked": "2026-06-01T14:32:18.360400Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260605C00006000: $0.14 vs entry $0.12"
+    "last_action": "Monitoring SNAP260605C00006000: $0.12 vs entry $0.12"
   },
   "NVTS": {
     "stage": 1,
@@ -149,31 +149,31 @@
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
   },
-  "PLTR": {
+  "PINS": {
     "stage": "spread_active",
     "spread_type": "put_credit",
     "short_leg": {
-      "occ": "PLTR260618P00157500",
-      "strike": 157.5,
-      "entry_premium": 6.605,
+      "occ": "PINS260626P00020000",
+      "strike": 20.0,
+      "entry_premium": 0.785,
       "qty": 1
     },
     "long_leg": {
-      "occ": "PLTR260618P00152500",
-      "strike": 152.5,
-      "entry_premium": 4.465,
+      "occ": "PINS260626P00019000",
+      "strike": 19.0,
+      "entry_premium": 0.41,
       "qty": 1
     },
-    "expiration": "2026-06-18",
-    "net_credit": 2.05,
-    "max_loss": 2.95,
-    "width": 5.0,
-    "opened_at": "2026-06-01T13:42:35.020377Z",
-    "open_order_id": null,
-    "open_limit_credit": 2.01,
+    "expiration": "2026-06-26",
+    "net_credit": 0.375,
+    "max_loss": 0.625,
+    "width": 1.0,
+    "opened_at": "2026-06-01T14:32:17.839556Z",
+    "open_order_id": "849fac85-53d9-4d6f-8835-66ddf5ae6d90",
+    "open_limit_credit": 0.33,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
+    "last_action": "Auto-opened put credit spread short=$20.00 long=$19.00 credit=$0.38"
   }
 }
