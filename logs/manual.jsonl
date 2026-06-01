@@ -4143,3 +4143,5 @@
 {"timestamp": "2026-05-31T22:04:41.261448+00:00", "script": "wheel_screener.py", "action": "screener_complete", "result": "success", "details": {"mode": "manual", "universe_size": 55, "scored": 53, "top_n": 10, "top_symbols": ["PINS", "MU", "SOFI", "INTC", "BAC", "MRVL", "SPY", "NVDA", "QQQ", "KMI"]}}
 {"timestamp": "2026-06-01T13:01:40.309799+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AMD", "INTC", "NVDA", "QQQ", "SNAP"]}}
 {"timestamp": "2026-06-01T13:01:40.720620+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-06-01T13:11:40.588699+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["AMD", "INTC", "NVDA", "QQQ", "SNAP"]}}
+{"timestamp": "2026-06-01T13:11:41.046541+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
