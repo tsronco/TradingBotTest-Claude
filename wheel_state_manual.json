@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-02T18:22:55.716347Z"
+    "last_checked": "2026-06-02T18:31:43.220020Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260618C00006000: $0.18 vs entry $0.23"
+    "last_action": "Monitoring SNAP260618C00006000: $0.19 vs entry $0.23"
   },
   "NVTS": {
     "stage": 1,
@@ -174,6 +174,6 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$13.50 long=$12.50 credit=$0.34"
+    "last_action": "Awaiting fill on spread open order f355bf01-26e0-44b0-8747-7cf0552d7428."
   }
 }
