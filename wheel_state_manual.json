@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-02T18:11:42.731411Z"
+    "last_checked": "2026-06-02T18:22:55.716347Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260618C00006000: $0.21 vs entry $0.23"
+    "last_action": "Monitoring SNAP260618C00006000: $0.18 vs entry $0.23"
   },
   "NVTS": {
     "stage": 1,
@@ -122,33 +122,6 @@
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
   },
-  "MRVL": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "MRVL260626P00265000",
-      "strike": 265.0,
-      "entry_premium": 24.395,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "MRVL260626P00250000",
-      "strike": 250.0,
-      "entry_premium": 17.2,
-      "qty": 1
-    },
-    "expiration": "2026-06-26",
-    "net_credit": 7.195,
-    "max_loss": 7.805,
-    "width": 15.0,
-    "opened_at": "2026-06-02T14:12:06.751455Z",
-    "open_order_id": "c4abc1b3-027b-42dc-997b-62d38a54ef2d",
-    "open_limit_credit": 6.62,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order c4abc1b3-027b-42dc-997b-62d38a54ef2d."
-  },
   "PINS": {
     "stage": "spread_active",
     "spread_type": "put_credit",
@@ -165,15 +138,42 @@
       "qty": 1
     },
     "expiration": "2026-06-18",
-    "net_credit": 0.365,
-    "max_loss": 0.635,
+    "net_credit": 0.35,
+    "max_loss": 0.65,
     "width": 1.0,
     "opened_at": "2026-06-02T17:42:15.813190Z",
-    "open_order_id": "ab817d06-a276-419d-932e-2b8ad274638d",
+    "open_order_id": null,
     "open_limit_credit": 0.35,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order ab817d06-a276-419d-932e-2b8ad274638d."
+    "last_action": "Spread open order filled \u2014 now managing."
+  },
+  "AAL": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "AAL260626P00013500",
+      "strike": 13.5,
+      "entry_premium": 0.515,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "AAL260626P00012500",
+      "strike": 12.5,
+      "entry_premium": 0.18,
+      "qty": 1
+    },
+    "expiration": "2026-06-26",
+    "net_credit": 0.335,
+    "max_loss": 0.665,
+    "width": 1.0,
+    "opened_at": "2026-06-02T18:22:55.190623Z",
+    "open_order_id": "f355bf01-26e0-44b0-8747-7cf0552d7428",
+    "open_limit_credit": 0.31,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$13.50 long=$12.50 credit=$0.34"
   }
 }
