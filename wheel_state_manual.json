@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-02T18:51:40.345796Z"
+    "last_checked": "2026-06-02T19:01:55.752761Z"
   },
   "F": {
     "stage": 1,
@@ -67,33 +67,6 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "SOFI": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "SOFI260618P00017500",
-      "strike": 17.5,
-      "entry_premium": 0.745,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "SOFI260618P00016500",
-      "strike": 16.5,
-      "entry_premium": 0.35,
-      "qty": 1
-    },
-    "expiration": "2026-06-18",
-    "net_credit": 0.36,
-    "max_loss": 0.64,
-    "width": 1.0,
-    "opened_at": "2026-06-01T13:32:45.805088Z",
-    "open_order_id": null,
-    "open_limit_credit": 0.36,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Spread open order filled \u2014 now managing."
   },
   "NVDA": {
     "stage": "spread_active",
@@ -175,5 +148,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Awaiting fill on spread open order f355bf01-26e0-44b0-8747-7cf0552d7428."
+  },
+  "MU": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "MU260626P01025000",
+      "strike": 1025.0,
+      "entry_premium": 93.575,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "MU260626P01015000",
+      "strike": 1015.0,
+      "entry_premium": 86.665,
+      "qty": 1
+    },
+    "expiration": "2026-06-26",
+    "net_credit": 6.91,
+    "max_loss": 3.09,
+    "width": 10.0,
+    "opened_at": "2026-06-02T19:01:55.142054Z",
+    "open_order_id": "a796e26a-15b6-4965-8acd-c5e35fd31a30",
+    "open_limit_credit": 5.97,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$1025.00 long=$1015.00 credit=$6.91"
   }
 }
