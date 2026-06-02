@@ -2658,3 +2658,8 @@
 {"timestamp": "2026-06-02T16:59:36.840965+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 1000.0}}
 {"timestamp": "2026-06-02T16:59:36.842272+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-02T16:59:37.268983+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-02T17:09:18.676672+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-02T17:10:14.914190+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "INTC", "details": {"price": 107.24}}
+{"timestamp": "2026-06-02T17:10:29.100287+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 1000.0}}
+{"timestamp": "2026-06-02T17:10:29.101514+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-02T17:10:29.793207+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
