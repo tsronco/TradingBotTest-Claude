@@ -359,7 +359,7 @@ def _close_spread_mleg(sym_state: dict) -> bool:
         log(f"Spread mleg close placed: short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')}")
         return True
     except Exception as e:
-        log(f"_close_spread_mleg failed: {type(e).__name__}: {e}")
+        log(f"_close_spread_mleg failed: {alpaca_err_detail(e)}")
         return False
 
 
@@ -399,12 +399,17 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
     try:
         place_buy_to_close(short_occ, short_limit)
     except Exception as e:
-        log(f"_close_spread_legs_individually: BTC failed on {short_occ}: {type(e).__name__}: {e}")
+        detail = alpaca_err_detail(e)
+        log(f"_close_spread_legs_individually: BTC failed on {short_occ}: {detail}")
+        _parsed = _parse_occ(short_occ)
+        log_event(LOG_STREAM, "wheel_strategy.py", "spread_close_failed",
+                  result="failure", symbol=(_parsed[0] if _parsed else short_occ),
+                  details={"leg": "short", "occ": short_occ, "error": detail})
         send_embed(
             ERRORS_CH, f"Spread close failed (short leg) {sym_state.get('spread_type', '?')}",
             color=Color.RED,
             description=(
-                f"BTC of short leg `{short_occ}` failed: {e}. "
+                f"BTC of short leg `{short_occ}` failed: {detail}. "
                 f"Spread is intact; next cycle will retry."
             ),
             footer=f"wheel_strategy.py · {MODE}",
@@ -416,7 +421,8 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
     try:
         place_sell_to_close(long_occ, long_limit)
     except Exception as e:
-        log(f"_close_spread_legs_individually: STC failed on {long_occ}: {type(e).__name__}: {e}")
+        detail = alpaca_err_detail(e)
+        log(f"_close_spread_legs_individually: STC failed on {long_occ}: {detail}")
         # Half-closed: mark short as gone so orphan handler picks up the long
         sym_state["short_leg"]["qty"] = 0
         send_embed(
@@ -424,7 +430,7 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
             color=Color.RED,
             description=(
                 f"Short leg `{short_occ}` closed successfully, but STC of "
-                f"long leg `{long_occ}` failed: {e}. "
+                f"long leg `{long_occ}` failed: {detail}. "
                 f"Next cycle's orphan handler will retry the long-leg close."
             ),
             footer=f"wheel_strategy.py · {MODE}",
@@ -993,6 +999,26 @@ def api_delete(path):
     resp = _alpaca_request("DELETE", f"{BASE_URL}{path}", headers=HEADERS)
     resp.raise_for_status()
     return resp.json()
+
+
+def alpaca_err_detail(e) -> str:
+    """Render an Alpaca exception WITH the response body.
+
+    `requests`' raise_for_status() raises an HTTPError whose str() is only
+    the status line ("403 Client Error: Forbidden for url: ..."). Alpaca's
+    actual reason (e.g. {"code":40310000,"message":"insufficient buying
+    power"} or a wash-trade message) lives in the response BODY, which the
+    bare exception drops. Order rejections were surfacing as opaque 403s
+    with no reason (NVDA spread close 403-looping 2026-06-02). This appends
+    the body so #errors states WHY the order failed.
+    """
+    msg = f"{type(e).__name__}: {e}"
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        body = (getattr(resp, "text", "") or "").strip()
+        if body:
+            msg = f"{msg} — {body[:400]}"
+    return msg
 
 
 def get_latest_price(symbol):

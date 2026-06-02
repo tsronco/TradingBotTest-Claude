@@ -29,6 +29,26 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-02',
+    category: 'fix',
+    title: 'Spread close errors now surface the actual Alpaca reason (not just "403 Forbidden")',
+    details:
+      'A bot-opened NVDA put credit spread on the manual account hit a 403 on ' +
+      'every buy-to-close attempt and retry-looped each cycle, but #manual-errors ' +
+      'only showed "403 Client Error: Forbidden for url: …" — the real reason ' +
+      '(Alpaca returns it in the HTTP response BODY, e.g. {"code":40310000,' +
+      '"message":"insufficient buying power"}) was being discarded by ' +
+      "requests' raise_for_status().\n\n" +
+      'Added alpaca_err_detail() in wheel_strategy.py: it appends the response ' +
+      'body to the exception string. Wired into the multi-leg close log and both ' +
+      'single-leg fallback embeds (BTC short, STC long). Spread-close failures ' +
+      'now also emit a structured spread_close_failed JSONL event (previously ' +
+      'invisible in logs — only the Discord embed fired, so the structured log ' +
+      'showed a clean cycle_complete while the close silently failed).\n\n' +
+      'Purely additive — no change to trading behavior. The next 403 will state ' +
+      'exactly why it was rejected.',
+  },
+  {
     date: '2026-05-30',
     category: 'engine',
     title: 'Spread engine: stop the per-trade bleed (open near mid, mid-based stop, hedge guards)',
