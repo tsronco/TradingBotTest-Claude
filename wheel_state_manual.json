@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-02T17:31:41.294070Z"
+    "last_checked": "2026-06-02T17:42:16.364174Z"
   },
   "F": {
     "stage": 1,
@@ -95,33 +95,6 @@
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
   },
-  "AMD": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "AMD260618P00495000",
-      "strike": 495.0,
-      "entry_premium": 23.99,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "AMD260618P00485000",
-      "strike": 485.0,
-      "entry_premium": 19.195,
-      "qty": 1
-    },
-    "expiration": "2026-06-18",
-    "net_credit": 4.795,
-    "max_loss": 5.205,
-    "width": 10.0,
-    "opened_at": "2026-06-02T13:32:17.008369Z",
-    "open_order_id": "7d23d5d4-6bf5-4618-a889-f1583787b690",
-    "open_limit_credit": 4.18,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order 7d23d5d4-6bf5-4618-a889-f1583787b690."
-  },
   "NVDA": {
     "stage": "spread_active",
     "spread_type": "put_credit",
@@ -175,5 +148,32 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Awaiting fill on spread open order c4abc1b3-027b-42dc-997b-62d38a54ef2d."
+  },
+  "PINS": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "PINS260618P00020500",
+      "strike": 20.5,
+      "entry_premium": 0.745,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "PINS260618P00019500",
+      "strike": 19.5,
+      "entry_premium": 0.38,
+      "qty": 1
+    },
+    "expiration": "2026-06-18",
+    "net_credit": 0.365,
+    "max_loss": 0.635,
+    "width": 1.0,
+    "opened_at": "2026-06-02T17:42:15.813190Z",
+    "open_order_id": "ab817d06-a276-419d-932e-2b8ad274638d",
+    "open_limit_credit": 0.35,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Auto-opened put credit spread short=$20.50 long=$19.50 credit=$0.36"
   }
 }
