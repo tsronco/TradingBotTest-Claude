@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-02T13:32:17.367883Z"
+    "last_checked": "2026-06-02T13:41:41.843775Z"
   },
   "F": {
     "stage": 1,
@@ -138,16 +138,16 @@
       "qty": 1
     },
     "expiration": "2026-06-26",
-    "net_credit": 2.145,
-    "max_loss": 3.355,
+    "net_credit": 2.0,
+    "max_loss": 3.5,
     "width": 5.5,
     "opened_at": "2026-06-02T13:32:11.958367Z",
-    "open_order_id": "c3cea661-3973-4be1-b575-80b403c7ca44",
+    "open_order_id": null,
     "open_limit_credit": 1.96,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$152.50 long=$147.00 credit=$2.15"
+    "last_action": "Spread open order filled \u2014 now managing."
   },
   "AMD": {
     "stage": "spread_active",
@@ -174,6 +174,6 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$495.00 long=$485.00 credit=$4.79"
+    "last_action": "Awaiting fill on spread open order 7d23d5d4-6bf5-4618-a889-f1583787b690."
   }
 }
