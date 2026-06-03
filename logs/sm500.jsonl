@@ -2736,3 +2736,9 @@
 {"timestamp": "2026-06-03T13:55:57.806083+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 9, "equity": 500.0}}
 {"timestamp": "2026-06-03T13:55:57.807178+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-06-03T13:55:58.151976+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-03T14:05:48.785908+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-03T14:06:18.568005+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "VALE", "details": {"price": 16.285}}
+{"timestamp": "2026-06-03T14:06:19.540769+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "T", "details": {"price": 23.955}}
+{"timestamp": "2026-06-03T14:06:19.540995+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 9, "equity": 500.0}}
+{"timestamp": "2026-06-03T14:06:19.542135+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-03T14:06:20.045847+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
