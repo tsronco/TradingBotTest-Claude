@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-03T13:42:11.426242Z"
+    "last_checked": "2026-06-03T13:51:42.737315Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260618C00006000: $0.21 vs entry $0.23"
+    "last_action": "Monitoring SNAP260618C00006000: $0.17 vs entry $0.23"
   },
   "NVTS": {
     "stage": 1,
@@ -147,7 +147,7 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$1030.00 long=$1020.00 credit=$6.82"
+    "last_action": "Awaiting fill on spread open order 1230ab5e-9650-49dc-8a13-19e31de0f64c."
   },
   "INTC": {
     "stage": "spread_active",
@@ -165,15 +165,15 @@
       "qty": 1
     },
     "expiration": "2026-06-18",
-    "net_credit": 2.09,
-    "max_loss": 2.91,
+    "net_credit": 2.0,
+    "max_loss": 3.0,
     "width": 5.0,
     "opened_at": "2026-06-03T13:42:10.858717Z",
-    "open_order_id": "3cff84b0-7322-4037-ad02-8c900b83f1f4",
+    "open_order_id": null,
     "open_limit_credit": 1.99,
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Auto-opened put credit spread short=$114.00 long=$109.00 credit=$2.09"
+    "last_action": "Spread open order filled \u2014 now managing."
   }
 }
