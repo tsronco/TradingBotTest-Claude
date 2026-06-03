@@ -236,3 +236,49 @@ def test_strategy_alpaca_err_detail_appends_response_body():
     detail = strategy.alpaca_err_detail(_Err("403 Client Error: Forbidden"))
     assert "40310100" in detail
     assert strategy.is_pdt_denied(detail)
+
+
+# ── Covered-call collateral: strategy.py manages only freely-sellable shares ──
+# SNAP held 110 shares with 100 locked as covered-call collateral (wheel stage
+# 2); the manual stop tried to liquidate all 110 (DELETE /positions) and Alpaca
+# rejected 40310000 "insufficient qty (requested 110, available 10)", crashing
+# the cycle into #errors every tick (2026-06-03).
+
+def test_available_qty_excludes_options_collateral():
+    snap = {"symbol": "SNAP", "qty": "110", "qty_available": "10",
+            "avg_entry_price": "6.00"}
+    assert strategy._available_qty(snap) == 10          # not 110
+
+
+def test_available_qty_falls_back_to_qty_when_field_absent():
+    assert strategy._available_qty({"qty": "42", "avg_entry_price": "5"}) == 42
+
+
+def test_manual_seed_uses_available_not_total_qty():
+    snap = {"symbol": "SNAP", "qty": "110", "qty_available": "10",
+            "avg_entry_price": "6.00"}
+    seeded = strategy._manual_seed_state("SNAP", snap)
+    assert seeded["position_qty"] == 10                 # manages free shares only
+    assert seeded["initial_qty"] == 10
+
+
+def test_manual_stop_sells_only_free_qty_not_full_liquidation(monkeypatch):
+    # 10 free shares (100 locked for a CC); stop fires below the stop price.
+    sym_state = strategy._manual_seed_state(
+        "SNAP", {"symbol": "SNAP", "qty": "110", "qty_available": "10",
+                 "avg_entry_price": "6.00"})
+    monkeypatch.setattr(strategy, "get_latest_price", lambda s: 5.00)  # below stop 5.40
+    monkeypatch.setattr(strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(strategy, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(strategy, "log", lambda *a, **kw: None)
+
+    calls = {"orders": [], "close_all": 0}
+    monkeypatch.setattr(strategy, "place_order",
+                        lambda sym, qty, side, **kw: calls["orders"].append((sym, qty, side)))
+    def _boom(sym):
+        calls["close_all"] += 1
+    monkeypatch.setattr(strategy, "close_all", _boom)
+
+    strategy._manual_run_symbol("SNAP", sym_state, 10, 6.00)
+    assert calls["close_all"] == 0                       # no full-position liquidation
+    assert calls["orders"] == [("SNAP", 10, "sell")]     # bounded sell of free shares

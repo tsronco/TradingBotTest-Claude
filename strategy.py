@@ -582,6 +582,24 @@ def _scaled_ladders(initial_qty: int):
     ]
 
 
+def _available_qty(position: dict) -> int:
+    """Freely-sellable share count for a position.
+
+    Alpaca's `qty_available` excludes shares locked as options collateral
+    (a covered call written against wheel-assigned shares) or reserved by
+    open orders. strategy.py in manual mode only manages the FREE shares —
+    the locked portion belongs to wheel_strategy.py's covered call. Without
+    this, a manual stop tried to liquidate the WHOLE position (DELETE
+    /positions/{sym}) and Alpaca rejected it 40310000 'insufficient qty'
+    because most shares were held_for_options (SNAP: 110 held, 100 locked,
+    10 free — 2026-06-03), crashing the symbol cycle into #errors.
+    """
+    try:
+        return int(float(position.get("qty_available", position["qty"])))
+    except (KeyError, TypeError, ValueError):
+        return int(float(position.get("qty", 0)))
+
+
 def _manual_seed_state(symbol: str, position: dict) -> dict:
     """Seed state for a newly-discovered manual-mode position.
 
@@ -589,7 +607,7 @@ def _manual_seed_state(symbol: str, position: dict) -> dict:
     these shares manually — the bot has no ladder/trail history pre-seed.
     """
     entry_price = round(float(position["avg_entry_price"]), 2)
-    qty = int(float(position["qty"]))
+    qty = _available_qty(position)
     return {
         "first_seen":      datetime.utcnow().isoformat() + "Z",
         "entry_price":     entry_price,
@@ -648,7 +666,12 @@ def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg
     # ── 1. Stop loss ──────────────────────────────────────────────────────
     if price <= stop_price:
         log(f"{symbol} STOP HIT — ${price:.2f} ≤ ${stop_price:.2f}. Closing {total_qty} shares.")
-        close_all(symbol)
+        # Sell exactly the managed (free) quantity rather than close_all's
+        # full-position liquidation — the position may also hold shares locked
+        # as covered-call collateral that belong to the wheel, and DELETE
+        # /positions/{sym} would try to dump those too (40310000 insufficient
+        # qty). total_qty here is already the freely-sellable count.
+        place_order(symbol, total_qty, "sell")
         realized = (price - avg_cost) * total_qty
         send_embed(
             TRADES_CH, f"{symbol} STOP HIT — closed {total_qty} shares @ ${price:.2f}",
@@ -803,7 +826,7 @@ def run_one_cycle_manual():
                     actions_channel=ACTIONS_CH,
                 )
 
-            alpaca_qty = int(float(position["qty"]))
+            alpaca_qty = _available_qty(position)  # free shares only (excl. CC collateral)
             alpaca_avg = float(position["avg_entry_price"])
             state[symbol] = _manual_run_symbol(symbol, state[symbol], alpaca_qty, alpaca_avg)
         except Exception as e:
