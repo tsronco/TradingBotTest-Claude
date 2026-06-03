@@ -208,3 +208,31 @@ def test_discover_wheel_state_short_call_treated_as_stage_2(monkeypatch):
     assert state["TSLA"]["stage"] == 2
     assert state["TSLA"]["shares_qty"] == 100
     assert state["TSLA"]["cost_basis_per_share"] == 250.0
+
+
+# ── PDT (Pattern Day Trading) block detection — strategy.py exits ────────────
+# A sub-$25k margin account (manual $10k; sm500/sm1000/sm2000) that hits the
+# day-trade limit gets every closing order denied, including stock exits via
+# DELETE /positions/{sym}. Those must be quieted to #actions, not #errors.
+
+def test_strategy_is_pdt_denied_matches_code_and_phrase():
+    pdt = ('HTTPError: 403 Client Error: Forbidden for url: '
+           '.../v2/positions/SNAP — '
+           '{"code":40310100,"message":"trade denied due to pattern day trading protection"}')
+    assert strategy.is_pdt_denied(pdt)
+    assert strategy.is_pdt_denied("Pattern Day Trading protection")
+    assert not strategy.is_pdt_denied('{"code":40310000,"message":"insufficient buying power"}')
+    assert not strategy.is_pdt_denied("")
+    assert not strategy.is_pdt_denied(None)
+
+
+def test_strategy_alpaca_err_detail_appends_response_body():
+    class _Resp:
+        text = '{"code":40310100,"message":"trade denied due to pattern day trading protection"}'
+
+    class _Err(Exception):
+        response = _Resp()
+
+    detail = strategy.alpaca_err_detail(_Err("403 Client Error: Forbidden"))
+    assert "40310100" in detail
+    assert strategy.is_pdt_denied(detail)

@@ -30,6 +30,25 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-03',
+    category: 'fix',
+    title: 'Quiet PDT-blocked stock exits in strategy.py too (not just wheel spreads)',
+    details:
+      'After quieting PDT-blocked spread closes in wheel_strategy.py, ' +
+      '#manual-errors kept pinging — a second path was uncovered. strategy.py ' +
+      '(the stock trail/ladder/stop manager) was trying to liquidate the SNAP ' +
+      'position via DELETE /v2/positions/SNAP, hitting the same PDT denial ' +
+      '(40310100), and crashing the symbol cycle as an unhandled "cycle ' +
+      'exception" → #errors.\n\n' +
+      'Mirrored the two helpers into strategy.py (alpaca_err_detail, ' +
+      'is_pdt_denied — these scripts intentionally duplicate their Alpaca ' +
+      'request layer) and branched the per-symbol cycle-exception handler: a ' +
+      'PDT-denied exit now posts a quiet "⏸️ exit blocked by PDT" notice to ' +
+      '#*-actions and logs exit_pdt_blocked (skipped) instead of a red #errors ' +
+      'ping. Covers manual AND the three SM accounts (all sub-$25k, all use the ' +
+      'same auto-discover loop). Conservative/aggressive/live are unaffected.',
+  },
+  {
+    date: '2026-06-03',
     category: 'config',
     title: 'Manual: disable auto-open spreads (PDT) + route PDT-blocked closes to #actions',
     details:

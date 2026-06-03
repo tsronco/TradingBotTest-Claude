@@ -183,6 +183,36 @@ def close_all(symbol):
     return resp.json()
 
 
+def alpaca_err_detail(e) -> str:
+    """Render an Alpaca exception WITH the response body.
+
+    raise_for_status() raises an HTTPError whose str() is only the status
+    line; Alpaca's actual reason lives in the response BODY. Mirror of the
+    helper in wheel_strategy.py (these two scripts intentionally duplicate
+    their Alpaca request layer).
+    """
+    msg = f"{type(e).__name__}: {e}"
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        body = (getattr(resp, "text", "") or "").strip()
+        if body:
+            msg = f"{msg} — {body[:400]}"
+    return msg
+
+
+def is_pdt_denied(detail: str) -> bool:
+    """True if an Alpaca failure is a Pattern Day Trading block (40310100).
+
+    A sub-$25k margin account that exceeds the day-trade limit gets every
+    closing order denied — including stock exits via DELETE /positions/{sym}.
+    Not a fixable per-cycle error, so callers route it to the actions
+    firehose instead of pinging #errors every cycle (manual account PDT
+    lockout, 2026-06-03). Mirror of wheel_strategy.is_pdt_denied.
+    """
+    d = (detail or "").lower()
+    return "40310100" in d or "pattern day trading" in d
+
+
 def wait_for_fill(order_id, timeout_hours=72):
     log(f"Waiting for fill on order {order_id}...")
     deadline = time.time() + timeout_hours * 3600
@@ -777,17 +807,39 @@ def run_one_cycle_manual():
             alpaca_avg = float(position["avg_entry_price"])
             state[symbol] = _manual_run_symbol(symbol, state[symbol], alpaca_qty, alpaca_avg)
         except Exception as e:
-            log(f"{symbol}: error in cycle: {e}")
-            send_embed(
-                ERRORS_CH, f"strategy.py — {symbol} cycle exception",
-                color=Color.RED,
-                description=f"`{type(e).__name__}: {str(e)[:500]}`",
-                footer=f"strategy.py · {MODE}",
-                actions_channel=ACTIONS_CH,
-            )
-            log_event(LOG_STREAM, "strategy.py", "exception",
-                      symbol=symbol, result="failure",
-                      notes=f"{type(e).__name__}: {str(e)[:500]}")
+            detail = alpaca_err_detail(e)
+            log(f"{symbol}: error in cycle: {detail}")
+            # PDT blocks are not a fixable per-cycle error — a sub-$25k margin
+            # account that hit the day-trade limit has every stock exit denied.
+            # Route to the actions firehose instead of pinging #errors each
+            # cycle; the position is intact until the PDT restriction clears.
+            if is_pdt_denied(detail):
+                send_embed(
+                    ACTIONS_CH, f"⏸️ {symbol} exit blocked by PDT",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Closing {symbol} was denied by Alpaca Pattern Day "
+                        f"Trading protection (account < $25k, day-trade limit "
+                        f"hit). Position is intact; the exit can't go through "
+                        f"until the PDT restriction clears. Not retrying as an "
+                        f"error."
+                    ),
+                    footer=f"strategy.py · {MODE}",
+                    also_to_actions=False,
+                )
+                log_event(LOG_STREAM, "strategy.py", "exit_pdt_blocked",
+                          symbol=symbol, result="skipped", notes=detail[:500])
+            else:
+                send_embed(
+                    ERRORS_CH, f"strategy.py — {symbol} cycle exception",
+                    color=Color.RED,
+                    description=f"`{detail[:500]}`",
+                    footer=f"strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH,
+                )
+                log_event(LOG_STREAM, "strategy.py", "exception",
+                          symbol=symbol, result="failure",
+                          notes=detail[:500])
             # Continue to next symbol — don't break the whole cycle on one failure
 
     # Prune symbols the user has fully closed (not in held AND state qty is 0)
