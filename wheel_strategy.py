@@ -447,17 +447,20 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
         log(f"_close_spread_legs_individually: STC failed on {long_occ}: {detail}")
         # Half-closed: mark short as gone so orphan handler picks up the long
         sym_state["short_leg"]["qty"] = 0
-        send_embed(
-            ERRORS_CH, f"Spread close ORPHANED",
-            color=Color.RED,
-            description=(
-                f"Short leg `{short_occ}` closed successfully, but STC of "
-                f"long leg `{long_occ}` failed: {detail}. "
-                f"Next cycle's orphan handler will retry the long-leg close."
-            ),
-            footer=f"wheel_strategy.py · {MODE}",
-            actions_channel=ACTIONS_CH,
-        )
+        _parsed_s = _parse_occ(long_occ)
+        _sym_s = _parsed_s[0] if _parsed_s else long_occ
+        if not report_pdt_quietly(_sym_s, detail, "Spread STC (orphaned long)"):
+            send_embed(
+                ERRORS_CH, f"Spread close ORPHANED",
+                color=Color.RED,
+                description=(
+                    f"Short leg `{short_occ}` closed successfully, but STC of "
+                    f"long leg `{long_occ}` failed: {detail}. "
+                    f"Next cycle's orphan handler will retry the long-leg close."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                actions_channel=ACTIONS_CH,
+            )
         return False
 
     return True
@@ -631,11 +634,13 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
                       details={"surviving_leg": "short", "occ": short_occ})
             del state[ticker]
         except Exception as e:
-            log(f"_handle_orphan_leg short BTC failed: {type(e).__name__}: {e}")
-            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
-                       color=Color.RED,
-                       description=f"BTC of {short_occ} failed: {e}. State left intact for retry.",
-                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            detail = alpaca_err_detail(e)
+            log(f"_handle_orphan_leg short BTC failed: {detail}")
+            if not report_pdt_quietly(ticker, detail, "Orphan BTC"):
+                send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                           color=Color.RED,
+                           description=f"BTC of {short_occ} failed: {detail}. State left intact for retry.",
+                           footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
         return
 
     if long_present and not short_present:
@@ -654,11 +659,13 @@ def _handle_orphan_leg(state: dict, ticker: str, positions: list) -> None:
                       details={"surviving_leg": "long", "occ": long_occ})
             del state[ticker]
         except Exception as e:
-            log(f"_handle_orphan_leg long STC failed: {type(e).__name__}: {e}")
-            send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
-                       color=Color.RED,
-                       description=f"STC of {long_occ} failed: {e}. State left intact for retry.",
-                       footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
+            detail = alpaca_err_detail(e)
+            log(f"_handle_orphan_leg long STC failed: {detail}")
+            if not report_pdt_quietly(ticker, detail, "Orphan STC"):
+                send_embed(ERRORS_CH, f"Orphan resolution failed for {ticker}",
+                           color=Color.RED,
+                           description=f"STC of {long_occ} failed: {detail}. State left intact for retry.",
+                           footer=f"wheel_strategy.py · {MODE}", actions_channel=ACTIONS_CH)
         return
 
     # Both missing — no orders, just clear state
@@ -1056,6 +1063,35 @@ def is_pdt_denied(detail: str) -> bool:
     """
     d = (detail or "").lower()
     return "40310100" in d or "pattern day trading" in d
+
+
+def report_pdt_quietly(symbol: str, detail: str, context: str) -> bool:
+    """Centralized PDT-block policy for every wheel close boundary.
+
+    If `detail` is a PDT denial, post a quiet notice to the actions channel,
+    log it as `pdt_blocked` (skipped), and return True so the caller treats
+    the action as handled rather than a hard error. Otherwise return False so
+    the caller emits its normal #errors embed. A PDT block is an account-state
+    condition (sub-$25k margin account over the day-trade limit), not a
+    fixable per-cycle bug — quieting it everywhere keeps #errors meaningful
+    while the position stays intact until the restriction clears (2026-06-03).
+    """
+    if not is_pdt_denied(detail):
+        return False
+    send_embed(
+        ACTIONS_CH, f"⏸️ {context} blocked by PDT — {symbol}",
+        color=Color.YELLOW,
+        description=(
+            f"{context} for {symbol} was denied by Alpaca Pattern Day Trading "
+            f"protection (account < $25k, day-trade limit hit). Position is "
+            f"intact; can't act until the PDT restriction clears."
+        ),
+        footer=f"wheel_strategy.py · {MODE}",
+        also_to_actions=False,
+    )
+    log_event(LOG_STREAM, "wheel_strategy.py", "pdt_blocked",
+              result="skipped", symbol=symbol, notes=(detail or "")[:400])
+    return True
 
 
 def get_latest_price(symbol):
@@ -3378,7 +3414,16 @@ def run_wheel():
                                    "stock_price": stock_price})
             except Exception as e:
                 # Per-symbol error isolation: one bad symbol doesn't kill others.
-                log(f"[{symbol}] error in wheel cycle: {type(e).__name__}: {e}")
+                detail = alpaca_err_detail(e)
+                log(f"[{symbol}] error in wheel cycle: {detail}")
+
+                # PDT denial: quiet to actions and KEEP GOING. Must precede the
+                # blanket-403 BP-exhaustion check below — a PDT 403 is not BP
+                # exhaustion, and `break`ing on it would wrongly skip every
+                # remaining symbol's management every cycle on a PDT-locked
+                # account (2026-06-03).
+                if report_pdt_quietly(symbol, detail, "Wheel action"):
+                    continue
 
                 # Special case: Alpaca returns HTTP 403 on POST /orders when
                 # the account doesn't have enough buying power for the option
@@ -3414,13 +3459,13 @@ def run_wheel():
                 send_embed(
                     ERRORS_CH, f"wheel_strategy.py — {symbol} cycle crashed",
                     color=Color.RED,
-                    description=f"`{type(e).__name__}: {str(e)[:500]}`",
+                    description=f"`{detail[:500]}`",
                     footer=f"wheel_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                 )
                 log_event(LOG_STREAM, "wheel_strategy.py", "symbol_exception",
                           result="failure",
-                          notes=f"{symbol}: {type(e).__name__}: {str(e)[:500]}")
+                          notes=f"{symbol}: {detail[:500]}")
 
         # ── Autonomous spread opener (SM modes only) ──
         # Runs AFTER the discover + manage-hand-opened + handle_spread

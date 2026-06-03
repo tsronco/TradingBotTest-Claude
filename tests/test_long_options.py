@@ -173,3 +173,27 @@ def test_evaluate_just_above_stop_loss_holds(monkeypatch):
     monkeypatch.setattr(los, "get_option_last_price", lambda s: 0.51)
     action, _, _ = los.evaluate_position(_pos(entry=1.00), TODAY)
     assert action == "hold"
+
+
+# ── PDT-quieting at the long-option close boundary (2026-06-03) ──────────────
+
+def test_long_options_report_pdt_quietly_routes_to_actions(monkeypatch):
+    monkeypatch.setattr(los, "ACTIONS_CH", "actions")
+    monkeypatch.setattr(los, "MODE", "manual")
+    embeds, events = [], []
+    monkeypatch.setattr(los, "send_embed", lambda ch, title, **kw: embeds.append((ch, title)))
+    monkeypatch.setattr(los, "log_event", lambda *a, **kw: events.append(a))
+
+    pdt = '... — {"code":40310100,"message":"trade denied due to pattern day trading protection"}'
+    assert los._report_pdt_quietly("AAL", pdt, "Long-option close (STOP)") is True
+    assert embeds and embeds[0][0] == "actions"
+    assert "PDT" in embeds[0][1]
+    assert events and events[0][2] == "pdt_blocked"
+
+
+def test_long_options_report_pdt_quietly_passthrough_non_pdt(monkeypatch):
+    monkeypatch.setattr(los, "ACTIONS_CH", "actions")
+    sent = []
+    monkeypatch.setattr(los, "send_embed", lambda *a, **kw: sent.append(a))
+    assert los._report_pdt_quietly("AAL", "insufficient buying power", "x") is False
+    assert sent == []

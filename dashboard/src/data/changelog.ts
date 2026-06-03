@@ -31,6 +31,29 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-03',
     category: 'fix',
+    title: 'Proactive sweep: PDT-quiet every close boundary (wheel stages, orphans, long options)',
+    details:
+      'Rather than keep reacting to each new PDT #errors ping, audited every ' +
+      'order-placing / position-closing path across the bots and quieted the ' +
+      'whole class at its error boundaries — these protect the LIVE real-money ' +
+      'account too (same scripts; live can itself be sub-$25k).\n\n' +
+      '• wheel_strategy.report_pdt_quietly() centralizes the policy. Applied at: ' +
+      'the per-symbol wheel handler (covers handle_stage1/stage2 put & covered-' +
+      'call 50% closes), both _handle_orphan_leg paths, and the spread-STC ' +
+      'orphan branch.\n' +
+      '• Fixed a real latent bug found in the audit: the wheel\'s per-symbol ' +
+      'handler treated EVERY 403 as "BP exhausted" and break-ed the whole ' +
+      'symbol loop — so a single PDT denial silently halted management of all ' +
+      'remaining symbols each cycle. PDT is now detected first and continues.\n' +
+      '• long_options_strategy gets a matching _report_pdt_quietly at its ' +
+      'sell-to-close + per-position boundaries (the AAL-churn exit path).\n\n' +
+      'All routes now: PDT (40310100) → quiet #actions notice + pdt_blocked ' +
+      '(skipped); genuine errors still hit #errors with the full Alpaca body. ' +
+      '+8 tests (508 total).',
+  },
+  {
+    date: '2026-06-03',
+    category: 'fix',
     title: 'strategy.py manages only freely-sellable shares (covered-call collateral fix)',
     details:
       'A third distinct #manual-errors source (after the PDT fixes): SNAP held ' +
