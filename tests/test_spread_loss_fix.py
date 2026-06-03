@@ -328,3 +328,33 @@ def test_pdt_close_failure_routes_to_actions_not_errors(monkeypatch):
     assert "PDT" in title
     # structured event is a "skipped" PDT block, not a hard failure
     assert events and events[0][0][2] == "spread_close_pdt_blocked"
+
+
+# ── G. Centralized PDT-quieting at wheel close boundaries (2026-06-03) ───────
+
+def test_report_pdt_quietly_routes_to_actions_and_returns_true(monkeypatch):
+    monkeypatch.setattr(ws, "ACTIONS_CH", "actions")
+    monkeypatch.setattr(ws, "ERRORS_CH", "errors")
+    monkeypatch.setattr(ws, "MODE", "manual")
+    embeds, events = [], []
+    monkeypatch.setattr(ws, "send_embed",
+                        lambda ch, title, **kw: embeds.append((ch, title)))
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: events.append((a, kw)))
+
+    pdt = '... — {"code":40310100,"message":"trade denied due to pattern day trading protection"}'
+    handled = ws.report_pdt_quietly("NVDA", pdt, "Wheel action")
+    assert handled is True
+    assert embeds and embeds[0][0] == "actions"          # quiet, not errors
+    assert "PDT" in embeds[0][1]
+    assert events and events[0][0][2] == "pdt_blocked"
+
+
+def test_report_pdt_quietly_passes_through_non_pdt(monkeypatch):
+    monkeypatch.setattr(ws, "ACTIONS_CH", "actions")
+    sent = []
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: sent.append(a))
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    # a genuine error must NOT be swallowed — caller still emits its #errors embed
+    assert ws.report_pdt_quietly("BAC", '{"code":40310000,"message":"insufficient buying power"}',
+                                 "Wheel action") is False
+    assert sent == []

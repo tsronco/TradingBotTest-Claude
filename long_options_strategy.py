@@ -241,6 +241,33 @@ def has_open_sell_order(option_symbol: str) -> bool:
     return False
 
 
+def _report_pdt_quietly(symbol: str, detail: str, context: str) -> bool:
+    """Route a PDT-denied long-option exit to the actions firehose.
+
+    Reuses wheel_strategy.is_pdt_denied (a pure check) but posts to this
+    script's own channels. A PDT block (sub-$25k margin account over the
+    day-trade limit) is an account-state condition, not a fixable per-cycle
+    error — quieting it keeps #errors meaningful. Returns True when handled
+    (caller skips its #errors embed), False otherwise (2026-06-03).
+    """
+    if not wheel_strategy.is_pdt_denied(detail):
+        return False
+    send_embed(
+        ACTIONS_CH, f"⏸️ {context} blocked by PDT — {symbol}",
+        color=Color.YELLOW,
+        description=(
+            f"{context} for {symbol} was denied by Alpaca Pattern Day Trading "
+            f"protection (account < $25k, day-trade limit hit). Position is "
+            f"intact; can't act until the PDT restriction clears."
+        ),
+        footer=f"long_options_strategy.py · {MODE}",
+        also_to_actions=False,
+    )
+    log_event(LOG_STREAM, "long_options_strategy.py", "pdt_blocked",
+              result="skipped", symbol=symbol, notes=(detail or "")[:400])
+    return True
+
+
 def place_sell_to_close(option_symbol: str, limit_price: float, qty: int):
     """Submit a sell-to-close limit order to exit a long option position."""
     body = {
@@ -367,17 +394,20 @@ def execute_close(pos: dict, action: str, info: dict) -> bool:
     try:
         order = place_sell_to_close(symbol, close_price, qty)
     except Exception as e:
-        log(f"[{symbol}] sell-to-close failed: {e}")
+        detail = wheel_strategy.alpaca_err_detail(e)
+        log(f"[{symbol}] sell-to-close failed: {detail}")
+        if _report_pdt_quietly(symbol, detail, f"Long-option close ({action})"):
+            return False
         send_embed(
             ERRORS_CH, f"long_options: sell-to-close failed for {symbol}",
             color=Color.RED,
-            description=f"Action: {action}\n`{type(e).__name__}: {str(e)[:300]}`",
+            description=f"Action: {action}\n`{detail[:300]}`",
             footer=f"long_options_strategy.py · {MODE}",
             actions_channel=ACTIONS_CH,
             )
         log_event(LOG_STREAM, "long_options_strategy.py", "close_failed",
                   symbol=symbol, result="failure",
-                  notes=f"{type(e).__name__}: {str(e)[:300]}")
+                  notes=detail[:300])
         return False
 
     label_map = {
@@ -487,17 +517,20 @@ def run_long_options_cycle():
                         closed += 1
             except Exception as e:
                 # Per-position error isolation
-                log(f"[{symbol}] error: {type(e).__name__}: {e}")
+                detail = wheel_strategy.alpaca_err_detail(e)
+                log(f"[{symbol}] error: {detail}")
+                if _report_pdt_quietly(symbol, detail, "Long-option action"):
+                    continue
                 send_embed(
                     ERRORS_CH, f"long_options_strategy.py — error on {symbol}",
                     color=Color.RED,
-                    description=f"`{type(e).__name__}: {str(e)[:400]}`",
+                    description=f"`{detail[:400]}`",
                     footer=f"long_options_strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
                     )
                 log_event(LOG_STREAM, "long_options_strategy.py", "position_exception",
                           symbol=symbol, result="failure",
-                          notes=f"{type(e).__name__}: {str(e)[:400]}")
+                          notes=detail[:400])
                 skipped += 1
 
         log_event(LOG_STREAM, "long_options_strategy.py", "cycle_complete",
