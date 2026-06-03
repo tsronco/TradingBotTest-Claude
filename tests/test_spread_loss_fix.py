@@ -272,3 +272,59 @@ def test_orphan_short_closes_at_ask_not_mid(monkeypatch):
     ws._handle_orphan_leg(state, "AAL", positions)
     assert buys == [("AAL260612P00013500", 0.40)]  # ask, not the 0.25 mid
     assert "AAL" not in state
+
+
+# ── F. PDT-block detection + quiet routing (2026-06-03) ──────────────────────
+
+def test_is_pdt_denied_matches_code_and_phrase():
+    body = ('HTTPError: 403 Client Error: Forbidden for url: ... — '
+            '{"code":40310100,"message":"trade denied due to pattern day trading protection"}')
+    assert ws.is_pdt_denied(body)
+    assert ws.is_pdt_denied("Pattern Day Trading protection")
+    assert not ws.is_pdt_denied('{"code":40310000,"message":"insufficient buying power"}')
+    assert not ws.is_pdt_denied("")
+    assert not ws.is_pdt_denied(None)
+
+
+class _PDTResp:
+    text = ('{"code":40310100,"message":"trade denied due to pattern day '
+            'trading protection"}')
+
+
+class _PDTError(Exception):
+    response = _PDTResp()
+
+
+def test_pdt_close_failure_routes_to_actions_not_errors(monkeypatch):
+    monkeypatch.setattr(ws, "ERRORS_CH", "errors")
+    monkeypatch.setattr(ws, "ACTIONS_CH", "actions")
+    monkeypatch.setattr(ws, "MODE", "manual")
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 1.0, "ask": 1.2})
+
+    def _raise_pdt(occ, price):
+        raise _PDTError("403 Client Error: Forbidden for url: .../orders")
+    monkeypatch.setattr(ws, "place_buy_to_close", _raise_pdt)
+
+    embeds = []
+    events = []
+    monkeypatch.setattr(ws, "send_embed",
+                        lambda channel, title, **kw: embeds.append((channel, title)))
+    monkeypatch.setattr(ws, "log_event",
+                        lambda *a, **kw: events.append((a, kw)))
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    sym_state = {
+        "spread_type": "put_credit",
+        "short_leg": {"occ": "NVDA260618P00218000", "entry_premium": 6.0, "qty": 1},
+        "long_leg":  {"occ": "NVDA260618P00213000", "entry_premium": 4.0, "qty": 1},
+    }
+    ok = ws._close_spread_legs_individually(sym_state)
+
+    assert ok is False                              # close did not go through
+    assert len(embeds) == 1
+    channel, title = embeds[0]
+    assert channel == "actions"                     # quiet — NOT errors
+    assert "PDT" in title
+    # structured event is a "skipped" PDT block, not a hard failure
+    assert events and events[0][0][2] == "spread_close_pdt_blocked"

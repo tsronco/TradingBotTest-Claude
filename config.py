@@ -289,7 +289,16 @@ MODES = {
         #
         # Balanced posture (same as sm1000/sm2000) — at $10k equity the
         # 10% risk cap is $1,000, comfortably fits any $5-wide spread.
-        "auto_open_spreads":         True,
+        #
+        # DISABLED 2026-06-03 (PDT): the manual account is a margin account
+        # under $25k, so same-day round trips by the auto-opener tripped
+        # Alpaca's Pattern Day Trading protection (code 40310100). Once
+        # flagged, EVERY further order — including the closes the manager
+        # needs — is denied, which 403-looped a stuck NVDA spread close every
+        # cycle. Autonomous same-day spread churn is structurally
+        # incompatible with a sub-$25k margin account. Hand-opened/adopted
+        # spreads are still managed normally; only the bot-opener is off.
+        "auto_open_spreads":         False,
         # bp_switch_threshold is the BP below which the engine prefers a
         # spread over a CSP. Inherited as 5000 from the SM Balanced posture,
         # but on a $10k manual account BP usually sits well above that — the

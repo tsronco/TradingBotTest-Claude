@@ -29,6 +29,27 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-03',
+    category: 'config',
+    title: 'Manual: disable auto-open spreads (PDT) + route PDT-blocked closes to #actions',
+    details:
+      'The "403 Forbidden" spread-close loop turned out to be Alpaca Pattern ' +
+      'Day Trading protection (code 40310100), not buying power. The manual ' +
+      'account is a margin account under $25k, and the auto_open_spreads ' +
+      'engine churned same-day round trips — once past 3 day trades in 5 days, ' +
+      'Alpaca denied EVERY further order, including the closes the manager ' +
+      'needed, so a stuck NVDA spread retry-looped #manual-errors every cycle.\n\n' +
+      'Two changes: (1) auto_open_spreads disabled on manual — autonomous ' +
+      'same-day spread churn is structurally incompatible with a sub-$25k ' +
+      'margin account (the opener-side config keys stay inert, so re-enabling ' +
+      'is a one-line flip). Hand-opened/adopted spreads are still managed ' +
+      'normally. (2) PDT-denied closes (is_pdt_denied) now post a quiet ' +
+      '"⏸️ close blocked by PDT" notice to #*-actions instead of pinging ' +
+      '#*-errors every 10 min — a PDT block is not a fixable per-cycle error.\n\n' +
+      'The stuck position itself can only clear once the PDT restriction lifts ' +
+      '(equity ≥ $25k or account reset on Alpaca).',
+  },
+  {
     date: '2026-06-02',
     category: 'fix',
     title: 'Spread close errors now surface the actual Alpaca reason (not just "403 Forbidden")',

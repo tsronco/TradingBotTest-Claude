@@ -27,16 +27,15 @@ def test_sm_modes_inherit_manual_management_flags():
         assert cfg["spread_management"] is True
         assert cfg["wheel_skip_new_puts"] is True   # static CSP wheel stays OFF
 
-def test_auto_open_enabled_on_sm_and_manual_modes():
-    """auto_open_spreads is True on the three SM accounts plus manual
-    (shortcut $10k validation enabled 2026-05-22). Conservative,
-    aggressive, and live (real-money) stay OFF — those accounts either
-    have their own opener (cons/agg via wheel CSPs) or are user-only
-    (live)."""
+def test_auto_open_enabled_on_sm_modes_only():
+    """auto_open_spreads is True on the three SM accounts only. Manual had
+    it enabled 2026-05-22 as a shortcut $10k validation, but it was DISABLED
+    2026-06-03: a sub-$25k margin account's same-day spread churn tripped
+    Alpaca PDT protection (40310100), blocking the manager's own closes.
+    Conservative, aggressive, and live stay OFF as well."""
     for m in SM:
         assert config.get_mode(m)["auto_open_spreads"] is True
-    assert config.get_mode("manual")["auto_open_spreads"] is True
-    for m in ("conservative", "aggressive", "live"):
+    for m in ("conservative", "aggressive", "live", "manual"):
         assert config.get_mode(m).get("auto_open_spreads", False) is False
 
 def test_auto_open_param_block_defaults():
@@ -128,8 +127,10 @@ def test_apply_mode_spread_stop_credit_mult_none_for_non_sm_modes():
 def test_non_sm_modes_have_no_management_side_hardened_keys():
     """Conservative, aggressive, and live must NOT carry any hardened-engine
     management-side key. Manual is the deliberate exception (2026-05-22): it
-    now has opener-side hardened keys (min_credit_to_width_pct, trend_filter)
-    because auto_open_spreads is enabled there as a $10k validation shortcut.
+    carries opener-side hardened keys (min_credit_to_width_pct, trend_filter)
+    from when auto_open_spreads was enabled there as a $10k validation
+    shortcut. Those keys stay (inert) even though auto_open_spreads was
+    disabled 2026-06-03 (PDT) — re-enabling is a one-line flip.
     But manual must still NOT have management-side keys (spread_stop_credit_mult,
     underlying tripwire) so existing user-opened spreads keep their original
     50%-of-max-loss stop contract."""
