@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-06-03T20:21:42.926593Z"
+    "last_checked": "2026-06-03T20:31:41.806905Z"
   },
   "SNAP": {
     "first_seen": "2026-05-14T13:41:26.126194Z",
     "entry_price": 5.25,
     "initial_qty": 10,
     "avg_cost": 5.66,
-    "total_cost": 622.5,
-    "position_qty": 110,
+    "total_cost": 56.59,
+    "position_qty": 10,
     "stop_price": 5.66,
     "high_water_mark": 5.955,
     "trailing_active": true,
