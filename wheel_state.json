@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-03T18:28:17.159043Z"
+    "last_checked": "2026-06-03T18:38:36.042352Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,14 +38,14 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $5.35 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $5.23 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
     "current_contract": "BAC260626P00045000",
     "contract_order_id": "3b41e280-df9f-4180-aab4-c6ccaf5810a0",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.08,
     "contract_entry_date": "2026-06-03T18:28:13.600716Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "put",
@@ -57,7 +57,7 @@
     "total_premium_today": 3.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260626P00045000 @ $0.08. Awaiting fill.",
+    "last_action": "Monitoring BAC260626P00045000: $0.07 vs entry $0.08",
     "contract_qty": 1
   },
   "XOM": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $4.63 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $4.57 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260618P00014500: $0.14 vs entry $0.08",
+    "last_action": "Monitoring SOFI260618P00014500: $0.12 vs entry $0.08",
     "contract_qty": 1
   },
   "PFE": {
@@ -229,7 +229,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring T260612P00025000: $1.32 vs entry $0.41",
+    "last_action": "Monitoring T260612P00025000: $1.43 vs entry $0.41",
     "contract_qty": 1
   },
   "INTC": {
@@ -248,7 +248,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260612P00110000: $4.90 vs entry $4.35",
+    "last_action": "Monitoring INTC260612P00110000: $4.85 vs entry $4.35",
     "contract_qty": 1
   }
 }
