@@ -402,8 +402,30 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
         detail = alpaca_err_detail(e)
         log(f"_close_spread_legs_individually: BTC failed on {short_occ}: {detail}")
         _parsed = _parse_occ(short_occ)
+        _sym = _parsed[0] if _parsed else short_occ
+        # PDT blocks are not a fixable per-cycle error — retrying re-trips the
+        # same denial. Route to the actions firehose instead of pinging
+        # #errors every cycle. The position is intact; it can only clear once
+        # the PDT restriction lifts (equity ≥ $25k / account reset).
+        if is_pdt_denied(detail):
+            log_event(LOG_STREAM, "wheel_strategy.py", "spread_close_pdt_blocked",
+                      result="skipped", symbol=_sym,
+                      details={"leg": "short", "occ": short_occ, "error": detail})
+            send_embed(
+                ACTIONS_CH, f"⏸️ Spread close blocked by PDT — {_sym}",
+                color=Color.YELLOW,
+                description=(
+                    f"BTC of short leg `{short_occ}` denied by Alpaca Pattern "
+                    f"Day Trading protection (account < $25k, day-trade limit "
+                    f"hit). Spread is intact; the close can't go through until "
+                    f"the PDT restriction clears. Not retrying as an error."
+                ),
+                footer=f"wheel_strategy.py · {MODE}",
+                also_to_actions=False,
+            )
+            return False
         log_event(LOG_STREAM, "wheel_strategy.py", "spread_close_failed",
-                  result="failure", symbol=(_parsed[0] if _parsed else short_occ),
+                  result="failure", symbol=_sym,
                   details={"leg": "short", "occ": short_occ, "error": detail})
         send_embed(
             ERRORS_CH, f"Spread close failed (short leg) {sym_state.get('spread_type', '?')}",
@@ -1019,6 +1041,21 @@ def alpaca_err_detail(e) -> str:
         if body:
             msg = f"{msg} — {body[:400]}"
     return msg
+
+
+def is_pdt_denied(detail: str) -> bool:
+    """True if an Alpaca order failure is a Pattern Day Trading block.
+
+    Alpaca denies orders on a sub-$25k margin account that has exceeded the
+    day-trade limit with HTTP 403 + body {"code":40310100,"message":"trade
+    denied due to pattern day trading protection"}. This is NOT a fixable
+    per-cycle error — retrying just re-trips it — so callers route it to the
+    actions firehose (a quiet "can't close today, will retry" notice) rather
+    than pinging the errors channel every 10 minutes (NVDA spread close loop
+    on manual, 2026-06-03).
+    """
+    d = (detail or "").lower()
+    return "40310100" in d or "pattern day trading" in d
 
 
 def get_latest_price(symbol):
