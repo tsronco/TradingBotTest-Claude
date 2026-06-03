@@ -54,7 +54,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 28.0,
-    "total_premium_today": 3.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring BAC260626P00045000: $0.07 vs entry $0.08",
