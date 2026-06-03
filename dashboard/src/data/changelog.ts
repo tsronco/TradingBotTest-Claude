@@ -31,6 +31,27 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-03',
     category: 'fix',
+    title: 'strategy.py manages only freely-sellable shares (covered-call collateral fix)',
+    details:
+      'A third distinct #manual-errors source (after the PDT fixes): SNAP held ' +
+      '110 shares with 100 locked as covered-call collateral (wheel stage 2). ' +
+      'strategy.py adopted the full 110 via position-drift reconciliation, its ' +
+      'stop fired, and it tried to liquidate all 110 via DELETE /positions/SNAP ' +
+      '— Alpaca rejected 40310000 "insufficient qty available (requested 110, ' +
+      'available 10)", crashing the symbol cycle into #errors every tick. Not a ' +
+      'PDT error, so the PDT guard correctly did not catch it.\n\n' +
+      'Fix: new _available_qty() reads Alpaca qty_available (excludes shares ' +
+      'held as options collateral / reserved by open orders). Manual seeding + ' +
+      'reconciliation now track only the free shares — the locked portion ' +
+      'belongs to wheel_strategy.py\'s covered call. The stop now sells exactly ' +
+      'that managed quantity (place_order sell) instead of close_all\'s full ' +
+      'liquidation, so it can never collide with CC collateral again. Once the ' +
+      'account is PDT-restricted the bounded sell still gets denied — but now ' +
+      'as a clean 40310100 the guard routes quietly to #actions, not #errors.',
+  },
+  {
+    date: '2026-06-03',
+    category: 'fix',
     title: 'Quiet PDT-blocked stock exits in strategy.py too (not just wheel spreads)',
     details:
       'After quieting PDT-blocked spread closes in wheel_strategy.py, ' +
