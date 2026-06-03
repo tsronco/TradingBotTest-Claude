@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-03T17:41:49.051231Z"
+    "last_checked": "2026-06-03T17:51:39.934137Z"
   },
   "F": {
     "stage": 1,
@@ -121,33 +121,6 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Spread open order filled \u2014 now managing."
-  },
-  "MU": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "MU260626P01030000",
-      "strike": 1030.0,
-      "entry_premium": 94.67,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "MU260626P01020000",
-      "strike": 1020.0,
-      "entry_premium": 87.855,
-      "qty": 1
-    },
-    "expiration": "2026-06-26",
-    "net_credit": 6.815,
-    "max_loss": 3.185,
-    "width": 10.0,
-    "opened_at": "2026-06-03T13:42:06.478846Z",
-    "open_order_id": "1230ab5e-9650-49dc-8a13-19e31de0f64c",
-    "open_limit_credit": 5.72,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Awaiting fill on spread open order 1230ab5e-9650-49dc-8a13-19e31de0f64c."
   },
   "INTC": {
     "stage": "spread_active",
