@@ -2977,3 +2977,8 @@
 {"timestamp": "2026-06-04T13:55:59.758801+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 5, "equity": 500.0}}
 {"timestamp": "2026-06-04T13:55:59.760171+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-06-04T13:56:00.247881+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-04T14:05:42.137070+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-04T14:05:54.075371+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "PINS", "details": {"net_credit": -0.15, "min_net_credit": 0.05, "short_mid": 0.33, "long_mid": 0.48}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-04T14:05:54.075572+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 6, "equity": 500.0}}
+{"timestamp": "2026-06-04T14:05:54.076796+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-04T14:05:54.432780+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
