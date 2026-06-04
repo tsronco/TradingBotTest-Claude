@@ -5114,3 +5114,7 @@
 {"timestamp": "2026-06-04T13:41:40.222668+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["INTC", "NVDA", "PLTR", "SNAP"]}}
 {"timestamp": "2026-06-04T13:41:40.717516+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "PLTR260626P00140000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-04T13:41:40.717658+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
+{"timestamp": "2026-06-04T13:51:36.701563+00:00", "script": "wheel_strategy.py", "action": "spread_closed", "result": "success", "symbol": "PLTR", "details": {"reason": "underlying_tripwire", "spread_type": "put_credit", "short_occ": "PLTR260626P00145000", "long_occ": "PLTR260626P00140000", "net_credit": 1.7, "max_loss": 3.3, "fallback_used": false}}
+{"timestamp": "2026-06-04T13:51:36.994547+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260618C00006000", "stock_price": 5.915}}
+{"timestamp": "2026-06-04T13:51:36.995736+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["PLTR", "SNAP"]}}
+{"timestamp": "2026-06-04T13:51:37.279183+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
