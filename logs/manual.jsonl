@@ -5366,3 +5366,5 @@
 {"timestamp": "2026-06-05T19:51:37.354064+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260618C00006000", "stock_price": 5.81}}
 {"timestamp": "2026-06-05T19:51:37.355495+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
 {"timestamp": "2026-06-05T19:51:37.977042+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-05T20:01:33.679819+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["SNAP"]}}
+{"timestamp": "2026-06-05T20:01:33.924188+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
