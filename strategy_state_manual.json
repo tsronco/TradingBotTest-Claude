@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-06-05T15:31:35.829254Z"
+    "last_checked": "2026-06-05T15:41:40.140305Z"
   },
   "SNAP": {
     "first_seen": "2026-05-14T13:41:26.126194Z",
     "entry_price": 5.25,
     "initial_qty": 10,
     "avg_cost": 5.66,
-    "total_cost": 56.59,
-    "position_qty": 10,
+    "total_cost": 0,
+    "position_qty": 0,
     "stop_price": 5.87,
     "high_water_mark": 6.175,
     "trailing_active": true,
@@ -17,6 +17,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $5.88 vs avg $5.66 (PnL +3.80%). Stop $5.87, Trail ON."
+    "last_action": "Stop hit at $5.83. Closed 10 shares. Realized $+1.70."
   }
 }
