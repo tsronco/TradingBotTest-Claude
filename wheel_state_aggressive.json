@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-08T17:49:33.902521Z",
+    "last_checked": "2026-06-08T17:59:52.677049Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -107,7 +107,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SMCI260612P00045000: $2.15 vs entry $2.13",
+    "last_action": "Monitoring SMCI260612P00045000: $2.08 vs entry $2.13",
     "contract_qty": 1
   },
   "NVDA": {
@@ -200,15 +200,15 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00380000: $4.13 vs entry $6.95",
+    "last_action": "Monitoring TSLA260618P00380000: $4.03 vs entry $6.95",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
     "current_contract": "BAC260618P00050000",
-    "contract_order_id": "d3a5f5ec-acbf-474f-9042-337ce4d7cb24",
+    "contract_order_id": "a15ca832-9209-4fa5-b247-a5c96e1ba77c",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-08T13:49:40.227996Z",
+    "contract_entry_date": "2026-06-08T17:59:51.197813Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "put",
     "contract_strike": 50.0,
@@ -243,7 +243,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Awaiting fill on BAC260618P00050000.",
+    "last_action": "Sold-to-open BAC260618P00050000 @ $0.15. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
@@ -271,7 +271,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260612C00160000: $0.30 vs entry $0.65",
+    "last_action": "Monitoring XOM260612C00160000: $0.28 vs entry $0.65",
     "contract_qty": 1
   },
   "KO": {
@@ -354,7 +354,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SOFI260612P00018000: $1.54 vs entry $0.50",
+    "last_action": "Monitoring SOFI260612P00018000: $1.64 vs entry $0.50",
     "contract_qty": 1
   },
   "PFE": {
@@ -381,7 +381,7 @@
         "premium": 3.0
       }
     ],
-    "last_action": "Monitoring PFE260618P00025000: $0.12 vs entry $0.13",
+    "last_action": "Monitoring PFE260618P00025000: $0.14 vs entry $0.13",
     "contract_qty": 1
   }
 }
