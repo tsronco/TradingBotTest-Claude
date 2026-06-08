@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-08T18:29:45.293729Z",
+    "last_checked": "2026-06-08T18:40:02.144229Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260612P00025000: $0.60 vs entry $0.50",
+    "last_action": "Monitoring RIOT260612P00025000: $0.61 vs entry $0.50",
     "contract_qty": 1
   },
   "SMCI": {
@@ -200,7 +200,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00380000: $3.83 vs entry $6.95",
+    "last_action": "Monitoring TSLA260618P00380000: $3.65 vs entry $6.95",
     "contract_qty": 1
   },
   "BAC": {
@@ -354,7 +354,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SOFI260612P00018000: $1.52 vs entry $0.50",
+    "last_action": "Monitoring SOFI260612P00018000: $1.46 vs entry $0.50",
     "contract_qty": 1
   },
   "PFE": {
