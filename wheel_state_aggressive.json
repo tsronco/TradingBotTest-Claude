@@ -123,7 +123,7 @@
     "shares_qty": 100,
     "total_cost": 21980.0,
     "total_premium_collected": 595.0,
-    "total_premium_today": 55.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -216,7 +216,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 196.0,
-    "total_premium_today": 47.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -370,7 +370,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 46.0,
-    "total_premium_today": 3.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
