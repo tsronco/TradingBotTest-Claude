@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-09T16:19:47.927643Z",
+    "last_checked": "2026-06-09T16:29:42.809196Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260612P00014000: $1.30 vs entry $0.54",
+    "last_action": "Monitoring MARA260612P00014000: $1.28 vs entry $0.54",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260612P00025000: $1.42 vs entry $0.50",
+    "last_action": "Monitoring RIOT260612P00025000: $1.37 vs entry $0.50",
     "contract_qty": 1
   },
   "SMCI": {
@@ -135,7 +135,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260615C00230000: $0.10 vs entry $0.19",
+    "last_action": "Monitoring NVDA260615C00230000: $0.09 vs entry $0.19",
     "contract_qty": 1
   },
   "AMD": {
@@ -200,7 +200,7 @@
     "total_premium_today": 426.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00385000: $12.21 vs entry $5.30",
+    "last_action": "Monitoring TSLA260618P00385000: $11.43 vs entry $5.30",
     "contract_qty": 1
   },
   "BAC": {
@@ -243,7 +243,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260618P00050000: $0.14 vs entry $0.15",
+    "last_action": "Monitoring BAC260618P00050000: $0.13 vs entry $0.15",
     "contract_qty": 1
   },
   "XOM": {
@@ -299,7 +299,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring KO260618C00085000: $0.13 vs entry $0.06",
+    "last_action": "Monitoring KO260618C00085000: $0.15 vs entry $0.06",
     "contract_qty": 1
   },
   "PLTR": {
@@ -354,7 +354,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SOFI260612P00018000: $2.24 vs entry $0.50",
+    "last_action": "Monitoring SOFI260612P00018000: $2.10 vs entry $0.50",
     "contract_qty": 1
   },
   "PFE": {
