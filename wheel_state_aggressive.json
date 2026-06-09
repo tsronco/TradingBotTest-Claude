@@ -197,7 +197,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 651.0,
-    "total_premium_today": 426.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring TSLA260618P00385000: $8.69 vs entry $5.30",
@@ -216,7 +216,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 205.0,
-    "total_premium_today": 9.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -259,7 +259,7 @@
     "shares_qty": 100,
     "total_cost": 15366.0,
     "total_premium_collected": 251.0,
-    "total_premium_today": 53.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
