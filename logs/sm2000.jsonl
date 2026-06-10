@@ -4480,3 +4480,13 @@
 {"timestamp": "2026-06-10T13:47:40.066265+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 45, "equity": 2000.0}}
 {"timestamp": "2026-06-10T13:47:40.067495+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-10T13:47:40.944650+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-10T13:56:42.516044+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-10T13:57:24.675824+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 205.475}}
+{"timestamp": "2026-06-10T13:57:26.312863+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "INTC", "details": {"price": 109.07}}
+{"timestamp": "2026-06-10T13:57:28.726618+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "F", "details": {"net_credit": 0.02, "min_net_credit": 0.05, "short_mid": 0.035, "long_mid": 0.015}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-10T13:57:30.202067+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 132.13}}
+{"timestamp": "2026-06-10T13:57:31.955173+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "AMD", "details": {"price": 469.32}}
+{"timestamp": "2026-06-10T13:57:33.498545+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NFLX", "details": {"price": 82.175}}
+{"timestamp": "2026-06-10T13:57:38.604901+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 46, "equity": 2000.0}}
+{"timestamp": "2026-06-10T13:57:38.606309+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-10T13:57:39.365199+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
