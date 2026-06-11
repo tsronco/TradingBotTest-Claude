@@ -16,7 +16,7 @@
     "shares_qty": 100,
     "total_cost": 19430.0,
     "total_premium_collected": 609.0,
-    "total_premium_today": 23.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -68,7 +68,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 400.0,
-    "total_premium_today": 33.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Insufficient options BP to sell put.",
@@ -259,7 +259,7 @@
     "shares_qty": 100,
     "total_cost": 15366.0,
     "total_premium_collected": 288.0,
-    "total_premium_today": 37.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -370,7 +370,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 54.0,
-    "total_premium_today": 8.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
