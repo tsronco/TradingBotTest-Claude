@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "last_checked": "2026-06-11T17:30:12.844756Z",
+    "last_checked": "2026-06-11T17:41:35.938118Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
     "stage": 2,
     "current_contract": "COIN260618C00205000",
     "contract_order_id": "f63fbbf4-b952-42f7-833a-b651b6f8c565",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.15,
     "contract_entry_date": "2026-06-11T14:59:44.344222Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "call",
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Awaiting fill on COIN260618C00205000.",
+    "last_action": "Monitoring COIN260618C00205000: $0.11 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260612P00025000: $0.57 vs entry $0.50",
+    "last_action": "Monitoring RIOT260612P00025000: $0.41 vs entry $0.50",
     "contract_qty": 1
   },
   "SMCI": {
@@ -200,7 +200,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00385000: $10.96 vs entry $5.30",
+    "last_action": "Monitoring TSLA260618P00385000: $9.03 vs entry $5.30",
     "contract_qty": 1
   },
   "BAC": {
@@ -243,23 +243,23 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260618P00050000: $0.08 vs entry $0.06",
+    "last_action": "Monitoring BAC260618P00050000: $0.07 vs entry $0.06",
     "contract_qty": 1
   },
   "XOM": {
     "stage": 2,
     "current_contract": "XOM260618C00160000",
-    "contract_order_id": "82daeaad-0bb1-42d5-838c-98d75fe6a0cb",
-    "contract_entry_price": 0.61,
-    "contract_entry_date": "2026-06-09T13:50:23.090301Z",
+    "contract_order_id": "da1644c4-d0f9-4f71-b27e-41d0c5d07cd4",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-11T17:41:33.697436Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "call",
     "contract_strike": 160.0,
     "cost_basis_per_share": 153.66,
     "shares_qty": 100,
     "total_cost": 15366.0,
-    "total_premium_collected": 251.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 288.0,
+    "total_premium_today": 37.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -271,7 +271,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260618C00160000: $0.44 vs entry $0.61",
+    "last_action": "Sold-to-open 1\u00d7 XOM260618C00160000 @ $0.21. Awaiting fill.",
     "contract_qty": 1
   },
   "KO": {
@@ -354,7 +354,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SOFI260612P00018000: $2.10 vs entry $0.50",
+    "last_action": "Monitoring SOFI260612P00018000: $1.92 vs entry $0.50",
     "contract_qty": 1
   },
   "PFE": {
