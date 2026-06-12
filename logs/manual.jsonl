@@ -6003,3 +6003,8 @@
 {"timestamp": "2026-06-12T15:11:39.646250+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "QQQ260625P00665000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-12T15:11:39.646434+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260625P00670000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-12T15:11:39.646519+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
+{"timestamp": "2026-06-12T15:21:38.060147+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 2, "contract": "SNAP260626C00006000", "stock_price": 5.235}}
+{"timestamp": "2026-06-12T15:21:38.317878+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["QQQ", "SNAP", "SPY"]}}
+{"timestamp": "2026-06-12T15:21:38.997863+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "QQQ260625P00665000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-06-12T15:21:38.998055+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260625P00670000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-06-12T15:21:38.998158+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
