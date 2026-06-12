@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-12T13:59:44.579445Z",
+    "last_checked": "2026-06-12T14:10:16.889286Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -33,18 +33,18 @@
   },
   "MARA": {
     "stage": 1,
-    "current_contract": "MARA260612P00014000",
-    "contract_order_id": "361466ba-7ead-4f36-90e7-1191592c0cea",
-    "contract_entry_price": 0.54,
-    "contract_entry_date": "2026-06-01T15:49:35.146590Z",
-    "contract_expiration": "2026-06-12",
+    "current_contract": "MARA260626P00013000",
+    "contract_order_id": "539e3f04-95d1-4f83-9914-2af5d2223832",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-12T14:10:14.017262Z",
+    "contract_expiration": "2026-06-26",
     "contract_type": "put",
-    "contract_strike": 14.0,
+    "contract_strike": 13.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 286.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 324.0,
+    "total_premium_today": 38.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260612P00014000: $0.30 vs entry $0.54",
+    "last_action": "Sold-to-open MARA260626P00013000 @ $0.45. Awaiting fill.",
     "contract_qty": 1
   },
   "RIOT": {
@@ -135,7 +135,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260617C00230000: $0.12 vs entry $0.17",
+    "last_action": "Monitoring NVDA260617C00230000: $0.10 vs entry $0.17",
     "contract_qty": 1
   },
   "AMD": {
@@ -200,7 +200,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00385000: $7.50 vs entry $5.30",
+    "last_action": "Monitoring TSLA260618P00385000: $7.64 vs entry $5.30",
     "contract_qty": 1
   },
   "BAC": {
@@ -271,7 +271,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260618C00160000: $0.20 vs entry $0.21",
+    "last_action": "Monitoring XOM260618C00160000: $0.25 vs entry $0.21",
     "contract_qty": 1
   },
   "KO": {
@@ -299,7 +299,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring KO260618C00085000: $0.09 vs entry $0.06",
+    "last_action": "Monitoring KO260618C00085000: $0.11 vs entry $0.06",
     "contract_qty": 1
   },
   "PLTR": {
@@ -354,16 +354,16 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring SOFI260612P00018000: $1.55 vs entry $0.50",
+    "last_action": "Monitoring SOFI260612P00018000: $1.53 vs entry $0.50",
     "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "9519ad4c-1191-433d-ac80-be080c2cdfb4",
+    "current_contract": "PFE260626P00025000",
+    "contract_order_id": "b5318112-2abb-4349-ba74-d696c014c178",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-11T18:30:15.940019Z",
-    "contract_expiration": "2026-06-18",
+    "contract_entry_date": "2026-06-12T14:10:16.595148Z",
+    "contract_expiration": "2026-06-26",
     "contract_type": "put",
     "contract_strike": 25.0,
     "cost_basis_per_share": null,
@@ -381,7 +381,7 @@
         "premium": 3.0
       }
     ],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open PFE260626P00025000 @ $0.10. Awaiting fill.",
     "contract_qty": 1
   }
 }
