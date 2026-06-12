@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-12T19:09:45.939877Z",
+    "last_checked": "2026-06-12T19:20:15.398010Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -271,7 +271,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260618C00160000: $0.17 vs entry $0.21",
+    "last_action": "Monitoring XOM260618C00160000: $0.15 vs entry $0.21",
     "contract_qty": 1
   },
   "KO": {
