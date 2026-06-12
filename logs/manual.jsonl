@@ -6143,3 +6143,5 @@
 {"timestamp": "2026-06-12T19:51:45.650106+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "QQQ260625P00665000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-12T19:51:45.650284+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260625P00670000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-12T19:51:45.650380+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 2, "closed": 0, "held": 0, "skipped": 2}}
+{"timestamp": "2026-06-12T20:01:44.349442+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"symbols": ["QQQ", "SNAP", "SPY"]}}
+{"timestamp": "2026-06-12T20:01:44.828574+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
