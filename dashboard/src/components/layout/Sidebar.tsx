@@ -90,7 +90,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div className="py-1 text-[11px]">
           {acctOpts.map((o) => {
             const isActive = mode === o.value;
-            const isManual = o.value === 'manual';
             return (
               <button
                 key={o.value}
@@ -100,24 +99,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               >
                 <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
                 <span>{o.label}</span>
-                {isManual && (
-                  <span
-                    className="text-hi text-[9px]"
-                    title="auto-open spreads enabled 2026-05-22 (shortcut $10k validation of SM auto-spread engine)"
-                  >
-                    ⚙
-                  </span>
-                )}
                 <span className="ml-auto text-dim text-[10px]">[{o.key}]</span>
               </button>
             );
           })}
         </div>
-        {accountsForSelection(mode).includes('manual') && (
-          <div className="px-3 py-1.5 border-t border-border text-[9px] tracking-wide text-dim leading-snug">
-            <span className="text-hi">⚙ manual</span> · auto-open spreads on since 2026-05-22 (shortcut $10k validation)
-          </div>
-        )}
       </div>
 
       {/* ascii art block */}

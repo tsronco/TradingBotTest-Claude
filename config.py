@@ -290,13 +290,20 @@ MODES = {
         # Balanced posture (same as sm1000/sm2000) — at $10k equity the
         # 10% risk cap is $1,000, comfortably fits any $5-wide spread.
         #
-        # DISABLED 2026-06-03 (PDT): the manual account is a margin account
-        # under $25k, so same-day round trips by the auto-opener tripped
-        # Alpaca's Pattern Day Trading protection (code 40310100). Once
-        # flagged, EVERY further order — including the closes the manager
-        # needs — is denied, which 403-looped a stuck NVDA spread close every
-        # cycle. Autonomous same-day spread churn is structurally
-        # incompatible with a sub-$25k margin account. Hand-opened/adopted
+        # DISABLED 2026-06-03 (PDT), kept OFF by choice 2026-06-13.
+        # History: the manual account is a margin account under $25k, so
+        # same-day round trips by the auto-opener tripped Alpaca's Pattern
+        # Day Trading protection (code 40310100). Once flagged, EVERY further
+        # order — including the closes the manager needs — was denied, which
+        # 403-looped a stuck NVDA spread close every cycle.
+        #
+        # 2026-06-13: Alpaca RETIRED the PDT rule, replacing it with an
+        # intraday margin framework (no day-trade count; guardrails now key
+        # off intraday margin exposure, with pre-trade margin-deficit
+        # rejections). The original blocker is gone — re-enabling is a
+        # one-line flip to True. Left False for now by a deliberate call: we
+        # are not resuming autonomous same-day spread churn / the $10k
+        # validation on manual without choosing to. Hand-opened / adopted
         # spreads are still managed normally; only the bot-opener is off.
         "auto_open_spreads":         False,
         # bp_switch_threshold is the BP below which the engine prefers a

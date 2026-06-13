@@ -29,6 +29,37 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-13',
+    category: 'config',
+    title: 'PDT rule retired by Alpaca — API audit clean, manual auto-open kept off by choice',
+    details:
+      'Alpaca retired the Pattern Day Trading designation, replacing it with ' +
+      'an intraday margin framework: no day-trade count, guardrails now key ' +
+      'off intraday margin exposure (pre-trade margin-deficit rejections, ' +
+      'intraday buying power, intraday margin calls). The 4x-intraday-BP ' +
+      'equity floor dropped from $25k to $2k. Effective immediately; the old ' +
+      'deprecated fields are removed from the API by July 6, 2026.\n\n' +
+      'API audit: CLEAN. Grepped the whole repo (bots + dashboard) for all ' +
+      'five deprecated fields — pattern_day_trader, daytrade_count, ' +
+      'last_daytrade_count, daytrading_buying_power, last_daytrading_buying_power ' +
+      '— zero references. We read options_buying_power (fallback cash/equity) ' +
+      'for every BP decision, none of which are deprecated. Nothing to migrate.\n\n' +
+      'What this unblocks: the only thing PDT ever forced off was ' +
+      'auto_open_spreads on manual (disabled 2026-06-03). The original blocker ' +
+      'is gone, so re-enabling is now a one-line config flip. Decision: kept ' +
+      'OFF for now by deliberate choice — not resuming autonomous same-day ' +
+      'spread churn / the $10k validation on manual without choosing to. The ' +
+      'config comment was reframed from "DISABLED (PDT)" to "kept off by choice." ' +
+      'The three SM accounts were never disabled (they rarely fill, so never ' +
+      'tripped the count) and are unaffected.\n\n' +
+      'The is_pdt_denied / report_pdt_quietly guards stay in place as a ' +
+      'harmless safety net (40310100 should never fire again, but live can be ' +
+      'sub-$25k and the code does no harm). Also fixed a stale dashboard line: ' +
+      'the sidebar had been showing "⚙ manual · auto-open spreads on since ' +
+      '2026-05-22" the whole time auto-open was actually off — removed the ⚙ ' +
+      'chip and the status line.',
+  },
+  {
     date: '2026-06-03',
     category: 'fix',
     title: 'Proactive sweep: PDT-quiet every close boundary (wheel stages, orphans, long options)',
