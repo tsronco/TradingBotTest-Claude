@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T18:20:02.365431Z",
+    "last_checked": "2026-06-15T18:29:57.728975Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.41 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.42 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.20 vs entry $0.17",
+    "last_action": "Monitoring NVDA260622C00230000: $0.19 vs entry $0.17",
     "contract_qty": 1
   },
   "AMD": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.47 vs entry $0.43",
+    "last_action": "Monitoring BAC260626P00055000: $0.48 vs entry $0.43",
     "contract_qty": 1
   },
   "XOM": {
