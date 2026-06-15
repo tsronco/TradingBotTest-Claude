@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T19:18:36.757650Z"
+    "last_checked": "2026-06-15T19:28:31.377355Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,26 +38,26 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260702P00370000: $3.22 vs entry $3.10",
+    "last_action": "Monitoring TSLA260702P00370000: $3.17 vs entry $3.10",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
     "current_contract": "BAC260702P00050000",
-    "contract_order_id": "3dff1bf7-d0d0-46b6-a078-a380021912ac",
-    "contract_entry_price": 0.13,
-    "contract_entry_date": "2026-06-12T13:38:09.558000Z",
+    "contract_order_id": "697b59c7-811b-4d7b-aeb0-a8ebfdb84bf8",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-15T19:28:26.148240Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "put",
     "contract_strike": 50.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 33.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 40.0,
+    "total_premium_today": 7.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260702P00050000: $0.07 vs entry $0.13",
+    "last_action": "Sold-to-open BAC260702P00050000 @ $0.04. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
