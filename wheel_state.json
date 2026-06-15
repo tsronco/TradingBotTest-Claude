@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T13:38:40.761616Z"
+    "last_checked": "2026-06-15T13:48:26.247404Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $5.97 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $2.86 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $0.60 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.74 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -110,7 +110,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open KO260702P00070000 @ $0.06. Awaiting fill.",
+    "last_action": "Awaiting fill on KO260702P00070000.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -129,14 +129,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $12.24 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $9.26 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
     "stage": 1,
     "current_contract": "SOFI260702P00016000",
     "contract_order_id": "eb25e4ba-33ef-4e07-9e07-6f3f7966cc78",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.33,
     "contract_entry_date": "2026-06-15T13:38:35.636183Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "put",
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Sold-to-open SOFI260702P00016000 @ $0.33. Awaiting fill.",
+    "last_action": "Monitoring SOFI260702P00016000: $0.35 vs entry $0.33",
     "contract_qty": 1
   },
   "PFE": {
@@ -175,18 +175,18 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open PFE260702P00025000 @ $0.15. Awaiting fill.",
+    "last_action": "Awaiting fill on PFE260702P00025000.",
     "contract_qty": 1
   },
   "F": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "f135e8a5-0f7b-491c-b1a9-c83c5294dd05",
+    "current_contract": "F260626C00017000",
+    "contract_order_id": "43728e69-492d-4819-8175-787bc5acf9f4",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-29T18:18:12.758270Z",
-    "contract_expiration": "2026-06-12",
-    "contract_type": "put",
-    "contract_strike": 16.0,
+    "contract_entry_date": "2026-06-15T13:48:25.004043Z",
+    "contract_expiration": "2026-06-26",
+    "contract_type": "call",
+    "contract_strike": 17.0,
     "cost_basis_per_share": 15.86,
     "shares_qty": 100,
     "total_cost": 1586.0,
@@ -210,18 +210,18 @@
         "shares": 100
       }
     ],
-    "last_action": "Assigned on F260612P00016000. 100 shares, cost basis $15.86.",
+    "last_action": "Sold-to-open 1\u00d7 F260626C00017000 @ $0.06. Awaiting fill.",
     "contract_qty": 1
   },
   "T": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "23490cb6-5a3b-4873-8718-9fcabc9c9e77",
+    "current_contract": "T260626C00027000",
+    "contract_order_id": "78cd4a69-6fe1-4bd8-add4-dcc4271790ea",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-05-21T17:48:18.868043Z",
-    "contract_expiration": "2026-06-12",
-    "contract_type": "put",
-    "contract_strike": 25.0,
+    "contract_entry_date": "2026-06-15T13:48:25.661678Z",
+    "contract_expiration": "2026-06-26",
+    "contract_type": "call",
+    "contract_strike": 27.0,
     "cost_basis_per_share": 24.59,
     "shares_qty": 100,
     "total_cost": 2459.0,
@@ -245,7 +245,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Assigned on T260612P00025000. 100 shares, cost basis $24.59.",
+    "last_action": "Sold-to-open 1\u00d7 T260626C00027000 @ $0.01. Awaiting fill.",
     "contract_qty": 1
   },
   "INTC": {
