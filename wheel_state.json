@@ -15,7 +15,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 1472.0,
-    "total_premium_today": 247.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -54,7 +54,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 40.0,
-    "total_premium_today": 7.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring BAC260702P00050000: $0.06 vs entry $0.06",
@@ -145,7 +145,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 52.0,
-    "total_premium_today": 4.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -261,7 +261,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 1346.0,
-    "total_premium_today": 275.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring INTC260702P00115000: $4.07 vs entry $4.05",

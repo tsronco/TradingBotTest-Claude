@@ -44,7 +44,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 351.0,
-    "total_premium_today": 27.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -131,7 +131,7 @@
     "shares_qty": 100,
     "total_cost": 21980.0,
     "total_premium_collected": 627.0,
-    "total_premium_today": 8.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -205,7 +205,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 1040.0,
-    "total_premium_today": 389.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring TSLA260624P00395000: $4.93 vs entry $5.15",
@@ -267,7 +267,7 @@
     "shares_qty": 100,
     "total_cost": 15366.0,
     "total_premium_collected": 306.0,
-    "total_premium_today": 18.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -295,7 +295,7 @@
     "shares_qty": 100,
     "total_cost": 7973.0,
     "total_premium_collected": 44.0,
-    "total_premium_today": 4.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
