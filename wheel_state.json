@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-12T19:48:32.779107Z"
+    "last_checked": "2026-06-15T13:38:40.761616Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260618P00395000: $7.42 vs entry $4.80",
+    "last_action": "Monitoring TSLA260618P00395000: $5.97 vs entry $4.80",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260702P00050000: $0.09 vs entry $0.13",
+    "last_action": "Monitoring BAC260702P00050000: $0.12 vs entry $0.13",
     "contract_qty": 1
   },
   "XOM": {
@@ -96,13 +96,13 @@
   },
   "KO": {
     "stage": 1,
-    "current_contract": "KO260702P00075000",
-    "contract_order_id": "a689b17b-2f11-4992-a105-ec8256e7144c",
+    "current_contract": "KO260702P00070000",
+    "contract_order_id": "faacf1d4-8b4b-4c38-aba5-4d9690157da3",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-12T17:48:11.283468Z",
+    "contract_entry_date": "2026-06-15T13:38:31.740837Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "put",
-    "contract_strike": 75.0,
+    "contract_strike": 70.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
@@ -110,7 +110,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Awaiting fill on KO260702P00075000.",
+    "last_action": "Sold-to-open KO260702P00070000 @ $0.06. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -129,23 +129,23 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $12.20 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $12.24 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
     "stage": 1,
-    "current_contract": "SOFI260618P00014500",
-    "contract_order_id": "4bff2f1b-a7d4-48cc-9a3f-3c69873cfe79",
-    "contract_entry_price": 0.08,
-    "contract_entry_date": "2026-05-29T18:18:10.940824Z",
-    "contract_expiration": "2026-06-18",
+    "current_contract": "SOFI260702P00016000",
+    "contract_order_id": "eb25e4ba-33ef-4e07-9e07-6f3f7966cc78",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-15T13:38:35.636183Z",
+    "contract_expiration": "2026-07-02",
     "contract_type": "put",
-    "contract_strike": 14.5,
+    "contract_strike": 16.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 48.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 52.0,
+    "total_premium_today": 4.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -156,16 +156,16 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260618P00014500: $0.07 vs entry $0.08",
+    "last_action": "Sold-to-open SOFI260702P00016000 @ $0.33. Awaiting fill.",
     "contract_qty": 1
   },
   "PFE": {
     "stage": 1,
-    "current_contract": null,
-    "contract_order_id": "7e09a26b-bcbd-418f-a049-5b7fee922967",
+    "current_contract": "PFE260702P00025000",
+    "contract_order_id": "510bf6ab-7737-4568-872b-2d2ea0963b05",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-05T16:28:14.835531Z",
-    "contract_expiration": "2026-06-26",
+    "contract_entry_date": "2026-06-15T13:38:37.112349Z",
+    "contract_expiration": "2026-07-02",
     "contract_type": "put",
     "contract_strike": 25.0,
     "cost_basis_per_share": null,
@@ -175,21 +175,21 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Insufficient options BP to sell put.",
+    "last_action": "Sold-to-open PFE260702P00025000 @ $0.15. Awaiting fill.",
     "contract_qty": 1
   },
   "F": {
-    "stage": 1,
-    "current_contract": "F260612P00016000",
+    "stage": 2,
+    "current_contract": null,
     "contract_order_id": "f135e8a5-0f7b-491c-b1a9-c83c5294dd05",
-    "contract_entry_price": 0.14,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-29T18:18:12.758270Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 16.0,
-    "cost_basis_per_share": null,
-    "shares_qty": 0,
-    "total_cost": null,
+    "cost_basis_per_share": 15.86,
+    "shares_qty": 100,
+    "total_cost": 1586.0,
     "total_premium_collected": 16.0,
     "total_premium_today": 0.0,
     "cycle_count": 1,
@@ -200,23 +200,31 @@
         "symbol": "F260522P00011000",
         "outcome": "expired_worthless",
         "premium": 0
+      },
+      {
+        "cycle": 2,
+        "type": "put",
+        "symbol": "F260612P00016000",
+        "outcome": "assigned",
+        "cost_basis": 15.86,
+        "shares": 100
       }
     ],
-    "last_action": "Monitoring F260612P00016000: $1.26 vs entry $0.14",
+    "last_action": "Assigned on F260612P00016000. 100 shares, cost basis $15.86.",
     "contract_qty": 1
   },
   "T": {
-    "stage": 1,
-    "current_contract": "T260612P00025000",
+    "stage": 2,
+    "current_contract": null,
     "contract_order_id": "23490cb6-5a3b-4873-8718-9fcabc9c9e77",
-    "contract_entry_price": 0.41,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-05-21T17:48:18.868043Z",
     "contract_expiration": "2026-06-12",
     "contract_type": "put",
     "contract_strike": 25.0,
-    "cost_basis_per_share": null,
-    "shares_qty": 0,
-    "total_cost": null,
+    "cost_basis_per_share": 24.59,
+    "shares_qty": 100,
+    "total_cost": 2459.0,
     "total_premium_collected": 9.0,
     "total_premium_today": 0.0,
     "cycle_count": 1,
@@ -227,9 +235,17 @@
         "symbol": "T260522P00025000",
         "outcome": "expired_worthless",
         "premium": 0
+      },
+      {
+        "cycle": 2,
+        "type": "put",
+        "symbol": "T260612P00025000",
+        "outcome": "assigned",
+        "cost_basis": 24.59,
+        "shares": 100
       }
     ],
-    "last_action": "Monitoring T260612P00025000: $1.57 vs entry $0.41",
+    "last_action": "Assigned on T260612P00025000. 100 shares, cost basis $24.59.",
     "contract_qty": 1
   },
   "INTC": {
