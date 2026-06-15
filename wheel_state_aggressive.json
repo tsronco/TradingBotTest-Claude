@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T13:40:54.059310Z",
+    "last_checked": "2026-06-15T13:50:42.661315Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260618C00205000: $0.14 vs entry $0.15",
+    "last_action": "Monitoring COIN260618C00205000: $0.30 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00013000: $0.43 vs entry $0.45",
+    "last_action": "Monitoring MARA260626P00013000: $0.21 vs entry $0.45",
     "contract_qty": 1
   },
   "RIOT": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260618C00230000: $0.08 vs entry $0.12",
+    "last_action": "Monitoring NVDA260618C00230000: $0.07 vs entry $0.12",
     "contract_qty": 1
   },
   "AMD": {
@@ -194,21 +194,21 @@
   },
   "TSLA": {
     "stage": 1,
-    "current_contract": "TSLA260618P00385000",
-    "contract_order_id": "5309fcaa-249d-4629-ad85-d966fef8a508",
-    "contract_entry_price": 5.3,
-    "contract_entry_date": "2026-06-09T14:20:26.129139Z",
-    "contract_expiration": "2026-06-18",
+    "current_contract": "TSLA260624P00395000",
+    "contract_order_id": "8a0cf50c-62d6-408e-a0df-e4e7d922771d",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-15T13:50:40.018467Z",
+    "contract_expiration": "2026-06-24",
     "contract_type": "put",
-    "contract_strike": 385.0,
+    "contract_strike": 395.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 651.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 1040.0,
+    "total_premium_today": 389.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260618P00385000: $3.41 vs entry $5.30",
+    "last_action": "Sold-to-open TSLA260624P00395000 @ $5.15. Awaiting fill.",
     "contract_qty": 1
   },
   "BAC": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Sold-to-open BAC260626P00055000 @ $0.52. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260626P00055000.",
     "contract_qty": 1
   },
   "XOM": {
