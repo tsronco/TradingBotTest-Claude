@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T17:40:01.960997Z",
+    "last_checked": "2026-06-15T17:50:51.251990Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.55 vs entry $1.04",
+    "last_action": "Monitoring RIOT260626P00025000: $0.54 vs entry $1.04",
     "contract_qty": 1
   },
   "SMCI": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.19 vs entry $0.17",
+    "last_action": "Monitoring NVDA260622C00230000: $0.21 vs entry $0.17",
     "contract_qty": 1
   },
   "AMD": {
@@ -214,9 +214,9 @@
   "BAC": {
     "stage": 1,
     "current_contract": "BAC260626P00055000",
-    "contract_order_id": "a12370b2-d2b8-4df8-a4d8-c7f3efd954e0",
+    "contract_order_id": "2c1a0a26-7588-4f4d-b333-1f095b1723df",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-15T13:40:51.095631Z",
+    "contract_entry_date": "2026-06-15T17:50:48.659356Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "put",
     "contract_strike": 55.0,
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Awaiting fill on BAC260626P00055000.",
+    "last_action": "Sold-to-open BAC260626P00055000 @ $0.42. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
@@ -406,7 +406,7 @@
         "premium": 3.0
       }
     ],
-    "last_action": "Monitoring PFE260626P00025000: $0.05 vs entry $0.02",
+    "last_action": "Monitoring PFE260626P00025000: $0.07 vs entry $0.02",
     "contract_qty": 1
   }
 }
