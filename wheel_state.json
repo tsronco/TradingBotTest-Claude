@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T16:28:16.566765Z"
+    "last_checked": "2026-06-15T16:38:24.537942Z"
   },
   "TSLA": {
     "stage": 1,
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.33 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.26 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $6.28 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $6.27 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
