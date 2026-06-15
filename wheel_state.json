@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T19:28:31.377355Z"
+    "last_checked": "2026-06-15T19:38:18.262614Z"
   },
   "TSLA": {
     "stage": 1,
@@ -45,7 +45,7 @@
     "stage": 1,
     "current_contract": "BAC260702P00050000",
     "contract_order_id": "697b59c7-811b-4d7b-aeb0-a8ebfdb84bf8",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.06,
     "contract_entry_date": "2026-06-15T19:28:26.148240Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "put",
@@ -57,7 +57,7 @@
     "total_premium_today": 7.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260702P00050000 @ $0.04. Awaiting fill.",
+    "last_action": "Monitoring BAC260702P00050000: $0.06 vs entry $0.06",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.12 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.10 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $6.64 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $6.50 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
