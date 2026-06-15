@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T13:50:42.661315Z",
+    "last_checked": "2026-06-15T14:00:39.217274Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260618C00205000: $0.30 vs entry $0.15",
+    "last_action": "Monitoring COIN260618C00205000: $0.24 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $1.04 vs entry $1.04",
+    "last_action": "Monitoring RIOT260626P00025000: $0.61 vs entry $1.04",
     "contract_qty": 1
   },
   "SMCI": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260618C00230000: $0.07 vs entry $0.12",
+    "last_action": "Monitoring NVDA260618C00230000: $0.09 vs entry $0.12",
     "contract_qty": 1
   },
   "AMD": {
@@ -196,7 +196,7 @@
     "stage": 1,
     "current_contract": "TSLA260624P00395000",
     "contract_order_id": "8a0cf50c-62d6-408e-a0df-e4e7d922771d",
-    "contract_entry_price": null,
+    "contract_entry_price": 5.15,
     "contract_entry_date": "2026-06-15T13:50:40.018467Z",
     "contract_expiration": "2026-06-24",
     "contract_type": "put",
@@ -208,7 +208,7 @@
     "total_premium_today": 389.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open TSLA260624P00395000 @ $5.15. Awaiting fill.",
+    "last_action": "Monitoring TSLA260624P00395000: $5.70 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -256,9 +256,9 @@
   },
   "XOM": {
     "stage": 2,
-    "current_contract": "XOM260618C00160000",
+    "current_contract": null,
     "contract_order_id": "da1644c4-d0f9-4f71-b27e-41d0c5d07cd4",
-    "contract_entry_price": 0.21,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-11T17:41:33.697436Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "call",
@@ -266,8 +266,8 @@
     "cost_basis_per_share": 153.66,
     "shares_qty": 100,
     "total_cost": 15366.0,
-    "total_premium_collected": 288.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 306.0,
+    "total_premium_today": 18.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -279,14 +279,14 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260618C00160000: $0.17 vs entry $0.21",
+    "last_action": "Closed early: +$18.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "KO": {
     "stage": 2,
-    "current_contract": "KO260618C00085000",
+    "current_contract": null,
     "contract_order_id": "ef807714-cd11-4929-b3d7-54b34931a24a",
-    "contract_entry_price": 0.06,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-08T13:49:44.227585Z",
     "contract_expiration": "2026-06-18",
     "contract_type": "call",
@@ -294,8 +294,8 @@
     "cost_basis_per_share": 79.73,
     "shares_qty": 100,
     "total_cost": 7973.0,
-    "total_premium_collected": 40.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 44.0,
+    "total_premium_today": 4.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -307,7 +307,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring KO260618C00085000: $0.07 vs entry $0.06",
+    "last_action": "Closed early: +$4.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -386,7 +386,7 @@
     "stage": 1,
     "current_contract": "PFE260626P00025000",
     "contract_order_id": "6e927e4d-4655-444a-9e49-8c17a69a56ac",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.02,
     "contract_entry_date": "2026-06-15T13:40:53.776136Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "put",
@@ -406,7 +406,7 @@
         "premium": 3.0
       }
     ],
-    "last_action": "Sold-to-open PFE260626P00025000 @ $0.02. Awaiting fill.",
+    "last_action": "Monitoring PFE260626P00025000: $0.06 vs entry $0.02",
     "contract_qty": 1
   }
 }
