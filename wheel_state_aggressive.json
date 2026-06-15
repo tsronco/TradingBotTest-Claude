@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T17:30:18.409616Z",
+    "last_checked": "2026-06-15T17:40:01.960997Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260618C00205000: $0.20 vs entry $0.15",
+    "last_action": "Monitoring COIN260618C00205000: $0.22 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.22 vs entry $0.17",
+    "last_action": "Monitoring NVDA260622C00230000: $0.19 vs entry $0.17",
     "contract_qty": 1
   },
   "AMD": {
@@ -208,7 +208,7 @@
     "total_premium_today": 389.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.05 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $4.99 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
