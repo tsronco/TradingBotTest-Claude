@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T15:31:45.196187Z"
+    "last_checked": "2026-06-16T15:41:57.663522Z"
   },
   "F": {
     "stage": 1,
@@ -121,32 +121,5 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Adopted spread short=$746.00 long=$728.00 credit=$3.01"
-  },
-  "MU": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "MU260618P01035000",
-      "strike": 1035.0,
-      "entry_premium": 35.75,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "MU260618P01010000",
-      "strike": 1010.0,
-      "entry_premium": 26.25,
-      "qty": 1
-    },
-    "expiration": "2026-06-18",
-    "net_credit": 9.5,
-    "max_loss": 15.5,
-    "width": 25.0,
-    "opened_at": "2026-06-15T14:01:41.115381Z",
-    "open_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$1035.00 long=$1010.00 credit=$9.50"
   }
 }
