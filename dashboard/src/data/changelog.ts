@@ -30,6 +30,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
+    category: 'fix',
+    title: 'Bot orders are now idempotent (client_order_id) — no more double-placing on retry',
+    details:
+      'Critical fix found by a dual-model adversarial code review (R1). Every ' +
+      'order the bot places funneled through an HTTP layer that retries POSTs ' +
+      'on 5xx/timeout, with NO client_order_id anywhere — so if Alpaca created ' +
+      'the order but the response was lost (gateway 502/504 or a dropped ' +
+      'connection), the bot re-sent the identical order and got TWO. Almost ' +
+      'certainly the root of the historical "MARA went to qty=-4" incident, and ' +
+      'a real-money hazard because it lives in the shared layer every order ' +
+      'uses (including the live account\'s manage-only closes).\n\n' +
+      'Now every POST /orders carries a deterministic client_order_id ' +
+      '(wheel_strategy.api_post + strategy.place_order; long_options inherits ' +
+      'via import). A retry re-sends the same id; Alpaca rejects the duplicate ' +
+      '(422) and we resolve to the already-created order instead of failing. ' +
+      'Applies to all seven modes. First fix from the 2026-06-16 money-loss ' +
+      'remediation plan (34 findings). +6 pytest (518 total).',
+  },
+  {
+    date: '2026-06-16',
     category: 'engine',
     title: 'Spread tripwire: tolerate intraday noise (DTE gate + 60-min confirmation) on manual',
     details:

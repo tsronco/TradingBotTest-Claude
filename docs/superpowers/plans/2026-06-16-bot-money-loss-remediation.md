@@ -132,7 +132,11 @@ direction → status.** Source tags reference the original reviewer findings
 (O# = Opus, S# = Sonnet) for traceability.
 
 ### R1 — Non-idempotent POST retry can double-place orders 🔴 Critical  [O1; corroborated by S3, S24]
-- **Status:** NOT STARTED. **CONFIRMED in code.**
+- **Status:** ✅ DONE (2026-06-16). `client_order_id` stamped on every POST
+  /orders in `wheel_strategy.api_post` (covers `long_options` via import) and
+  `strategy.place_order`; duplicate-id 422 on a retry resolves to the existing
+  order via `/orders:by_client_order_id`. +6 tests (`test_order_idempotency.py`).
+  Applies to ALL modes (shared-layer correctness fix), incl. live.
 - **Location:** `wheel_strategy.py:1049-1094` (`_alpaca_request`, `api_post`),
   the analogous request layer in `strategy.py`, and any order POST in
   `long_options_strategy.py` / `congress-copy`. No `client_order_id` exists
@@ -631,7 +635,7 @@ ordering, the hedge hand-off, and PDT routing.
 
 | ID | Title | Phase | Status |
 |---|---|---|---|
-| R1 | Duplicate-order guard (`client_order_id`) | 1 | NOT STARTED |
+| R1 | Duplicate-order guard (`client_order_id`) | 1 | ✅ DONE |
 | R32 | `long_options` call-hedge guard (naked short call) | 1 | NOT STARTED |
 | R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | NOT STARTED |
 | R33 | Live → paper endpoint silent fallback | 1 | NOT STARTED |

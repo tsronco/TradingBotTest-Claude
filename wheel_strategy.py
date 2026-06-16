@@ -34,6 +34,7 @@ Legacy single-stock state files are auto-migrated under the "TSLA" key.
 import os
 import json
 import time
+import uuid
 import requests
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date, timezone
@@ -1088,8 +1089,63 @@ def api_get(path, params=None):
     return resp.json()
 
 
+def _gen_client_order_id() -> str:
+    """A unique client_order_id for an order POST (R1 — idempotent retries).
+
+    Stamped once per `api_post('/orders')` call and reused verbatim on every
+    transport-level retry of that same call (the body is built before
+    `_alpaca_request`'s retry loop), so a lost response that triggers a retry
+    re-sends the SAME id. Alpaca rejects a duplicate client_order_id (422),
+    which `api_post` treats as success — the original attempt already created
+    the order — making POST /orders retries idempotent and closing the
+    double-place hazard. A genuinely new order gets a fresh id, so distinct
+    orders are never falsely rejected. Mode-prefixed for traceability; well
+    under Alpaca's 128-char limit.
+    """
+    return f"{MODE or 'bot'}-{uuid.uuid4().hex}"
+
+
+def _get_order_by_client_id(client_order_id):
+    """Fetch an order by its client_order_id, or None if it can't be resolved.
+
+    Used to recover the already-created order when a retried POST /orders is
+    rejected as a duplicate. Never raises — a failure to resolve returns None
+    so the caller can surface the original error rather than silently no-op.
+    """
+    if not client_order_id:
+        return None
+    try:
+        resp = _alpaca_request(
+            "GET", f"{BASE_URL}/orders:by_client_order_id",
+            headers=HEADERS, params={"client_order_id": client_order_id})
+        if resp.status_code == 200:
+            return resp.json()
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+    return None
+
+
 def api_post(path, body):
+    # R1 — idempotent order placement. Every POST /orders carries a
+    # client_order_id so a transport-level retry after a lost response can't
+    # double-place: the retry re-sends the identical body (same id), Alpaca
+    # rejects the duplicate (422), and we resolve to the already-created order
+    # instead of raising. Non-order POSTs are unaffected.
+    if path == "/orders" and isinstance(body, dict) and "client_order_id" not in body:
+        body = {**body, "client_order_id": _gen_client_order_id()}
     resp = _alpaca_request("POST", f"{BASE_URL}{path}", headers=HEADERS, json=body)
+    if (path == "/orders" and resp.status_code == 422
+            and isinstance(body, dict)
+            and "client_order_id" in (resp.text or "").lower()):
+        coid = body.get("client_order_id")
+        log(f"order client_order_id={coid} already exists — a retry reached "
+            f"Alpaca after the original POST already created the order; "
+            f"resolving to the existing order instead of failing")
+        existing = _get_order_by_client_id(coid)
+        if existing is not None:
+            return existing
+        # Couldn't fetch it back — fall through to raise so the caller sees a
+        # failure rather than a silent no-op.
     resp.raise_for_status()
     return resp.json()
 

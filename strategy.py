@@ -14,6 +14,7 @@ Rules:
 
 import os
 import time
+import uuid
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
@@ -137,14 +138,47 @@ def _alpaca_request(method: str, url: str, **kwargs) -> requests.Response:
             raise
 
 
+def _gen_client_order_id() -> str:
+    """Unique client_order_id for an order POST (R1 — idempotent retries).
+
+    Mirrors wheel_strategy._gen_client_order_id (these scripts intentionally
+    duplicate their Alpaca request layer). Stamped once and reused on every
+    transport-level retry of the same call, so a lost response can't
+    double-place: Alpaca rejects the duplicate id (422) and place_order
+    resolves to the already-created order.
+    """
+    return f"{MODE or 'bot'}-{uuid.uuid4().hex}"
+
+
+def _get_order_by_client_id(client_order_id):
+    """Fetch an order by its client_order_id, or None if unresolvable."""
+    if not client_order_id:
+        return None
+    try:
+        resp = _alpaca_request(
+            "GET", f"{BASE_URL}/orders:by_client_order_id",
+            headers=HEADERS, params={"client_order_id": client_order_id})
+        if resp.status_code == 200:
+            return resp.json()
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+    return None
+
+
 def place_order(symbol, qty, side, order_type="market", time_in_force="day"):
+    # R1 — idempotent order placement (see _gen_client_order_id).
+    body = {"symbol": symbol, "qty": qty, "side": side,
+            "type": order_type, "time_in_force": time_in_force,
+            "client_order_id": _gen_client_order_id()}
     resp = _alpaca_request(
-        "POST",
-        f"{BASE_URL}/orders",
-        headers=HEADERS,
-        json={"symbol": symbol, "qty": qty, "side": side,
-              "type": order_type, "time_in_force": time_in_force},
-    )
+        "POST", f"{BASE_URL}/orders", headers=HEADERS, json=body)
+    if resp.status_code == 422 and "client_order_id" in (resp.text or "").lower():
+        coid = body["client_order_id"]
+        log(f"order client_order_id={coid} already exists — resolving to the "
+            f"existing order (retry after a lost response)")
+        existing = _get_order_by_client_id(coid)
+        if existing is not None:
+            return existing
     resp.raise_for_status()
     return resp.json()
 
