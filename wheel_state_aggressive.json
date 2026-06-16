@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T17:50:31.260998Z",
+    "last_checked": "2026-06-16T18:00:44.731557Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -307,7 +307,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring KO260626C00085000: $0.06 vs entry $0.13",
+    "last_action": "Monitoring KO260626C00085000: $0.07 vs entry $0.13",
     "contract_qty": 1
   },
   "PLTR": {
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260626C00018000: $0.63 vs entry $0.38",
+    "last_action": "Monitoring SOFI260626C00018000: $0.66 vs entry $0.38",
     "contract_qty": 1
   },
   "PFE": {
