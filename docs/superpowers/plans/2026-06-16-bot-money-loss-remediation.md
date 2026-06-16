@@ -406,7 +406,11 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Null-id open response → assert no reopen, state reconciles.
 
 ### R14 — Multi-open cycle reuses stale buying power 🟡 Medium  [O5, S13]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). After each successful open, the local
+  `options_bp` estimate is decremented by the spread's collateral (`width × 100`)
+  so the next open's `bp_fits` sees the consumed BP instead of the stale
+  start-of-cycle value. +1 test. SM (and manual if auto-open re-enabled — manual
+  runs `max_opens_per_cycle=2`).
 - **Location:** `wheel_strategy.py:~3005-3006` (BP read once), risk checks reuse
   it across opens; `_auto_open_spread` equity is fresh but `options_bp` is stale.
 - **Scenario:** `max_opens_per_cycle > 1` (manual was 2 before auto-open was
@@ -722,7 +726,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
 | R12 | `normalize_scores` small-pool gate | 2b | ✅ DONE |
 | R13 | Null order id reopen loop | 2b | ✅ DONE |
-| R14 | Multi-open stale BP | 2b | NOT STARTED |
+| R14 | Multi-open stale BP | 2b | ✅ DONE |
 | R15 | Zero-bid long leg skipped | 2b | NOT STARTED |
 | R16 | Earnings window / cons-agg CSP gate | 2b | NOT STARTED |
 | R17 | Multi-contract market_value/100 | 3 | NOT STARTED |

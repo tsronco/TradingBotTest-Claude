@@ -3595,6 +3595,12 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                       "max_loss": max_loss, "expiration": expiration,
                   })
         opens_this_cycle += 1
+        # R14 (2026-06-16): the spread just opened reserves its full defined-risk
+        # collateral (width × 100). When max_opens_per_cycle > 1, decrement the
+        # local BP estimate so the NEXT open's bp_fits check sees the consumed
+        # buying power instead of the stale start-of-cycle value (which could
+        # wave through an over-leveraged second open that Alpaca then 403s).
+        options_bp = max(0.0, options_bp - width * 100.0)
         if opens_this_cycle >= max_opens:
             return
         # Otherwise keep iterating — manual mode runs with

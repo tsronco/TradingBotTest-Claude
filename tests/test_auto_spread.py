@@ -1944,3 +1944,53 @@ def test_auto_open_pool_gate_off_by_default(monkeypatch):
     cfg.pop("wheelability_min_pool", None)
     ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
     assert len(opened) == 1
+
+
+def test_auto_open_second_open_respects_consumed_bp(monkeypatch):
+    """R14: with max_opens_per_cycle=2 but BP only enough for ONE spread's
+    collateral, the second open is blocked because the first open's collateral
+    is decremented from the local BP estimate (pre-fix both would open)."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None
+    cfg["wheelability_min"] = 0
+    cfg["trend_filter"] = False
+    cfg["short_put_target_delta"] = None
+    cfg["min_credit_to_width_pct"] = None
+    cfg["max_risk_pct_equity"] = 0.99  # risk gate is not the constraint here
+
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score": 99.0,  "price": 20.0}}
+    contracts_by_strike = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+    }
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda s, free_bp, **kw: scored.get(s))
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+    # equity high (risk OK); options_bp only fits one $100-collateral spread
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000", "options_buying_power": "150"})
+
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
+        cands = {k[1]: v for k, v in contracts_by_strike.items() if k[0] == u}
+        return cands[min(cands, key=lambda s: abs(s - ts))] if cands else None
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                                    else {"bid": 0.15, "ask": 0.25})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within", lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes", lambda s, n=20: [10.0] * 20)
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None: opened.append(s) or {"id": "ord"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "150"}, cfg)
+    assert len(opened) == 1  # second open blocked by the consumed-BP decrement

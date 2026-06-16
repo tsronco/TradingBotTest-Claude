@@ -31,6 +31,19 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Multi-open cycle: decrement buying power after each spread (no over-leverage)',
+    details:
+      'Money-loss review finding R14 (Phase 2b). When a cycle opens more than ' +
+      'one spread (max_opens_per_cycle > 1), the buying-power check reused the ' +
+      'start-of-cycle options_bp for every open — so the first open\'s collateral ' +
+      'wasn\'t reflected and a second open could pass a BP gate it shouldn\'t ' +
+      '(Alpaca would then 403 it). The local BP estimate is now decremented by ' +
+      'the spread\'s collateral (width × 100) after each open. SM accounts (manual ' +
+      'too if auto-open is re-enabled — it runs max_opens_per_cycle=2). +1 pytest (565 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Auto-opened spread: resolve a pending open by client_order_id if the numeric id is lost',
     details:
       'Money-loss review finding R13 (Phase 2b). If Alpaca ever returned an ' +
