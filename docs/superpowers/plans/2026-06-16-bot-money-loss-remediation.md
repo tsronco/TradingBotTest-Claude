@@ -236,7 +236,11 @@ direction → status.** Source tags reference the original reviewer findings
   is not cleared (and no reopen) until fill is confirmed.
 
 ### R5 — `_close_spread_mleg` market order fills badly 🟠 High  [O3, S4]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). mleg close is now a MARKETABLE LIMIT — net
+  debit bounded at the executable cross (`short_ask − long_bid`, positive =
+  debit, mirroring the open's negative = credit), not an unbounded market order.
+  No usable quote → returns False to the individual-leg fallback. Tests in
+  `test_spread_management.py`.
 - **Location:** `wheel_strategy.py:370-379` (`"type": "market"`).
 - **Scenario:** Primary spread close is a *market* mleg. On an illiquid spread,
   it fills at short-ask − long-bid (full width crossed). A "50% profit" or "2×
@@ -251,7 +255,10 @@ direction → status.** Source tags reference the original reviewer findings
   executable cross, not unbounded market.
 
 ### R6 — Leg-by-leg fallback close prices at MID 🟠 High  [O2, S5]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). Fallback now prices MARKETABLE (BTC short at
+  the ask, STC long at the bid) instead of the mid, so the legs actually fill —
+  mirrors `_handle_orphan_leg`. Falls back to entry premium only with no quote.
+  Test asserts the marketable prices.
 - **Location:** `wheel_strategy.py:410-421` (`_mid_or_entry`), the mleg-rejection
   fallback path.
 - **Scenario:** Alpaca rejects the mleg close (known NVDA/MU 403s); fallback
@@ -267,7 +274,13 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** mleg-reject → assert both fallback legs price marketable.
 
 ### R7 — mleg close returns success without verifying fill 🟠 High  [S20]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `_close_spread_mleg` now treats a 200
+  response whose status is terminal-non-filled (`rejected`/`canceled`/`expired`/
+  `done_for_day`/`suspended`) as failure, so the caller doesn't delete state on
+  a non-close. Residual (true async partial-fill confirmation) is bounded by the
+  fact that BOTH modes running this path (manual + SM) auto-discover positions,
+  so a prematurely-dropped spread is re-adopted next cycle — documented, accepted.
+  Test covers the rejected-status case.
 - **Location:** `wheel_strategy.py:356-384` (returns True if `api_post` didn't
   raise), caller `_close_spread` deletes state on True.
 - **Scenario:** Alpaca returns HTTP 200 but the mleg is `rejected`/`canceled`/
@@ -282,7 +295,16 @@ direction → status.** Source tags reference the original reviewer findings
   state is NOT deleted and the survivor is handled.
 
 ### R8 — Tripwire pending-return blocks ALL other spread triggers 🟠 High (upgraded)  [O6, S(v2)3 — gap in our 2026-06-16 fix]
-- **Status:** NOT STARTED. **Severity upgraded from Medium → High** after the
+- **Status:** ✅ DONE (2026-06-16). While a breach is pending, the **profit
+  trigger now runs** (the real bug — a 50%-profit close was blocked by a wick).
+  **Deliberate divergence from Opus's literal suggestion:** the **DTE-floor stays
+  deferred** during pending (not run), because at ≤2 DTE the DTE-floor and the
+  tripwire are the *same* signal and the confirmation window exists precisely to
+  let a ≤2-DTE wick recover (the MU case we just validated). Running it would
+  nullify that window. Only the noise-prone loss-stop + the DTE-floor are
+  deferred while pending; the tripwire's own 60-min confirmation is the backstop
+  for a sustained ITM move. +3 tests. Manual + SM.
+- **(superseded reasoning below kept for context)** Severity upgraded Medium→High after the
   v2 review: the pending-`return` skips the **profit trigger, the loss-stop, AND
   the DTE-floor** — not just the DTE-floor.
 - **Location:** `wheel_strategy.py` tripwire pending branch (the `return` that
@@ -308,7 +330,9 @@ direction → status.** Source tags reference the original reviewer findings
   (intentionally) deferred.
 
 ### R9 — DTE-floor `get_latest_price` not guarded 🟡 Medium  [S11]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). The DTE-floor price fetch is now wrapped in
+  try/except like the tripwire; on failure `stock_price=None` → skip the check
+  for the cycle instead of crashing the symbol. +1 test. Manual + SM.
 - **Location:** `wheel_strategy.py` DTE-floor block (~980-991) calls
   `get_latest_price` without try/except, unlike the tripwire path.
 - **Scenario:** Network hiccup near expiry → exception aborts `handle_spread` for
@@ -319,7 +343,10 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** `get_latest_price` raises → assert symbol cycle survives.
 
 ### R10 — `net_credit = None` crashes `handle_spread` 🟡 Medium  [S12]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `handle_spread` validates `net_credit`/
+  `max_loss` are numeric before the P&L math; a corrupt/None value now skips the
+  cycle with a `spread_state_invalid` warning instead of raising and leaving the
+  spread unmanaged. +1 test.
 - **Location:** `wheel_strategy.py` `_compute_spread_pnl` / `handle_spread`
   (`float(sym_state["net_credit"])` with no None guard).
 - **Scenario:** Corrupted/half-written state has `net_credit=None` → TypeError →
@@ -329,7 +356,11 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** None `net_credit` → assert graceful skip, no crash.
 
 ### R11 — Adopted-spread `net_credit` trusts per-leg `avg_entry_price` 🟡 Medium  [S17]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `_detect_spread_pairs` now validates the
+  derived `net_credit` against `0 < net_credit < width`; an out-of-band value
+  (Alpaca mis-split the mleg fill across legs) is clamped into the valid band
+  with a `spread_adopt_net_credit_clamped` warning, so adoption proceeds on a
+  sane basis instead of corrupt P&L. +3 tests.
 - **Location:** `wheel_strategy.py:~2526, 2565` (`_detect_spread_pairs`).
 - **Scenario:** For an mleg-opened spread, Alpaca's per-leg `avg_entry_price` may
   not split cleanly → `net_credit = short_entry − long_entry` wrong at adoption →
@@ -670,13 +701,13 @@ ordering, the hedge hand-off, and PDT routing.
 | R2 | Average-down HWM/trailing reset | 1 | ✅ DONE |
 | R3 | `long_options` exits off stale price | 1 | ✅ DONE |
 | R4 | Wheel 50%-close off stale price + reopen race | 1 | ✅ DONE |
-| R5 | mleg close market-order bad fills | 2 | NOT STARTED |
-| R6 | Fallback close at mid (won't fill) | 2 | NOT STARTED |
-| R7 | mleg close success without fill verify | 2 | NOT STARTED |
-| R8 | Tripwire pending blocks profit/stop/DTE | 2 | NOT STARTED |
-| R9 | DTE-floor `get_latest_price` unguarded | 2 | NOT STARTED |
-| R10 | `net_credit=None` crash | 2 | NOT STARTED |
-| R11 | Adopted-spread net_credit trust | 2 | NOT STARTED |
+| R5 | mleg close market-order bad fills | 2 | ✅ DONE |
+| R6 | Fallback close at mid (won't fill) | 2 | ✅ DONE |
+| R7 | mleg close success without fill verify | 2 | ✅ DONE |
+| R8 | Tripwire pending blocks profit/stop/DTE | 2 | ✅ DONE |
+| R9 | DTE-floor `get_latest_price` unguarded | 2 | ✅ DONE |
+| R10 | `net_credit=None` crash | 2 | ✅ DONE |
+| R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
 | R12 | `normalize_scores` small-pool gate | 2b | NOT STARTED |
 | R13 | Null order id reopen loop | 2b | NOT STARTED |
 | R14 | Multi-open stale BP | 2b | NOT STARTED |

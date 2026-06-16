@@ -31,6 +31,55 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Spread state hardening: net_credit guard + adopted-spread sanity clamp',
+    details:
+      'Money-loss review findings R10/R11 (Phase 2, completes it). R10: a ' +
+      'corrupted spread state with net_credit/max_loss = None would crash ' +
+      'handle_spread on the float() conversion and leave the spread unmanaged; ' +
+      'it now skips the cycle with a warning. R11: when adopting a spread, ' +
+      'net_credit is derived from Alpaca per-leg avg_entry_price, which can ' +
+      'mis-split an mleg fill (most of the credit on one leg, ~0 on the other) ' +
+      'and corrupt all P&L from the start; _detect_spread_pairs now validates ' +
+      '0 < net_credit < width and clamps an out-of-band value into the valid ' +
+      'range with a warning. Phase 2 done (R5-R11, 7 fixes). +4 pytest (557 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Tripwire-pending window no longer blocks a profit close; DTE-floor price guarded',
+    details:
+      'Money-loss review findings R8/R9 (Phase 2). R8: while a spread\'s ' +
+      'underlying tripwire was pending its 60-min confirmation, handle_spread ' +
+      'returned early and blocked EVERY other trigger — including the 50%-profit ' +
+      'close. So a spread at 48% profit that briefly wicked the short strike was ' +
+      'frozen for up to an hour and could reverse into a loss. Now the profit ' +
+      'trigger runs during pending; only the noise-prone loss-stop (and the ' +
+      'DTE-floor, which at ≤2 DTE is the same signal the confirmation window is ' +
+      'meant to ride out — the MU case) stay deferred. R9: the DTE-floor price ' +
+      'fetch is now wrapped in try/except like the tripwire, so a network blip ' +
+      'near expiry skips the cycle instead of crashing the symbol and missing ' +
+      'the close. Manual + SM. +4 pytest (553 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Spread closes now fill at a sane price (marketable limit, not market/mid)',
+    details:
+      'Money-loss review findings R5/R6/R7 (Phase 2). Three fixes to the spread ' +
+      'CLOSE path (manual adopted spreads + SM): (R5) the multi-leg close was a ' +
+      'MARKET order, which on an illiquid chain fills at the full bid/ask width ' +
+      'crossed with no ceiling — undoing the careful near-mid OPEN discipline; ' +
+      'it now rests a marketable LIMIT bounded at short_ask − long_bid. (R6) the ' +
+      'leg-by-leg fallback priced at the MID, which sat below the ask and never ' +
+      'filled (leaving the short open or a naked survivor); it now prices ' +
+      'marketable (pay the ask to buy back the short, hit the bid to sell the ' +
+      'long). (R7) a 200 "accepted" response with a terminal rejected/canceled ' +
+      'status is no longer treated as a successful close (which would delete ' +
+      'state on a still-open spread). +4 pytest (549 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Wheel 50%-close: decide on the quote mid, buy-to-close marketable (actually fills)',
     details:
       'Money-loss review finding R4. The wheel\'s 50%-profit close priced both ' +

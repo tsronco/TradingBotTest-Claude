@@ -365,8 +365,9 @@ def _close_spread_mleg(sym_state: dict) -> bool:
     """Submit an Alpaca multi-leg buy-to-close order for the spread.
 
     Returns True on success, False on any failure (rejection, network,
-    timeout). The caller (_close_spread) decides whether to fall back
-    to two individual orders.
+    timeout, missing quote, or an order that comes back in a terminal
+    non-filled state). The caller (_close_spread) decides whether to fall
+    back to two individual orders.
 
     qty is in spread units (number of spreads), not per-leg. ratio_qty
     is the per-spread leg multiplier — always "1" for vertical spreads.
@@ -375,17 +376,47 @@ def _close_spread_mleg(sym_state: dict) -> bool:
         short_occ = sym_state["short_leg"]["occ"]
         long_occ  = sym_state["long_leg"]["occ"]
         qty       = sym_state["short_leg"]["qty"]  # short and long match by definition
+        # R5 (2026-06-16): price a MARKETABLE LIMIT, not a market order. A
+        # market mleg on an illiquid chain fills at short_ask − long_bid (the
+        # full width crossed) with NO ceiling — undoing the careful near-mid
+        # OPEN discipline. Bound the net debit at the executable cross so a
+        # degenerate quote can't fill arbitrarily badly, while staying
+        # marketable enough to fill. Positive limit_price = net DEBIT we pay
+        # (mirrors the open's negative = credit received). No usable quote →
+        # return False and let the fallback path price each leg marketable.
+        sq = get_option_quote(short_occ)
+        lq = get_option_quote(long_occ)
+        if not sq or not lq:
+            log(f"_close_spread_mleg: missing quote (short={bool(sq)} "
+                f"long={bool(lq)}) — deferring to the individual-leg fallback")
+            return False
+        net_debit   = sq["ask"] - lq["bid"]
+        limit_price = round(max(net_debit, SPREAD_OPEN_MIN_LIMIT), 2)
         order = api_post("/orders", {
             "order_class":   "mleg",
             "qty":           str(qty),
-            "type":          "market",
+            "type":          "limit",
+            "limit_price":   f"{limit_price:.2f}",
             "time_in_force": "day",
             "legs": [
                 {"symbol": short_occ, "side": "buy",  "ratio_qty": "1", "position_intent": "buy_to_close"},
                 {"symbol": long_occ,  "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_close"},
             ],
         })
-        log(f"Spread mleg close placed: short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')}")
+        # R7 (2026-06-16): a 200 response means "accepted", not "filled". An
+        # mleg that immediately comes back rejected/canceled/expired must NOT
+        # be treated as a successful close — the caller deletes state on True,
+        # which would drop a still-open spread out of tracking. Treat terminal
+        # non-filled statuses as failure so the fallback / next cycle retries.
+        # (On manual + SM, both of which auto-discover positions, a spread that
+        # does slip through still gets re-adopted next cycle — but we catch the
+        # obvious rejections here rather than relying on that safety net.)
+        status = (order or {}).get("status", "")
+        if status in {"rejected", "canceled", "cancelled", "expired",
+                      "done_for_day", "suspended"}:
+            log(f"_close_spread_mleg: order came back '{status}' — treating as failure")
+            return False
+        log(f"Spread mleg close placed (limit ${limit_price:.2f} debit): short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')} [{status or 'accepted'}]")
         return True
     except Exception as e:
         log(f"_close_spread_mleg failed: {alpaca_err_detail(e)}")
@@ -407,22 +438,28 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
     next cycle's _handle_orphan_leg sees "long present, short missing"
     and closes the survivor.
 
-    Limit prices: midpoint from get_option_quote if available, otherwise
-    the entry premium as a fallback (better than no order at all).
+    Limit prices: MARKETABLE (R6, 2026-06-16) — pay the short leg's ask to
+    buy it back, hit the long leg's bid to sell it. The old midpoint pricing
+    rested below the ask on the wide/illiquid chains these closes hit and never
+    filled, leaving the short leg open (assignment risk) or — if the short
+    filled but the long didn't — a naked survivor. Falls back to the entry
+    premium only when no quote is available. Mirrors _handle_orphan_leg.
     """
     short_occ = sym_state["short_leg"]["occ"]
     long_occ  = sym_state["long_leg"]["occ"]
     short_entry = sym_state["short_leg"]["entry_premium"]
     long_entry  = sym_state["long_leg"]["entry_premium"]
 
-    def _mid_or_entry(occ: str, entry: float) -> float:
+    def _marketable_or_entry(occ: str, side: str, entry: float) -> float:
         q = get_option_quote(occ)
-        if q:
-            return round((q["bid"] + q["ask"]) / 2, 2)
-        return entry
+        if not q:
+            return entry
+        if side == "buy":   # BTC the short — pay the ask to get filled
+            return round(max(q["ask"], SPREAD_OPEN_MIN_LIMIT), 2)
+        return round(max(q["bid"], SPREAD_OPEN_MIN_LIMIT), 2)  # STC the long — hit the bid
 
-    short_limit = _mid_or_entry(short_occ, short_entry)
-    long_limit  = _mid_or_entry(long_occ,  long_entry)
+    short_limit = _marketable_or_entry(short_occ, "buy",  short_entry)
+    long_limit  = _marketable_or_entry(long_occ,  "sell", long_entry)
 
     # Step 1: close the short leg
     try:
@@ -851,6 +888,25 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
             f"— skipping cycle")
         return
 
+    # R10 (2026-06-16): a corrupted/half-written state with net_credit or
+    # max_loss == None (or non-numeric) would crash the float() conversions
+    # below (in _compute_spread_pnl and here) and leave the spread UNMANAGED.
+    # Skip the cycle with a warning rather than raise — a bot-opened spread
+    # reconciles net_credit from the fill and an adopted one derives it from the
+    # legs, so both should be set, but defend against a bad state file.
+    try:
+        float(sym_state["net_credit"])
+        float(sym_state["max_loss"])
+    except (TypeError, ValueError, KeyError):
+        log(f"[{ticker}] spread heartbeat — net_credit/max_loss missing or "
+            f"non-numeric (net_credit={sym_state.get('net_credit')!r}, "
+            f"max_loss={sym_state.get('max_loss')!r}) — skipping cycle")
+        log_event(LOG_STREAM, "wheel_strategy.py", "spread_state_invalid",
+                  result="skipped", symbol=ticker,
+                  details={"net_credit": sym_state.get("net_credit"),
+                           "max_loss": sym_state.get("max_loss")})
+        return
+
     pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])
 
@@ -874,6 +930,12 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     # takes precedence over price-based gains; the spec is explicit about this
     # ordering. SM modes enable this via spread_stop_credit_mult; manual enables
     # it via spread_underlying_tripwire (2026-05-30).
+    # tripwire_pending (R8, 2026-06-16): set when the stock is through the short
+    # strike but the confirmation window hasn't elapsed. While pending we defer
+    # ONLY the noise-prone loss-stop — the profit trigger and the DTE-floor close
+    # still run (both are legitimate "get out" signals; blocking a 50%-profit
+    # close for up to an hour because of a strike wick let winners reverse).
+    tripwire_pending = False
     if SPREAD_UNDERLYING_TRIPWIRE:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
@@ -921,13 +983,15 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                         f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — closing")
                     _close_spread(state, ticker, reason="underlying_tripwire")
                     return
-                # Still inside the confirmation window — hold and watch. Skip the
-                # profit/stop/DTE checks this cycle so the noise has room to
-                # recover (the loss can't exceed the width while we wait).
+                # Still inside the confirmation window — defer ONLY the loss-stop
+                # (R8). The profit trigger and DTE-floor close below still run so
+                # a 50%-profit close or a 2-DTE-ITM exit isn't blocked by a strike
+                # wick. The loss can't exceed the width while we wait on the stop.
+                tripwire_pending = True
                 log(f"[{ticker}] spread underlying tripwire pending — stock "
                     f"${stock_price:.2f} through short strike ${short_strike:.2f}, "
                     f"breached {breach_min:.0f}m of "
-                    f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — holding")
+                    f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — deferring loss-stop only")
                 log_event(LOG_STREAM, "wheel_strategy.py", "spread_tripwire_pending",
                           result="skipped", symbol=ticker,
                           details={"stock_price": stock_price,
@@ -935,7 +999,6 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                                    "breach_minutes": round(breach_min, 1),
                                    "confirm_minutes": SPREAD_TRIPWIRE_CONFIRM_MINUTES,
                                    "dte": _tw_dte})
-                return
             else:
                 # Stock recovered above the short strike — reset any pending
                 # breach so the confirmation clock restarts on the next breach.
@@ -958,7 +1021,10 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     # on a wide chain can't insta-stop on quote noise before it settles (the
     # underlying tripwire above still fires on a real adverse move during the
     # settling window).
-    if _within_settling_window(sym_state):
+    if tripwire_pending:
+        log(f"[{ticker}] tripwire breach pending — deferring the loss-stop this "
+            f"cycle (profit + DTE-floor still active)")
+    elif _within_settling_window(sym_state):
         log(f"[{ticker}] spread within {SPREAD_SETTLE_MINUTES}m settling window "
             f"— skipping loss-stop check this cycle")
     elif SPREAD_STOP_CREDIT_MULT is not None:
@@ -984,11 +1050,26 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     from datetime import date as _date
     expiry = _date.fromisoformat(sym_state["expiration"])
     days_to_expiry = (expiry - _date.today()).days
-    if days_to_expiry <= SPREAD_DTE_FLOOR:
+    if days_to_expiry <= SPREAD_DTE_FLOOR and not tripwire_pending:
+        # tripwire_pending guard (R8): at ≤2 DTE the DTE-floor and the tripwire
+        # are the SAME signal, and the tripwire's confirmation window exists
+        # precisely to let a ≤2-DTE strike wick recover (the MU case) before
+        # closing. Running the DTE-floor here would nullify that window, so it's
+        # deferred while a breach is pending; the tripwire's own 60-min
+        # confirmation is the backstop for a sustained ITM move. The PROFIT
+        # trigger above still runs during pending (that was the real R8 bug).
         short_strike = float(sym_state["short_leg"]["strike"])
-        stock_price = get_latest_price(ticker)
+        # R9 (2026-06-16): guard the price fetch like the tripwire above. An
+        # unhandled network/HTTP error here used to abort the whole symbol cycle
+        # and skip the DTE-floor close — risking assignment on an ITM short near
+        # expiry. On failure, skip this check for the cycle (the next 10-min cron
+        # retries) rather than crash.
+        try:
+            stock_price = get_latest_price(ticker)
+        except Exception:
+            stock_price = None
         spread_type = sym_state["spread_type"]
-        short_itm = (
+        short_itm = stock_price is not None and (
             (spread_type == "put_credit"  and stock_price < short_strike) or
             (spread_type == "call_credit" and stock_price > short_strike)
         )
@@ -2655,6 +2736,26 @@ def _detect_spread_pairs(positions) -> dict:
                 continue
             spread_type = "put_credit" if opt_type == "put" else "call_credit"
             net_credit = round(s["entry"] - l["entry"], 4)
+            # R11 (2026-06-16): net_credit is derived from Alpaca's per-leg
+            # avg_entry_price, which can mis-split an mleg fill (most of the
+            # credit on one leg, ~0 on the other). A valid credit spread
+            # satisfies 0 < net_credit < width; outside that band the P&L math
+            # (profit_pct, max_loss) is corrupt from the moment of adoption.
+            # Clamp into a sane band and warn rather than seed a broken basis —
+            # the spread is a real position that still needs management.
+            if not (0 < net_credit < width):
+                hi = max(0.01, round(width - 0.01, 4))
+                clamped = round(min(max(net_credit, 0.01), hi), 4)
+                log(f"[{ticker}] adopted spread net_credit ${net_credit:.4f} "
+                    f"outside (0, width ${width:.2f}) — per-leg entries look "
+                    f"mis-split; clamping to ${clamped:.4f} for management")
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_adopt_net_credit_clamped", result="success",
+                          symbol=ticker,
+                          details={"short_occ": s["occ"], "long_occ": l["occ"],
+                                   "raw_net_credit": net_credit, "width": width,
+                                   "clamped": clamped})
+                net_credit = clamped
             max_loss = round(width - net_credit, 4)
             sp = SpreadPair(
                 ticker=ticker,
