@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Spread closes now fill at a sane price (marketable limit, not market/mid)',
+    details:
+      'Money-loss review findings R5/R6/R7 (Phase 2). Three fixes to the spread ' +
+      'CLOSE path (manual adopted spreads + SM): (R5) the multi-leg close was a ' +
+      'MARKET order, which on an illiquid chain fills at the full bid/ask width ' +
+      'crossed with no ceiling — undoing the careful near-mid OPEN discipline; ' +
+      'it now rests a marketable LIMIT bounded at short_ask − long_bid. (R6) the ' +
+      'leg-by-leg fallback priced at the MID, which sat below the ask and never ' +
+      'filled (leaving the short open or a naked survivor); it now prices ' +
+      'marketable (pay the ask to buy back the short, hit the bid to sell the ' +
+      'long). (R7) a 200 "accepted" response with a terminal rejected/canceled ' +
+      'status is no longer treated as a successful close (which would delete ' +
+      'state on a still-open spread). +4 pytest (549 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Wheel 50%-close: decide on the quote mid, buy-to-close marketable (actually fills)',
     details:
       'Money-loss review finding R4. The wheel\'s 50%-profit close priced both ' +

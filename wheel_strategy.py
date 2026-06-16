@@ -365,8 +365,9 @@ def _close_spread_mleg(sym_state: dict) -> bool:
     """Submit an Alpaca multi-leg buy-to-close order for the spread.
 
     Returns True on success, False on any failure (rejection, network,
-    timeout). The caller (_close_spread) decides whether to fall back
-    to two individual orders.
+    timeout, missing quote, or an order that comes back in a terminal
+    non-filled state). The caller (_close_spread) decides whether to fall
+    back to two individual orders.
 
     qty is in spread units (number of spreads), not per-leg. ratio_qty
     is the per-spread leg multiplier — always "1" for vertical spreads.
@@ -375,17 +376,47 @@ def _close_spread_mleg(sym_state: dict) -> bool:
         short_occ = sym_state["short_leg"]["occ"]
         long_occ  = sym_state["long_leg"]["occ"]
         qty       = sym_state["short_leg"]["qty"]  # short and long match by definition
+        # R5 (2026-06-16): price a MARKETABLE LIMIT, not a market order. A
+        # market mleg on an illiquid chain fills at short_ask − long_bid (the
+        # full width crossed) with NO ceiling — undoing the careful near-mid
+        # OPEN discipline. Bound the net debit at the executable cross so a
+        # degenerate quote can't fill arbitrarily badly, while staying
+        # marketable enough to fill. Positive limit_price = net DEBIT we pay
+        # (mirrors the open's negative = credit received). No usable quote →
+        # return False and let the fallback path price each leg marketable.
+        sq = get_option_quote(short_occ)
+        lq = get_option_quote(long_occ)
+        if not sq or not lq:
+            log(f"_close_spread_mleg: missing quote (short={bool(sq)} "
+                f"long={bool(lq)}) — deferring to the individual-leg fallback")
+            return False
+        net_debit   = sq["ask"] - lq["bid"]
+        limit_price = round(max(net_debit, SPREAD_OPEN_MIN_LIMIT), 2)
         order = api_post("/orders", {
             "order_class":   "mleg",
             "qty":           str(qty),
-            "type":          "market",
+            "type":          "limit",
+            "limit_price":   f"{limit_price:.2f}",
             "time_in_force": "day",
             "legs": [
                 {"symbol": short_occ, "side": "buy",  "ratio_qty": "1", "position_intent": "buy_to_close"},
                 {"symbol": long_occ,  "side": "sell", "ratio_qty": "1", "position_intent": "sell_to_close"},
             ],
         })
-        log(f"Spread mleg close placed: short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')}")
+        # R7 (2026-06-16): a 200 response means "accepted", not "filled". An
+        # mleg that immediately comes back rejected/canceled/expired must NOT
+        # be treated as a successful close — the caller deletes state on True,
+        # which would drop a still-open spread out of tracking. Treat terminal
+        # non-filled statuses as failure so the fallback / next cycle retries.
+        # (On manual + SM, both of which auto-discover positions, a spread that
+        # does slip through still gets re-adopted next cycle — but we catch the
+        # obvious rejections here rather than relying on that safety net.)
+        status = (order or {}).get("status", "")
+        if status in {"rejected", "canceled", "cancelled", "expired",
+                      "done_for_day", "suspended"}:
+            log(f"_close_spread_mleg: order came back '{status}' — treating as failure")
+            return False
+        log(f"Spread mleg close placed (limit ${limit_price:.2f} debit): short={short_occ} long={long_occ} qty={qty} — order {order.get('id', '?')} [{status or 'accepted'}]")
         return True
     except Exception as e:
         log(f"_close_spread_mleg failed: {alpaca_err_detail(e)}")
@@ -407,22 +438,28 @@ def _close_spread_legs_individually(sym_state: dict) -> bool:
     next cycle's _handle_orphan_leg sees "long present, short missing"
     and closes the survivor.
 
-    Limit prices: midpoint from get_option_quote if available, otherwise
-    the entry premium as a fallback (better than no order at all).
+    Limit prices: MARKETABLE (R6, 2026-06-16) — pay the short leg's ask to
+    buy it back, hit the long leg's bid to sell it. The old midpoint pricing
+    rested below the ask on the wide/illiquid chains these closes hit and never
+    filled, leaving the short leg open (assignment risk) or — if the short
+    filled but the long didn't — a naked survivor. Falls back to the entry
+    premium only when no quote is available. Mirrors _handle_orphan_leg.
     """
     short_occ = sym_state["short_leg"]["occ"]
     long_occ  = sym_state["long_leg"]["occ"]
     short_entry = sym_state["short_leg"]["entry_premium"]
     long_entry  = sym_state["long_leg"]["entry_premium"]
 
-    def _mid_or_entry(occ: str, entry: float) -> float:
+    def _marketable_or_entry(occ: str, side: str, entry: float) -> float:
         q = get_option_quote(occ)
-        if q:
-            return round((q["bid"] + q["ask"]) / 2, 2)
-        return entry
+        if not q:
+            return entry
+        if side == "buy":   # BTC the short — pay the ask to get filled
+            return round(max(q["ask"], SPREAD_OPEN_MIN_LIMIT), 2)
+        return round(max(q["bid"], SPREAD_OPEN_MIN_LIMIT), 2)  # STC the long — hit the bid
 
-    short_limit = _mid_or_entry(short_occ, short_entry)
-    long_limit  = _mid_or_entry(long_occ,  long_entry)
+    short_limit = _marketable_or_entry(short_occ, "buy",  short_entry)
+    long_limit  = _marketable_or_entry(long_occ,  "sell", long_entry)
 
     # Step 1: close the short leg
     try:

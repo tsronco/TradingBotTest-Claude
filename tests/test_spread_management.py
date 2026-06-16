@@ -201,14 +201,19 @@ def test_place_sell_to_close_skips_when_no_position(monkeypatch):
     assert placed == []
 
 def test_close_spread_mleg_builds_correct_payload(monkeypatch):
-    """Multi-leg buy-to-close payload: order_class=mleg, two legs with
-    correct sides and position_intents, qty in spread units."""
+    """Multi-leg buy-to-close payload: order_class=mleg, two legs with correct
+    sides/position_intents, qty in spread units, and a MARKETABLE LIMIT (R5)
+    priced at the net debit = short_ask − long_bid (positive = debit paid)."""
     captured = {}
     def fake_api_post(path, body):
         captured["path"] = path
         captured["body"] = body
         return {"id": "mleg-order-1", "status": "accepted"}
     monkeypatch.setattr(wheel_strategy, "api_post", fake_api_post)
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda occ: {
+        "PLTR260619P00008000": {"bid": 0.30, "ask": 0.40},  # short
+        "PLTR260619P00007000": {"bid": 0.05, "ask": 0.10},  # long
+    }[occ])
 
     sym_state = _spread_state()
     result = wheel_strategy._close_spread_mleg(sym_state)
@@ -218,7 +223,8 @@ def test_close_spread_mleg_builds_correct_payload(monkeypatch):
     body = captured["body"]
     assert body["order_class"] == "mleg"
     assert body["qty"] == "1"
-    assert body["type"] == "market"
+    assert body["type"] == "limit"                       # R5: not market
+    assert body["limit_price"] == "0.35"                 # short_ask 0.40 − long_bid 0.05
     assert body["time_in_force"] == "day"
     legs = body["legs"]
     assert len(legs) == 2
@@ -231,6 +237,24 @@ def test_close_spread_mleg_builds_correct_payload(monkeypatch):
     assert long_leg["side"] == "sell"
     assert long_leg["position_intent"] == "sell_to_close"
     assert long_leg["ratio_qty"] == "1"
+
+
+def test_close_spread_mleg_missing_quote_defers_to_fallback(monkeypatch):
+    """No usable quote → return False so the individual-leg fallback runs."""
+    monkeypatch.setattr(wheel_strategy, "api_post",
+                        lambda p, b: pytest.fail("must not POST without a quote"))
+    monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda occ: None)
+    assert wheel_strategy._close_spread_mleg(_spread_state()) is False
+
+
+def test_close_spread_mleg_terminal_status_is_failure(monkeypatch):
+    """A 200 response with a terminal non-filled status (e.g. 'rejected') is
+    NOT a successful close (R7) — return False so state isn't deleted."""
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda occ: {"bid": 0.30, "ask": 0.40})
+    monkeypatch.setattr(wheel_strategy, "api_post",
+                        lambda p, b: {"id": "x", "status": "rejected"})
+    assert wheel_strategy._close_spread_mleg(_spread_state()) is False
 
 
 def test_close_spread_mleg_returns_false_on_rejection(monkeypatch):
@@ -250,7 +274,9 @@ def test_close_spread_mleg_handles_multi_contract_spreads(monkeypatch):
     (ratio is per-spread, not per-contract count)."""
     captured = {}
     monkeypatch.setattr(wheel_strategy, "api_post",
-                        lambda path, body: captured.update(body) or {"id": "x"})
+                        lambda path, body: captured.update(body) or {"id": "x", "status": "accepted"})
+    monkeypatch.setattr(wheel_strategy, "get_option_quote",
+                        lambda occ: {"bid": 0.30, "ask": 0.40})
 
     sym_state = _spread_state()
     sym_state["short_leg"]["qty"] = 2
@@ -262,13 +288,14 @@ def test_close_spread_mleg_handles_multi_contract_spreads(monkeypatch):
 
 
 def test_close_spread_legs_individually_both_succeed(monkeypatch):
-    """Happy path: buy-to-close short, then sell-to-close long. Both succeed."""
+    """Happy path: buy-to-close short, then sell-to-close long. Both succeed,
+    priced MARKETABLE (R6): BTC short at the ask, STC long at the bid."""
     calls = []
     monkeypatch.setattr(wheel_strategy, "place_buy_to_close",
-                        lambda sym, price, qty=None: calls.append(("btc", sym, qty)) or {"id": "a"})
+                        lambda sym, price, qty=None: calls.append(("btc", sym, price)) or {"id": "a"})
     monkeypatch.setattr(wheel_strategy, "place_sell_to_close",
-                        lambda sym, price, qty=None: calls.append(("stc", sym, qty)) or {"id": "b"})
-    # Mock get_option_quote so the helper can compute limit prices
+                        lambda sym, price, qty=None: calls.append(("stc", sym, price)) or {"id": "b"})
+    # Mock get_option_quote so the helper can compute marketable limit prices
     monkeypatch.setattr(wheel_strategy, "get_option_quote",
                         lambda sym: {"bid": 0.30, "ask": 0.32})
 
@@ -278,8 +305,10 @@ def test_close_spread_legs_individually_both_succeed(monkeypatch):
     assert result is True
     assert calls[0][0] == "btc"  # short closed first
     assert calls[0][1] == "PLTR260619P00008000"
+    assert calls[0][2] == pytest.approx(0.32)  # BTC at the ask (marketable)
     assert calls[1][0] == "stc"
     assert calls[1][1] == "PLTR260619P00007000"
+    assert calls[1][2] == pytest.approx(0.30)  # STC at the bid (marketable)
 
 
 def test_close_spread_legs_individually_short_fails(monkeypatch):

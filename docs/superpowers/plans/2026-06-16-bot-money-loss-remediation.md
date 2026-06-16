@@ -236,7 +236,11 @@ direction → status.** Source tags reference the original reviewer findings
   is not cleared (and no reopen) until fill is confirmed.
 
 ### R5 — `_close_spread_mleg` market order fills badly 🟠 High  [O3, S4]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). mleg close is now a MARKETABLE LIMIT — net
+  debit bounded at the executable cross (`short_ask − long_bid`, positive =
+  debit, mirroring the open's negative = credit), not an unbounded market order.
+  No usable quote → returns False to the individual-leg fallback. Tests in
+  `test_spread_management.py`.
 - **Location:** `wheel_strategy.py:370-379` (`"type": "market"`).
 - **Scenario:** Primary spread close is a *market* mleg. On an illiquid spread,
   it fills at short-ask − long-bid (full width crossed). A "50% profit" or "2×
@@ -251,7 +255,10 @@ direction → status.** Source tags reference the original reviewer findings
   executable cross, not unbounded market.
 
 ### R6 — Leg-by-leg fallback close prices at MID 🟠 High  [O2, S5]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). Fallback now prices MARKETABLE (BTC short at
+  the ask, STC long at the bid) instead of the mid, so the legs actually fill —
+  mirrors `_handle_orphan_leg`. Falls back to entry premium only with no quote.
+  Test asserts the marketable prices.
 - **Location:** `wheel_strategy.py:410-421` (`_mid_or_entry`), the mleg-rejection
   fallback path.
 - **Scenario:** Alpaca rejects the mleg close (known NVDA/MU 403s); fallback
@@ -267,7 +274,13 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** mleg-reject → assert both fallback legs price marketable.
 
 ### R7 — mleg close returns success without verifying fill 🟠 High  [S20]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `_close_spread_mleg` now treats a 200
+  response whose status is terminal-non-filled (`rejected`/`canceled`/`expired`/
+  `done_for_day`/`suspended`) as failure, so the caller doesn't delete state on
+  a non-close. Residual (true async partial-fill confirmation) is bounded by the
+  fact that BOTH modes running this path (manual + SM) auto-discover positions,
+  so a prematurely-dropped spread is re-adopted next cycle — documented, accepted.
+  Test covers the rejected-status case.
 - **Location:** `wheel_strategy.py:356-384` (returns True if `api_post` didn't
   raise), caller `_close_spread` deletes state on True.
 - **Scenario:** Alpaca returns HTTP 200 but the mleg is `rejected`/`canceled`/
@@ -670,9 +683,9 @@ ordering, the hedge hand-off, and PDT routing.
 | R2 | Average-down HWM/trailing reset | 1 | ✅ DONE |
 | R3 | `long_options` exits off stale price | 1 | ✅ DONE |
 | R4 | Wheel 50%-close off stale price + reopen race | 1 | ✅ DONE |
-| R5 | mleg close market-order bad fills | 2 | NOT STARTED |
-| R6 | Fallback close at mid (won't fill) | 2 | NOT STARTED |
-| R7 | mleg close success without fill verify | 2 | NOT STARTED |
+| R5 | mleg close market-order bad fills | 2 | ✅ DONE |
+| R6 | Fallback close at mid (won't fill) | 2 | ✅ DONE |
+| R7 | mleg close success without fill verify | 2 | ✅ DONE |
 | R8 | Tripwire pending blocks profit/stop/DTE | 2 | NOT STARTED |
 | R9 | DTE-floor `get_latest_price` unguarded | 2 | NOT STARTED |
 | R10 | `net_credit=None` crash | 2 | NOT STARTED |
