@@ -1680,6 +1680,33 @@ def check_early_close(sym_state, current_option_price):
     return current_option_price <= entry * EARLY_CLOSE_PCT
 
 
+def _close_mark_and_limit(contract):
+    """(mark, btc_limit) for closing a SHORT option at the 50%-profit rule (R4).
+
+    mark      = live quote MID — used for the close DECISION (check_early_close).
+                Robust to a stale last trade, which on an illiquid contract can
+                read far from the real market and either miss the trigger or
+                fire on a phantom price.
+    btc_limit = MARKETABLE buy-to-close price (the ASK), so the order actually
+                fills instead of resting unfilled at a stale-derived limit. The
+                old code priced the BTC off the last trade (+$0.05); when that
+                sat below the ask the order never filled, yet state was cleared
+                to "closed" and (on cons/agg) a new put was sold → false state /
+                double short. Falls back to the last trade when no two-sided
+                quote exists. Returns (None, None) if no price is available.
+    """
+    q = get_option_quote(contract)
+    if q and q.get("bid") is not None and q.get("ask") is not None:
+        bid, ask = float(q["bid"]), float(q["ask"])
+        mid = round((bid + ask) / 2.0, 2)
+        if mid > 0 and ask > 0:
+            return mid, round(ask, 2)
+    last = get_option_last_price(contract)
+    if last is None or last <= 0:
+        return None, None
+    return last, last
+
+
 def _order_age_hours(sym_state) -> float:
     """How many hours has the current contract's order been pending?
     Returns 0.0 if contract_entry_date is missing or unparseable — never
@@ -2116,14 +2143,15 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                         sym_state["contract_entry_price"] = float(filled_avg)
                         log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f} from filled order {order_id}")
 
-            current_price = get_option_last_price(contract)
+            current_price, btc_limit = _close_mark_and_limit(contract)
             if current_price is not None:
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
-                    log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing.")
+                    log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing (marketable @ ${btc_limit:.2f}).")
                     # place_buy_to_close auto-detects qty and closes ALL
-                    # contracts on this OCC symbol in one order.
-                    place_buy_to_close(contract, current_price)
+                    # contracts on this OCC symbol in one order. Priced
+                    # marketable (R4) so it actually fills.
+                    place_buy_to_close(contract, btc_limit)
                     contract_qty    = sym_state.get("contract_qty") or 1
                     premium_dollars = (entry - current_price) * 100 * contract_qty
                     sym_state["total_premium_collected"] = round(
@@ -2410,14 +2438,15 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                         sym_state["contract_entry_price"] = float(filled_avg)
                         log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f}")
 
-            current_price = get_option_last_price(contract)
+            current_price, btc_limit = _close_mark_and_limit(contract)
             if current_price is not None:
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
-                    log(f"[{symbol}] 50% PROFIT RULE on call: closing.")
+                    log(f"[{symbol}] 50% PROFIT RULE on call: closing (marketable @ ${btc_limit:.2f}).")
                     # place_buy_to_close auto-detects qty so it'll close all
                     # contracts on this OCC symbol regardless of how many.
-                    place_buy_to_close(contract, current_price)
+                    # Priced marketable (R4) so it actually fills.
+                    place_buy_to_close(contract, btc_limit)
                     contracts_held  = max(1, (sym_state.get("shares_qty") or 100) // 100)
                     premium_dollars = (entry - current_price) * 100 * contracts_held
                     sym_state["total_premium_collected"] = round(

@@ -207,7 +207,16 @@ direction → status.** Source tags reference the original reviewer findings
   decision uses the quote and the close is marketable.
 
 ### R4 — Wheel 50%-close priced off stale last-trade 🟠 High  [O4, S2, S3]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). New `_close_mark_and_limit` decides the
+  50%-close off the live quote MID and prices the buy-to-close MARKETABLE (the
+  ASK) so it actually fills, in both `handle_stage1` and `handle_stage2`. Falls
+  back to last trade when no quote. +5 tests (`test_wheel_close_pricing.py`).
+  Marketable pricing removes the unfilled-close root cause for ALL wheel modes
+  (incl. manual/live, which are protected from the double-open by
+  `wheel_skip_new_puts`). NOTE: the full pending-close FSM (defer `_sell_new_put`
+  until the close is *confirmed* filled) was intentionally NOT added — the
+  double-open only affects cons/agg paper, and marketable fills make it
+  near-impossible; tracked as a possible later hardening if logs show a miss.
 - **Location:** `wheel_strategy.py` ~2056-2063 (Stage 1), ~2350-2357 (Stage 2);
   `place_buy_to_close` adds only +$0.05 to a last-trade-derived limit.
 - **Scenario:** Stale last-trade triggers the 50%-profit check and places a BTC
@@ -660,7 +669,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R33 | Live → paper endpoint silent fallback | 1 | ✅ DONE |
 | R2 | Average-down HWM/trailing reset | 1 | ✅ DONE |
 | R3 | `long_options` exits off stale price | 1 | ✅ DONE |
-| R4 | Wheel 50%-close off stale price + reopen race | 1 | NOT STARTED |
+| R4 | Wheel 50%-close off stale price + reopen race | 1 | ✅ DONE |
 | R5 | mleg close market-order bad fills | 2 | NOT STARTED |
 | R6 | Fallback close at mid (won't fill) | 2 | NOT STARTED |
 | R7 | mleg close success without fill verify | 2 | NOT STARTED |

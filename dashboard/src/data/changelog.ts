@@ -31,6 +31,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Wheel 50%-close: decide on the quote mid, buy-to-close marketable (actually fills)',
+    details:
+      'Money-loss review finding R4. The wheel\'s 50%-profit close priced both ' +
+      'the trigger decision AND the buy-to-close limit off the last TRADE. On ' +
+      'an illiquid contract that\'s stale, so a BTC limit at stale-last+$0.05 ' +
+      'could sit below the ask and never fill — yet state was cleared to ' +
+      '"closed" and (on cons/agg) a new put was sold against the still-open ' +
+      'short → false state / double short. _close_mark_and_limit now decides on ' +
+      'the live quote MID and prices the buy-to-close MARKETABLE (the ask) so it ' +
+      'fills, in both Stage 1 (puts) and Stage 2 (covered calls). Falls back to ' +
+      'last trade only when no quote exists. Completes Phase 1 of the money-loss ' +
+      'remediation (R1-R4, R31-R33: 7 fixes). +5 pytest (547 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Long-option exits now decide on the live quote, not a stale last trade',
     details:
       'Money-loss review finding R3. long_options_strategy decided take-profit ' +
