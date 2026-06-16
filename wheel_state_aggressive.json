@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-15T19:49:46.501214Z",
+    "last_checked": "2026-06-16T13:39:51.625854Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260618C00205000: $0.17 vs entry $0.15",
+    "last_action": "Monitoring COIN260618C00205000: $0.16 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.51 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.48 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,17 +71,17 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.60 vs entry $1.04",
+    "last_action": "Monitoring RIOT260626P00025000: $0.57 vs entry $1.04",
     "contract_qty": 1
   },
   "SMCI": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "b1043db3-c104-4640-bfe5-be29bb388830",
+    "current_contract": "SMCI260626C00045000",
+    "contract_order_id": "f24a5794-7e8f-43c3-bda6-fcee25d73496",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-01T13:39:57.459838Z",
-    "contract_expiration": "2026-06-12",
-    "contract_type": "put",
+    "contract_entry_date": "2026-06-16T13:39:45.475980Z",
+    "contract_expiration": "2026-06-26",
+    "contract_type": "call",
     "contract_strike": 45.0,
     "cost_basis_per_share": 42.87,
     "shares_qty": 100,
@@ -115,7 +115,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Assigned on SMCI260612P00045000. 100 shares, cost basis $42.87.",
+    "last_action": "Sold-to-open 1\u00d7 SMCI260626C00045000 @ $0.06. Awaiting fill.",
     "contract_qty": 1
   },
   "NVDA": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.15 vs entry $0.17",
+    "last_action": "Monitoring NVDA260622C00230000: $0.18 vs entry $0.17",
     "contract_qty": 1
   },
   "AMD": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $4.93 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $4.48 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -251,16 +251,16 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.47 vs entry $0.43",
+    "last_action": "Monitoring BAC260626P00055000: $0.53 vs entry $0.43",
     "contract_qty": 1
   },
   "XOM": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "da1644c4-d0f9-4f71-b27e-41d0c5d07cd4",
+    "current_contract": "XOM260626C00160000",
+    "contract_order_id": "334bf003-c1d7-472f-aac1-798d7c6dd7e8",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-11T17:41:33.697436Z",
-    "contract_expiration": "2026-06-18",
+    "contract_entry_date": "2026-06-16T13:39:48.473731Z",
+    "contract_expiration": "2026-06-26",
     "contract_type": "call",
     "contract_strike": 160.0,
     "cost_basis_per_share": 153.66,
@@ -279,16 +279,16 @@
         "shares": 100
       }
     ],
-    "last_action": "Closed early: +$18.00 (1\u00d7 contracts). Selling new call.",
+    "last_action": "Sold-to-open 1\u00d7 XOM260626C00160000 @ $0.09. Awaiting fill.",
     "contract_qty": 1
   },
   "KO": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "ef807714-cd11-4929-b3d7-54b34931a24a",
+    "current_contract": "KO260626C00085000",
+    "contract_order_id": "99f39f89-8bc4-4456-9135-96993d344960",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-08T13:49:44.227585Z",
-    "contract_expiration": "2026-06-18",
+    "contract_entry_date": "2026-06-16T13:39:49.296108Z",
+    "contract_expiration": "2026-06-26",
     "contract_type": "call",
     "contract_strike": 85.0,
     "cost_basis_per_share": 79.73,
@@ -307,18 +307,18 @@
         "shares": 100
       }
     ],
-    "last_action": "Closed early: +$4.00 (1\u00d7 contracts). Selling new call.",
+    "last_action": "Sold-to-open 1\u00d7 KO260626C00085000 @ $0.12. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "193249ae-e828-4543-9703-85df4bd39987",
+    "current_contract": "PLTR260626C00160000",
+    "contract_order_id": "a5b9ff54-2227-4144-a1f0-9e084d79f158",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-01T13:50:09.740659Z",
-    "contract_expiration": "2026-06-12",
-    "contract_type": "put",
-    "contract_strike": 155.0,
+    "contract_entry_date": "2026-06-16T13:39:50.106991Z",
+    "contract_expiration": "2026-06-26",
+    "contract_type": "call",
+    "contract_strike": 160.0,
     "cost_basis_per_share": 151.15,
     "shares_qty": 100,
     "total_cost": 15115.0,
@@ -335,17 +335,17 @@
         "shares": 100
       }
     ],
-    "last_action": "Assigned on PLTR260612P00155000. 100 shares, cost basis $151.15.",
+    "last_action": "Sold-to-open 1\u00d7 PLTR260626C00160000 @ $0.14. Awaiting fill.",
     "contract_qty": 1
   },
   "SOFI": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "c926f254-eb14-4c95-ae95-1c69f4a829f2",
+    "current_contract": "SOFI260626C00018000",
+    "contract_order_id": "5411e04f-971f-4932-b71f-804a578c56f6",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-01T17:50:12.815148Z",
-    "contract_expiration": "2026-06-12",
-    "contract_type": "put",
+    "contract_entry_date": "2026-06-16T13:39:50.846894Z",
+    "contract_expiration": "2026-06-26",
+    "contract_type": "call",
     "contract_strike": 18.0,
     "cost_basis_per_share": 17.5,
     "shares_qty": 100,
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Assigned on SOFI260612P00018000. 100 shares, cost basis $17.50.",
+    "last_action": "Sold-to-open 1\u00d7 SOFI260626C00018000 @ $0.38. Awaiting fill.",
     "contract_qty": 1
   },
   "PFE": {
