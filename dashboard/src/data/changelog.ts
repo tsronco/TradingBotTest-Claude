@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Long-option exits now decide on the live quote, not a stale last trade',
+    details:
+      'Money-loss review finding R3. long_options_strategy decided take-profit ' +
+      'and stop-loss off get_option_last_price (the last TRADE). On an illiquid ' +
+      'contract that price can be hours/days stale — so a long that had actually ' +
+      'collapsed showed only a small loss (stop never fired, rode to zero) and a ' +
+      'long that had run showed a phantom +100% (premature take-profit on a ' +
+      'still-winning position). evaluate_position now prefers the live two-sided ' +
+      'quote MID, falling back to last trade only when no quote exists. Affects ' +
+      'cons/agg + manual + live. +5 pytest (542 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Averaging down no longer triggers a spurious trailing-stop liquidation',
     details:
       'Money-loss review finding R2. When you manually added shares at a lower ' +

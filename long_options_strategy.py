@@ -323,6 +323,25 @@ def compute_close_price(option_symbol: str, urgent: bool = False) -> float | Non
 
 # ── Core decision logic ───────────────────────────────────────────────────
 
+def _current_mark(symbol: str):
+    """Current mark for a long option, used for exit decisions (R3, 2026-06-16).
+
+    Prefer the live quote MID over the last TRADE price: on an illiquid contract
+    the last trade can be hours or days stale, so a long that has actually
+    collapsed still shows a small loss (stop never fires) and a long that has
+    run shows a phantom +100% (premature take-profit). Fall back to the last
+    trade only when no two-sided quote is available.
+    """
+    q = get_option_quote(symbol)
+    if q:
+        bid, ask = q.get("bid"), q.get("ask")
+        if bid is not None and ask is not None:
+            mid = (float(bid) + float(ask)) / 2.0
+            if mid > 0:
+                return round(mid, 2)
+    return get_option_last_price(symbol)
+
+
 def evaluate_position(pos: dict, today: date) -> tuple[str, float, dict]:
     """Decide what to do with a long option position.
 
@@ -348,7 +367,7 @@ def evaluate_position(pos: dict, today: date) -> tuple[str, float, dict]:
     if entry <= 0:
         return "skip_no_entry", 0.0, {"symbol": symbol}
 
-    current = get_option_last_price(symbol)
+    current = _current_mark(symbol)
     if current is None or current <= 0:
         return "skip_no_price", 0.0, {"symbol": symbol, "entry": entry}
 

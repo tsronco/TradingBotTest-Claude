@@ -185,7 +185,11 @@ direction → status.** Source tags reference the original reviewer findings
   an average-down drift, assert the stop is not raised above the new cost basis.
 
 ### R3 — `long_options` exits decided off stale last-trade price 🟠 High  [S25; theme shared with O4]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). New `_current_mark` prefers the live two-
+  sided quote MID over the last trade for `evaluate_position`'s stop/take-profit
+  decision, falling back to last trade only when no quote exists. +5 tests
+  (`test_long_options_stale_price.py`). (Zero-bid stale case still tracked under
+  R15.) Affects cons/agg + manual + live.
 - **Location:** `long_options_strategy.py` ~line 340 (`get_option_last_price`
   drives `pnl_pct` → take-profit/stop-loss).
 - **Scenario:** Illiquid long option; last *trade* is stale (hours/days old). The
@@ -655,7 +659,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | ✅ DONE |
 | R33 | Live → paper endpoint silent fallback | 1 | ✅ DONE |
 | R2 | Average-down HWM/trailing reset | 1 | ✅ DONE |
-| R3 | `long_options` exits off stale price | 1 | NOT STARTED |
+| R3 | `long_options` exits off stale price | 1 | ✅ DONE |
 | R4 | Wheel 50%-close off stale price + reopen race | 1 | NOT STARTED |
 | R5 | mleg close market-order bad fills | 2 | NOT STARTED |
 | R6 | Fallback close at mid (won't fill) | 2 | NOT STARTED |
