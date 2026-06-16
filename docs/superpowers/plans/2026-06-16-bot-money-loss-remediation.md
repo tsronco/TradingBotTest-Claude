@@ -553,7 +553,10 @@ direction → status.** Source tags reference the original reviewer findings
   does not naked the call (closes only free shares or buys back the call first).
 
 ### R32 — `long_options` hedge guard is PUT-only → naked short call 🔴 Critical  [S(v2)4]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `_unpaired_hedge_long_occs` now also protects
+  the long CALL of a call credit spread (short call at a LOWER strike, same
+  expiry), type-matched so puts/calls don't cross. +3 tests in
+  `test_spread_loss_fix.py`. Closes the naked-short-call hole on manual + live.
 - **Location:** `long_options_strategy.py:168-199`, line ~184
   (`if parsed["type"] != "put": continue`).
 - **Scenario:** A user hand-opens a **call** credit spread (short call + long
@@ -636,7 +639,7 @@ ordering, the hedge hand-off, and PDT routing.
 | ID | Title | Phase | Status |
 |---|---|---|---|
 | R1 | Duplicate-order guard (`client_order_id`) | 1 | ✅ DONE |
-| R32 | `long_options` call-hedge guard (naked short call) | 1 | NOT STARTED |
+| R32 | `long_options` call-hedge guard (naked short call) | 1 | ✅ DONE |
 | R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | NOT STARTED |
 | R33 | Live → paper endpoint silent fallback | 1 | NOT STARTED |
 | R2 | Average-down HWM/trailing reset | 1 | NOT STARTED |

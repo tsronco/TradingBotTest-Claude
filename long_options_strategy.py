@@ -166,35 +166,46 @@ def _wheel_claimed_long_occs() -> set:
 
 
 def _unpaired_hedge_long_occs(all_positions: list) -> set:
-    """OCC symbols of long puts that hedge a short put still in the account.
+    """OCC symbols of long option legs that hedge a short leg still held.
 
-    A long put with a short put at a HIGHER strike and the SAME expiration is
-    the long leg of a put credit spread. Even when wheel_strategy hasn't paired
-    them into spread_active state (e.g. a split-fill qty mismatch), this leg is
-    a hedge — stop-lossing it here would leave the short naked. Detect the
-    relationship straight from live positions and skip those longs, mirroring
-    wheel_strategy's naked-leg guard on the short side (2026-05-30).
+    Two cases — both the long leg of a vertical CREDIT spread that must NOT be
+    sold here (selling it leaves the short leg naked):
+      - put credit spread:  a long PUT with a short PUT at a HIGHER strike,
+        same expiration.
+      - call credit spread: a long CALL with a short CALL at a LOWER strike,
+        same expiration.
+    Detect both straight from live positions even when wheel_strategy hasn't
+    paired them into spread_active state (split-fill qty mismatch, not-yet-
+    adopted, or stale state). Mirrors wheel_strategy's naked-leg guard on the
+    short side (2026-05-30). The call case (R32, 2026-06-16) closes the
+    naked-short-CALL hole — selling the long call of a user-opened call credit
+    spread would leave an unlimited-upside-risk naked short call.
     """
-    shorts: dict = {}   # (ticker, expiry) -> [short strikes]
-    longs: list = []    # (occ, ticker, expiry, strike)
+    shorts: dict = {}   # (ticker, expiry, type) -> [short strikes]
+    longs: list = []    # (occ, key, type, strike)
     for pos in all_positions:
         if pos.get("asset_class") != "us_option":
             continue
         parsed = parse_occ_symbol(pos.get("symbol", ""))
-        if parsed is None or parsed["type"] != "put":
+        if parsed is None or parsed["type"] not in ("put", "call"):
             continue
         try:
             qty = int(float(pos["qty"]))
         except (KeyError, ValueError, TypeError):
             continue
-        key = (parsed["ticker"], parsed["expiry"].isoformat())
+        key = (parsed["ticker"], parsed["expiry"].isoformat(), parsed["type"])
         if qty < 0:
             shorts.setdefault(key, []).append(parsed["strike"])
         elif qty > 0:
-            longs.append((pos["symbol"], key, parsed["strike"]))
+            longs.append((pos["symbol"], key, parsed["type"], parsed["strike"]))
     hedges = set()
-    for occ, key, strike in longs:
-        if any(s_strike > strike for s_strike in shorts.get(key, [])):
+    for occ, key, otype, strike in longs:
+        short_strikes = shorts.get(key, [])
+        # put credit spread: short put sits ABOVE the long put hedge.
+        # call credit spread: short call sits BELOW the long call hedge.
+        if otype == "put" and any(s > strike for s in short_strikes):
+            hedges.add(occ)
+        elif otype == "call" and any(s < strike for s in short_strikes):
             hedges.add(occ)
     return hedges
 

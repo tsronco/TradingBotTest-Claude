@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Hedge guard now protects call credit spreads too (no more accidental naked short calls)',
+    details:
+      'Money-loss review finding R32. long_options_strategy\'s hedge guard ' +
+      '(which stops it from selling a spread\'s long leg and leaving the short ' +
+      'naked) only recognized PUT credit spreads. A user-opened CALL credit ' +
+      'spread\'s long call was unprotected — if it lost >50%, the bot could ' +
+      'stop-loss it and leave a naked short call (unlimited upside risk), the ' +
+      'most dangerous position the bot can create. _unpaired_hedge_long_occs ' +
+      'now also protects a long call paired with a short call at a LOWER strike ' +
+      '+ same expiration, type-matched so puts and calls never cross. Affects ' +
+      'manual + live. +3 pytest (521 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Bot orders are now idempotent (client_order_id) — no more double-placing on retry',
     details:
       'Critical fix found by a dual-model adversarial code review (R1). Every ' +

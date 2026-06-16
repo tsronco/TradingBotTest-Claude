@@ -200,6 +200,39 @@ def test_unpaired_hedge_long_none_at_mismatched_expiry():
     assert los._unpaired_hedge_long_occs(positions) == set()
 
 
+# ── R32: call credit spread long-call hedge (naked-short-call hole) ──────────
+
+def test_unpaired_hedge_long_call_detected():
+    # call credit spread: short call at 14.50 (LOWER) + long call at 15.50
+    # (HIGHER), same expiry → the long call is the hedge and must NOT be sold.
+    positions = [
+        {"symbol": "NVDA260612C00014500", "asset_class": "us_option", "qty": "-1"},
+        {"symbol": "NVDA260612C00015500", "asset_class": "us_option", "qty": "1"},
+    ]
+    hedges = los._unpaired_hedge_long_occs(positions)
+    assert "NVDA260612C00015500" in hedges
+    assert "NVDA260612C00014500" not in hedges  # the short isn't a long hedge
+
+
+def test_unpaired_hedge_long_call_not_protected_when_short_is_higher():
+    # short call ABOVE the long call = a call DEBIT spread; the long is the
+    # primary leg, not a hedge to protect-from-selling.
+    positions = [
+        {"symbol": "NVDA260612C00015500", "asset_class": "us_option", "qty": "-1"},
+        {"symbol": "NVDA260612C00014500", "asset_class": "us_option", "qty": "1"},
+    ]
+    assert los._unpaired_hedge_long_occs(positions) == set()
+
+
+def test_unpaired_hedge_put_and_call_do_not_cross():
+    # A short put must not protect a long call (and vice versa) — type-matched.
+    positions = [
+        {"symbol": "AAL260612P00013500", "asset_class": "us_option", "qty": "-1"},
+        {"symbol": "AAL260612C00012500", "asset_class": "us_option", "qty": "1"},
+    ]
+    assert los._unpaired_hedge_long_occs(positions) == set()
+
+
 # ── D. long_options urgent close prices marketable ───────────────────────────
 
 def test_compute_close_price_urgent_hits_bid(monkeypatch):
