@@ -128,6 +128,7 @@ def apply_mode(mode_name: str) -> None:
     global AUTO_OPEN_SPREADS
     global SPREAD_OPEN_CONCESSION_PCT, SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID
     global SPREAD_UNDERLYING_TRIPWIRE, SPREAD_SETTLE_MINUTES
+    global SPREAD_TRIPWIRE_DTE, SPREAD_TRIPWIRE_CONFIRM_MINUTES
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
@@ -193,6 +194,22 @@ def apply_mode(mode_name: str) -> None:
         cfg.get("spread_underlying_tripwire", SPREAD_STOP_CREDIT_MULT is not None)
     )
     SPREAD_SETTLE_MINUTES = cfg.get("spread_settle_minutes", 0)
+    # Underlying-tripwire noise-tolerance (2026-06-16, manual). A put credit
+    # spread is defined-risk: its loss is capped at the width whether the stock
+    # wicks through the short strike for a minute or sits there for a week. The
+    # original tripwire closed on the FIRST touch at ANY DTE, which realized a
+    # near-max loss on pure intraday noise and forfeited recovery (MU 2-DTE and
+    # QQQ 9-DTE 2026-06-16 both recovered above the strike within ~1-2h). Two
+    # gates narrow it to where an ITM short leg actually means something:
+    #   * SPREAD_TRIPWIRE_DTE — only arm at/under this many days to expiry
+    #     (None = arm at all DTEs, the legacy/SM behavior).
+    #   * SPREAD_TRIPWIRE_CONFIRM_MINUTES — require the stock to stay through
+    #     the short strike for this long of *continuous* breach before closing
+    #     (0 = close on first touch, the legacy/SM behavior). Time-based so the
+    #     10-min cron's gaps don't matter; waiting costs nothing structurally
+    #     because the loss is already capped at the width.
+    SPREAD_TRIPWIRE_DTE = cfg.get("spread_tripwire_dte", None)
+    SPREAD_TRIPWIRE_CONFIRM_MINUTES = cfg.get("spread_tripwire_confirm_minutes", 0)
 
 
 # Initialize at import time to conservative defaults so importers (e.g.,
@@ -281,6 +298,10 @@ def _empty_spread_state() -> dict:
         "max_loss": None,
         "width": None,
         "opened_at": None,
+        # Set to an ISO8601 '...Z' timestamp on the cycle the stock first trades
+        # through the short strike (underlying tripwire); cleared the moment it
+        # recovers above. Drives the confirmation window in handle_spread.
+        "tripwire_breach_since": None,
         # Bot-opened spreads only: id of the mleg open order + the credit
         # the marketable limit was placed at. Adopted/hand-opened spreads
         # leave these None so _resolve_pending_spread short-circuits to
@@ -848,6 +869,14 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     if SPREAD_UNDERLYING_TRIPWIRE:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
+        # DTE gate (2026-06-16). The tripwire is only a meaningful risk signal
+        # near expiration, where an ITM short leg means real pin/assignment risk.
+        # Far from expiry a strike touch on a defined-risk spread is noise — the
+        # loss is capped at the width — so don't even arm. SPREAD_TRIPWIRE_DTE is
+        # None for SM/legacy modes (armed at all DTEs, original behavior).
+        from datetime import date as _date
+        _tw_dte = (_date.fromisoformat(sym_state["expiration"]) - _date.today()).days
+        tripwire_armed = (SPREAD_TRIPWIRE_DTE is None) or (_tw_dte <= SPREAD_TRIPWIRE_DTE)
         # get_latest_price raises on HTTP/network failure; wrap so the
         # tripwire degrades to a heartbeat skip rather than crashing the
         # whole symbol's cycle. The None-guard below then handles cleanly.
@@ -855,17 +884,58 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
             stock_price = get_latest_price(ticker)
         except Exception:
             stock_price = None
-        if stock_price is not None:
+        if not tripwire_armed:
+            # Outside the arm window — if a stale breach timestamp lingers (e.g.
+            # the gate tightened mid-trade), clear it so it can't confirm later.
+            if sym_state.get("tripwire_breach_since") is not None:
+                sym_state["tripwire_breach_since"] = None
+        elif stock_price is not None:
             tripped = (
                 (spread_type == "put_credit"  and stock_price <= short_strike) or
                 (spread_type == "call_credit" and stock_price >= short_strike)
             )
             if tripped:
-                log(f"[{ticker}] spread underlying tripwire — stock "
-                    f"${stock_price:.2f} crossed short strike "
-                    f"${short_strike:.2f} ({spread_type}) — closing")
-                _close_spread(state, ticker, reason="underlying_tripwire")
+                # Persistence/confirmation (2026-06-16). Don't close on the first
+                # touch — record the breach time and only close once the stock
+                # has stayed through the strike for SPREAD_TRIPWIRE_CONFIRM_MINUTES
+                # of *continuous* breach. A recovery above the strike (else branch
+                # below) resets the clock. CONFIRM_MINUTES == 0 (SM/legacy) closes
+                # on the first touch, since the freshly-set timestamp reads ~0m.
+                if sym_state.get("tripwire_breach_since") is None:
+                    sym_state["tripwire_breach_since"] = (
+                        datetime.utcnow().isoformat() + "Z"
+                    )
+                breach_min = _tripwire_breach_minutes(sym_state)
+                if breach_min >= SPREAD_TRIPWIRE_CONFIRM_MINUTES:
+                    log(f"[{ticker}] spread underlying tripwire — stock "
+                        f"${stock_price:.2f} through short strike ${short_strike:.2f} "
+                        f"({spread_type}) for {breach_min:.0f}m >= "
+                        f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — closing")
+                    _close_spread(state, ticker, reason="underlying_tripwire")
+                    return
+                # Still inside the confirmation window — hold and watch. Skip the
+                # profit/stop/DTE checks this cycle so the noise has room to
+                # recover (the loss can't exceed the width while we wait).
+                log(f"[{ticker}] spread underlying tripwire pending — stock "
+                    f"${stock_price:.2f} through short strike ${short_strike:.2f}, "
+                    f"breached {breach_min:.0f}m of "
+                    f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — holding")
+                log_event(LOG_STREAM, "wheel_strategy.py", "spread_tripwire_pending",
+                          result="skipped", symbol=ticker,
+                          details={"stock_price": stock_price,
+                                   "short_strike": short_strike,
+                                   "breach_minutes": round(breach_min, 1),
+                                   "confirm_minutes": SPREAD_TRIPWIRE_CONFIRM_MINUTES,
+                                   "dte": _tw_dte})
                 return
+            else:
+                # Stock recovered above the short strike — reset any pending
+                # breach so the confirmation clock restarts on the next breach.
+                if sym_state.get("tripwire_breach_since") is not None:
+                    log(f"[{ticker}] spread underlying tripwire reset — stock "
+                        f"${stock_price:.2f} recovered above short strike "
+                        f"${short_strike:.2f}")
+                    sym_state["tripwire_breach_since"] = None
 
     # 2. Profit trigger
     if pnl["profit_pct"] >= SPREAD_EARLY_CLOSE_PCT:
@@ -1579,6 +1649,26 @@ def _spread_order_age_hours(sym_state) -> float:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _tripwire_breach_minutes(sym_state) -> float:
+    """Minutes of continuous breach since the underlying tripwire first armed.
+
+    Reads `tripwire_breach_since` (ISO8601, '...Z'), set on the cycle the stock
+    first traded through the short strike and cleared the moment it recovers
+    above it. Returns 0.0 on missing/unparseable input — defensive, mirrors
+    _spread_order_age_hours: a parse error must never spuriously confirm a close.
+    """
+    since = sym_state.get("tripwire_breach_since")
+    if not since:
+        return 0.0
+    try:
+        dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 60.0
     except (ValueError, TypeError):
         return 0.0
 

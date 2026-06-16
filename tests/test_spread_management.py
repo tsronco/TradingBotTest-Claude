@@ -1146,16 +1146,9 @@ def test_handle_spread_sm_underlying_tripwire_not_fired_above_strike(monkeypatch
     assert "hit" not in closed
 
 
-def test_handle_spread_manual_underlying_tripwire_fires(monkeypatch, apply_sm_mode):
-    """Manual NOW gets the underlying tripwire (2026-05-30 spread-loss fix).
-
-    A put credit spread whose stock has traded through the short strike is
-    closed immediately regardless of (possibly junk) option quotes — pure risk
-    protection that applies to every manual spread.
-    """
-    apply_sm_mode("manual")
-
-    state = _seeded_sm_spread_state()
+def _manual_tripwire_mocks(monkeypatch, stock_price):
+    """Wire positions + non-degenerate quotes + a stock price for a manual
+    spread tripwire test. Short strike is $14 (from _seeded_sm_spread_state)."""
     monkeypatch.setattr(ws, "get_positions", lambda: [
         {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
         {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
@@ -1164,7 +1157,104 @@ def test_handle_spread_manual_underlying_tripwire_fires(monkeypatch, apply_sm_mo
         "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
         "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
     }[occ])
-    monkeypatch.setattr(ws, "get_latest_price", lambda s: 13.95)  # below short strike
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: stock_price)
+
+
+def _near_expiry_manual_state():
+    """Seeded manual spread expiring inside the tripwire DTE gate (≤2 days)."""
+    from datetime import date as _d, timedelta as _td
+    state = _seeded_sm_spread_state()
+    state["AMD"]["expiration"] = (_d.today() + _td(days=1)).isoformat()
+    return state
+
+
+def test_handle_spread_manual_tripwire_not_armed_far_from_expiry(monkeypatch, apply_sm_mode):
+    """Manual (2026-06-16): far from expiry, a touch of the short strike is
+    noise — the tripwire isn't even armed (the QQQ 9-DTE case). No close, and
+    no breach timestamp is recorded."""
+    apply_sm_mode("manual")
+    assert ws.SPREAD_TRIPWIRE_DTE == 2
+    assert ws.SPREAD_TRIPWIRE_CONFIRM_MINUTES == 60
+
+    state = _seeded_sm_spread_state()  # expiration 2099-12-31 → far future
+    _manual_tripwire_mocks(monkeypatch, 13.95)  # below short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+    assert state["AMD"].get("tripwire_breach_since") is None
+
+
+def test_handle_spread_manual_tripwire_pending_on_first_touch(monkeypatch, apply_sm_mode):
+    """Manual, near expiry: first touch through the strike records the breach
+    and HOLDS — it doesn't close on the first cycle (the MU intraday-wick case)."""
+    apply_sm_mode("manual")
+
+    state = _near_expiry_manual_state()
+    _manual_tripwire_mocks(monkeypatch, 13.95)  # below short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+    assert state["AMD"]["tripwire_breach_since"] is not None
+
+
+def test_handle_spread_manual_tripwire_confirms_after_window(monkeypatch, apply_sm_mode):
+    """Manual, near expiry: a breach that has held longer than the confirmation
+    window closes the spread."""
+    from datetime import datetime, timezone, timedelta
+    apply_sm_mode("manual")
+
+    state = _near_expiry_manual_state()
+    past = datetime.now(timezone.utc) - timedelta(minutes=61)
+    state["AMD"]["tripwire_breach_since"] = past.isoformat().replace("+00:00", "Z")
+    _manual_tripwire_mocks(monkeypatch, 13.95)  # still below short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert closed["hit"] == ("AMD", "underlying_tripwire")
+
+
+def test_handle_spread_manual_tripwire_resets_on_recovery(monkeypatch, apply_sm_mode):
+    """Manual, near expiry: a pending breach is cleared the moment the stock
+    recovers above the short strike — the confirmation clock restarts cleanly
+    on any later breach (exactly what saved MU/QQQ when they bounced back)."""
+    from datetime import datetime, timezone, timedelta
+    apply_sm_mode("manual")
+
+    state = _near_expiry_manual_state()
+    past = datetime.now(timezone.utc) - timedelta(minutes=30)
+    state["AMD"]["tripwire_breach_since"] = past.isoformat().replace("+00:00", "Z")
+    _manual_tripwire_mocks(monkeypatch, 14.25)  # recovered above short strike
+
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+    assert state["AMD"]["tripwire_breach_since"] is None
+
+
+def test_handle_spread_sm_tripwire_still_immediate_at_all_dte(monkeypatch, apply_sm_mode):
+    """SM modes are byte-unaffected by the manual noise-tolerance change: the
+    DTE gate is inactive (None) and the confirmation window is 0, so a touch of
+    the short strike closes immediately at any DTE — the original behavior."""
+    apply_sm_mode("sm1000")
+    assert ws.SPREAD_TRIPWIRE_DTE is None
+    assert ws.SPREAD_TRIPWIRE_CONFIRM_MINUTES == 0
+
+    state = _seeded_sm_spread_state()  # far-future expiry
+    _manual_tripwire_mocks(monkeypatch, 13.95)  # below short strike
 
     closed = {}
     monkeypatch.setattr(ws, "_close_spread",

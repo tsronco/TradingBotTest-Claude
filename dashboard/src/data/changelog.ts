@@ -29,6 +29,30 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-16',
+    category: 'engine',
+    title: 'Spread tripwire: tolerate intraday noise (DTE gate + 60-min confirmation) on manual',
+    details:
+      'Two manual put credit spreads (MU, QQQ) closed for a few-hundred-dollar ' +
+      'loss each the instant the stock touched the short strike — then both ' +
+      'recovered above the strike within 1–2 hours. The original underlying ' +
+      'tripwire closed on the FIRST touch at ANY DTE, which is the wrong reflex ' +
+      'for a defined-risk spread: the loss is already capped at the width, so ' +
+      'closing on an intraday wick just realizes a near-max loss and forfeits the ' +
+      'recovery.\n\n' +
+      'Manual now narrows the tripwire to where an ITM short leg actually means ' +
+      'something:\n' +
+      '• DTE gate — only arm in the final 2 days (spread_tripwire_dte: 2), where ' +
+      'pin/assignment risk is real. QQQ (9 DTE) would no longer arm at all.\n' +
+      '• Confirmation window — even when armed, require the stock to stay through ' +
+      'the short strike for 60 continuous minutes before closing ' +
+      '(spread_tripwire_confirm_minutes: 60). A recovery above the strike resets ' +
+      'the clock. MU (back above within the hour) would ride through.\n\n' +
+      'Waiting costs nothing structurally — defined risk caps the loss at the ' +
+      'width while we wait. SM/cons/agg/live are byte-unaffected (gates default ' +
+      'to None/0 = close on first touch at all DTEs, the original behavior).',
+  },
+  {
     date: '2026-06-03',
     category: 'fix',
     title: 'Proactive sweep: PDT-quiet every close boundary (wheel stages, orphans, long options)',
