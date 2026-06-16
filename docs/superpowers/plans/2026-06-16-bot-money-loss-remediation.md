@@ -532,7 +532,11 @@ direction → status.** Source tags reference the original reviewer findings
 ---
 
 ### R31 — `close_all` liquidates CC-collateral shares → naked short call 🔴 Critical  [S(v2)2]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `run_one_cycle`'s stop now sells only
+  `_available_qty` (free) shares via a bounded `place_order` sell instead of
+  `close_all`/DELETE, and holds+alerts when all shares are CC collateral. cons/agg
+  unified onto the manual path's collateral-aware behavior. +3 tests
+  (`test_strategy_stop_collateral.py`).
 - **Location:** `strategy.py:289, 446` (`run_one_cycle` stop fires
   `close_all(SYMBOL)` → `DELETE /positions/{symbol}`), `strategy.py:181`.
 - **Scenario:** cons/agg only. The TSLA wheel is in Stage 2 (100 shares + a sold
@@ -640,7 +644,7 @@ ordering, the hedge hand-off, and PDT routing.
 |---|---|---|---|
 | R1 | Duplicate-order guard (`client_order_id`) | 1 | ✅ DONE |
 | R32 | `long_options` call-hedge guard (naked short call) | 1 | ✅ DONE |
-| R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | NOT STARTED |
+| R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | ✅ DONE |
 | R33 | Live → paper endpoint silent fallback | 1 | NOT STARTED |
 | R2 | Average-down HWM/trailing reset | 1 | NOT STARTED |
 | R3 | `long_options` exits off stale price | 1 | NOT STARTED |

@@ -476,14 +476,48 @@ def run_one_cycle():
 
         # ── 1. Stop loss ───────────────────────────────────────────────
         if price <= stop_price:
-            log(f"STOP HIT — price ${price:.2f} ≤ stop ${stop_price:.2f}. Closing {total_qty} shares.")
-            close_all(SYMBOL)
-            realized = (price - avg_cost) * total_qty
-            log(f"Position closed. Realized P&L: ${realized:+.2f}")
+            # R31 (2026-06-16): sell only the FREELY-AVAILABLE shares — never
+            # DELETE the whole position. If the wheel got assigned and wrote a
+            # covered call against some of these shares (stage 2), those shares
+            # are locked as CC collateral; close_all(SYMBOL) would liquidate
+            # them and leave a NAKED short call (unlimited upside risk) — and
+            # would also dump the wheel's assigned shares. Mirror the manual
+            # path: place a bounded sell of just the free shares.
+            position = next((p for p in get_stock_positions()
+                             if p.get("symbol") == SYMBOL), None)
+            free_qty = _available_qty(position) if position else total_qty
+            sell_qty = min(total_qty, free_qty)
+            if sell_qty <= 0:
+                log(f"STOP HIT at ${price:.2f} but 0 freely-sellable shares "
+                    f"(all held as covered-call collateral) — not liquidating; "
+                    f"wheel_strategy manages the covered call.")
+                send_embed(
+                    ACTIONS_CH, f"TSLA stop hit but shares are CC collateral — holding",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Price ${price:.2f} ≤ stop ${stop_price:.2f}, but all "
+                        f"shares are locked as covered-call collateral. Not "
+                        f"liquidating (would naked the call); wheel_strategy owns the CC."
+                    ),
+                    footer=f"strategy.py · {MODE}",
+                    also_to_actions=False,
+                )
+                log_event(LOG_STREAM, "strategy.py", "stop_blocked_cc_collateral",
+                          result="skipped", symbol=SYMBOL,
+                          details={"price": price, "stop": stop_price, "qty": total_qty})
+                return
+            log(f"STOP HIT — price ${price:.2f} ≤ stop ${stop_price:.2f}. "
+                f"Selling {sell_qty} freely-sellable shares (of {total_qty} tracked).")
+            place_order(SYMBOL, sell_qty, "sell")
+            realized = (price - avg_cost) * sell_qty
+            remaining = total_qty - sell_qty
+            log(f"Sold {sell_qty}. Realized P&L: ${realized:+.2f}. Remaining tracked: {remaining}")
             send_embed(
-                TRADES_CH, f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
+                TRADES_CH, f"TSLA STOP HIT — sold {sell_qty} shares @ ${price:.2f}",
                 color=Color.RED,
-                description=f"Realized P&L: ${realized:+.2f}",
+                description=(f"Realized P&L: ${realized:+.2f}"
+                             + (f" · {remaining} shares remain (CC collateral)"
+                                if remaining else "")),
                 fields=[
                     {"name": "Avg cost", "value": f"${avg_cost:.2f}", "inline": True},
                     {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
@@ -493,11 +527,14 @@ def run_one_cycle():
             )
             log_event(LOG_STREAM, "strategy.py", "stop_hit",
                       symbol=SYMBOL,
-                      details={"exit_price": price, "qty": total_qty, "realized_pnl": realized})
-            # Mark position closed in state
-            state["position_qty"] = 0
-            state["total_cost"] = 0
-            state["last_action"] = f"Stop hit at ${price:.2f}. Closed {total_qty} shares. Realized ${realized:+.2f}."
+                      details={"exit_price": price, "qty": sell_qty,
+                               "realized_pnl": realized, "remaining": remaining})
+            state["position_qty"] = remaining
+            state["total_cost"] = round(avg_cost * remaining, 2)
+            state["last_action"] = (
+                f"Stop hit at ${price:.2f}. Sold {sell_qty} shares. "
+                f"Realized ${realized:+.2f}."
+                + (f" {remaining} CC-collateral shares held." if remaining else ""))
             _save_state(state)
             return
 

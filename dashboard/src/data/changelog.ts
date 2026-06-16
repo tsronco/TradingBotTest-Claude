@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Conservative/aggressive stop no longer liquidates covered-call collateral',
+    details:
+      'Money-loss review finding R31. The TSLA stop in run_one_cycle used ' +
+      'close_all (DELETE /positions/{sym}), which liquidates EVERY share — ' +
+      'including shares locked as covered-call collateral after a wheel ' +
+      'assignment (stage 2). That would leave a naked short call (unlimited ' +
+      'upside risk) and also dump the wheel\'s assigned shares. The stop now ' +
+      'sells only the freely-available shares (qty_available) via a bounded ' +
+      'sell order, and holds + alerts when every share is CC collateral — ' +
+      'mirroring the manual path. cons/agg only (live already used the safe ' +
+      'manual path). +3 pytest (524 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Hedge guard now protects call credit spreads too (no more accidental naked short calls)',
     details:
       'Money-loss review finding R32. long_options_strategy\'s hedge guard ' +
