@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T19:10:47.134448Z",
+    "last_checked": "2026-06-16T19:21:02.060216Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -52,26 +52,26 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.43 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.49 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
     "stage": 1,
     "current_contract": "RIOT260626P00025000",
-    "contract_order_id": "9a97d182-8a4c-4013-be36-359ffdd20b44",
-    "contract_entry_price": 1.04,
-    "contract_entry_date": "2026-06-12T17:40:27.232130Z",
+    "contract_order_id": "57e24a6b-7a61-40e9-b237-12fd80b1fd13",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-16T19:20:59.538718Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "put",
     "contract_strike": 25.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 400.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 463.0,
+    "total_premium_today": 63.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.43 vs entry $1.04",
+    "last_action": "Sold-to-open RIOT260626P00025000 @ $0.44. Awaiting fill.",
     "contract_qty": 1
   },
   "SMCI": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.04 vs entry $0.05",
+    "last_action": "Monitoring NVDA260622C00230000: $0.07 vs entry $0.05",
     "contract_qty": 1
   },
   "AMD": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.18 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $5.19 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -279,7 +279,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring XOM260626C00160000: $0.15 vs entry $0.10",
+    "last_action": "Monitoring XOM260626C00160000: $0.10 vs entry $0.10",
     "contract_qty": 1
   },
   "KO": {
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260626C00018000: $0.68 vs entry $0.38",
+    "last_action": "Monitoring SOFI260626C00018000: $0.64 vs entry $0.38",
     "contract_qty": 1
   },
   "PFE": {
