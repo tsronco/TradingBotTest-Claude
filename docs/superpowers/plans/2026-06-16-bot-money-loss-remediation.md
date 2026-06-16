@@ -389,7 +389,12 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** 2-name pool with poor raw scores → assert no open.
 
 ### R13 — Null order id → reopen loop 🟡 Medium  [S24]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). The opener already blocks a duplicate via
+  `_working_spread_order_exists`; the residual harm was misreading a still-
+  pending open as "gone" (premature state delete + misleading embed) when the
+  numeric id was lost. Now the open captures the echoed `client_order_id` (R1
+  stamps it) into `open_client_order_id`, and `_resolve_pending_spread` resolves
+  by it when the numeric id is missing. +4 tests. SM.
 - **Location:** `wheel_strategy.py:~3332-3347` (`open_order_id = id if != "?" else None`).
 - **Scenario:** Alpaca returns `{"id": null}` → `open_order_id=None` → next cycle
   `handle_spread` skips pending-resolution → orphan handler sees both legs absent
@@ -716,7 +721,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R10 | `net_credit=None` crash | 2 | ✅ DONE |
 | R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
 | R12 | `normalize_scores` small-pool gate | 2b | ✅ DONE |
-| R13 | Null order id reopen loop | 2b | NOT STARTED |
+| R13 | Null order id reopen loop | 2b | ✅ DONE |
 | R14 | Multi-open stale BP | 2b | NOT STARTED |
 | R15 | Zero-bid long leg skipped | 2b | NOT STARTED |
 | R16 | Earnings window / cons-agg CSP gate | 2b | NOT STARTED |

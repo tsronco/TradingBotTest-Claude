@@ -315,6 +315,10 @@ def _empty_spread_state() -> dict:
         # leave these None so _resolve_pending_spread short-circuits to
         # "gone" and the existing position/orphan path runs unchanged.
         "open_order_id": None,
+        # R13: the client_order_id we stamped on the opening mleg (R1). Alpaca
+        # echoes it; we keep it so a lost/None numeric order id doesn't make
+        # _resolve_pending_spread misread a still-working open as "gone".
+        "open_client_order_id": None,
         "open_limit_credit": None,
         "total_premium_collected": 0.0,
         "cycle_count": 0,
@@ -1985,10 +1989,17 @@ def _resolve_pending_spread(sym_state):
       "filled"  — opening order filled; legs are now/imminently positions.
       "gone"    — order canceled/rejected/expired/404/no id.
     """
-    order_id = sym_state.get("open_order_id")
-    if not order_id:
+    order_id   = sym_state.get("open_order_id")
+    client_oid = sym_state.get("open_client_order_id")
+    if not order_id and not client_oid:
+        # Adopted/hand-opened spread (neither id) → existing position/orphan path.
         return "gone"
-    order = get_order(order_id)
+    # R13: if the numeric id was lost/None from the open response but we kept the
+    # client_order_id (R1 stamps it on every order POST; Alpaca echoes it),
+    # resolve the pending order by that instead of misreading a still-working
+    # open as "gone" — which would prematurely delete state and fire a
+    # misleading "did not fill" embed.
+    order = get_order(order_id) if order_id else _get_order_by_client_id(client_oid)
     if order is None:
         return "gone"
     status = order.get("status", "")
@@ -3537,6 +3548,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             continue
 
         order_id = order.get("id", "?") if isinstance(order, dict) else "?"
+        client_oid = order.get("client_order_id") if isinstance(order, dict) else None
 
         # Seed spread_active state so the inherited manual handle_spread
         # adopts and manages exits on subsequent cycles (no new exit code).
@@ -3552,6 +3564,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
         ss["open_order_id"] = order_id if order_id != "?" else None
+        ss["open_client_order_id"] = client_oid  # R13: resolve fallback
         ss["open_limit_credit"] = limit_credit
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "

@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Auto-opened spread: resolve a pending open by client_order_id if the numeric id is lost',
+    details:
+      'Money-loss review finding R13 (Phase 2b). If Alpaca ever returned an ' +
+      'auto-opened spread order with a missing/null numeric id, ' +
+      '_resolve_pending_spread misread the still-working open as "gone" — ' +
+      'prematurely deleting state and firing a misleading "did not fill" embed ' +
+      '(duplicate orders were already blocked by _working_spread_order_exists). ' +
+      'The open now also captures the client_order_id that R1 stamps on every ' +
+      'order (Alpaca echoes it), and resolves the pending order by it when the ' +
+      'numeric id is missing. SM accounts. +4 pytest (564 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'SM auto-open: don’t trust the wheelability gate on a tiny candidate pool',
     details:
       'Money-loss review finding R12 (Phase 2b). normalize_scores percentile-' +
