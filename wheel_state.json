@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T18:18:24.466302Z"
+    "last_checked": "2026-06-16T18:28:18.877400Z"
   },
   "TSLA": {
     "stage": 1,
@@ -57,7 +57,7 @@
     "total_premium_today": 3.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open BAC260710P00050000 @ $0.08. Awaiting fill.",
+    "last_action": "Awaiting fill on BAC260710P00050000.",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.06 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.10 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
