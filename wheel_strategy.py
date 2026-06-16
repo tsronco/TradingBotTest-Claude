@@ -147,6 +147,13 @@ def apply_mode(mode_name: str) -> None:
         BASE_URL = _raw_url
     else:
         BASE_URL = "https://paper-api.alpaca.markets/v2"
+    # R33: real-money mode must NEVER run against the paper endpoint. A missing
+    # or malformed ALPACA_LIVE_BASE_URL would otherwise silently route live
+    # orders to paper and leave the real account unmanaged. Fail loudly.
+    if mode_name == "live" and "paper-api.alpaca.markets" in BASE_URL:
+        raise RuntimeError(
+            f"live mode resolved to the PAPER endpoint ({BASE_URL}) — refusing "
+            f"to run. Set ALPACA_LIVE_BASE_URL to https://api.alpaca.markets/v2.")
     HEADERS    = {
         "APCA-API-KEY-ID":     API_KEY,
         "APCA-API-SECRET-KEY": API_SECRET,

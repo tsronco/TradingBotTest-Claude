@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Live mode now refuses to run against the paper endpoint (fail loud, not silent)',
+    details:
+      'Money-loss review finding R33. If ALPACA_LIVE_BASE_URL were ever ' +
+      'missing, malformed, or a placeholder, apply_mode silently fell back to ' +
+      'the paper endpoint — so the live script would happily "trade" the paper ' +
+      'account while the real-money account sat completely unmanaged (missed ' +
+      'stops, unmanaged spreads, uncollected premium). Now apply_mode hard-' +
+      'fails with a RuntimeError when live resolves to a paper URL, in both ' +
+      'wheel_strategy and strategy (long_options inherits it). A pre-live-' +
+      'cutover safety landmine, defused. +10 pytest (534 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Conservative/aggressive stop no longer liquidates covered-call collateral',
     details:
       'Money-loss review finding R31. The TSLA stop in run_one_cycle used ' +

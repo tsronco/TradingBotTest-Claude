@@ -579,7 +579,11 @@ direction → status.** Source tags reference the original reviewer findings
   assert the long call is recognized as a hedge and NOT stop-lossed.
 
 ### R33 — Live silently falls back to the paper endpoint 🟠 High  [S(v2)7]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `apply_mode` (both `wheel_strategy` and
+  `strategy`; `long_options` delegates to `wheel_strategy.apply_mode`) now raises
+  `RuntimeError` when `mode == "live"` resolves to the paper endpoint
+  (missing/malformed/placeholder/paper `ALPACA_LIVE_BASE_URL`) instead of silently
+  trading paper. +10 tests (`test_live_endpoint_guard.py`).
 - **Location:** `wheel_strategy.py:143-147` (and identical logic in `strategy.py`,
   `long_options_strategy.py`): a missing/malformed base URL falls back to
   `https://paper-api.alpaca.markets/v2`.
@@ -645,7 +649,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R1 | Duplicate-order guard (`client_order_id`) | 1 | ✅ DONE |
 | R32 | `long_options` call-hedge guard (naked short call) | 1 | ✅ DONE |
 | R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | ✅ DONE |
-| R33 | Live → paper endpoint silent fallback | 1 | NOT STARTED |
+| R33 | Live → paper endpoint silent fallback | 1 | ✅ DONE |
 | R2 | Average-down HWM/trailing reset | 1 | NOT STARTED |
 | R3 | `long_options` exits off stale price | 1 | NOT STARTED |
 | R4 | Wheel 50%-close off stale price + reopen race | 1 | NOT STARTED |
