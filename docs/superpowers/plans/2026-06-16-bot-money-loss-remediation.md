@@ -371,7 +371,14 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Skewed per-leg entries → assert `net_credit` is validated.
 
 ### R12 — `normalize_scores` gate meaningless for small pools 🟡 Medium  [S14]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). Root cause refined: `normalize_scores` always
+  gives the BEST candidate 100, so the wheelability floor never blocks the #1
+  pick (the one that opens) at any `n` — the real gap is a degenerate 1-2 name
+  pool. New `wheelability_min_pool` (config; 5 on SM + manual auto-open blocks,
+  None elsewhere) holds single-stock opens when the eligible pool is too small to
+  rank; the absolute credit/width + trend + risk gates still protect and the
+  curated bypass ETFs are unaffected. +3 tests. SM (+manual if auto-open
+  re-enabled).
 - **Location:** `wheel_strategy.py:~2776-2787` (`i/(n-1)*100`).
 - **Scenario:** When only 2 candidates survive filters, scores are forced to 0
   and 100; the `wheelability_min` (75-80) is auto-cleared by the "winner"
@@ -708,7 +715,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R9 | DTE-floor `get_latest_price` unguarded | 2 | ✅ DONE |
 | R10 | `net_credit=None` crash | 2 | ✅ DONE |
 | R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
-| R12 | `normalize_scores` small-pool gate | 2b | NOT STARTED |
+| R12 | `normalize_scores` small-pool gate | 2b | ✅ DONE |
 | R13 | Null order id reopen loop | 2b | NOT STARTED |
 | R14 | Multi-open stale BP | 2b | NOT STARTED |
 | R15 | Zero-bid long leg skipped | 2b | NOT STARTED |

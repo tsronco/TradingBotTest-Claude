@@ -3251,8 +3251,22 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
     # every cycle; the remaining single-stock candidates fill any slots the
     # bypass symbols didn't claim (e.g. when none clears the c/w + risk gates).
     bypass_first = [s for s in sorted_syms if s in bypass_syms]
+    # R12 (2026-06-16): percentile ranks are only meaningful on a pool big
+    # enough to rank. On a degenerate 1-2 name eligible pool, normalize_scores
+    # hands the single best candidate a 100 regardless of its absolute quality,
+    # so `norm[s] >= threshold` rubber-stamps it. Require a minimum eligible
+    # pool before trusting the percentile floor for SINGLE STOCKS; below it,
+    # hold single-stock opens this cycle (the absolute credit/width + trend +
+    # risk gates still protect, and the curated bypass ETFs are unaffected —
+    # they don't rely on the percentile). None = off (non-SM modes unchanged).
+    min_pool = cfg.get("wheelability_min_pool")
+    pool_ok = (min_pool is None) or (len(raw) >= int(min_pool))
+    if not pool_ok:
+        log(f"[auto-spread] eligible pool {len(raw)} < wheelability_min_pool "
+            f"{min_pool} — percentile rank not meaningful; holding single-stock "
+            f"opens this cycle (bypass ETFs still eligible)")
     others       = [s for s in sorted_syms
-                    if s not in bypass_syms and norm[s] >= threshold]
+                    if s not in bypass_syms and norm[s] >= threshold and pool_ok]
     eligible_syms = bypass_first + others
     if not eligible_syms:
         log(f"[auto-spread] best remaining wheelability < {threshold} "

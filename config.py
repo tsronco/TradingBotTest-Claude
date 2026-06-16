@@ -309,6 +309,7 @@ MODES = {
         # auto_open_spreads is True. (2026-05-22)
         "bp_switch_threshold":       50000,
         "wheelability_min":          80,
+        "wheelability_min_pool":     5,       # R12: don't trust the percentile floor on a tiny eligible pool
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    4,       # 10x sm2000 capital → +1 vs sm2000
@@ -490,6 +491,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
         "wheelability_min":          75,      # 2026-05-21: 85 → 75 (52-name pool makes percentile-90 unreachable; 77.8 was the recurring ceiling post-expansion)
+        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
         "max_risk_pct_equity":       0.20,    # 2026-05-21: 0.10 → 0.20 (sm500-only; $50 cap left no $1-wide spread that could fit)
         "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
         "max_concurrent_spreads":    1,       # Conservative: at most 1 open
@@ -558,6 +560,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
+        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    2,
@@ -622,6 +625,7 @@ MODES = {
         "auto_open_spreads":         True,
         "bp_switch_threshold":       5000,
         "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
+        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
         "max_risk_pct_equity":       0.10,
         "min_net_credit":            0.05,
         "max_concurrent_spreads":    3,

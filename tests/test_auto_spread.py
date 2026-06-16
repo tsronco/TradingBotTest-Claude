@@ -161,6 +161,10 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
     cfg["max_underlying_price"] = max_underlying_price
+    # Default the R12 minimum-pool gate OFF for the shared harness — most tests
+    # use tiny 1-2 name pools to isolate other behavior. The gate is exercised
+    # explicitly by the dedicated R12 tests below.
+    cfg["wheelability_min_pool"] = None
 
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": str(equity),
@@ -876,6 +880,7 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
     ws.AUTO_OPEN_SPREADS = True
     import config
     cfg = dict(config.get_mode("sm1000"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["max_underlying_price"] = None
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": "1000", "options_buying_power": "2000"})
@@ -1073,6 +1078,7 @@ def test_auto_open_spread_skips_symbols_below_sma20(monkeypatch):
     skipped — even if all other gates pass."""
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["trend_filter"] = True
 
     state = {"_meta": {}}
@@ -1108,6 +1114,7 @@ def test_auto_open_spread_proceeds_above_sma20(monkeypatch):
     may block downstream — we only verify the trend gate doesn't.)"""
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["trend_filter"] = True
 
     state = {"_meta": {}}
@@ -1243,6 +1250,7 @@ def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
     find_contract_by_delta — find_best_contract is NOT called for the
     short. Long leg still uses find_best_contract (width-walk)."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = -0.40
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["trend_filter"] = False
@@ -1309,6 +1317,7 @@ def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
     """SM/cons/agg/live config (no short_put_target_delta) → falls back to
     the 10%-OTM strike rule via find_best_contract for the short leg."""
     cfg = dict(SM_CFG)  # sm1000 — no short_put_target_delta key
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["wheelability_min"] = 0
     cfg["trend_filter"] = False
 
@@ -1355,6 +1364,7 @@ def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
     construction loop. Other gates must still gate — but the wheelability
     floor is skipped for these symbols."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["short_put_target_delta"] = None  # use strike path for simplicity
     cfg["wheelability_min"] = 80
@@ -1402,6 +1412,7 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
     (legacy behavior). This is the regression check: I did not accidentally
     open the gate for everything when adding bypass."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["short_put_target_delta"] = None
     cfg["wheelability_min"] = 80
@@ -1536,6 +1547,7 @@ def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
     expiration. This is the AAL diagonal regression check."""
     import config
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = -0.40
     cfg["wheelability_bypass_symbols"] = ["AAL"]
     cfg["trend_filter"] = False
@@ -1648,6 +1660,7 @@ def test_auto_open_manual_opens_two_per_cycle(monkeypatch):
     spreads in a single cycle (e.g. one single-stock + one bypass ETF).
     Verifies opens_this_cycle counter respects the cap and stops at 2."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_min"] = 0  # let everything through
     cfg["trend_filter"] = False
     cfg["short_put_target_delta"] = None  # use strike-based path
@@ -1755,6 +1768,7 @@ def test_auto_open_bypass_symbols_tried_first(monkeypatch):
     attempts every cycle instead of being starved by higher-scoring
     single stocks consuming all slots."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = None  # strike path for easier mocking
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["wheelability_min"] = 80
@@ -1820,6 +1834,7 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
     cap of 4, only ONE more spread should open this cycle (filling the
     4th slot), then break — not blow past cap to 5."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = None
     cfg["wheelability_bypass_symbols"] = []  # disable bypass for this test
     cfg["wheelability_min"] = 0
@@ -1883,3 +1898,49 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
     # max_opens=2 but cap=4 with 3 already open → only 1 new spread fits
     assert len(open_order) == 1, \
         f"inline cap must stop after 1 open (3 existing + 1 new = 4); got {len(open_order)}"
+
+
+# ── R12: minimum eligible-pool guard for the percentile wheelability floor ──
+
+def _tiny_pool_wiring(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},  # short mid 0.60
+        "CHEAP260612P00017000": {"bid": 0.20, "ask": 0.30},  # long mid 0.25
+    }
+    return _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0},
+                "OTHER": {"score": 3.0, "price": 50.0}},  # 2-name eligible pool
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+
+
+def test_auto_open_holds_single_stock_on_tiny_pool(monkeypatch):
+    """R12: a 2-name pool can't rank, so the percentile floor is meaningless —
+    with wheelability_min_pool=5 the single-stock open is held."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg["wheelability_min_pool"] = 5
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert opened == []
+
+
+def test_auto_open_opens_when_pool_meets_minimum(monkeypatch):
+    """Control: same 2-name pool, but wheelability_min_pool=2 is satisfied →
+    the single-stock open proceeds (the gate only blocks a too-small pool)."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg["wheelability_min_pool"] = 2
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1
+
+
+def test_auto_open_pool_gate_off_by_default(monkeypatch):
+    """No wheelability_min_pool key (non-SM / unset) → gate inactive, opens as
+    before even on a tiny pool."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg.pop("wheelability_min_pool", None)
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1

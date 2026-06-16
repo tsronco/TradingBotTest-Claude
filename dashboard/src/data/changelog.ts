@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'SM auto-open: don’t trust the wheelability gate on a tiny candidate pool',
+    details:
+      'Money-loss review finding R12 (Phase 2b). normalize_scores percentile-' +
+      'ranks the cycle’s candidates, but it always hands the single BEST one a ' +
+      '100 — so the wheelability floor never actually blocks the #1 pick (the ' +
+      'one that opens) regardless of pool size. On a degenerate 1-2 name pool ' +
+      'that means a mediocre name gets rubber-stamped. New wheelability_min_pool ' +
+      '(5 on the SM + manual auto-open blocks) holds single-stock opens when the ' +
+      'eligible pool is too small to rank; the absolute credit/width + trend + ' +
+      'risk gates still protect, and the curated bypass ETFs are unaffected. ' +
+      'SM accounts (manual too if auto-open is ever re-enabled). +3 pytest (560 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Spread state hardening: net_credit guard + adopted-spread sanity clamp',
     details:
       'Money-loss review findings R10/R11 (Phase 2, completes it). R10: a ' +
