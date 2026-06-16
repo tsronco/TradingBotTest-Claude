@@ -359,6 +359,16 @@ MODES = {
         "min_credit_to_width_pct":   0.33,
         "trend_filter":              True,
         "spread_underlying_tripwire": True,   # close if stock crosses short strike
+        # Tripwire noise tolerance (2026-06-16). A defined-risk spread's loss is
+        # capped at the width regardless of intraday wicks, so closing on the
+        # first strike touch at any DTE realized near-max losses on noise that
+        # recovered within an hour or two (MU 2-DTE, QQQ 9-DTE 2026-06-16). Only
+        # arm the tripwire in the final 2 days (where ITM = real pin/assignment
+        # risk) AND require the stock to hold through the short strike for a full
+        # hour of continuous breach before closing. Manual-only — SM/cons/agg/
+        # live leave these unset (None/0) and keep immediate-fire-at-all-DTE.
+        "spread_tripwire_dte":             2,
+        "spread_tripwire_confirm_minutes": 60,
         "spread_settle_minutes":      20,     # no loss-stop in first 20 min post-open
         # Opening-price posture (2026-05-30). Rest the mleg between the mid and
         # the marketable cross instead of crossing fully and giving away the
