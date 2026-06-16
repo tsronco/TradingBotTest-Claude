@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Spread state hardening: net_credit guard + adopted-spread sanity clamp',
+    details:
+      'Money-loss review findings R10/R11 (Phase 2, completes it). R10: a ' +
+      'corrupted spread state with net_credit/max_loss = None would crash ' +
+      'handle_spread on the float() conversion and leave the spread unmanaged; ' +
+      'it now skips the cycle with a warning. R11: when adopting a spread, ' +
+      'net_credit is derived from Alpaca per-leg avg_entry_price, which can ' +
+      'mis-split an mleg fill (most of the credit on one leg, ~0 on the other) ' +
+      'and corrupt all P&L from the start; _detect_spread_pairs now validates ' +
+      '0 < net_credit < width and clamps an out-of-band value into the valid ' +
+      'range with a warning. Phase 2 done (R5-R11, 7 fixes). +4 pytest (557 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Tripwire-pending window no longer blocks a profit close; DTE-floor price guarded',
     details:
       'Money-loss review findings R8/R9 (Phase 2). R8: while a spread\'s ' +

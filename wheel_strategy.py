@@ -888,6 +888,25 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
             f"— skipping cycle")
         return
 
+    # R10 (2026-06-16): a corrupted/half-written state with net_credit or
+    # max_loss == None (or non-numeric) would crash the float() conversions
+    # below (in _compute_spread_pnl and here) and leave the spread UNMANAGED.
+    # Skip the cycle with a warning rather than raise — a bot-opened spread
+    # reconciles net_credit from the fill and an adopted one derives it from the
+    # legs, so both should be set, but defend against a bad state file.
+    try:
+        float(sym_state["net_credit"])
+        float(sym_state["max_loss"])
+    except (TypeError, ValueError, KeyError):
+        log(f"[{ticker}] spread heartbeat — net_credit/max_loss missing or "
+            f"non-numeric (net_credit={sym_state.get('net_credit')!r}, "
+            f"max_loss={sym_state.get('max_loss')!r}) — skipping cycle")
+        log_event(LOG_STREAM, "wheel_strategy.py", "spread_state_invalid",
+                  result="skipped", symbol=ticker,
+                  details={"net_credit": sym_state.get("net_credit"),
+                           "max_loss": sym_state.get("max_loss")})
+        return
+
     pnl = _compute_spread_pnl(sym_state, close_cost)
     max_loss = float(sym_state["max_loss"])
 
@@ -2717,6 +2736,26 @@ def _detect_spread_pairs(positions) -> dict:
                 continue
             spread_type = "put_credit" if opt_type == "put" else "call_credit"
             net_credit = round(s["entry"] - l["entry"], 4)
+            # R11 (2026-06-16): net_credit is derived from Alpaca's per-leg
+            # avg_entry_price, which can mis-split an mleg fill (most of the
+            # credit on one leg, ~0 on the other). A valid credit spread
+            # satisfies 0 < net_credit < width; outside that band the P&L math
+            # (profit_pct, max_loss) is corrupt from the moment of adoption.
+            # Clamp into a sane band and warn rather than seed a broken basis —
+            # the spread is a real position that still needs management.
+            if not (0 < net_credit < width):
+                hi = max(0.01, round(width - 0.01, 4))
+                clamped = round(min(max(net_credit, 0.01), hi), 4)
+                log(f"[{ticker}] adopted spread net_credit ${net_credit:.4f} "
+                    f"outside (0, width ${width:.2f}) — per-leg entries look "
+                    f"mis-split; clamping to ${clamped:.4f} for management")
+                log_event(LOG_STREAM, "wheel_strategy.py",
+                          "spread_adopt_net_credit_clamped", result="success",
+                          symbol=ticker,
+                          details={"short_occ": s["occ"], "long_occ": l["occ"],
+                                   "raw_net_credit": net_credit, "width": width,
+                                   "clamped": clamped})
+                net_credit = clamped
             max_loss = round(width - net_credit, 4)
             sp = SpreadPair(
                 ticker=ticker,

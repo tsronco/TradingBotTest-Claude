@@ -343,7 +343,10 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** `get_latest_price` raises → assert symbol cycle survives.
 
 ### R10 — `net_credit = None` crashes `handle_spread` 🟡 Medium  [S12]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `handle_spread` validates `net_credit`/
+  `max_loss` are numeric before the P&L math; a corrupt/None value now skips the
+  cycle with a `spread_state_invalid` warning instead of raising and leaving the
+  spread unmanaged. +1 test.
 - **Location:** `wheel_strategy.py` `_compute_spread_pnl` / `handle_spread`
   (`float(sym_state["net_credit"])` with no None guard).
 - **Scenario:** Corrupted/half-written state has `net_credit=None` → TypeError →
@@ -353,7 +356,11 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** None `net_credit` → assert graceful skip, no crash.
 
 ### R11 — Adopted-spread `net_credit` trusts per-leg `avg_entry_price` 🟡 Medium  [S17]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `_detect_spread_pairs` now validates the
+  derived `net_credit` against `0 < net_credit < width`; an out-of-band value
+  (Alpaca mis-split the mleg fill across legs) is clamped into the valid band
+  with a `spread_adopt_net_credit_clamped` warning, so adoption proceeds on a
+  sane basis instead of corrupt P&L. +3 tests.
 - **Location:** `wheel_strategy.py:~2526, 2565` (`_detect_spread_pairs`).
 - **Scenario:** For an mleg-opened spread, Alpaca's per-leg `avg_entry_price` may
   not split cleanly → `net_credit = short_entry − long_entry` wrong at adoption →
@@ -699,8 +706,8 @@ ordering, the hedge hand-off, and PDT routing.
 | R7 | mleg close success without fill verify | 2 | ✅ DONE |
 | R8 | Tripwire pending blocks profit/stop/DTE | 2 | ✅ DONE |
 | R9 | DTE-floor `get_latest_price` unguarded | 2 | ✅ DONE |
-| R10 | `net_credit=None` crash | 2 | NOT STARTED |
-| R11 | Adopted-spread net_credit trust | 2 | NOT STARTED |
+| R10 | `net_credit=None` crash | 2 | ✅ DONE |
+| R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
 | R12 | `normalize_scores` small-pool gate | 2b | NOT STARTED |
 | R13 | Null order id reopen loop | 2b | NOT STARTED |
 | R14 | Multi-open stale BP | 2b | NOT STARTED |

@@ -463,3 +463,38 @@ def test_detect_picks_narrowest_with_call_credit_overlap():
     assert sp.short_strike == 10.0
     assert sp.long_strike == 11.0
     assert sp.spread_type == "call_credit"
+
+
+# ── R11: adopted-spread net_credit sanity-clamp (mis-split per-leg entries) ──
+
+def test_detect_spread_clamps_negative_missplit_net_credit():
+    # Alpaca mis-split: short avg_entry 0.05, long 0.30 → raw net_credit -0.25
+    # (invalid). Clamp into (0, width).
+    positions = [
+        {"symbol": "AAL260918P00013000", "qty": "-1", "avg_entry_price": "0.05", "asset_class": "us_option"},
+        {"symbol": "AAL260918P00012000", "qty": "1",  "avg_entry_price": "0.30", "asset_class": "us_option"},
+    ]
+    sp = wheel_strategy._detect_spread_pairs(positions)["AAL"][0]
+    assert 0 < sp.net_credit < sp.width
+    assert sp.net_credit == 0.01
+    assert sp.max_loss == round(sp.width - sp.net_credit, 4)
+
+
+def test_detect_spread_clamps_net_credit_above_width():
+    # raw net_credit 1.40 >= width 1.0 → clamp just below width.
+    positions = [
+        {"symbol": "AAL260918P00013000", "qty": "-1", "avg_entry_price": "1.50", "asset_class": "us_option"},
+        {"symbol": "AAL260918P00012000", "qty": "1",  "avg_entry_price": "0.10", "asset_class": "us_option"},
+    ]
+    sp = wheel_strategy._detect_spread_pairs(positions)["AAL"][0]
+    assert sp.net_credit == 0.99
+    assert sp.max_loss == 0.01
+
+
+def test_detect_spread_valid_net_credit_unchanged():
+    positions = [
+        {"symbol": "AAL260918P00013000", "qty": "-1", "avg_entry_price": "0.33", "asset_class": "us_option"},
+        {"symbol": "AAL260918P00012000", "qty": "1",  "avg_entry_price": "0.11", "asset_class": "us_option"},
+    ]
+    sp = wheel_strategy._detect_spread_pairs(positions)["AAL"][0]
+    assert sp.net_credit == 0.22  # valid → unchanged

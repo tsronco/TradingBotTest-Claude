@@ -1401,3 +1401,25 @@ def test_dte_floor_price_fetch_guarded(monkeypatch, apply_sm_mode):
                         lambda st, t, reason: closed.setdefault("hit", (t, reason)))
     ws.handle_spread(state, "AMD", account={"cash": 1000})  # must not raise
     assert "hit" not in closed
+
+
+def test_handle_spread_invalid_net_credit_skips_not_crash(monkeypatch, apply_sm_mode):
+    """R10: a corrupted state with net_credit=None must skip the cycle with a
+    warning, not crash the symbol and leave the spread unmanaged."""
+    apply_sm_mode("manual")
+    state = _seeded_sm_spread_state()
+    state["AMD"]["net_credit"] = None
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+                        lambda st, t, r: closed.setdefault("hit", (t, r)))
+    ws.handle_spread(state, "AMD", account={"cash": 1000})  # must not raise
+    assert "hit" not in closed
+    assert "AMD" in state  # state not deleted
