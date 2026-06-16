@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T15:00:12.029243Z",
+    "last_checked": "2026-06-16T15:09:58.092561Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.22 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $4.52 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260626C00018000: $0.36 vs entry $0.38",
+    "last_action": "Monitoring SOFI260626C00018000: $0.40 vs entry $0.38",
     "contract_qty": 1
   },
   "PFE": {
