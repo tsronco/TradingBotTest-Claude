@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T17:48:07.096811Z"
+    "last_checked": "2026-06-16T18:18:24.466302Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,26 +38,26 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260702P00370000: $3.40 vs entry $3.10",
+    "last_action": "Monitoring TSLA260702P00370000: $3.10 vs entry $3.10",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
-    "current_contract": "BAC260702P00050000",
-    "contract_order_id": "697b59c7-811b-4d7b-aeb0-a8ebfdb84bf8",
-    "contract_entry_price": 0.06,
-    "contract_entry_date": "2026-06-15T19:28:26.148240Z",
-    "contract_expiration": "2026-07-02",
+    "current_contract": "BAC260710P00050000",
+    "contract_order_id": "30003e0e-d2dd-4c3a-96e4-cfcf178751d2",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-16T18:18:22.596597Z",
+    "contract_expiration": "2026-07-10",
     "contract_type": "put",
     "contract_strike": 50.0,
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 40.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 43.0,
+    "total_premium_today": 3.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260702P00050000: $0.05 vs entry $0.06",
+    "last_action": "Sold-to-open BAC260710P00050000 @ $0.08. Awaiting fill.",
     "contract_qty": 1
   },
   "XOM": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $9.10 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $9.34 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
@@ -156,7 +156,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260702P00016000: $0.24 vs entry $0.33",
+    "last_action": "Monitoring SOFI260702P00016000: $0.23 vs entry $0.33",
     "contract_qty": 1
   },
   "PFE": {
@@ -264,7 +264,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260702P00115000: $6.23 vs entry $4.05",
+    "last_action": "Monitoring INTC260702P00115000: $5.83 vs entry $4.05",
     "contract_qty": 1
   }
 }
