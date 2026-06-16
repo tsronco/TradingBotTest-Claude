@@ -1316,3 +1316,88 @@ def test_handle_spread_conservative_tripwire_inactive(monkeypatch, apply_sm_mode
 
     ws.handle_spread(state, "AMD", account={"cash": 1000})
     assert "hit" not in closed  # conservative: tripwire never armed
+
+
+# ── R8/R9: tripwire-pending defers ONLY the loss-stop; DTE-floor price guard ──
+
+def _wire_spread(monkeypatch, short_q, long_q, stock_price):
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": short_q,
+        "AMD2099P00013000": long_q,
+    }[occ])
+    monkeypatch.setattr(ws, "get_latest_price", lambda s: stock_price)
+
+
+def test_tripwire_pending_still_takes_profit(monkeypatch, apply_sm_mode):
+    """R8: a 50%-profit close must still fire while a tripwire breach is pending
+    (the real bug — a winner shouldn't be blocked by a strike wick)."""
+    apply_sm_mode("manual")
+    state = _near_expiry_manual_state()  # ~1 DTE, short strike 14
+    # close_cost exec = short_ask 0.08 − long_bid 0.01 = 0.07; net_credit 0.20 →
+    # profit_pct 0.65 ≥ 0.50. Stock 13.95 breaches the strike (pending).
+    _wire_spread(monkeypatch, {"bid": 0.04, "ask": 0.08}, {"bid": 0.01, "ask": 0.02}, 13.95)
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+                        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert closed.get("hit") == ("AMD", "early_close_50pct")
+
+
+def test_tripwire_pending_defers_loss_stop(monkeypatch, apply_sm_mode):
+    """R8: the loss-stop IS deferred while a breach is pending (noise tolerance
+    preserved) — the spread is held, not stopped out, on the wick."""
+    apply_sm_mode("manual")
+    state = _near_expiry_manual_state()
+    # mid loss well past the stop: close_cost_mid = 0.90 − 0.05 = 0.85; loss_mid
+    # 0.65. But pending defers the stop. Profit is negative (exec 0.95 − 0.02).
+    _wire_spread(monkeypatch, {"bid": 0.85, "ask": 0.95}, {"bid": 0.02, "ask": 0.08}, 13.95)
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+                        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed
+    assert state["AMD"]["tripwire_breach_since"] is not None
+
+
+def test_tripwire_pending_defers_dte_floor(monkeypatch, apply_sm_mode):
+    """R8: the DTE-floor is ALSO deferred while pending — at ≤2 DTE it's the same
+    signal as the tripwire, and the confirmation window exists to let the wick
+    recover (the MU case). It must not nullify that window."""
+    apply_sm_mode("manual")
+    state = _near_expiry_manual_state()  # ~1 DTE
+    # neutral quotes (no profit, no degenerate); stock 13.95 ITM + pending.
+    _wire_spread(monkeypatch, {"bid": 0.25, "ask": 0.30}, {"bid": 0.05, "ask": 0.10}, 13.95)
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+                        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+    ws.handle_spread(state, "AMD", account={"cash": 1000})
+    assert "hit" not in closed  # DTE-floor did NOT fire during pending
+
+
+def test_dte_floor_price_fetch_guarded(monkeypatch, apply_sm_mode):
+    """R9: a network error fetching the price in the DTE-floor block must not
+    crash the symbol cycle (it used to propagate and skip the close)."""
+    apply_sm_mode("manual")
+    monkeypatch.setattr(ws, "SPREAD_UNDERLYING_TRIPWIRE", False)  # isolate the DTE-floor path
+    state = _near_expiry_manual_state()
+    monkeypatch.setattr(ws, "get_positions", lambda: [
+        {"symbol": "AMD2099P00014000", "asset_class": "us_option"},
+        {"symbol": "AMD2099P00013000", "asset_class": "us_option"},
+    ])
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ: {
+        "AMD2099P00014000": {"bid": 0.25, "ask": 0.30},
+        "AMD2099P00013000": {"bid": 0.05, "ask": 0.10},
+    }[occ])
+
+    def boom(_):
+        raise RuntimeError("network down")
+    monkeypatch.setattr(ws, "get_latest_price", boom)
+    closed = {}
+    monkeypatch.setattr(ws, "_close_spread",
+                        lambda st, t, reason: closed.setdefault("hit", (t, reason)))
+    ws.handle_spread(state, "AMD", account={"cash": 1000})  # must not raise
+    assert "hit" not in closed

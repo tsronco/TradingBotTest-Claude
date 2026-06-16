@@ -295,7 +295,16 @@ direction → status.** Source tags reference the original reviewer findings
   state is NOT deleted and the survivor is handled.
 
 ### R8 — Tripwire pending-return blocks ALL other spread triggers 🟠 High (upgraded)  [O6, S(v2)3 — gap in our 2026-06-16 fix]
-- **Status:** NOT STARTED. **Severity upgraded from Medium → High** after the
+- **Status:** ✅ DONE (2026-06-16). While a breach is pending, the **profit
+  trigger now runs** (the real bug — a 50%-profit close was blocked by a wick).
+  **Deliberate divergence from Opus's literal suggestion:** the **DTE-floor stays
+  deferred** during pending (not run), because at ≤2 DTE the DTE-floor and the
+  tripwire are the *same* signal and the confirmation window exists precisely to
+  let a ≤2-DTE wick recover (the MU case we just validated). Running it would
+  nullify that window. Only the noise-prone loss-stop + the DTE-floor are
+  deferred while pending; the tripwire's own 60-min confirmation is the backstop
+  for a sustained ITM move. +3 tests. Manual + SM.
+- **(superseded reasoning below kept for context)** Severity upgraded Medium→High after the
   v2 review: the pending-`return` skips the **profit trigger, the loss-stop, AND
   the DTE-floor** — not just the DTE-floor.
 - **Location:** `wheel_strategy.py` tripwire pending branch (the `return` that
@@ -321,7 +330,9 @@ direction → status.** Source tags reference the original reviewer findings
   (intentionally) deferred.
 
 ### R9 — DTE-floor `get_latest_price` not guarded 🟡 Medium  [S11]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). The DTE-floor price fetch is now wrapped in
+  try/except like the tripwire; on failure `stock_price=None` → skip the check
+  for the cycle instead of crashing the symbol. +1 test. Manual + SM.
 - **Location:** `wheel_strategy.py` DTE-floor block (~980-991) calls
   `get_latest_price` without try/except, unlike the tripwire path.
 - **Scenario:** Network hiccup near expiry → exception aborts `handle_spread` for
@@ -686,8 +697,8 @@ ordering, the hedge hand-off, and PDT routing.
 | R5 | mleg close market-order bad fills | 2 | ✅ DONE |
 | R6 | Fallback close at mid (won't fill) | 2 | ✅ DONE |
 | R7 | mleg close success without fill verify | 2 | ✅ DONE |
-| R8 | Tripwire pending blocks profit/stop/DTE | 2 | NOT STARTED |
-| R9 | DTE-floor `get_latest_price` unguarded | 2 | NOT STARTED |
+| R8 | Tripwire pending blocks profit/stop/DTE | 2 | ✅ DONE |
+| R9 | DTE-floor `get_latest_price` unguarded | 2 | ✅ DONE |
 | R10 | `net_credit=None` crash | 2 | NOT STARTED |
 | R11 | Adopted-spread net_credit trust | 2 | NOT STARTED |
 | R12 | `normalize_scores` small-pool gate | 2b | NOT STARTED |

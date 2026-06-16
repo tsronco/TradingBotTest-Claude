@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Tripwire-pending window no longer blocks a profit close; DTE-floor price guarded',
+    details:
+      'Money-loss review findings R8/R9 (Phase 2). R8: while a spread\'s ' +
+      'underlying tripwire was pending its 60-min confirmation, handle_spread ' +
+      'returned early and blocked EVERY other trigger — including the 50%-profit ' +
+      'close. So a spread at 48% profit that briefly wicked the short strike was ' +
+      'frozen for up to an hour and could reverse into a loss. Now the profit ' +
+      'trigger runs during pending; only the noise-prone loss-stop (and the ' +
+      'DTE-floor, which at ≤2 DTE is the same signal the confirmation window is ' +
+      'meant to ride out — the MU case) stay deferred. R9: the DTE-floor price ' +
+      'fetch is now wrapped in try/except like the tripwire, so a network blip ' +
+      'near expiry skips the cycle instead of crashing the symbol and missing ' +
+      'the close. Manual + SM. +4 pytest (553 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Spread closes now fill at a sane price (marketable limit, not market/mid)',
     details:
       'Money-loss review findings R5/R6/R7 (Phase 2). Three fixes to the spread ' +

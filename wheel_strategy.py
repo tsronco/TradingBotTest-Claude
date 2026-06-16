@@ -911,6 +911,12 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     # takes precedence over price-based gains; the spec is explicit about this
     # ordering. SM modes enable this via spread_stop_credit_mult; manual enables
     # it via spread_underlying_tripwire (2026-05-30).
+    # tripwire_pending (R8, 2026-06-16): set when the stock is through the short
+    # strike but the confirmation window hasn't elapsed. While pending we defer
+    # ONLY the noise-prone loss-stop — the profit trigger and the DTE-floor close
+    # still run (both are legitimate "get out" signals; blocking a 50%-profit
+    # close for up to an hour because of a strike wick let winners reverse).
+    tripwire_pending = False
     if SPREAD_UNDERLYING_TRIPWIRE:
         short_strike = float(sym_state["short_leg"]["strike"])
         spread_type = sym_state["spread_type"]
@@ -958,13 +964,15 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                         f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — closing")
                     _close_spread(state, ticker, reason="underlying_tripwire")
                     return
-                # Still inside the confirmation window — hold and watch. Skip the
-                # profit/stop/DTE checks this cycle so the noise has room to
-                # recover (the loss can't exceed the width while we wait).
+                # Still inside the confirmation window — defer ONLY the loss-stop
+                # (R8). The profit trigger and DTE-floor close below still run so
+                # a 50%-profit close or a 2-DTE-ITM exit isn't blocked by a strike
+                # wick. The loss can't exceed the width while we wait on the stop.
+                tripwire_pending = True
                 log(f"[{ticker}] spread underlying tripwire pending — stock "
                     f"${stock_price:.2f} through short strike ${short_strike:.2f}, "
                     f"breached {breach_min:.0f}m of "
-                    f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — holding")
+                    f"{SPREAD_TRIPWIRE_CONFIRM_MINUTES}m — deferring loss-stop only")
                 log_event(LOG_STREAM, "wheel_strategy.py", "spread_tripwire_pending",
                           result="skipped", symbol=ticker,
                           details={"stock_price": stock_price,
@@ -972,7 +980,6 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
                                    "breach_minutes": round(breach_min, 1),
                                    "confirm_minutes": SPREAD_TRIPWIRE_CONFIRM_MINUTES,
                                    "dte": _tw_dte})
-                return
             else:
                 # Stock recovered above the short strike — reset any pending
                 # breach so the confirmation clock restarts on the next breach.
@@ -995,7 +1002,10 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     # on a wide chain can't insta-stop on quote noise before it settles (the
     # underlying tripwire above still fires on a real adverse move during the
     # settling window).
-    if _within_settling_window(sym_state):
+    if tripwire_pending:
+        log(f"[{ticker}] tripwire breach pending — deferring the loss-stop this "
+            f"cycle (profit + DTE-floor still active)")
+    elif _within_settling_window(sym_state):
         log(f"[{ticker}] spread within {SPREAD_SETTLE_MINUTES}m settling window "
             f"— skipping loss-stop check this cycle")
     elif SPREAD_STOP_CREDIT_MULT is not None:
@@ -1021,11 +1031,26 @@ def handle_spread(state: dict, ticker: str, account: dict) -> None:
     from datetime import date as _date
     expiry = _date.fromisoformat(sym_state["expiration"])
     days_to_expiry = (expiry - _date.today()).days
-    if days_to_expiry <= SPREAD_DTE_FLOOR:
+    if days_to_expiry <= SPREAD_DTE_FLOOR and not tripwire_pending:
+        # tripwire_pending guard (R8): at ≤2 DTE the DTE-floor and the tripwire
+        # are the SAME signal, and the tripwire's confirmation window exists
+        # precisely to let a ≤2-DTE strike wick recover (the MU case) before
+        # closing. Running the DTE-floor here would nullify that window, so it's
+        # deferred while a breach is pending; the tripwire's own 60-min
+        # confirmation is the backstop for a sustained ITM move. The PROFIT
+        # trigger above still runs during pending (that was the real R8 bug).
         short_strike = float(sym_state["short_leg"]["strike"])
-        stock_price = get_latest_price(ticker)
+        # R9 (2026-06-16): guard the price fetch like the tripwire above. An
+        # unhandled network/HTTP error here used to abort the whole symbol cycle
+        # and skip the DTE-floor close — risking assignment on an ITM short near
+        # expiry. On failure, skip this check for the cycle (the next 10-min cron
+        # retries) rather than crash.
+        try:
+            stock_price = get_latest_price(ticker)
+        except Exception:
+            stock_price = None
         spread_type = sym_state["spread_type"]
-        short_itm = (
+        short_itm = stock_price is not None and (
             (spread_type == "put_credit"  and stock_price < short_strike) or
             (spread_type == "call_credit" and stock_price > short_strike)
         )
