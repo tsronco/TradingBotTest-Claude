@@ -5719,3 +5719,11 @@
 {"timestamp": "2026-06-16T14:18:16.142236+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 39, "equity": 2000.0}}
 {"timestamp": "2026-06-16T14:18:16.143539+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-16T14:18:16.904578+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-16T14:27:26.388883+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-16T14:27:54.018715+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "MU", "details": {"exec_credit": -0.56, "mid_net_credit": 3.085, "min_net_credit": 0.05, "short_bid": 62.46, "long_ask": 63.02}, "notes": "below_exec_net_credit"}
+{"timestamp": "2026-06-16T14:27:54.940843+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "SNAP", "details": {"price": 5.4}}
+{"timestamp": "2026-06-16T14:27:55.791351+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "F", "details": {"price": 14.655}}
+{"timestamp": "2026-06-16T14:28:04.535430+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 208.995}}
+{"timestamp": "2026-06-16T14:28:07.751403+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 39, "equity": 2000.0}}
+{"timestamp": "2026-06-16T14:28:07.752773+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-16T14:28:08.378138+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
