@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T19:21:02.060216Z",
+    "last_checked": "2026-06-16T19:29:48.015457Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260618C00205000: $0.08 vs entry $0.15",
+    "last_action": "Monitoring COIN260618C00205000: $0.12 vs entry $0.15",
     "contract_qty": 1
   },
   "MARA": {
@@ -59,7 +59,7 @@
     "stage": 1,
     "current_contract": "RIOT260626P00025000",
     "contract_order_id": "57e24a6b-7a61-40e9-b237-12fd80b1fd13",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.44,
     "contract_entry_date": "2026-06-16T19:20:59.538718Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "put",
@@ -71,7 +71,7 @@
     "total_premium_today": 63.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open RIOT260626P00025000 @ $0.44. Awaiting fill.",
+    "last_action": "Monitoring RIOT260626P00025000: $0.41 vs entry $0.44",
     "contract_qty": 1
   },
   "SMCI": {
@@ -115,7 +115,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260626C00045000: $0.04 vs entry $0.03",
+    "last_action": "Monitoring SMCI260626C00045000: $0.03 vs entry $0.03",
     "contract_qty": 1
   },
   "NVDA": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260622C00230000: $0.07 vs entry $0.05",
+    "last_action": "Monitoring NVDA260622C00230000: $0.04 vs entry $0.05",
     "contract_qty": 1
   },
   "AMD": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.29 vs entry $0.43",
+    "last_action": "Monitoring BAC260626P00055000: $0.30 vs entry $0.43",
     "contract_qty": 1
   },
   "XOM": {
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260626C00018000: $0.64 vs entry $0.38",
+    "last_action": "Monitoring SOFI260626C00018000: $0.66 vs entry $0.38",
     "contract_qty": 1
   },
   "PFE": {
