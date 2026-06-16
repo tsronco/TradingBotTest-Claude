@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T14:20:36.301918Z",
+    "last_checked": "2026-06-16T14:31:13.878711Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.37 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.45 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.22 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $6.17 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.35 vs entry $0.43",
+    "last_action": "Monitoring BAC260626P00055000: $0.34 vs entry $0.43",
     "contract_qty": 1
   },
   "XOM": {
@@ -307,7 +307,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring KO260626C00085000: $0.10 vs entry $0.13",
+    "last_action": "Monitoring KO260626C00085000: $0.15 vs entry $0.13",
     "contract_qty": 1
   },
   "PLTR": {
@@ -335,7 +335,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring PLTR260626C00160000: $0.16 vs entry $0.15",
+    "last_action": "Monitoring PLTR260626C00160000: $0.14 vs entry $0.15",
     "contract_qty": 1
   },
   "SOFI": {
@@ -379,7 +379,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SOFI260626C00018000: $0.42 vs entry $0.38",
+    "last_action": "Monitoring SOFI260626C00018000: $0.36 vs entry $0.38",
     "contract_qty": 1
   },
   "PFE": {
