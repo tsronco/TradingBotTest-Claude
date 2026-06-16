@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T17:31:40.848312Z"
+    "last_checked": "2026-06-16T17:41:45.045480Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260626C00006000: $0.11 vs entry $0.09"
+    "last_action": "Monitoring SNAP260626C00006000: $0.12 vs entry $0.09"
   },
   "NVTS": {
     "stage": 1,
@@ -67,33 +67,6 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "QQQ": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "QQQ260625P00733000",
-      "strike": 733.0,
-      "entry_premium": 8.84,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "QQQ260625P00697000",
-      "strike": 697.0,
-      "entry_premium": 1.94,
-      "qty": 1
-    },
-    "expiration": "2026-06-25",
-    "net_credit": 6.9,
-    "max_loss": 29.1,
-    "width": 36.0,
-    "opened_at": "2026-06-15T13:41:48.602833Z",
-    "open_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$733.00 long=$697.00 credit=$6.90"
   },
   "SPY": {
     "stage": "spread_active",
