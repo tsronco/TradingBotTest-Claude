@@ -30,6 +30,115 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
+    category: 'fix',
+    title: 'Wheel 50%-close: decide on the quote mid, buy-to-close marketable (actually fills)',
+    details:
+      'Money-loss review finding R4. The wheel\'s 50%-profit close priced both ' +
+      'the trigger decision AND the buy-to-close limit off the last TRADE. On ' +
+      'an illiquid contract that\'s stale, so a BTC limit at stale-last+$0.05 ' +
+      'could sit below the ask and never fill — yet state was cleared to ' +
+      '"closed" and (on cons/agg) a new put was sold against the still-open ' +
+      'short → false state / double short. _close_mark_and_limit now decides on ' +
+      'the live quote MID and prices the buy-to-close MARKETABLE (the ask) so it ' +
+      'fills, in both Stage 1 (puts) and Stage 2 (covered calls). Falls back to ' +
+      'last trade only when no quote exists. Completes Phase 1 of the money-loss ' +
+      'remediation (R1-R4, R31-R33: 7 fixes). +5 pytest (547 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Long-option exits now decide on the live quote, not a stale last trade',
+    details:
+      'Money-loss review finding R3. long_options_strategy decided take-profit ' +
+      'and stop-loss off get_option_last_price (the last TRADE). On an illiquid ' +
+      'contract that price can be hours/days stale — so a long that had actually ' +
+      'collapsed showed only a small loss (stop never fired, rode to zero) and a ' +
+      'long that had run showed a phantom +100% (premature take-profit on a ' +
+      'still-winning position). evaluate_position now prefers the live two-sided ' +
+      'quote MID, falling back to last trade only when no quote exists. Affects ' +
+      'cons/agg + manual + live. +5 pytest (542 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Averaging down no longer triggers a spurious trailing-stop liquidation',
+    details:
+      'Money-loss review finding R2. When you manually added shares at a lower ' +
+      'price (averaged down), the drift reconciliation reset qty/avg/stop but ' +
+      'left a stale high-water mark + active trail. Because the trailing block ' +
+      'only ever RAISES the stop, it snapped the stop back above your new cost ' +
+      'basis and stopped you out of the shares you just bought on the dip. Now ' +
+      'an average-down re-baselines the trail (high-water mark + entry → new ' +
+      'avg cost, trailing reset) so the stop sits at new_avg × 0.90; an ' +
+      'average-up keeps its ratcheted trail. Affects manual + live + SM. ' +
+      '+3 pytest (537 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Live mode now refuses to run against the paper endpoint (fail loud, not silent)',
+    details:
+      'Money-loss review finding R33. If ALPACA_LIVE_BASE_URL were ever ' +
+      'missing, malformed, or a placeholder, apply_mode silently fell back to ' +
+      'the paper endpoint — so the live script would happily "trade" the paper ' +
+      'account while the real-money account sat completely unmanaged (missed ' +
+      'stops, unmanaged spreads, uncollected premium). Now apply_mode hard-' +
+      'fails with a RuntimeError when live resolves to a paper URL, in both ' +
+      'wheel_strategy and strategy (long_options inherits it). A pre-live-' +
+      'cutover safety landmine, defused. +10 pytest (534 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Conservative/aggressive stop no longer liquidates covered-call collateral',
+    details:
+      'Money-loss review finding R31. The TSLA stop in run_one_cycle used ' +
+      'close_all (DELETE /positions/{sym}), which liquidates EVERY share — ' +
+      'including shares locked as covered-call collateral after a wheel ' +
+      'assignment (stage 2). That would leave a naked short call (unlimited ' +
+      'upside risk) and also dump the wheel\'s assigned shares. The stop now ' +
+      'sells only the freely-available shares (qty_available) via a bounded ' +
+      'sell order, and holds + alerts when every share is CC collateral — ' +
+      'mirroring the manual path. cons/agg only (live already used the safe ' +
+      'manual path). +3 pytest (524 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Hedge guard now protects call credit spreads too (no more accidental naked short calls)',
+    details:
+      'Money-loss review finding R32. long_options_strategy\'s hedge guard ' +
+      '(which stops it from selling a spread\'s long leg and leaving the short ' +
+      'naked) only recognized PUT credit spreads. A user-opened CALL credit ' +
+      'spread\'s long call was unprotected — if it lost >50%, the bot could ' +
+      'stop-loss it and leave a naked short call (unlimited upside risk), the ' +
+      'most dangerous position the bot can create. _unpaired_hedge_long_occs ' +
+      'now also protects a long call paired with a short call at a LOWER strike ' +
+      '+ same expiration, type-matched so puts and calls never cross. Affects ' +
+      'manual + live. +3 pytest (521 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Bot orders are now idempotent (client_order_id) — no more double-placing on retry',
+    details:
+      'Critical fix found by a dual-model adversarial code review (R1). Every ' +
+      'order the bot places funneled through an HTTP layer that retries POSTs ' +
+      'on 5xx/timeout, with NO client_order_id anywhere — so if Alpaca created ' +
+      'the order but the response was lost (gateway 502/504 or a dropped ' +
+      'connection), the bot re-sent the identical order and got TWO. Almost ' +
+      'certainly the root of the historical "MARA went to qty=-4" incident, and ' +
+      'a real-money hazard because it lives in the shared layer every order ' +
+      'uses (including the live account\'s manage-only closes).\n\n' +
+      'Now every POST /orders carries a deterministic client_order_id ' +
+      '(wheel_strategy.api_post + strategy.place_order; long_options inherits ' +
+      'via import). A retry re-sends the same id; Alpaca rejects the duplicate ' +
+      '(422) and we resolve to the already-created order instead of failing. ' +
+      'Applies to all seven modes. First fix from the 2026-06-16 money-loss ' +
+      'remediation plan (34 findings). +6 pytest (518 total).',
+  },
+  {
+    date: '2026-06-16',
     category: 'engine',
     title: 'Spread tripwire: tolerate intraday noise (DTE gate + 60-min confirmation) on manual',
     details:

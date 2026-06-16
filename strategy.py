@@ -14,6 +14,7 @@ Rules:
 
 import os
 import time
+import uuid
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
@@ -81,6 +82,13 @@ def apply_mode(mode_name: str) -> None:
         BASE_URL = _raw_url
     else:
         BASE_URL = "https://paper-api.alpaca.markets/v2"
+    # R33: real-money mode must NEVER run against the paper endpoint. A missing
+    # or malformed ALPACA_LIVE_BASE_URL would otherwise silently route live
+    # trading to paper and leave the real account unmanaged. Fail loudly.
+    if mode_name == "live" and "paper-api.alpaca.markets" in BASE_URL:
+        raise RuntimeError(
+            f"live mode resolved to the PAPER endpoint ({BASE_URL}) — refusing "
+            f"to run. Set ALPACA_LIVE_BASE_URL to https://api.alpaca.markets/v2.")
     HEADERS    = {
         "APCA-API-KEY-ID":     API_KEY,
         "APCA-API-SECRET-KEY": API_SECRET,
@@ -137,14 +145,47 @@ def _alpaca_request(method: str, url: str, **kwargs) -> requests.Response:
             raise
 
 
+def _gen_client_order_id() -> str:
+    """Unique client_order_id for an order POST (R1 — idempotent retries).
+
+    Mirrors wheel_strategy._gen_client_order_id (these scripts intentionally
+    duplicate their Alpaca request layer). Stamped once and reused on every
+    transport-level retry of the same call, so a lost response can't
+    double-place: Alpaca rejects the duplicate id (422) and place_order
+    resolves to the already-created order.
+    """
+    return f"{MODE or 'bot'}-{uuid.uuid4().hex}"
+
+
+def _get_order_by_client_id(client_order_id):
+    """Fetch an order by its client_order_id, or None if unresolvable."""
+    if not client_order_id:
+        return None
+    try:
+        resp = _alpaca_request(
+            "GET", f"{BASE_URL}/orders:by_client_order_id",
+            headers=HEADERS, params={"client_order_id": client_order_id})
+        if resp.status_code == 200:
+            return resp.json()
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+    return None
+
+
 def place_order(symbol, qty, side, order_type="market", time_in_force="day"):
+    # R1 — idempotent order placement (see _gen_client_order_id).
+    body = {"symbol": symbol, "qty": qty, "side": side,
+            "type": order_type, "time_in_force": time_in_force,
+            "client_order_id": _gen_client_order_id()}
     resp = _alpaca_request(
-        "POST",
-        f"{BASE_URL}/orders",
-        headers=HEADERS,
-        json={"symbol": symbol, "qty": qty, "side": side,
-              "type": order_type, "time_in_force": time_in_force},
-    )
+        "POST", f"{BASE_URL}/orders", headers=HEADERS, json=body)
+    if resp.status_code == 422 and "client_order_id" in (resp.text or "").lower():
+        coid = body["client_order_id"]
+        log(f"order client_order_id={coid} already exists — resolving to the "
+            f"existing order (retry after a lost response)")
+        existing = _get_order_by_client_id(coid)
+        if existing is not None:
+            return existing
     resp.raise_for_status()
     return resp.json()
 
@@ -442,14 +483,48 @@ def run_one_cycle():
 
         # ── 1. Stop loss ───────────────────────────────────────────────
         if price <= stop_price:
-            log(f"STOP HIT — price ${price:.2f} ≤ stop ${stop_price:.2f}. Closing {total_qty} shares.")
-            close_all(SYMBOL)
-            realized = (price - avg_cost) * total_qty
-            log(f"Position closed. Realized P&L: ${realized:+.2f}")
+            # R31 (2026-06-16): sell only the FREELY-AVAILABLE shares — never
+            # DELETE the whole position. If the wheel got assigned and wrote a
+            # covered call against some of these shares (stage 2), those shares
+            # are locked as CC collateral; close_all(SYMBOL) would liquidate
+            # them and leave a NAKED short call (unlimited upside risk) — and
+            # would also dump the wheel's assigned shares. Mirror the manual
+            # path: place a bounded sell of just the free shares.
+            position = next((p for p in get_stock_positions()
+                             if p.get("symbol") == SYMBOL), None)
+            free_qty = _available_qty(position) if position else total_qty
+            sell_qty = min(total_qty, free_qty)
+            if sell_qty <= 0:
+                log(f"STOP HIT at ${price:.2f} but 0 freely-sellable shares "
+                    f"(all held as covered-call collateral) — not liquidating; "
+                    f"wheel_strategy manages the covered call.")
+                send_embed(
+                    ACTIONS_CH, f"TSLA stop hit but shares are CC collateral — holding",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Price ${price:.2f} ≤ stop ${stop_price:.2f}, but all "
+                        f"shares are locked as covered-call collateral. Not "
+                        f"liquidating (would naked the call); wheel_strategy owns the CC."
+                    ),
+                    footer=f"strategy.py · {MODE}",
+                    also_to_actions=False,
+                )
+                log_event(LOG_STREAM, "strategy.py", "stop_blocked_cc_collateral",
+                          result="skipped", symbol=SYMBOL,
+                          details={"price": price, "stop": stop_price, "qty": total_qty})
+                return
+            log(f"STOP HIT — price ${price:.2f} ≤ stop ${stop_price:.2f}. "
+                f"Selling {sell_qty} freely-sellable shares (of {total_qty} tracked).")
+            place_order(SYMBOL, sell_qty, "sell")
+            realized = (price - avg_cost) * sell_qty
+            remaining = total_qty - sell_qty
+            log(f"Sold {sell_qty}. Realized P&L: ${realized:+.2f}. Remaining tracked: {remaining}")
             send_embed(
-                TRADES_CH, f"TSLA STOP HIT — closed {total_qty} shares @ ${price:.2f}",
+                TRADES_CH, f"TSLA STOP HIT — sold {sell_qty} shares @ ${price:.2f}",
                 color=Color.RED,
-                description=f"Realized P&L: ${realized:+.2f}",
+                description=(f"Realized P&L: ${realized:+.2f}"
+                             + (f" · {remaining} shares remain (CC collateral)"
+                                if remaining else "")),
                 fields=[
                     {"name": "Avg cost", "value": f"${avg_cost:.2f}", "inline": True},
                     {"name": "Stop was", "value": f"${stop_price:.2f}", "inline": True},
@@ -459,11 +534,14 @@ def run_one_cycle():
             )
             log_event(LOG_STREAM, "strategy.py", "stop_hit",
                       symbol=SYMBOL,
-                      details={"exit_price": price, "qty": total_qty, "realized_pnl": realized})
-            # Mark position closed in state
-            state["position_qty"] = 0
-            state["total_cost"] = 0
-            state["last_action"] = f"Stop hit at ${price:.2f}. Closed {total_qty} shares. Realized ${realized:+.2f}."
+                      details={"exit_price": price, "qty": sell_qty,
+                               "realized_pnl": realized, "remaining": remaining})
+            state["position_qty"] = remaining
+            state["total_cost"] = round(avg_cost * remaining, 2)
+            state["last_action"] = (
+                f"Stop hit at ${price:.2f}. Sold {sell_qty} shares. "
+                f"Realized ${realized:+.2f}."
+                + (f" {remaining} CC-collateral shares held." if remaining else ""))
             _save_state(state)
             return
 
@@ -635,10 +713,23 @@ def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg
     bot_qty = int(sym_state.get("position_qty", 0))
     if alpaca_qty != bot_qty:
         log(f"{symbol}: position drift bot={bot_qty} alpaca={alpaca_qty} — adopting Alpaca's avg cost")
+        old_avg = float(sym_state.get("avg_cost") or alpaca_avg_cost)
         sym_state["position_qty"] = alpaca_qty
         sym_state["avg_cost"]     = round(alpaca_avg_cost, 2)
         sym_state["total_cost"]   = round(alpaca_avg_cost * alpaca_qty, 2)
         sym_state["stop_price"]   = recalculate_stop(alpaca_avg_cost)
+        # R2 (2026-06-16): an average-DOWN lowers the cost basis. Leaving a
+        # stale (higher) high-water mark + trailing_active would let the
+        # trailing block below snap the stop right back ABOVE the new cost
+        # basis (it only ever raises the stop), instantly liquidating the
+        # shares the user just added on the dip. Re-baseline the trail to the
+        # new cost when averaging down so the stop sits at new_avg × 0.90 and
+        # the trail re-arms from the new basis. An average-UP keeps its
+        # ratcheted trail (don't give back a locked-in gain).
+        if alpaca_avg_cost < old_avg - 1e-9:
+            sym_state["high_water_mark"] = round(alpaca_avg_cost, 2)
+            sym_state["entry_price"]     = round(alpaca_avg_cost, 2)
+            sym_state["trailing_active"] = False
 
     if sym_state["position_qty"] == 0:
         sym_state["last_action"] = "Position empty — skipping cycle."

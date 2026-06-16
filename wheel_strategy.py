@@ -34,6 +34,7 @@ Legacy single-stock state files are auto-migrated under the "TSLA" key.
 import os
 import json
 import time
+import uuid
 import requests
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date, timezone
@@ -146,6 +147,13 @@ def apply_mode(mode_name: str) -> None:
         BASE_URL = _raw_url
     else:
         BASE_URL = "https://paper-api.alpaca.markets/v2"
+    # R33: real-money mode must NEVER run against the paper endpoint. A missing
+    # or malformed ALPACA_LIVE_BASE_URL would otherwise silently route live
+    # orders to paper and leave the real account unmanaged. Fail loudly.
+    if mode_name == "live" and "paper-api.alpaca.markets" in BASE_URL:
+        raise RuntimeError(
+            f"live mode resolved to the PAPER endpoint ({BASE_URL}) — refusing "
+            f"to run. Set ALPACA_LIVE_BASE_URL to https://api.alpaca.markets/v2.")
     HEADERS    = {
         "APCA-API-KEY-ID":     API_KEY,
         "APCA-API-SECRET-KEY": API_SECRET,
@@ -1088,8 +1096,63 @@ def api_get(path, params=None):
     return resp.json()
 
 
+def _gen_client_order_id() -> str:
+    """A unique client_order_id for an order POST (R1 — idempotent retries).
+
+    Stamped once per `api_post('/orders')` call and reused verbatim on every
+    transport-level retry of that same call (the body is built before
+    `_alpaca_request`'s retry loop), so a lost response that triggers a retry
+    re-sends the SAME id. Alpaca rejects a duplicate client_order_id (422),
+    which `api_post` treats as success — the original attempt already created
+    the order — making POST /orders retries idempotent and closing the
+    double-place hazard. A genuinely new order gets a fresh id, so distinct
+    orders are never falsely rejected. Mode-prefixed for traceability; well
+    under Alpaca's 128-char limit.
+    """
+    return f"{MODE or 'bot'}-{uuid.uuid4().hex}"
+
+
+def _get_order_by_client_id(client_order_id):
+    """Fetch an order by its client_order_id, or None if it can't be resolved.
+
+    Used to recover the already-created order when a retried POST /orders is
+    rejected as a duplicate. Never raises — a failure to resolve returns None
+    so the caller can surface the original error rather than silently no-op.
+    """
+    if not client_order_id:
+        return None
+    try:
+        resp = _alpaca_request(
+            "GET", f"{BASE_URL}/orders:by_client_order_id",
+            headers=HEADERS, params={"client_order_id": client_order_id})
+        if resp.status_code == 200:
+            return resp.json()
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+    return None
+
+
 def api_post(path, body):
+    # R1 — idempotent order placement. Every POST /orders carries a
+    # client_order_id so a transport-level retry after a lost response can't
+    # double-place: the retry re-sends the identical body (same id), Alpaca
+    # rejects the duplicate (422), and we resolve to the already-created order
+    # instead of raising. Non-order POSTs are unaffected.
+    if path == "/orders" and isinstance(body, dict) and "client_order_id" not in body:
+        body = {**body, "client_order_id": _gen_client_order_id()}
     resp = _alpaca_request("POST", f"{BASE_URL}{path}", headers=HEADERS, json=body)
+    if (path == "/orders" and resp.status_code == 422
+            and isinstance(body, dict)
+            and "client_order_id" in (resp.text or "").lower()):
+        coid = body.get("client_order_id")
+        log(f"order client_order_id={coid} already exists — a retry reached "
+            f"Alpaca after the original POST already created the order; "
+            f"resolving to the existing order instead of failing")
+        existing = _get_order_by_client_id(coid)
+        if existing is not None:
+            return existing
+        # Couldn't fetch it back — fall through to raise so the caller sees a
+        # failure rather than a silent no-op.
     resp.raise_for_status()
     return resp.json()
 
@@ -1617,6 +1680,33 @@ def check_early_close(sym_state, current_option_price):
     return current_option_price <= entry * EARLY_CLOSE_PCT
 
 
+def _close_mark_and_limit(contract):
+    """(mark, btc_limit) for closing a SHORT option at the 50%-profit rule (R4).
+
+    mark      = live quote MID — used for the close DECISION (check_early_close).
+                Robust to a stale last trade, which on an illiquid contract can
+                read far from the real market and either miss the trigger or
+                fire on a phantom price.
+    btc_limit = MARKETABLE buy-to-close price (the ASK), so the order actually
+                fills instead of resting unfilled at a stale-derived limit. The
+                old code priced the BTC off the last trade (+$0.05); when that
+                sat below the ask the order never filled, yet state was cleared
+                to "closed" and (on cons/agg) a new put was sold → false state /
+                double short. Falls back to the last trade when no two-sided
+                quote exists. Returns (None, None) if no price is available.
+    """
+    q = get_option_quote(contract)
+    if q and q.get("bid") is not None and q.get("ask") is not None:
+        bid, ask = float(q["bid"]), float(q["ask"])
+        mid = round((bid + ask) / 2.0, 2)
+        if mid > 0 and ask > 0:
+            return mid, round(ask, 2)
+    last = get_option_last_price(contract)
+    if last is None or last <= 0:
+        return None, None
+    return last, last
+
+
 def _order_age_hours(sym_state) -> float:
     """How many hours has the current contract's order been pending?
     Returns 0.0 if contract_entry_date is missing or unparseable — never
@@ -2053,14 +2143,15 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                         sym_state["contract_entry_price"] = float(filled_avg)
                         log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f} from filled order {order_id}")
 
-            current_price = get_option_last_price(contract)
+            current_price, btc_limit = _close_mark_and_limit(contract)
             if current_price is not None:
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
-                    log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing.")
+                    log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing (marketable @ ${btc_limit:.2f}).")
                     # place_buy_to_close auto-detects qty and closes ALL
-                    # contracts on this OCC symbol in one order.
-                    place_buy_to_close(contract, current_price)
+                    # contracts on this OCC symbol in one order. Priced
+                    # marketable (R4) so it actually fills.
+                    place_buy_to_close(contract, btc_limit)
                     contract_qty    = sym_state.get("contract_qty") or 1
                     premium_dollars = (entry - current_price) * 100 * contract_qty
                     sym_state["total_premium_collected"] = round(
@@ -2347,14 +2438,15 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                         sym_state["contract_entry_price"] = float(filled_avg)
                         log(f"[{symbol}] Recovered entry price ${sym_state['contract_entry_price']:.2f}")
 
-            current_price = get_option_last_price(contract)
+            current_price, btc_limit = _close_mark_and_limit(contract)
             if current_price is not None:
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
-                    log(f"[{symbol}] 50% PROFIT RULE on call: closing.")
+                    log(f"[{symbol}] 50% PROFIT RULE on call: closing (marketable @ ${btc_limit:.2f}).")
                     # place_buy_to_close auto-detects qty so it'll close all
                     # contracts on this OCC symbol regardless of how many.
-                    place_buy_to_close(contract, current_price)
+                    # Priced marketable (R4) so it actually fills.
+                    place_buy_to_close(contract, btc_limit)
                     contracts_held  = max(1, (sym_state.get("shares_qty") or 100) // 100)
                     premium_dollars = (entry - current_price) * 100 * contracts_held
                     sym_state["total_premium_collected"] = round(
