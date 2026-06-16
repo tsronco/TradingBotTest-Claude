@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T17:29:51.240076Z",
+    "last_checked": "2026-06-16T17:40:21.324609Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -77,9 +77,9 @@
   "SMCI": {
     "stage": 2,
     "current_contract": "SMCI260626C00045000",
-    "contract_order_id": "f24a5794-7e8f-43c3-bda6-fcee25d73496",
+    "contract_order_id": "8f787c26-b631-44ca-9dfd-1f798f18e8b0",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-16T13:39:45.475980Z",
+    "contract_entry_date": "2026-06-16T17:40:14.800730Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "call",
     "contract_strike": 45.0,
@@ -115,7 +115,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Awaiting fill on SMCI260626C00045000.",
+    "last_action": "Sold-to-open 1\u00d7 SMCI260626C00045000 @ $0.03. Awaiting fill.",
     "contract_qty": 1
   },
   "NVDA": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.18 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $5.80 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
