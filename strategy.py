@@ -713,10 +713,23 @@ def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg
     bot_qty = int(sym_state.get("position_qty", 0))
     if alpaca_qty != bot_qty:
         log(f"{symbol}: position drift bot={bot_qty} alpaca={alpaca_qty} — adopting Alpaca's avg cost")
+        old_avg = float(sym_state.get("avg_cost") or alpaca_avg_cost)
         sym_state["position_qty"] = alpaca_qty
         sym_state["avg_cost"]     = round(alpaca_avg_cost, 2)
         sym_state["total_cost"]   = round(alpaca_avg_cost * alpaca_qty, 2)
         sym_state["stop_price"]   = recalculate_stop(alpaca_avg_cost)
+        # R2 (2026-06-16): an average-DOWN lowers the cost basis. Leaving a
+        # stale (higher) high-water mark + trailing_active would let the
+        # trailing block below snap the stop right back ABOVE the new cost
+        # basis (it only ever raises the stop), instantly liquidating the
+        # shares the user just added on the dip. Re-baseline the trail to the
+        # new cost when averaging down so the stop sits at new_avg × 0.90 and
+        # the trail re-arms from the new basis. An average-UP keeps its
+        # ratcheted trail (don't give back a locked-in gain).
+        if alpaca_avg_cost < old_avg - 1e-9:
+            sym_state["high_water_mark"] = round(alpaca_avg_cost, 2)
+            sym_state["entry_price"]     = round(alpaca_avg_cost, 2)
+            sym_state["trailing_active"] = False
 
     if sym_state["position_qty"] == 0:
         sym_state["last_action"] = "Position empty — skipping cycle."

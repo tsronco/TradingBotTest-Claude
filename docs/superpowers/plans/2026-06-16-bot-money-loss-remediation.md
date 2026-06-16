@@ -161,7 +161,11 @@ direction → status.** Source tags reference the original reviewer findings
   intent; simulate a duplicate-id rejection is handled gracefully.
 
 ### R2 — Average-down reconciliation doesn't reset HWM/trailing 🟠 High  [S30]
-- **Status:** NOT STARTED. **CONFIRMED in code.**
+- **Status:** ✅ DONE (2026-06-16). `_manual_run_symbol`'s drift block now
+  re-baselines the trail (HWM + entry → new avg, `trailing_active` → False) when
+  the avg cost DROPS (average-down), so the trailing stop can't snap above the
+  new cost basis. An average-up keeps its ratcheted trail. +3 tests
+  (`test_manual_drift_trailing.py`). Affects manual + live + SM.
 - **Location:** `strategy.py:636-641` (drift block resets qty/avg/total/stop but
   not `high_water_mark`/`trailing_active`); trailing block `strategy.py:708-712`
   only ever *raises* the stop.
@@ -650,7 +654,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R32 | `long_options` call-hedge guard (naked short call) | 1 | ✅ DONE |
 | R31 | `close_all` nakeds a CC (collateral-aware exit) | 1 | ✅ DONE |
 | R33 | Live → paper endpoint silent fallback | 1 | ✅ DONE |
-| R2 | Average-down HWM/trailing reset | 1 | NOT STARTED |
+| R2 | Average-down HWM/trailing reset | 1 | ✅ DONE |
 | R3 | `long_options` exits off stale price | 1 | NOT STARTED |
 | R4 | Wheel 50%-close off stale price + reopen race | 1 | NOT STARTED |
 | R5 | mleg close market-order bad fills | 2 | NOT STARTED |

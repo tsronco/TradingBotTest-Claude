@@ -31,6 +31,21 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Averaging down no longer triggers a spurious trailing-stop liquidation',
+    details:
+      'Money-loss review finding R2. When you manually added shares at a lower ' +
+      'price (averaged down), the drift reconciliation reset qty/avg/stop but ' +
+      'left a stale high-water mark + active trail. Because the trailing block ' +
+      'only ever RAISES the stop, it snapped the stop back above your new cost ' +
+      'basis and stopped you out of the shares you just bought on the dip. Now ' +
+      'an average-down re-baselines the trail (high-water mark + entry → new ' +
+      'avg cost, trailing reset) so the stop sits at new_avg × 0.90; an ' +
+      'average-up keeps its ratcheted trail. Affects manual + live + SM. ' +
+      '+3 pytest (537 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Live mode now refuses to run against the paper endpoint (fail loud, not silent)',
     details:
       'Money-loss review finding R33. If ALPACA_LIVE_BASE_URL were ever ' +
