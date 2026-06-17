@@ -1,7 +1,7 @@
 // dashboard/api/cron/[job].ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '../_lib/kv.js';
-import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey, importCursorKey } from '../_lib/kv-keys.js';
+import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexMonthKey, importCursorKey, readMonthIndex, appendMonthIndex } from '../_lib/kv-keys.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Mode } from '../_lib/alpaca.js';
@@ -305,7 +305,7 @@ async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: n
     await kv().set(tradeKey(newTrade.id), newTrade);
     await kv().set(assignmentChildKey(entry.parent_trade_id), newTrade.id);
     await kv().rpush(KV_KEYS.tradesIndexOpen, newTrade.id);
-    await kv().rpush(tradesIndexMonthKey(currentMonth()), newTrade.id);
+    await appendMonthIndex(currentMonth(), newTrade.id);
     await removeAssignment(entry);
     spawned++;
   }
@@ -997,10 +997,8 @@ async function loadClosedTrades(days: number): Promise<ClosedTradeView[]> {
     cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
 
-  const idsByMonth = await Promise.all(
-    months.map((m) => kv().get<string[]>(`trades:index:${m}`)),
-  );
-  const allIds = idsByMonth.flat().filter(Boolean) as string[];
+  const idsByMonth = await Promise.all(months.map((m) => readMonthIndex(m)));
+  const allIds = idsByMonth.flat();
 
   const records = await Promise.all(allIds.map(async (id) => {
     const trade = await kv().get<Trade>(`trade:${id}`);

@@ -7,7 +7,7 @@ const kvLrem = vi.fn().mockResolvedValue(1);
 const kvRpush = vi.fn().mockResolvedValue(1);
 const kvIncr = vi.fn().mockResolvedValue(1);
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem, rpush: kvRpush, incr: kvIncr }),
+  kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem, rpush: kvRpush, incr: kvIncr, del: vi.fn().mockResolvedValue(1) }),
 }));
 
 const alpacaTrade = vi.fn();

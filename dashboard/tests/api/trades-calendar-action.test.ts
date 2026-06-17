@@ -4,9 +4,17 @@ const requireAuth = vi.fn().mockReturnValue({ user: 'tim' });
 vi.mock('../../api/_lib/auth-guard', () => ({ requireAuth, getSession: vi.fn() }));
 
 const kvGet = vi.fn();
-const kvLrange = vi.fn().mockResolvedValue([]);
+// D4: readMonthIndex now calls lrange for trades:index:YYYY-MM keys.
+// Route lrange for month-index keys through kvGet so existing test data works.
+const kvLrange = vi.fn(async (k: string) => {
+  if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+    const val = await kvGet(k);
+    return Array.isArray(val) ? val : [];
+  }
+  return [];
+});
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: vi.fn(), lrange: kvLrange }),
+  kv: () => ({ get: kvGet, set: vi.fn(), lrange: kvLrange, del: vi.fn().mockResolvedValue(1), rpush: vi.fn().mockResolvedValue(1) }),
 }));
 
 vi.mock('../../api/_lib/data-api', () => ({
@@ -24,7 +32,18 @@ function mkRes() {
 }
 
 describe('trades/calendar', () => {
-  beforeEach(() => { kvGet.mockReset(); kvLrange.mockReset(); kvLrange.mockResolvedValue([]); });
+  beforeEach(() => {
+    kvGet.mockReset();
+    kvLrange.mockReset();
+    // D4: restore month-index routing after reset; non-month keys return [].
+    kvLrange.mockImplementation(async (k: string) => {
+      if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+        const val = await kvGet(k);
+        return Array.isArray(val) ? val : [];
+      }
+      return [];
+    });
+  });
 
   it('returns 400 for malformed month', async () => {
     const handler = (await import('../../api/trades/[action]')).default;
@@ -71,9 +90,14 @@ describe('trades/calendar', () => {
   });
 
   it('overlays open option expirations on the day they expire', async () => {
-    kvLrange.mockResolvedValueOnce(['op1']);
+    // D4: readMonthIndex uses lrange; the open-index lrange is also lrange.
+    // Override to route by key so each call returns the right data.
+    kvLrange.mockImplementation(async (k: string) => {
+      if (k === 'trades:index:open') return ['op1'];
+      if (/^trades:index:\d{4}-\d{2}$/.test(k)) return [];
+      return [];
+    });
     kvGet.mockImplementation(async (k: string) => {
-      if (k === 'trades:index:2026-04') return [];
       if (k === 'trade:op1') return {
         id: 'op1', symbol: 'TSLA', asset_class: 'option', contract_type: 'put',
         strike: 200, expiration: '2026-04-30',

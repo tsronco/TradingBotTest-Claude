@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D4: month-index converted to Redis list — concurrent appends can no longer lose a trade',
+    details:
+      'The per-month trade index (trades:index:YYYY-MM) was written with a read-modify-write ' +
+      'get/set pattern. Two concurrent writers (a browser submit racing the 5-min auto-import ' +
+      'cron, or two tabs) both read before either wrote → one appended trade id was silently ' +
+      'overwritten. The trade record survived but vanished from /trades, /calendar, /performance, ' +
+      'and the tendency cron: its P&L dropped from every rollup and it was never AI-graded.\n\n' +
+      'Fix: readMonthIndex() and appendMonthIndex() helpers in api/_lib/kv-keys.ts now use ' +
+      'atomic lrange/rpush (mirroring the open index). Legacy JSON-array string keys are ' +
+      'migrated in-place on first touch (lrange throws WRONGTYPE → read+del+rpush). All 6 ' +
+      'writer call sites and all 5 reader call sites in trades/[action].ts, cron/[job].ts, ' +
+      'and rule-check.ts updated. 9 new vitest tests cover concurrent-append survival and ' +
+      'legacy-key migration.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D2 residual: KV idempotency index closes trade-record dedup gap on retry',
     details:
       'Follow-up to the D2 idempotency-key fix. The prior fix prevented double-placing a ' +

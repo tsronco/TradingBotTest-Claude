@@ -8,8 +8,18 @@ const kvIncr = vi.fn();
 const kvRpush = vi.fn();
 const alpacaTradeMock = vi.fn();
 
+// D4: readMonthIndex now calls lrange for trades:index:YYYY-MM keys.
+// Route lrange for month-index keys through kvGet so existing test data works.
+const kvLrange = vi.fn(async (k: string) => {
+  if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+    const val = await kvGet(k);
+    return Array.isArray(val) ? val : [];
+  }
+  return [];
+});
+const kvDel = vi.fn().mockResolvedValue(1);
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, rpush: kvRpush, lrange: vi.fn(), lrem: vi.fn() }),
+  kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, rpush: kvRpush, lrange: kvLrange, lrem: vi.fn(), del: kvDel }),
 }));
 vi.mock('../../api/_lib/auth-guard', () => ({
   requireAuth: vi.fn(() => ({ logged_in_at: 0, last_active: 0 })),
@@ -32,10 +42,20 @@ vi.mock('../../api/_lib/grading', () => ({ gradeTrade: vi.fn() }));
 
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvIncr.mockReset(); kvRpush.mockReset();
+  kvLrange.mockReset(); kvDel.mockReset();
   alpacaTradeMock.mockReset();
   // Sequence counter for trade-id allocation
   let seq = 0;
   kvIncr.mockImplementation(() => Promise.resolve(++seq));
+  // D4: re-apply the month-index routing logic after reset
+  kvLrange.mockImplementation(async (k: string) => {
+    if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+      const val = await kvGet(k);
+      return Array.isArray(val) ? val : [];
+    }
+    return [];
+  });
+  kvDel.mockResolvedValue(1);
 });
 
 function mockReq(body: any): VercelRequest {

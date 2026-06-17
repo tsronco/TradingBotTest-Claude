@@ -7,7 +7,7 @@
 // Severity ordering on output: block first, warn next, info last.
 
 import { kv } from './kv.js';
-import { rulesKey, botRulesKey, tradesIndexMonthKey, tradeKey } from './kv-keys.js';
+import { rulesKey, botRulesKey, tradesIndexMonthKey, tradeKey, readMonthIndex } from './kv-keys.js';
 import { fetchEarningsDate } from './fundamentals-fetch.js';
 import type {
   ManualRule, Trigger, BotRulesPayload,
@@ -187,7 +187,7 @@ async function checkRecentLossWithinMinutes(
   const windowMs = minutes * 60_000;
   const months = recentMonthKeys(2);
   for (const month of months) {
-    const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+    const ids = await readMonthIndex(month);
     if (ids.length === 0) continue;
     const tail = ids.slice(-50).reverse();
     for (const id of tail) {

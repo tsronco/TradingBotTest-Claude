@@ -5,9 +5,17 @@ vi.mock('../../api/_lib/auth-guard', () => ({ requireAuth, getSession: vi.fn() }
 
 const kvGet = vi.fn();
 const kvSet = vi.fn();
-const lrange = vi.fn().mockResolvedValue([]);
+// D4: readMonthIndex now calls lrange for trades:index:YYYY-MM keys.
+// Route lrange for month-index keys through kvGet so existing test data works.
+const lrange = vi.fn(async (k: string) => {
+  if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+    const val = await kvGet(k);
+    return Array.isArray(val) ? val : [];
+  }
+  return [];
+});
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: kvSet, lrange }),
+  kv: () => ({ get: kvGet, set: kvSet, lrange, del: vi.fn().mockResolvedValue(1), rpush: vi.fn().mockResolvedValue(1) }),
 }));
 
 vi.mock('../../api/_lib/data-api', () => ({

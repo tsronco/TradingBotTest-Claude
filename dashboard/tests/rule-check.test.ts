@@ -1,8 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const kvGet = vi.fn();
+// D4: lrange is now called by readMonthIndex for trades:index:YYYY-MM keys.
+// The mock routes lrange for month-index keys through kvGet so existing test
+// data (which sets kvGet to return an array for those keys) continues to work.
+const kvLrange = vi.fn(async (k: string) => {
+  const val = await kvGet(k);
+  return Array.isArray(val) ? val : [];
+});
+const kvDel = vi.fn().mockResolvedValue(1);
+const kvRpush = vi.fn().mockResolvedValue(1);
 vi.mock('../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet }),
+  kv: () => ({ get: kvGet, lrange: kvLrange, del: kvDel, rpush: kvRpush }),
 }));
 
 const fetchEarningsDate = vi.fn();

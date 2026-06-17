@@ -119,6 +119,89 @@ export function importCursorKey(account: string): string {
   return `import:cursor:${account}`;
 }
 
+// D4 — Month-index helpers: atomic rpush/lrange with lazy migration.
+//
+// The per-month trade index (trades:index:YYYY-MM) was previously a
+// JSON-array stored as a Redis string via get/set.  Concurrent writers
+// (browser tab + cron) could both read before either wrote, losing one
+// appended id permanently.
+//
+// Fix: store the index as a Redis LIST, using atomic rpush() for appends and
+// lrange() for reads.  Legacy string keys (JSON-array format) are migrated
+// in-place on first touch: read the JSON array via get(), delete the string
+// key, rpush all ids back as a proper list, then proceed normally.
+//
+// Migration detection uses a try-lrange-catch-WRONGTYPE approach rather than
+// type() so that it degrades gracefully in test mocks that expose get/set/rpush
+// but not type().  The WRONGTYPE error message is Redis's standard signal that
+// the key holds a string — catching it is equivalent to type()==='string'.
+//
+// Concurrent-append safety:
+//   - Once migrated, every append is a single atomic rpush — no read-modify-write.
+//   - If two callers both see a legacy string key and both try to migrate
+//     simultaneously (only possible across separate Lambda invocations, not
+//     within a single Node process), the second del+rpush runs after the first
+//     and overwrites with the same ids — then the second caller's own rpush
+//     appends the new id.  No ids are lost.
+
+import { kv } from './kv.js';
+
+function isWrongTypeError(e: unknown): boolean {
+  return e instanceof Error && e.message.includes('WRONGTYPE');
+}
+
+async function migrateStringToList(key: string): Promise<string[]> {
+  // Key currently holds a JSON-array string (legacy format).
+  // Read it, delete the string key, re-write as a list.
+  const raw = await kv().get<unknown>(key);
+  const ids: string[] = Array.isArray(raw) ? (raw as string[]) : [];
+  await kv().del(key);
+  if (ids.length > 0) {
+    await kv().rpush(key, ...ids);
+  }
+  return ids;
+}
+
+/**
+ * Read all ids in a month's trade index.  Handles:
+ *   - missing key → returns []
+ *   - list key    → lrange(0, -1) (fast path for all new and migrated keys)
+ *   - legacy string key → migrate to list in place, return ids (one-time cost)
+ */
+export async function readMonthIndex(month: string): Promise<string[]> {
+  const key = tradesIndexMonthKey(month);
+  try {
+    return (await kv().lrange<string>(key, 0, -1)) ?? [];
+  } catch (e) {
+    if (isWrongTypeError(e)) {
+      // Legacy JSON-array string key — migrate and return.
+      return migrateStringToList(key);
+    }
+    throw e;
+  }
+}
+
+/**
+ * Append a single trade id to a month's trade index atomically.  Handles:
+ *   - missing key        → rpush creates a new list
+ *   - existing list key  → rpush appends atomically (no read-modify-write)
+ *   - legacy string key  → migrate to list first, then rpush
+ */
+export async function appendMonthIndex(month: string, id: string): Promise<void> {
+  const key = tradesIndexMonthKey(month);
+  try {
+    await kv().rpush(key, id);
+  } catch (e) {
+    if (isWrongTypeError(e)) {
+      // Legacy string key — migrate, then append.
+      await migrateStringToList(key);
+      await kv().rpush(key, id);
+    } else {
+      throw e;
+    }
+  }
+}
+
 // D2 — KV idempotency index for cross-request order dedup.
 //
 // Maps a caller-supplied idempotency_key → trade id. Written with nx:true

@@ -139,7 +139,7 @@ direction → status.**
 - **Test direction:** vitest: submit builds a stable `client_order_id`; a simulated dropped-response retry with the same draft does not place a second logical order (dedup by client id); the modal handler is idempotent across two rapid invocations.
 
 ### D4 — Month-index trade record is read-modify-write (lost update) 🟠 High  [S1, O5]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Added `readMonthIndex(month)` and `appendMonthIndex(month, id)` helpers to `dashboard/api/_lib/kv-keys.ts`. Both use atomic `lrange`/`rpush` (mirroring the open index). Legacy `'string'`-type keys (JSON-array format, written by the old code) are migrated in-place on first touch: `lrange` throws WRONGTYPE → catch → `get` the array + `del` the string key + `rpush` all ids as a list. Detection uses try-catch on WRONGTYPE rather than `type()` so existing test mocks without `type()` degrade gracefully. All 6 writer call sites converted from get-then-set to `appendMonthIndex`; all 5 reader call sites converted from `get` to `readMonthIndex` (in `trades/[action].ts` list/calendar/performance/orderIdAlreadyImported and `cron/[job].ts` loadClosedTrades/appendMonthIndex). `rule-check.ts` reader also updated. 9 new vitest tests: two-concurrent-append survival, sequential accumulation, empty key, fresh list key read, legacy string key read, legacy key migration to list, migrated key ids preserved, append-to-legacy-key migration, concurrent-legacy-append survival. Full suite: 646/646 (637 baseline + 9 new).
 - **Location:** `dashboard/api/trades/[action].ts` — `get<string[]>(monthKey)` then `set(monthKey, [...monthList, id])` at ~499–501 (spread), ~721–723 (stock/option submit), ~1395–1397 and ~1481–1483 (import). The open index correctly uses `rpush`/`lrem`; the *month* index does not. `kv-keys.ts` even warns against RMW on `trades:index:open` — same hazard, not applied here. The grade-cron's auto-import (`cron/[job].ts`) appends to the same month key concurrently.
 - **Scenario:** A user submit races the 5-min auto-import (or two tabs) on the same `trades:index:YYYY-MM` key. Both read before either writes; one appended id is overwritten.
 - **Cost:** The `trade:T-…` record survives but vanishes from `/trades`, `/calendar`, `/performance`, and the tendency cron — its P&L silently drops out of every rollup and it's never AI-graded. On a live trade, realized P&L never recorded.
@@ -292,7 +292,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 |---|---|---|---|
 | D1 | Live modify/cancel/read missing `LIVE_ENABLED` gate | 1 | ✅ DONE |
 | D2 | No idempotency key on submit (double-place) | 1 | ✅ DONE |
-| D4 | Month-index read-modify-write lost update | 2 | ⬜ TODO |
+| D4 | Month-index read-modify-write lost update | 2 | ✅ DONE |
 | D5 | Closing fills imported as opens (phantom trades) | 2 | ⬜ TODO |
 | D6 | Spread `syncFillData` skips modify-chain | 2 | ⬜ TODO |
 | D7 | `syncFillData` every-tick + blocks close detection | 2 | ⬜ TODO |

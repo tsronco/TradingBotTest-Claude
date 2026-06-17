@@ -2,11 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const kvGet = vi.fn();
 const kvSet = vi.fn().mockResolvedValue('OK');
-const kvLrange = vi.fn().mockResolvedValue([]);
+// D4: readMonthIndex now calls lrange for trades:index:YYYY-MM keys.
+// Route lrange for month-index keys through kvGet so existing test data works.
+const kvLrange = vi.fn(async (k: string) => {
+  if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+    const val = await kvGet(k);
+    return Array.isArray(val) ? val : [];
+  }
+  return [];
+});
 const kvLrem = vi.fn().mockResolvedValue(1);
 const kvRpush = vi.fn().mockResolvedValue(1);
+const kvDel = vi.fn().mockResolvedValue(1);
 vi.mock('../../api/_lib/kv', () => ({
-  kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem, rpush: kvRpush }),
+  kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem, rpush: kvRpush, del: kvDel }),
 }));
 
 const proposeNewRule = vi.fn();
@@ -40,6 +49,16 @@ function mkRes() {
 describe('cron/detect-tendencies', () => {
   beforeEach(() => {
     kvGet.mockReset(); kvSet.mockClear(); proposeNewRule.mockReset();
+    kvLrange.mockReset(); kvDel.mockReset();
+    // Re-apply month-index routing after reset
+    kvLrange.mockImplementation(async (k: string) => {
+      if (/^trades:index:\d{4}-\d{2}$/.test(k)) {
+        const val = await kvGet(k);
+        return Array.isArray(val) ? val : [];
+      }
+      return [];
+    });
+    kvDel.mockResolvedValue(1);
     process.env.CRON_TOKEN = 'tok';
   });
 

@@ -16,6 +16,7 @@ import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey, importCursorKey,
   idemKey, IDEM_INDEX_TTL_SECONDS,
+  readMonthIndex, appendMonthIndex,
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
 import { resolveCostBasisForCc } from '../_lib/cost-basis.js';
@@ -526,9 +527,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     history: [],
   });
   await kv().rpush(KV_KEYS.tradesIndexOpen, id);
-  const monthKey = tradesIndexMonthKey(currentMonth(now));
-  const monthList = (await kv().get<string[]>(monthKey)) ?? [];
-  await kv().set(monthKey, [...monthList, id]);
+  await appendMonthIndex(currentMonth(now), id);
 
   return res.status(200).json({ id, trade_id: id, alpaca_order_id: alpacaOrder.id });
 }
@@ -896,9 +895,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
 
   // Indexes
   await kv().rpush(KV_KEYS.tradesIndexOpen, id);
-  const monthKey = tradesIndexMonthKey(currentMonth(now));
-  const monthList = (await kv().get<string[]>(monthKey)) ?? [];
-  await kv().set(monthKey, [...monthList, id]);
+  await appendMonthIndex(currentMonth(now), id);
 
   return res.status(200).json({ id, alpaca_order_id: alpacaOrder.id });
 }
@@ -928,7 +925,7 @@ async function list(req: VercelRequest, res: VercelResponse) {
 
   const ids: string[] = [];
   for (const m of months) {
-    const monthIds = (await kv().get<string[]>(tradesIndexMonthKey(m))) ?? [];
+    const monthIds = await readMonthIndex(m);
     ids.push(...monthIds);
   }
 
@@ -1036,7 +1033,7 @@ async function calendar(req: VercelRequest, res: VercelResponse) {
   const tag = req.query.tag as string | undefined;
   const asset_class = req.query.asset_class as string | undefined;
 
-  const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+  const ids = await readMonthIndex(month);
   const records = (await Promise.all(ids.map((id) => kv().get<Trade>(tradeKey(id)))))
     .filter((t): t is Trade => !!t)
     .filter((t) => account ? t.account === account : true)
@@ -1098,10 +1095,8 @@ async function performance(req: VercelRequest, res: VercelResponse) {
   const cutoff = dateRangeToCutoff(dateRange);
   const months = monthsInRange(cutoff, new Date());
 
-  const idsByMonth = await Promise.all(
-    months.map((m) => kv().get<string[]>(tradesIndexMonthKey(m))),
-  );
-  const ids = idsByMonth.flat().filter((x): x is string => !!x);
+  const idsByMonth = await Promise.all(months.map((m) => readMonthIndex(m)));
+  const ids = idsByMonth.flat();
 
   const rawTrades = await Promise.all(ids.map((id) => kv().get<Trade>(tradeKey(id))));
   const trades = rawTrades
@@ -1359,7 +1354,7 @@ export function groupFillsIntoSpreadsAndSingles(
  */
 async function orderIdAlreadyImported(orderId: string, fillTime: string): Promise<boolean> {
   const month = fillTime.slice(0, 7);
-  const ids = (await kv().get<string[]>(tradesIndexMonthKey(month))) ?? [];
+  const ids = await readMonthIndex(month);
   for (const id of ids) {
     const t = await kv().get<Trade>(tradeKey(id));
     if (!t) continue;
@@ -1570,9 +1565,7 @@ export async function runImport({
         history: [],
       });
       await kv().rpush(KV_KEYS.tradesIndexOpen, id);
-      const monthKey = tradesIndexMonthKey(currentMonth(now));
-      const monthList = (await kv().get<string[]>(monthKey)) ?? [];
-      await kv().set(monthKey, [...monthList, id]);
+      await appendMonthIndex(currentMonth(now), id);
       summary.imported += 1;
       summary.created_trade_ids.push(id);
     } catch (e) {
@@ -1656,9 +1649,7 @@ export async function runImport({
         history: [],
       });
       await kv().rpush(KV_KEYS.tradesIndexOpen, id);
-      const monthKey = tradesIndexMonthKey(currentMonth(now));
-      const monthList = (await kv().get<string[]>(monthKey)) ?? [];
-      await kv().set(monthKey, [...monthList, id]);
+      await appendMonthIndex(currentMonth(now), id);
       summary.imported += 1;
       summary.created_trade_ids.push(id);
     } catch (e) {
