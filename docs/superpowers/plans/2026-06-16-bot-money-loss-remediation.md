@@ -746,9 +746,9 @@ ordering, the hedge hand-off, and PDT routing.
 | R16 | Earnings window / cons-agg CSP gate | 2b | ✅ DONE (money bug; cache + CSP gate deferred) |
 | R17 | Multi-contract market_value/100 | 3 | ✅ DONE |
 | R18 | Stage-2 <100 share misdetect | 3 | ✅ DONE |
-| R19 | `place_buy_to_close` full-position close | 3 | NOT STARTED |
-| R20 | `_available_qty` seed vs reconcile | 3 | NOT STARTED |
-| R21 | Single-leg adoption overwrite | 3 | NOT STARTED |
+| R19 | `place_buy_to_close` full-position close | 3 | ✅ DONE |
+| R20 | `_available_qty` seed vs reconcile | 3 | ✅ DONE |
+| R21 | Single-leg adoption overwrite | 3 | ✅ DONE |
 | R22 | Adopted-spread settle window | 3 | NOT STARTED |
 | R23 | Discovery before market-open | 3 | NOT STARTED |
 | R24 | STO mid won't fill | 3 | NOT STARTED |

@@ -730,6 +730,13 @@ def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg
             sym_state["high_water_mark"] = round(alpaca_avg_cost, 2)
             sym_state["entry_price"]     = round(alpaca_avg_cost, 2)
             sym_state["trailing_active"] = False
+        # R20 (2026-06-16): if the managed (free) share count has grown beyond
+        # the initial baseline — e.g. covered-call collateral was released back
+        # to freely-sellable, or the user added shares — re-baseline initial_qty
+        # so ladder sizing (_scaled_ladders) scales to the REAL position instead
+        # of the stale, smaller starting count. Only ever grows it.
+        if alpaca_qty > int(sym_state.get("initial_qty", 0)):
+            sym_state["initial_qty"] = alpaca_qty
 
     if sym_state["position_qty"] == 0:
         sym_state["last_action"] = "Position empty — skipping cycle."

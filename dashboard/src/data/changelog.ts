@@ -31,6 +31,24 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'Phase 3 batch: cap buy-to-close at tracked qty, re-baseline ladder size, don’t clobber a 2nd short',
+    details:
+      'Money-loss review Phase 3 (R19/R20/R21), all manual/live. R19: ' +
+      'place_buy_to_close(qty=None) closed the FULL Alpaca position — so if the ' +
+      'user hand-sold extra contracts on the same OCC the wheel manages, the ' +
+      '50%-close collapsed the user\'s extras too. It now caps at the bot\'s ' +
+      'tracked contract count (the bot-duplicate case that motivated full-close ' +
+      'is now prevented at the source by R1\'s client_order_id). R20: when the ' +
+      'managed free-share count grows (covered-call collateral released, or the ' +
+      'user added shares), initial_qty re-baselines so ladder sizing scales to ' +
+      'the real position instead of the stale starting count. R21: single-leg ' +
+      'discovery no longer overwrites a still-held tracked contract when a user ' +
+      'holds a SECOND short option on the same underlying (one-contract-per-' +
+      'ticker) — it keeps the first and surfaces the untracked second. +5 pytest (582 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Phase 3 batch: multi-contract price, Stage-2 assignment detection, cheap-option close concession',
     details:
       'Money-loss review Phase 3 (R17/R18/R34). R17: get_option_last_price\'s ' +

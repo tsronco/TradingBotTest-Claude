@@ -143,7 +143,7 @@ def test_stage1_position_open_at_50pct_profit_closes_early(monkeypatch, fresh_sy
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 2.00)  # < 50% of 4.10
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-1"})
+                        lambda c, p, qty=1, max_qty=None: closes.append((c, p)) or {"id": "close-1"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
     monkeypatch.setattr(ws, "place_sell_to_open",
@@ -304,7 +304,7 @@ def test_stage2_50pct_close_buys_back_then_sells_new_call(monkeypatch):
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 1.20)  # < 50% of 2.50
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-call"})
+                        lambda c, p, qty=1, max_qty=None: closes.append((c, p)) or {"id": "close-call"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
     monkeypatch.setattr(ws, "place_sell_to_open",

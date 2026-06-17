@@ -79,3 +79,20 @@ def test_no_drift_leaves_trail_untouched(monkeypatch, manual_mode):
 
     assert out["trailing_active"] is True
     assert out["high_water_mark"] == 21.0  # still trails up on the new high
+
+
+def test_initial_qty_rebaselines_when_position_grows(monkeypatch, manual_mode):
+    """R20: when the managed (free) share count grows — e.g. covered-call
+    collateral released back to freely-sellable — initial_qty re-baselines so
+    ladder sizing scales to the real position, not the stale starting count."""
+    sym_state = {
+        "entry_price": 15.0, "avg_cost": 15.0, "position_qty": 10,
+        "total_cost": 150.0, "stop_price": 13.5,
+        "high_water_mark": 15.0, "trailing_active": False,
+        "initial_qty": 10, "ladder_done": [False, False, False],
+    }
+    orders = _wire(monkeypatch, price=14.5)  # above stop, below entry → no action
+    out = strat._manual_run_symbol("SNAP", sym_state, alpaca_qty=110, alpaca_avg_cost=15.0)
+    assert out["initial_qty"] == 110  # re-baselined to the real managed position
+    assert out["position_qty"] == 110
+    assert orders == []

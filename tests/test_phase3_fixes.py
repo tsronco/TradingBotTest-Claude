@@ -62,3 +62,48 @@ def test_btc_limit_normal_option_still_marketable(monkeypatch, manual_mode):
     ws.place_buy_to_close("X260101P00010000", 1.00)
     limit = float(captured["limit_price"])
     assert 1.00 < limit <= 1.10
+
+
+# ── R19: place_buy_to_close caps the auto-lookup at the bot's tracked qty ─────
+
+def test_btc_caps_at_tracked_qty(monkeypatch, manual_mode):
+    captured = {}
+    monkeypatch.setattr(ws, "api_post", lambda p, b: captured.update(b) or {"id": "o"})
+    # live position has 3 contracts but the bot tracks only 1 (user hand-sold 2)
+    monkeypatch.setattr(ws, "get_option_position", lambda c: {"qty": "-3"})
+    ws.place_buy_to_close("X260101P00010000", 0.20, max_qty=1)
+    assert captured["qty"] == "1"  # capped — leaves the user's extra 2 alone
+
+
+def test_btc_no_cap_closes_full_position(monkeypatch, manual_mode):
+    captured = {}
+    monkeypatch.setattr(ws, "api_post", lambda p, b: captured.update(b) or {"id": "o"})
+    monkeypatch.setattr(ws, "get_option_position", lambda c: {"qty": "-3"})
+    ws.place_buy_to_close("X260101P00010000", 0.20)  # no cap → full (legacy)
+    assert captured["qty"] == "3"
+
+
+def test_btc_cap_above_live_position_closes_what_exists(monkeypatch, manual_mode):
+    captured = {}
+    monkeypatch.setattr(ws, "api_post", lambda p, b: captured.update(b) or {"id": "o"})
+    monkeypatch.setattr(ws, "get_option_position", lambda c: {"qty": "-2"})
+    ws.place_buy_to_close("X260101P00010000", 0.20, max_qty=5)  # cap > live → close live
+    assert captured["qty"] == "2"
+
+
+# ── R21: discovery doesn't clobber a second short on the same underlying ──────
+
+def test_discover_keeps_first_short_does_not_clobber_second(monkeypatch, manual_mode):
+    positions = [
+        {"symbol": "AAL260918P00013000", "qty": "-1", "avg_entry_price": "0.50", "asset_class": "us_option"},
+        {"symbol": "AAL260918P00012000", "qty": "-1", "avg_entry_price": "0.30", "asset_class": "us_option"},
+    ]
+    monkeypatch.setattr(ws, "get_positions", lambda: positions)
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **k: None)
+    state = {"_meta": {}}
+    ws._discover_wheel_state(state)
+    tracked = state["AAL"]["current_contract"]
+    assert tracked in ("AAL260918P00013000", "AAL260918P00012000")
+    # A second discovery pass must not overwrite the tracked contract.
+    ws._discover_wheel_state(state)
+    assert state["AAL"]["current_contract"] == tracked
