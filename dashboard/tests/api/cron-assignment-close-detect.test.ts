@@ -32,6 +32,13 @@ vi.mock('../../api/_lib/proposal-prompts', () => ({
   proposeNewRule: vi.fn(),
   proposeDemote: vi.fn(),
 }));
+// Stub the auto-import worker so runAutoImport() in gradeOpenTrades is a no-op.
+// Without this, runAutoImport calls alpacaTrade with 'conservative' (and other
+// modes) and writes import:cursor:* KV keys, which causes 'conservative' to
+// appear in the modes used and breaks cross-account routing assertions.
+vi.mock('../../api/trades/[action]', () => ({
+  runImport: vi.fn().mockResolvedValue({ imported: 0, skipped_existing: 0, spread_pairs_found: 0, errors: [], created_trade_ids: [] }),
+}));
 
 function mkRes() {
   return {

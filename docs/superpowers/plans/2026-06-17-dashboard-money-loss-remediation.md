@@ -244,6 +244,13 @@ direction → status.**
 
 ---
 
+## Reviewed and judged NOT a bug — stale tests corrected
+
+- **14 pre-existing failing tests in 3 cron test files** (`cron-grade-open-trades.test.ts`, `cron-external-close-detect.test.ts`, `cron-assignment-close-detect.test.ts`). Root cause: **stale tests, not a code bug.** Two independent issues:
+  1. `runAutoImport()` was added to `runGradeOpenTrades()` after these tests were written. It unconditionally writes `import:cursor:<account>` KV keys for all 6 accounts and calls `alpacaTrade` with `conservative` mode via `runImport`. Tests that asserted `kvSet.not.toHaveBeenCalled()` or that `conservative` was absent from modes used failed because `runAutoImport` is an always-on side-effect of the cron tick. **Fix:** added `vi.mock('../../api/trades/[action]')` with a stubbed `runImport` to all 3 files (blocks the `alpacaTrade` calls); changed `kvSet.not.toHaveBeenCalled()` to `kvSet.not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything())` to allow cursor writes while still asserting no trade record was written.
+  2. Several tests used option expirations that were future when written (May 29, June 5) but are now past (June 17). `detectClose` Path 2 / backstop / Path 2b fired at real `Date.now()` and auto-closed trades the tests expected to leave open. **Fix:** added `vi.useFakeTimers()` / `vi.setSystemTime(...)` to freeze clock before all expirations in the affected tests.
+  The cron code itself is correct — `modeFromAccount()` properly routes SM accounts to their own Alpaca creds. No production code changed.
+
 ## Reviewed and judged NOT a bug (no action)
 
 - **mleg `limit_price` sign convention** [Sonnet F6, SUSPICIOUS] — Sonnet flagged

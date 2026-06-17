@@ -15,6 +15,14 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: (...a: any[]) => dataMock(...a),
   alpacaTrade: (...a: any[]) => alpacaTradeMock(...a),
 }));
+// Stub the auto-import worker so runAutoImport() in gradeOpenTrades is a no-op
+// in every test in this file. Without this, runAutoImport calls alpacaTrade with
+// 'conservative' (and other modes) and writes import:cursor:* KV keys, which
+// breaks tests that assert kvSet/alpacaTradeMock was not called, or that
+// 'conservative' did not appear in the modes list.
+vi.mock('../../api/trades/[action]', () => ({
+  runImport: vi.fn().mockResolvedValue({ imported: 0, skipped_existing: 0, spread_pairs_found: 0, errors: [], created_trade_ids: [] }),
+}));
 
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
@@ -121,6 +129,10 @@ describe('POST /api/cron/grade-open-trades', () => {
     // trade has no close order yet — it should stay in the open index but
     // gain its entry-price metadata so the timeline / chart / grading can
     // use the correct fill timestamp instead of submitted_at.
+    //
+    // Freeze time before the option expiry (2026-05-29) so detectClose Path 2
+    // (option past expiration) does not fire. Without a fake timer, real
+    // Date.now() may be past the expiry and the backstop would auto-close it.
     const trade = {
       id: 'T-2026-05-07-001', account: 'manual_paper', symbol: 'F', asset_class: 'option',
       side: 'STO', qty: 1, contract_symbol: 'F260529P00011000',
@@ -140,26 +152,33 @@ describe('POST /api/cron/grade-open-trades', () => {
     });
     // syncFillData reads the entry order and sees filled. detectClose Path 0
     // skips because filled_at is now set. Path 1 doesn't apply (no close
-    // order). Path 2 doesn't apply (option not yet expired).
+    // order). Path 2 doesn't apply (option not yet expired — clock is frozen
+    // 9 days before expiry).
     alpacaTradeMock.mockResolvedValue({
       id: 'a-delayed-fill', status: 'filled',
       filled_at: '2026-05-07T17:57:29Z', filled_avg_price: '0.05',
     });
     kvSet.mockResolvedValue('OK');
-    const handler = (await import('../../api/cron/[job]')).default;
-    const res = mockRes();
-    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
-    // Trade record gets fill data written back
-    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
-      filled_at: '2026-05-07T17:57:29Z',
-      filled_avg_price: 0.05,
-      closed_at: null,
-      closed_by: null,
-    }));
-    // Stays in the open index — fill alone doesn't close the trade
-    expect(kvLrem).not.toHaveBeenCalled();
-    // No AI grading until close
-    expect(gradeMock).not.toHaveBeenCalled();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-20T12:00:00Z')); // 9 days before 2026-05-29 expiry
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      const res = mockRes();
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+      // Trade record gets fill data written back
+      expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+        filled_at: '2026-05-07T17:57:29Z',
+        filled_avg_price: 0.05,
+        closed_at: null,
+        closed_by: null,
+      }));
+      // Stays in the open index — fill alone doesn't close the trade
+      expect(kvLrem).not.toHaveBeenCalled();
+      // No AI grading until close
+      expect(gradeMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('syncFillData follows replaced_by chain and backfills modify_history', async () => {
@@ -343,8 +362,10 @@ describe('POST /api/cron/grade-open-trades', () => {
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
-    // Neither fill-sync nor close-detect should write
-    expect(kvSet).not.toHaveBeenCalled();
+    // Neither fill-sync nor close-detect should write the trade record.
+    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
+    // expected and are not what this assertion guards against.)
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -457,8 +478,10 @@ describe('POST /api/cron/grade-open-trades', () => {
       const handler = (await import('../../api/cron/[job]')).default;
       await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
     } finally { vi.useRealTimers(); }
-    // No write, no removal from open index
-    expect(kvSet).not.toHaveBeenCalled();
+    // No write to the trade record, no removal from open index.
+    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
+    // expected and are not what this assertion guards against.)
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -482,13 +505,19 @@ describe('POST /api/cron/grade-open-trades', () => {
       const handler = (await import('../../api/cron/[job]')).default;
       await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
     } finally { vi.useRealTimers(); }
-    expect(kvSet).not.toHaveBeenCalled();
+    // No write to the trade record, no removal from open index.
+    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
+    // expected and are not what this assertion guards against.)
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
     // No spot fetch should have happened either
     expect(dataMock).not.toHaveBeenCalled();
   });
 
   it('syncFillData no-ops on still-pending entry orders', async () => {
+    // Freeze time before the option expiry (2026-05-29) so detectClose Path 2
+    // (option past expiration / backstop) does not fire. Without a fake timer,
+    // real Date.now() is past expiry and the backstop auto-closes the trade.
     const trade = {
       id: 'T-2026-05-07-002', account: 'manual_paper', symbol: 'F', asset_class: 'option',
       side: 'STO', qty: 1, contract_symbol: 'F260529P00011000',
@@ -505,11 +534,19 @@ describe('POST /api/cron/grade-open-trades', () => {
       k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
     alpacaTradeMock.mockResolvedValue({ id: 'a-still-pending', status: 'new', filled_at: null, filled_avg_price: null });
     kvSet.mockResolvedValue('OK');
-    const handler = (await import('../../api/cron/[job]')).default;
-    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
-    // No write — neither the fill-sync nor the close-detect found anything to do
-    expect(kvSet).not.toHaveBeenCalled();
-    expect(kvLrem).not.toHaveBeenCalled();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-20T12:00:00Z')); // 9 days before 2026-05-29 expiry
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+      // No write to the trade record — neither fill-sync nor close-detect found anything to do.
+      // (runAutoImport writes import:cursor:* keys as a side-effect — those are
+      // expected and are not what this assertion guards against.)
+      expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+      expect(kvLrem).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // --- SM cross-account routing (Phase 6.x critical fix) ---

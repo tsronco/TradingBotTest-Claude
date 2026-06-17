@@ -4,7 +4,7 @@
 // Covers the NVTS case (bot bought-to-close a user-opened CSP via its own
 // Alpaca client, no alpaca_close_order_id on the trade record) and a
 // spread variant where both legs are closed externally.
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const kvGet = vi.fn();
@@ -20,11 +20,27 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: (...a: any[]) => dataMock(...a),
   alpacaTrade: (...a: any[]) => alpacaTradeMock(...a),
 }));
+// Stub the auto-import worker so runAutoImport() in gradeOpenTrades is a no-op.
+// Without this, runAutoImport calls alpacaTrade with 'conservative' (and other
+// modes) and writes import:cursor:* KV keys, which breaks tests that assert
+// kvSet/kvLrem was not called.
+vi.mock('../../api/trades/[action]', () => ({
+  runImport: vi.fn().mockResolvedValue({ imported: 0, skipped_existing: 0, spread_pairs_found: 0, errors: [], created_trade_ids: [] }),
+}));
 
+// All trades in this file have option expirations in 2026-05/06 which are now
+// past. Freeze time before all expirations so detectClose Path 2 (option past
+// expiry / backstop) never fires and Path 3 (external close) is what gets tested.
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
   gradeMock.mockReset(); dataMock.mockReset(); alpacaTradeMock.mockReset();
   process.env.CRON_TOKEN = 'cron-token';
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-05-25T12:00:00Z')); // before all expirations in this file
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function mockReq(): VercelRequest {
@@ -146,8 +162,10 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
 
-    // Trade stays open — no kvSet, no kvLrem
-    expect(kvSet).not.toHaveBeenCalled();
+    // Trade stays open — no trade-record write, no removal from open index.
+    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
+    // expected and are not what this assertion guards against.)
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -182,7 +200,8 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
 
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
-    expect(kvSet).not.toHaveBeenCalled();
+    // Trade stays open — no trade-record write, no removal from open index.
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -306,7 +325,8 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
     // Trade stays open — orphan handler in the bot will deal with the survivor.
-    expect(kvSet).not.toHaveBeenCalled();
+    // No trade-record write, no removal from open index.
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
     expect(kvLrem).not.toHaveBeenCalled();
   });
 });
