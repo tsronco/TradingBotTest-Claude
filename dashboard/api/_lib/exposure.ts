@@ -42,5 +42,13 @@ export function computeExposure(input: ExposureInput): number {
   if (side === 'STO' && contract_type === 'put') {
     return (strike ?? 0) * qty * 100;
   }
+  // D9 fix: STO call exposure is assignment notional (strike × qty × 100),
+  // not premium received. Mirrors OptionOrderForm.tsx liveExposure which already
+  // uses strike × 100 × qty for all STO opens. A covered call's shares-called-away
+  // basis = strike × 100; a naked call's true risk is unbounded, but strike-notional
+  // is the agreed conservative proxy (consistent with the STO-put branch above).
+  if (side === 'STO' && contract_type === 'call') {
+    return (strike ?? 0) * qty * 100;
+  }
   return qty * px * 100;
 }

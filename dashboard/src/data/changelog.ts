@@ -31,6 +31,28 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D9: short-call exposure now uses assignment notional, not premium',
+    details:
+      'D9 money-loss remediation (medium severity). Previously, computeExposure\n' +
+      '(api/_lib/exposure.ts) used strike × qty × 100 for STO puts (correct collateral)\n' +
+      'but fell through to qty × premium × 100 for STO calls — the tiny premium amount\n' +
+      '(e.g. $210 on a $350 strike at $2.10) sailed under every TOTP threshold including\n' +
+      'the live account\'s $1,500 gate. The recorded exposure_at_submit was also wrong\n' +
+      'for risk review.\n\n' +
+      'Fix: added an STO-call branch that mirrors STO-put exactly:\n' +
+      '  exposure = strike × qty × 100\n' +
+      'This is the shares-called-away notional — the same conservative proxy the\n' +
+      'OptionOrderForm.tsx client preview has always used (strike × 100 × qty for all\n' +
+      'STO opens). A naked call\'s true risk is unbounded, but strike-notional is the\n' +
+      'agreed proxy; it is always large enough to trigger TOTP on real-money short calls.\n\n' +
+      '3 new/updated vitest tests: STO-call yields strike-notional (not premium),\n' +
+      'scales with qty, and the corrected value exceeds the live $1,500 threshold while\n' +
+      'the old premium value did not. STO-put, BTO, BTC, STC, stock, and spread branches\n' +
+      'are all regression-guarded. Full suite: 692/692.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D10: session tokens now expire server-side after 30 days',
     details:
       'D10 money-loss remediation (medium severity). Previously, decodeSession verified\n' +

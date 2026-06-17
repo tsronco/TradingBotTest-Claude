@@ -200,7 +200,7 @@ direction → status.**
 - **Test direction:** vitest: a token with `loggedInAt` older than `MAX_AGE_SECONDS` decodes to null; a fresh one passes.
 
 ### D9 — Short-call exposure understates risk → skips TOTP gate 🟡 Medium  [O7]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Added `if (side === 'STO' && contract_type === 'call') return (strike ?? 0) * qty * 100;` branch in `dashboard/api/_lib/exposure.ts`, mirroring the STO-put branch. STO-call exposure is now the assignment notional (`strike × qty × 100`) — the same conservative proxy the `OptionOrderForm.tsx` client preview has always used (`strike × 100 × qty` for all STO opens). The old code fell through to `qty × px × 100` (premium received, e.g. $210 on a $350 call at $2.10), which is far below the live TOTP threshold ($1,500); the corrected formula gives $35,000, which is always above it. The existing `option STO call = qty × bid × 100` test that encoded the old behavior was updated to assert `35000` and retitled to `D9: option STO call = strike × qty × 100 (assignment notional, not premium)`. 2 additional tests added: STO-call qty scaling and the TOTP-threshold boundary check (proves the old value was below $1,500, the new value is above). STO-put, BTO, BTC, STC, stock, spread branches are all regression-guarded and unchanged. Full suite: 692/692 (690 baseline + 2 net new).
 - **Location:** `dashboard/api/_lib/exposure.ts:42–45` — STO **put** uses `strike × qty × 100` (correct collateral); STO **call** falls through to `qty × px × 100` (premium received, not assignment/short-stock risk). `requires_totp = exposure >= threshold` (`trades/[action].ts:529`), so a short call is graded tiny and sails under the threshold (live threshold $1,500); recorded `exposure_at_submit` is wrong. The UI preview (`OptionOrderForm.tsx:72–80`) already uses `strike × 100 × qty` — the server is *less* conservative than the client.
 - **Scenario:** A covered/naked short call on live is sized off premium → no TOTP re-prompt; risk review sees a wrong (tiny) exposure.
 - **Cost:** Real-money short-call write bypasses the TOTP guard and is mis-sized in records.
@@ -283,6 +283,6 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D3 | Backup-code consumption race | 3 | ✅ DONE |
 | D8 | `X-Forwarded-For` rate-limit bypass | 3 | ✅ DONE |
 | D10 | No server-side session expiry | 3 | ✅ DONE |
-| D9 | Short-call exposure understates → TOTP skip | 4 | ⬜ TODO |
+| D9 | Short-call exposure understates → TOTP skip | 4 | ✅ DONE |
 | D12 | Debit-spread close P&L mis-signed | 4 | ⬜ TODO |
 | D15 | Import cursor date-truncation duplicates | 4 | ⬜ TODO |
