@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'Phase 3 wrap: incomplete-state guard (R27) + closed out the low-severity tail',
+    details:
+      'Completes the 2026-06-16 money-loss remediation (34 findings). R27: ' +
+      'strategy.run_one_cycle now skips a cycle with a warning when the state ' +
+      'file is missing avg_cost/entry_price, instead of raising KeyError and ' +
+      'crashing into #errors every tick. The remaining low-severity findings ' +
+      'were reviewed and consciously closed without code changes (documented in ' +
+      'the plan): R24 (STO mid pricing — a premium-vs-fill tradeoff, BP not ' +
+      'constrained on the $100k accounts), R26 (TSLA-hardcoded cycle — tracked ' +
+      'multi-stock refactor, latent), R28 (off-grid strike rounding — corrected ' +
+      'downstream by find_best_contract), R29 (duplicate adoption embed only on ' +
+      'a rare save failure — cosmetic), R30 (width-loop early-break — verified ' +
+      'safe; monotonicity holds). All 34 findings now resolved. +1 pytest (586 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Phase 3 batch: settle-window only for bot-opens, no off-hours discovery, CC-expiry cycle count',
     details:
       'Money-loss review Phase 3 (R22/R23/R25). R22: the 20-min settling window ' +

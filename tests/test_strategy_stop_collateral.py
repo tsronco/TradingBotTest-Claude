@@ -76,3 +76,18 @@ def test_stop_sells_only_free_portion(monkeypatch, cons_mode):
     assert orders == [("TSLA", 30, "sell")]
     assert closed == []
     assert state["position_qty"] == 20     # 50 tracked − 30 sold
+
+
+def test_run_one_cycle_skips_incomplete_state(monkeypatch, cons_mode):
+    """R27: a state file missing avg_cost must skip the cycle gracefully, not
+    raise KeyError and crash into #errors."""
+    monkeypatch.setattr(strat, "_load_state",
+                        lambda: {"position_qty": 10, "entry_price": 100.0})  # no avg_cost
+    monkeypatch.setattr(strat, "_save_state", lambda s: None)
+    monkeypatch.setattr(strat, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(strat, "log_event", lambda *a, **k: None)
+    orders = []
+    monkeypatch.setattr(strat, "place_order", lambda *a, **k: orders.append(a))
+    monkeypatch.setattr(strat, "get_latest_price", lambda s: 90.0)
+    strat.run_one_cycle()  # must not raise
+    assert orders == []

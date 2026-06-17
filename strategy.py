@@ -461,14 +461,25 @@ def run_one_cycle():
                   result="skipped", details={"state": state})
         return
 
-    # Recover state into local vars matching run_strategy's naming
+    # R27 (2026-06-16): defend against an incompletely-seeded state file. A
+    # missing avg_cost/entry_price used to raise KeyError and crash the cycle
+    # into #errors every tick; skip with a warning instead so the bot keeps
+    # running (and the gap can be re-seeded).
+    if state.get("avg_cost") is None or state.get("entry_price") is None:
+        log("strategy state missing avg_cost/entry_price — skipping cycle (re-seed required)")
+        log_event(LOG_STREAM, "strategy.py", "state_incomplete",
+                  result="skipped", details={"keys": sorted(state.keys())})
+        return
+
+    # Recover state into local vars matching run_strategy's naming. Non-essential
+    # keys fall back to sane defaults rather than KeyError on a partial state.
     entry_price     = state["entry_price"]
     avg_cost        = state["avg_cost"]
-    total_qty       = state["position_qty"]
-    total_cost      = state["total_cost"]
-    stop_price      = state["stop_price"]
-    high_water_mark = state["high_water_mark"]
-    trailing_active = state["trailing_active"]
+    total_qty       = state.get("position_qty", 0)
+    total_cost      = state.get("total_cost") or round(avg_cost * total_qty, 2)
+    stop_price      = state.get("stop_price") or recalculate_stop(avg_cost)
+    high_water_mark = state.get("high_water_mark", entry_price)
+    trailing_active = state.get("trailing_active", False)
     ladder_done     = [state.get(f"ladder_{i+1}_done", False) for i in range(len(LADDERS))]
 
     try:

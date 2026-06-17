@@ -470,7 +470,7 @@ direction → status.** Source tags reference the original reviewer findings
   earnings → assert gated (if we add the gate).
 
 ### R17 — Multi-contract `market_value/100` mispricing 🟡 Medium  [S1]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:~1905-1907` (`get_option_last_price` fallback:
   `abs(market_value)/100`).
 - **Scenario:** Position with qty>1 (e.g. the MARA quad). `market_value` is the
@@ -480,7 +480,7 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** qty=4 position → assert per-contract price.
 
 ### R18 — Stage-2 "called away" misdetect on non-100 lots 🟡 Medium  [S27, S(v2)10 — corroborated by both Sonnet passes]
-- **Status:** NOT STARTED. Note: a partial *manual sell* (e.g. 200→50 shares)
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
   also trips this and additionally leaves a partially-naked CC. Fix should detect
   a genuine assignment (qty → 0 / symbol gone), not an absolute `<100`, and
   alert+halt the symbol on an ambiguous 1–99 remainder rather than guessing.
@@ -495,7 +495,7 @@ direction → status.** Source tags reference the original reviewer findings
   assignment.
 
 ### R19 — `place_buy_to_close(qty=None)` closes the full position 🟡 Medium  [S32]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:~1484-1490`.
 - **Scenario:** Wheel-managed short put on an OCC where the user *also* hand-sold
   one (position qty −2). `qty=None` closes the actual position size (2) though the
@@ -508,7 +508,7 @@ direction → status.** Source tags reference the original reviewer findings
   closes.
 
 ### R20 — `_available_qty` seed vs. reconcile after CC closes 🟡 Medium  [S7]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `strategy.py:~603-641`.
 - **Scenario:** SNAP 110 shares, 100 locked under a CC → seed records free qty 10
   and `initial_qty=10`. After the CC closes, `qty_available` jumps to 110 → drift
@@ -521,7 +521,7 @@ direction → status.** Source tags reference the original reviewer findings
   is sane.
 
 ### R21 — Single-leg adoption overwrites richer state 🟢 Low  [O8]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:~2724-2738` (`_discover_wheel_state`).
 - **Scenario:** A discovered short whose OCC ≠ tracked `current_contract`
   overwrites contract fields; if the symbol had in-flight state for a different
@@ -532,7 +532,7 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Two contracts same underlying → assert no clobber.
 
 ### R22 — Adopted spreads inherit the settle window 🟢 Low  [S10]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:2621` (`_adopt_spread` sets `opened_at`) →
   `_within_settling_window` suppresses the loss-stop for 20 min post-adoption.
 - **Scenario:** A hand-opened spread adopted at 9:35 has its loss-stop suppressed
@@ -545,7 +545,7 @@ direction → status.** Source tags reference the original reviewer findings
   document the intended suppression).
 
 ### R23 — Discovery before market-open check 🟢 Low  [S8]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:~3404-3442`.
 - **Scenario:** `_discover_wheel_state` makes API calls / can fire adoption
   embeds before `is_market_open()`. Mostly waste + off-hours embeds; inconsistent
@@ -555,7 +555,7 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Market-closed → assert no adoption embeds / minimal calls.
 
 ### R24 — STO mid won't fill on illiquid chains 🟢 Low  [S9]
-- **Status:** NOT STARTED.
+- **Status:** ✅ REVIEWED — accepted as-is. Mid-pricing is a deliberate premium-vs-fill tradeoff; pricing into the spread to fill faster gives up premium on every sale. BP isn't constrained on the $100k cons/agg accounts (the only modes that open new puts), and the stale-order cancel + re-quote already handles a non-fill. Not worth trading premium for marginal fill speed.
 - **Location:** `wheel_strategy.py:~1594-1609` (`compute_limit_price` returns mid).
 - **Scenario:** Wide bid/ask → STO rests at mid, unfilled up to
   `STALE_AFTER_HOURS`, tying up BP. cons/agg (the modes that open new puts).
@@ -564,13 +564,13 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Wide chain → assert STO price is fillable per policy.
 
 ### R25 — `cycle_count` off-by-one on CC-expired path 🟢 Low  [S16]
-- **Status:** NOT STARTED. Reporting only.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `wheel_strategy.py:~2313-2339` (CC-expired path doesn't increment
   `cycle_count`, unlike the put-expired path).
 - **Fix direction:** Increment consistently. **Test:** CC expiry → count +1.
 
 ### R26 — `SYMBOL="TSLA"` hardcoded in `run_one_cycle` 🟢 Low (latent)  [S6]
-- **Status:** NOT STARTED.
+- **Status:** ✅ REVIEWED — deferred. Generalizing run_one_cycle past TSLA is the tracked 'multi-stock strategy expansion' future work, not a current bug (cons/agg only ever hold TSLA via this path; latent). Changing it now would be a larger refactor with no current payoff.
 - **Location:** `strategy.py:29, 434, 446`.
 - **Scenario:** cons/agg non-manual cycle always monitors/`close_all` TSLA.
   Harmless today (both seed TSLA) but a latent correctness gap if diversified.
@@ -578,13 +578,13 @@ direction → status.** Source tags reference the original reviewer findings
   explicitly. **Test:** non-TSLA state → assert correct symbol used.
 
 ### R27 — `entry_price` KeyError on incomplete state 🟢 Low (edge)  [S23]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). See status tracker + commit.
 - **Location:** `strategy.py:~424`.
 - **Fix direction:** `.get` with a sane default / explicit re-seed. **Test:**
   missing key → assert no crash.
 
 ### R28 — `round_strike` reference is cost basis, not spot 🟢 Low  [S29]
-- **Status:** NOT STARTED.
+- **Status:** ✅ REVIEWED — accepted as-is. The off-grid target is corrected downstream: find_best_contract searches ±15 strikes for the nearest REAL strike, so the rounding heuristic only sets a search center. Switching the increment reference would shift strike selection across all modes (puts/CCs/spreads) for a cosmetic gain — not worth the risk.
 - **Location:** `wheel_strategy.py:~2410-2412`.
 - **Scenario:** CC strike increment chosen off cost basis can land off-grid vs.
   the actual chain when spot has moved across the $25 increment boundary;
@@ -594,7 +594,7 @@ direction → status.** Source tags reference the original reviewer findings
   decision. **Test:** cost basis < $25, spot > $25 → assert on-grid target.
 
 ### R29 — Duplicate adoption embeds if `save_state` fails 🟢 Low  [S35]
-- **Status:** NOT STARTED.
+- **Status:** ✅ REVIEWED — accepted (rare/cosmetic). Duplicate embed only on a save_state failure (disk full / IO error), which is rare; _adopt_spread is already idempotent against SAVED state and the spread is still managed correctly. A clean fix needs restructuring the end-of-cycle batched save — out of proportion to a cosmetic double-embed.
 - **Location:** `_adopt_spread` / `_discover_wheel_state` fire embeds before the
   end-of-cycle `save_state`.
 - **Scenario:** `save_state` fails after an adoption embed → next cycle re-adopts
@@ -603,7 +603,7 @@ direction → status.** Source tags reference the original reviewer findings
   immediately on adoption. **Test:** save failure → assert no duplicate embed.
 
 ### R30 — Width-loop early-break monotonicity assumption 🟢 Low (theoretical)  [S15]
-- **Status:** NOT STARTED.
+- **Status:** ✅ REVIEWED — verified safe, no change. The early break is sound: the credit floor fires off the SHORT mid (constant across widths) and net_credit only INCREASES with width (wider = cheaper/further-OTM long), so a sub-floor narrowest width means all widths fail. Monotonicity holds (confirmed with the R15 zero-bid long path too).
 - **Location:** `wheel_strategy.py:~3183-3195`.
 - **Note:** Reviewer concluded "in practice the assumption holds." Lowest
   priority; revisit only if we see missed valid widths in logs.
@@ -680,7 +680,8 @@ direction → status.** Source tags reference the original reviewer findings
   / exits rather than running against paper.
 
 ### R34 — `place_buy_to_close` flat +$0.05 overpays on cheap options 🟡 Medium  [S(v2)6]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-17). The BTC nudge is now a ~5% concession
+  (floored at 1¢) instead of a flat $0.05. See status tracker + commit.
 - **Location:** `wheel_strategy.py:~1499`.
 - **Scenario:** The flat `+$0.05` premium added to ensure a fill is a large
   *percentage* on cheap options (e.g. a $0.05-bid option → the add doubles the
@@ -751,11 +752,11 @@ ordering, the hedge hand-off, and PDT routing.
 | R21 | Single-leg adoption overwrite | 3 | ✅ DONE |
 | R22 | Adopted-spread settle window | 3 | ✅ DONE |
 | R23 | Discovery before market-open | 3 | ✅ DONE |
-| R24 | STO mid won't fill | 3 | NOT STARTED |
+| R24 | STO mid won't fill | 3 | ✅ REVIEWED |
 | R25 | cycle_count CC off-by-one | 3 | ✅ DONE |
-| R26 | TSLA hardcoded cycle | 3 | NOT STARTED |
-| R27 | entry_price KeyError | 3 | NOT STARTED |
-| R28 | round_strike off-grid | 3 | NOT STARTED |
-| R29 | Duplicate adoption embeds | 3 | NOT STARTED |
-| R30 | Width-loop monotonicity | 3 | NOT STARTED |
+| R26 | TSLA hardcoded cycle | 3 | ✅ DEFERRED |
+| R27 | entry_price KeyError | 3 | ✅ DONE |
+| R28 | round_strike off-grid | 3 | ✅ REVIEWED |
+| R29 | Duplicate adoption embeds | 3 | ✅ REVIEWED |
+| R30 | Width-loop monotonicity | 3 | ✅ REVIEWED |
 | R34 | `place_buy_to_close` flat +$0.05 overpay | 3 | ✅ DONE |
