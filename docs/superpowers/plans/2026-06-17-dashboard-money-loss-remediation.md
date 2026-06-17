@@ -162,12 +162,7 @@ direction → status.**
 - **Status:** ✅ DONE (2026-06-17). Added `fill_confirmed?: boolean` to the `Trade` type in `dashboard/api/_lib/trade-types.ts`. `syncFillData` now early-returns immediately when `trade.fill_confirmed` is true (before any Alpaca call). The sentinel is written alongside `filled_at` at both fill-confirmation sites: the spread (mleg) path and the single-leg path. Legacy/pre-D7 trades (undefined sentinel) fall through and confirm once, then the next tick is free. Separately, the per-trade loop in `runGradeOpenTrades` now wraps `syncFillData` in a try/catch so a thrown error (edge case — inner `fetchOrderById` already swallows its own errors) cannot skip `detectClose`. The try/catch was verified not redundant by D7c test: `fetchOrderById` logs and returns null on 429/error, so `syncFillData` currently returns `trade` unchanged rather than throwing — the outer guard is belt-and-suspenders against future changes. 3 new vitest tests: D7a (fill_confirmed set → no entry-order Alpaca fetch at all); D7b (fill_confirmed absent, filled order → fetches once and writes fill_confirmed:true); D7c (syncFillData entry-order fetch throws 429 → detectClose still runs, trade correctly closed). Full suite: 659/659 (656 baseline + 3 new).
 
 ### D13 — `findClosingFill` fetches only one page (100 activities) 🟡 Medium  [S12]
-- **Status:** ⬜ TODO
-- **Location:** `dashboard/api/cron/[job].ts:833` — `/v2/account/activities?activity_types=FILL&after=<1d before fill>&page_size=100`, single request. On the wheel accounts (10 symbols) 100 fills in a 1-day window is reachable; if the matching close is the 101st, `findClosingFill` returns null and Path 3 leaves the trade open.
-- **Scenario:** Busy account; the closing fill falls past the first 100 → never matched.
-- **Cost:** Trade stuck open, realized P&L never recorded, grading never fires (permanent when it occurs).
-- **Fix direction:** Paginate the activities walk (`page_token`/`after` cursor) until the contract's closing fill is found or the window is exhausted; bound the loop.
-- **Test direction:** vitest: closing fill on page 2 is found after pagination; absent fill exhausts and returns null without infinite loop.
+- **Status:** ✅ DONE (2026-06-17). `findClosingFill` replaced with a paginated loop: fetches up to `MAX_FILL_PAGES=10` pages of 100 activities each (1 000 activities max), advancing via `page_token` (the `id` of the last item on each page, per Alpaca's activities API). Returns the matching fill as soon as it is found (early exit — no over-fetching). Stops early when a page returns fewer than 100 items (end of stream). If the 10-page cap is hit without a match, `console.log` emits `"findClosingFill page cap reached"` so a silently-missed close is visible in Vercel function logs. 3 new vitest tests: D13a (matching fill on page 2 — pagination happens, trade is closed); D13b (no match across all pages — returns null, stops at or before 10 pages, no infinite loop); D13c (page cap hit — log message containing `"findClosingFill page cap"` is emitted). Full suite: 662/662 (659 baseline + 3 new).
 
 ### D11 — Past-expiry STO mis-booking: assigned shares invisible / null-fill P&L=0 🟡 Medium  [O8, S11]
 - **Status:** ⬜ TODO
@@ -287,7 +282,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D5 | Closing fills imported as opens (phantom trades) | 2 | ✅ DONE |
 | D6 | Spread `syncFillData` skips modify-chain | 2 | ✅ DONE |
 | D7 | `syncFillData` every-tick + blocks close detection | 2 | ✅ DONE |
-| D13 | `findClosingFill` single-page cap | 2 | ⬜ TODO |
+| D13 | `findClosingFill` single-page cap | 2 | ✅ DONE |
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ⬜ TODO |
 | D14 | Spread-close pre-fill-mid P&L | 2 | ⬜ TODO |
 | D3 | Backup-code consumption race | 3 | ⬜ TODO |

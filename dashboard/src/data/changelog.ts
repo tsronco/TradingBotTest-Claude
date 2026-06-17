@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D13: findClosingFill now paginates up to 10 pages — closing fills beyond first 100 activities no longer missed',
+    details:
+      'D13 money-loss remediation. The close-detection cron (Path 3) previously fetched only the\n' +
+      'first 100 FILL activities from Alpaca when scanning for a contract\'s closing fill. On busy\n' +
+      'wheel accounts (10 symbols, multiple positions) 100 fills in a single day is reachable; if\n' +
+      'the matching BTC/STC fill was the 101st activity the trade was left permanently open and\n' +
+      'realized P&L was never recorded.\n\n' +
+      'Fix: findClosingFill now walks up to 10 pages of 100 activities each (1 000 activities\n' +
+      'total), advancing via Alpaca\'s page_token cursor (the id of the last item on each page).\n' +
+      'Returns as soon as the matching fill is found. Stops early when a page returns fewer than\n' +
+      '100 items (end of stream). If the 10-page cap is reached without a match, a log line\n' +
+      '"findClosingFill page cap reached" is emitted in Vercel function logs so the miss is\n' +
+      'visible rather than silently dropped.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D7: fill_confirmed sentinel stops redundant Alpaca fetches; sync errors no longer block close detection',
     details:
       'Two coupled problems fixed — D7 high-severity money-loss remediation.\n\n' +

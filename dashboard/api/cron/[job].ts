@@ -856,15 +856,20 @@ interface ActivityFill {
   order_id?: string;
 }
 
+/** Maximum pages to walk in findClosingFill before giving up (10 pages × 100 = 1 000 activities). */
+const MAX_FILL_PAGES = 10;
+
 /**
  * Walk the Alpaca FILL activity stream for a fill matching this contract
  * symbol + side, after the trade's filled_at timestamp. Returns null when
  * no matching fill has posted yet.
  *
  * Window: starts one day before the trade's fill (defensive — handles
- * timezone edge cases) and runs through today. Bounded fetch of 100
- * activities per page is more than enough for the typical hold (we're
- * matching a single closing fill against a small recent window).
+ * timezone edge cases) and runs through today. Paginates via `page_token`
+ * until the matching fill is found, the stream is exhausted (< page_size
+ * items returned), or MAX_FILL_PAGES is reached. If the cap is hit without
+ * finding a match, a log is emitted so the miss is visible (not silently
+ * dropped).
  */
 async function findClosingFill(
   mode: Mode,
@@ -875,31 +880,51 @@ async function findClosingFill(
   const filledAt = trade.filled_at;
   if (!filledAt) return null;
   const after = new Date(new Date(filledAt).getTime() - 86400000).toISOString().slice(0, 10);
-  let activities: ActivityFill[] = [];
-  try {
-    const raw = await alpacaTrade<ActivityFill[]>(mode, '/v2/account/activities', {
-      activity_types: 'FILL',
-      after,
-      page_size: 100,
-    });
-    activities = Array.isArray(raw) ? raw : [];
-  } catch (e) {
-    console.error('findClosingFill activities fetch failed', trade.id, occ, e);
-    return null;
-  }
-  // Filter to fills on this contract, opposite side, AFTER our open.
   const openTs = Date.parse(filledAt);
-  const matches = activities.filter((a) => {
-    if (a.symbol !== occ) return false;
-    if ((a.side ?? '').toLowerCase() !== side) return false;
-    if (!a.transaction_time) return false;
-    return Date.parse(a.transaction_time) > openTs;
-  });
-  if (matches.length === 0) return null;
-  // Earliest matching fill after the open is the close — sort ascending.
-  matches.sort((a, b) =>
-    Date.parse(a.transaction_time ?? '') - Date.parse(b.transaction_time ?? ''));
-  return matches[0];
+  const PAGE_SIZE = 100;
+
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_FILL_PAGES; page++) {
+    let activities: ActivityFill[];
+    try {
+      const params: Record<string, string | number | undefined> = {
+        activity_types: 'FILL',
+        after,
+        page_size: PAGE_SIZE,
+      };
+      if (pageToken) params.page_token = pageToken;
+      const raw = await alpacaTrade<ActivityFill[]>(mode, '/v2/account/activities', params);
+      activities = Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      console.error('findClosingFill activities fetch failed', trade.id, occ, e);
+      return null;
+    }
+
+    // Check this page for a matching closing fill.
+    for (const a of activities) {
+      if (a.symbol !== occ) continue;
+      if ((a.side ?? '').toLowerCase() !== side) continue;
+      if (!a.transaction_time) continue;
+      if (Date.parse(a.transaction_time) <= openTs) continue;
+      // Found — return immediately without over-fetching.
+      return a;
+    }
+
+    // End of stream: fewer items than a full page means no more data.
+    if (activities.length < PAGE_SIZE) return null;
+
+    // Advance the cursor: use the `id` of the last item as `page_token`.
+    const lastId = activities[activities.length - 1]?.id;
+    if (!lastId) return null; // No id to paginate with — stop.
+    pageToken = lastId;
+  }
+
+  // Page cap reached without finding a match.
+  console.log(
+    `findClosingFill page cap reached (${MAX_FILL_PAGES} pages)`,
+    trade.id, occ, 'no matching closing fill found — will retry next cron tick',
+  );
+  return null;
 }
 
 function realizedPnl(trade: Trade, closePx: number): number {

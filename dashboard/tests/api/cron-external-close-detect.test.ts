@@ -330,3 +330,199 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
     expect(kvLrem).not.toHaveBeenCalled();
   });
 });
+
+// ─── D13: findClosingFill pagination ─────────────────────────────────────────
+// Verifies that findClosingFill paginates beyond the first 100 activities when
+// the matching close fill is on a subsequent page, does not loop forever when
+// no match exists, and caps at MAX_FILL_PAGES with a log when the cap is hit.
+describe('D13 — findClosingFill pagination', () => {
+  // Shared trade fixture for all D13 tests: STO NVTS option, open on 2026-05-14.
+  function makeTrade(id: string): any {
+    return {
+      id,
+      account: 'manual_paper',
+      asset_class: 'option',
+      symbol: 'NVTS',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: 'NVTS260605P00020500',
+      strike: 20.5,
+      expiration: '2026-06-05',
+      contract_type: 'put',
+      filled_avg_price: 2.12,
+      filled_at: '2026-05-14T17:00:00Z',
+      alpaca_order_id: 'open-order-d13',
+      alpaca_close_order_id: null,
+      submitted_at: '2026-05-14T17:00:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'r',
+      tags: [],
+      rule_warnings_at_entry: [],
+      // Non-empty modify_history short-circuits syncFillData so detectClose (Path 3) runs.
+      modify_history: [{
+        ts: 'x', prev_order_id: 'x', new_order_id: 'x',
+        limit_price: null, stop_price: null, source: 'dashboard' as const,
+      }],
+      fill_confirmed: true,
+      schema: 1,
+    };
+  }
+
+  // Build an array of N non-matching FILL activities (wrong symbol).
+  function nonMatchingFills(n: number, baseId: number): any[] {
+    return Array.from({ length: n }, (_, i) => ({
+      id: `fill-noise-${baseId + i}`,
+      activity_type: 'FILL',
+      transaction_time: `2026-05-21T10:${String(i % 60).padStart(2, '0')}:00Z`,
+      symbol: 'OTHER260605P00010000',
+      side: 'buy',
+      price: '0.50',
+      qty: '1',
+      order_id: `noise-order-${baseId + i}`,
+    }));
+  }
+
+  it('D13a: matching closing fill on page 2 is found after pagination', async () => {
+    // Page 1: 100 non-matching fills (different symbol).
+    // Page 2: the real BTC fill for NVTS260605P00020500.
+    // Expects: trade is closed, kvSet called with closed_by:'bot_external'.
+    const trade = makeTrade('T-D13-001');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({
+        trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' },
+        hindsight: null, history: [],
+      });
+      return Promise.resolve(null);
+    });
+
+    const page1Fills = nonMatchingFills(100, 0);
+    const page2Fills = [
+      {
+        id: 'fill-close-d13a',
+        activity_type: 'FILL',
+        transaction_time: '2026-05-21T15:00:00Z',
+        symbol: 'NVTS260605P00020500',
+        side: 'buy',
+        price: '1.05',
+        qty: '1',
+        order_id: 'btc-order-d13a',
+      },
+    ];
+
+    // Track how many times activities is fetched to assert pagination happened.
+    let activitiesCallCount = 0;
+    alpacaTradeMock.mockImplementation((_mode: any, path: string, params?: any) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/NVTS260605P00020500: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        activitiesCallCount++;
+        // First call (no page_token or empty): return 100 non-matching fills.
+        // Second call (page_token set to last fill id of page 1): return page 2 with the match.
+        if (!params?.page_token) {
+          return Promise.resolve(page1Fills);
+        }
+        return Promise.resolve(page2Fills);
+      }
+      return Promise.resolve(null);
+    });
+
+    dataMock.mockResolvedValue({ bars: { NVTS: [] } });
+    gradeMock.mockResolvedValue({
+      letter: 'A', review: 'r', calibration: 'matched',
+      tendencies_hit: [], model: 's',
+      usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now',
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // Trade should be closed via the page-2 fill.
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-05-21T15:00:00Z',
+      closed_avg_price: 1.05,
+      realized_pnl: expect.closeTo(107, 2), // (2.12 - 1.05) * 100 * 1
+      closed_by: 'bot_external',
+      alpaca_close_order_id: 'btc-order-d13a',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+    // Pagination happened: activities fetched at least twice.
+    expect(activitiesCallCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('D13b: no matching fill across all pages — returns null, does not loop forever', async () => {
+    // Every page returns 100 non-matching fills. After MAX pages, function gives up.
+    // Trade stays open.
+    const trade = makeTrade('T-D13-002');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+
+    let activitiesCallCount = 0;
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/NVTS260605P00020500: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        activitiesCallCount++;
+        // Always return a full page of non-matching fills so the loop keeps going
+        // until the page cap is hit (not until the page is < 100 items).
+        return Promise.resolve(nonMatchingFills(100, activitiesCallCount * 100));
+      }
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // Trade stays open — no close.
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    expect(kvLrem).not.toHaveBeenCalled();
+    // Loop stopped at or before the page cap (10 pages).
+    expect(activitiesCallCount).toBeGreaterThanOrEqual(1);
+    expect(activitiesCallCount).toBeLessThanOrEqual(10);
+  });
+
+  it('D13c: page cap is enforced and a log is emitted when the cap is hit', async () => {
+    // Same as D13b but we spy on console.log to verify the cap-hit log fires.
+    const trade = makeTrade('T-D13-003');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/NVTS260605P00020500: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        // Always full pages — never reaches end-of-data naturally.
+        return Promise.resolve(nonMatchingFills(100, Math.random() * 1000 | 0));
+      }
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq(), mockRes());
+
+      // A log message mentioning the page cap must have been emitted.
+      const capLogFired = logSpy.mock.calls.some(
+        (args) => args.some((a) => typeof a === 'string' && a.includes('findClosingFill page cap'))
+      );
+      expect(capLogFired).toBe(true);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+});
