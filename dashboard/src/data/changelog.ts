@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'Gate live order modify/cancel/read behind LIVE_ENABLED (D1)',
+    details:
+      'Money-loss remediation finding D1. The modify-order and cancel-order endpoints, ' +
+      'and the GET read endpoints (account/positions/orders/equity-history), had no ' +
+      'LIVE_ENABLED gate — an authenticated session could re-price or cancel a real ' +
+      'resting live order while live was nominally "disabled." Added a shared ' +
+      'liveGuard() helper to api/_lib/alpaca.ts and wired it at the top of ' +
+      'api/alpaca/[endpoint].ts so the whole endpoint returns 403 when mode=live ' +
+      'and LIVE_ENABLED!=="true". Mirrors the exact semantics of the existing submit ' +
+      'guard in trades/[action].ts. 13 new vitest tests; total 626 / 92 files.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Phase 3 wrap: incomplete-state guard (R27) + closed out the low-severity tail',
     details:
       'Completes the 2026-06-16 money-loss remediation (34 findings). R27: ' +

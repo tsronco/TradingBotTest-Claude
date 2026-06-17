@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
-import { modeFromQuery } from '../_lib/alpaca.js';
+import { modeFromQuery, liveGuard } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
@@ -43,6 +43,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return;
   const endpoint = String(req.query.endpoint ?? '');
   const mode = modeFromQuery(req.query.mode);
+
+  // D1 — gate every live endpoint behind LIVE_ENABLED, matching the submit
+  // guard in trades/[action].ts. Applies to mutations (modify/cancel) and
+  // GET reads alike so the "live off" posture is consistent across the whole
+  // Alpaca surface.
+  if (liveGuard(mode, res)) return;
 
   try {
     if (endpoint === 'account') {

@@ -63,3 +63,29 @@ export function alpacaFor(mode: Mode) {
 
 // Exported for data-api.ts so we share the cred-resolution logic in one place.
 export { credsFor };
+
+/**
+ * D1 live-access guard — mirrors the submit guard in trades/[action].ts exactly.
+ *
+ * Call this at the top of any handler branch that would reach a live Alpaca
+ * endpoint (mutations or reads). Returns true when the request should be
+ * rejected and has already written a 403; returns false when the caller may
+ * proceed.
+ *
+ * Exact semantics: mode === 'live' AND process.env.LIVE_ENABLED !== 'true'
+ * → write HTTP 403 JSON { error: 'live_trading_disabled' } and return true.
+ * Paper modes (any mode other than 'live') always return false (allowed).
+ *
+ * Usage:
+ *   if (liveGuard(mode, res)) return;
+ */
+export function liveGuard(
+  mode: Mode,
+  res: { status: (code: number) => { json: (body: unknown) => void } },
+): boolean {
+  if (mode === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    res.status(403).json({ error: 'live_trading_disabled' });
+    return true;
+  }
+  return false;
+}

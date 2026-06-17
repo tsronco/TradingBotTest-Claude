@@ -9,6 +9,9 @@ vi.mock('../../api/_lib/auth-guard', () => ({
 vi.mock('../../api/_lib/alpaca', () => ({
   alpacaFor: vi.fn(() => ({})),
   modeFromQuery: vi.fn(() => 'conservative'),
+  // liveGuard must be present (handler imports it). Conservative mode always
+  // passes through — returning false unconditionally is correct for these tests.
+  liveGuard: vi.fn(() => false),
 }));
 vi.mock('../../api/_lib/data-api', () => ({
   alpacaTrade: (...a: unknown[]) => alpacaTradeMock(...a),
