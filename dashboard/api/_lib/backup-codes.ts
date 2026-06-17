@@ -10,7 +10,20 @@ function hash(code: string): string {
   return createHash('sha256').update(normalize(code)).digest('hex');
 }
 
-const USED_KEY = 'auth:used-backup-codes';
+/**
+ * Legacy key (JSON array) written by the old read-modify-write implementation.
+ * Checked read-only during the migration window so previously-consumed codes
+ * remain rejected even before a key rotation.
+ */
+const USED_KEY_LEGACY = 'auth:used-backup-codes';
+
+/**
+ * Current key (Redis SET). Consumption is a single atomic SADD:
+ *   returns 1  → member was newly added   → code is valid, now consumed
+ *   returns 0  → member already in set    → code was already used, reject
+ * No read-modify-write, no race window.
+ */
+const USED_KEY_V2 = 'auth:used-backup-codes:v2';
 
 async function loadAllowedHashes(): Promise<string[]> {
   const fromKv = await kv().get<string[]>(KV_KEYS.backupCodesHashed);
@@ -23,20 +36,33 @@ async function loadAllowedHashes(): Promise<string[]> {
 }
 
 /**
- * Returns true iff the input matches an unused backup code.
- * On match, the code is marked consumed atomically (idempotent if called twice).
+ * Returns true iff the input matches an unused backup code and atomically
+ * marks it consumed.  Single-use guarantee is enforced via Redis SADD:
+ * the first concurrent caller that SADDs the hash wins; all subsequent callers
+ * see SADD return 0 (already-member) and are rejected.
+ *
+ * Migration: also checks the legacy JSON-array key written by the old
+ * read-modify-write implementation.  A code found in the legacy list is
+ * rejected even if the v2 SET hasn't recorded it yet — conservative and safe.
+ *
  * Checks KV first; falls back to env var if KV is empty.
  */
 export async function consumeBackupCodeIfValid(input: string): Promise<boolean> {
   if (!input) return false;
   const candidate = hash(input);
+
   const allowed = await loadAllowedHashes();
   if (!allowed.includes(candidate)) return false;
-  const used = ((await kv().get<string[]>(USED_KEY)) ?? []);
-  if (used.includes(candidate)) return false;
-  used.push(candidate);
-  await kv().set(USED_KEY, used);
-  return true;
+
+  // Migration check: if the legacy JSON-array key has this hash, reject.
+  const legacyUsed = await kv().get<string[]>(USED_KEY_LEGACY);
+  if (Array.isArray(legacyUsed) && legacyUsed.includes(candidate)) return false;
+
+  // Atomic consumption: SADD returns the number of elements actually added.
+  //   1 → newly added to the set → first use, accept.
+  //   0 → already in the set    → previously consumed (or concurrent dupe), reject.
+  const added = await kv().sadd(USED_KEY_V2, candidate);
+  return added === 1;
 }
 
 /** True if the input *looks* like a backup code (not a 6-digit TOTP). */
@@ -57,10 +83,15 @@ export function generateBackupCode(): { code: string; hash: string } {
   return { code, hash: hash(code) };
 }
 
-/** Generate and store 8 fresh backup codes in KV, clear used-codes list, return plaintext codes. */
+/**
+ * Generate and store 8 fresh backup codes in KV, clear both the legacy
+ * JSON-array key and the v2 SET key, return plaintext codes.
+ */
 export async function regenerateBackupCodes(): Promise<{ codes: string[] }> {
   const fresh = Array.from({ length: 8 }, () => generateBackupCode());
   await kv().set(KV_KEYS.backupCodesHashed, fresh.map((c) => c.hash));
-  await kv().set(USED_KEY, []);
+  // Delete both used-code stores so the new codes start with a clean slate.
+  await kv().del(USED_KEY_LEGACY);
+  await kv().del(USED_KEY_V2);
   return { codes: fresh.map((c) => c.code) };
 }

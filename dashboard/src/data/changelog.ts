@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D3: backup-code single-use guarantee made atomic via Redis SADD',
+    details:
+      'D3 money-loss remediation (high severity). The old consumeBackupCodeIfValid used a\n' +
+      'read-modify-write: get the used-codes array, check if the hash is present, push it,\n' +
+      'set the array back. Two concurrent login attempts with the same backup code could both\n' +
+      'read the array before either wrote, both see the code absent, and both succeed — breaking\n' +
+      'the single-use guarantee.\n\n' +
+      'Fix: replaced with a single atomic Redis SADD on a new SET key (auth:used-backup-codes:v2).\n' +
+      'SADD returns 1 if the member was newly added (first use → accept) or 0 if already present\n' +
+      '(previously consumed or concurrent duplicate → reject). One Redis round-trip, no race window.\n\n' +
+      'Migration: the old JSON-array key (auth:used-backup-codes) is still checked read-only\n' +
+      'during the transition window so codes marked used under the old scheme stay rejected.\n' +
+      'Code rotation (regenerateBackupCodes) deletes both keys so new codes start clean.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D14: spread close no longer books P&L from stale target mid when entry fill is unconfirmed',
     details:
       'D14 money-loss remediation (low severity). On legacy pre-D7 spread trades that had\n' +

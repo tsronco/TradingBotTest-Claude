@@ -3,15 +3,17 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const kvGet = vi.fn();
 const kvSet = vi.fn();
+const kvDel = vi.fn();
 const verifyTotpMock = vi.fn();
-vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet }) }));
+vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet, del: kvDel }) }));
 vi.mock('../../api/_lib/auth-guard', () => ({
   requireAuth: vi.fn(() => ({ logged_in_at: 0, last_active: 0 })),
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...args: any[]) => verifyTotpMock(...args) }));
 
 beforeEach(() => {
-  kvGet.mockReset(); kvSet.mockReset(); verifyTotpMock.mockReset();
+  kvGet.mockReset(); kvSet.mockReset(); kvDel.mockReset(); verifyTotpMock.mockReset();
+  kvDel.mockResolvedValue(1);
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
 });
 

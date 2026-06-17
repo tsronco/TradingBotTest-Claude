@@ -176,11 +176,11 @@ direction → status.**
 - **Status:** ✅ DONE (2026-06-17). The gap was narrower than described: it only fires on legacy pre-D7 spread trades that have `filled_at` set AND non-empty `modify_history` (so `syncFillData` hits the legacy short-circuit at line 364) but `fill_confirmed` absent and `net_credit` still the decision-time target mid. In the common post-D7 path, `syncFillData` sets `filled_at` + `fill_confirmed: true` + real `net_credit` atomically, so `detectExternalSpreadClose` always sees the confirmed value. Fix: added an early-return guard in `detectExternalSpreadClose` — if `!trade.fill_confirmed`, defer the close (return null) so the next cron tick's `syncFillData` can confirm the real entry credit first. A 24h backstop (`D14_BACKSTOP_MS`) overrides the defer after that window and books with a `[D14]` console.warn noting the approximation. The existing `fill_confirmed` path (`detectExternalSpreadClose` body after the guard) is unchanged. 3 new vitest tests: D14a (legacy unconfirmed spread — deferred, no close booked); D14b (confirmed spread — books immediately with real credit); D14c (>24h backstop — books with warn). Full suite: 669/669 (666 baseline + 3 new).
 
 ### D3 — Backup-code consumption is read-modify-write (single-use racy) 🟠 High  [O4, S9]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Replaced the `get<string[]> → includes → push → set` sequence with a single atomic `SADD auth:used-backup-codes:v2 <hash>`. `SADD` returns 1 (newly added → accept) or 0 (already in set → reject); no read-modify-write, no race window. The old JSON-array key (`auth:used-backup-codes`) is checked read-only during the transition window so previously-consumed codes remain rejected before a key rotation. `regenerateBackupCodes` now `del`s both keys on rotation. 6 new vitest tests: `sadd` called with v2 SET key on valid first use; `sadd=0` rejects (already used); legacy array check rejects before sadd; concurrent-use D3 race test (both calls fire before either resolves — exactly one returns true, one false); env-var fallback still works; code not in allowed list is rejected before sadd. Updated mocks in `tests/api/settings-backup-codes.test.ts` (add `del`) and `tests/api/auth-login.test.ts` (add `sadd`). Full suite: 671/671 (0 failures).
 - **Location:** `dashboard/api/_lib/backup-codes.ts:30–40` — `get<string[]>(USED_KEY)` → `includes` check → `push` → `set`. Two concurrent logins with the same code both read it as unused, both succeed.
 - **Scenario:** Same backup code submitted twice within a tick (made trivial by D8's defeated rate-limit) → consumed twice → two authenticated sessions.
 - **Cost:** Single-use guarantee broken → an old/leaked backup code authenticates more than once → order-placement access.
-- **Fix direction:** Atomic mark-consumed: `SADD auth:used-backup-codes <hash>` and treat add-count 0 as "already used" (or per-code `SETNX`), replacing the get-then-set on a JSON array.
+- **Fix direction:** Atomic mark-consumed: `SADD auth:used-backup-codes:v2 <hash>` and treat add-count 0 as "already used", replacing the get-then-set on a JSON array.
 - **Test direction:** vitest with KV mock: two concurrent `consumeBackupCodeIfValid` with the same code → exactly one returns true.
 
 ### D8 — Login rate-limit trusts leftmost `X-Forwarded-For` (spoofable) 🟠 High  [O3]
@@ -280,7 +280,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D13 | `findClosingFill` single-page cap | 2 | ✅ DONE |
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ✅ DONE |
 | D14 | Spread-close pre-fill-mid P&L | 2 | ✅ DONE |
-| D3 | Backup-code consumption race | 3 | ⬜ TODO |
+| D3 | Backup-code consumption race | 3 | ✅ DONE |
 | D8 | `X-Forwarded-For` rate-limit bypass | 3 | ⬜ TODO |
 | D10 | No server-side session expiry | 3 | ⬜ TODO |
 | D9 | Short-call exposure understates → TOTP skip | 4 | ⬜ TODO |

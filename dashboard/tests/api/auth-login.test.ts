@@ -105,7 +105,9 @@ describe('backup code login', () => {
 
     const kvGet = vi.fn().mockResolvedValue(null);
     const kvSet = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(kvModule, 'kv').mockReturnValue({ get: kvGet, set: kvSet, del: vi.fn() } as any);
+    // sadd returns 1 = newly added (first use of this code) — atomic consumption path.
+    const kvSadd = vi.fn().mockResolvedValue(1);
+    vi.spyOn(kvModule, 'kv').mockReturnValue({ get: kvGet, set: kvSet, del: vi.fn(), sadd: kvSadd } as any);
 
     const { req, res } = makeReqRes({
       password: 'correct-horse-battery-staple',
