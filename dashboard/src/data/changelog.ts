@@ -29,6 +29,75 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-17',
+    category: 'fix',
+    title: 'Phase 3 wrap: incomplete-state guard (R27) + closed out the low-severity tail',
+    details:
+      'Completes the 2026-06-16 money-loss remediation (34 findings). R27: ' +
+      'strategy.run_one_cycle now skips a cycle with a warning when the state ' +
+      'file is missing avg_cost/entry_price, instead of raising KeyError and ' +
+      'crashing into #errors every tick. The remaining low-severity findings ' +
+      'were reviewed and consciously closed without code changes (documented in ' +
+      'the plan): R24 (STO mid pricing — a premium-vs-fill tradeoff, BP not ' +
+      'constrained on the $100k accounts), R26 (TSLA-hardcoded cycle — tracked ' +
+      'multi-stock refactor, latent), R28 (off-grid strike rounding — corrected ' +
+      'downstream by find_best_contract), R29 (duplicate adoption embed only on ' +
+      'a rare save failure — cosmetic), R30 (width-loop early-break — verified ' +
+      'safe; monotonicity holds). All 34 findings now resolved. +1 pytest (586 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
+    title: 'Phase 3 batch: settle-window only for bot-opens, no off-hours discovery, CC-expiry cycle count',
+    details:
+      'Money-loss review Phase 3 (R22/R23/R25). R22: the 20-min settling window ' +
+      '(which suppresses the spread loss-stop right after a fresh bot fill) was ' +
+      'also applied to ADOPTED/hand-opened spreads — silencing their loss-stop ' +
+      'for 20 min after the bot merely discovered them. It now only applies to ' +
+      'bot-opened spreads (those with an open_order_id). R23: run_wheel now ' +
+      'checks market-open BEFORE auto-discovery, so it no longer makes position/' +
+      'quote API calls or fires adoption embeds off-hours (the auto-open cold-' +
+      'start path already required market-open). R25: a covered call expiring ' +
+      'worthless now increments cycle_count + appends history like the other ' +
+      'paths (it was the only one that skipped it, leaving cycle reporting off ' +
+      'by one). +4 pytest (585 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
+    title: 'Phase 3 batch: cap buy-to-close at tracked qty, re-baseline ladder size, don’t clobber a 2nd short',
+    details:
+      'Money-loss review Phase 3 (R19/R20/R21), all manual/live. R19: ' +
+      'place_buy_to_close(qty=None) closed the FULL Alpaca position — so if the ' +
+      'user hand-sold extra contracts on the same OCC the wheel manages, the ' +
+      '50%-close collapsed the user\'s extras too. It now caps at the bot\'s ' +
+      'tracked contract count (the bot-duplicate case that motivated full-close ' +
+      'is now prevented at the source by R1\'s client_order_id). R20: when the ' +
+      'managed free-share count grows (covered-call collateral released, or the ' +
+      'user added shares), initial_qty re-baselines so ladder sizing scales to ' +
+      'the real position instead of the stale starting count. R21: single-leg ' +
+      'discovery no longer overwrites a still-held tracked contract when a user ' +
+      'holds a SECOND short option on the same underlying (one-contract-per-' +
+      'ticker) — it keeps the first and surfaces the untracked second. +5 pytest (582 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
+    title: 'Phase 3 batch: multi-contract price, Stage-2 assignment detection, cheap-option close concession',
+    details:
+      'Money-loss review Phase 3 (R17/R18/R34). R17: get_option_last_price\'s ' +
+      'position fallback divided the COMBINED market_value by 100, returning an ' +
+      'N×-too-high price on a multi-contract position (which kept the 50%-profit ' +
+      'close from triggering) — now divides by 100 × qty. R18: the Stage-2 ' +
+      '"called away" check used a < 100-share heuristic that misfired on an ' +
+      'odd-lot adoption or a partial manual sell (declaring a phantom assignment ' +
+      'and dropping the shares / nakeding the call); it now only declares ' +
+      'assignment when shares are actually gone (qty ≤ 0) and alerts + holds on ' +
+      'an ambiguous 1..covered-1 remainder. R34: the buy-to-close limit nudge is ' +
+      'now a ~5% concession (floored at 1¢) instead of a flat $0.05, which on a ' +
+      '$0.05 option had DOUBLED the buy-back cost. +6 pytest (577 total).',
+  },
+  {
     date: '2026-06-16',
     category: 'fix',
     title: 'Earnings guard now blocks same-day prints (completes Phase 2b)',

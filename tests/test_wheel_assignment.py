@@ -143,7 +143,7 @@ def test_stage1_position_open_at_50pct_profit_closes_early(monkeypatch, fresh_sy
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 2.00)  # < 50% of 4.10
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-1"})
+                        lambda c, p, qty=1, max_qty=None: closes.append((c, p)) or {"id": "close-1"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=340))
     monkeypatch.setattr(ws, "place_sell_to_open",
@@ -304,7 +304,7 @@ def test_stage2_50pct_close_buys_back_then_sells_new_call(monkeypatch):
     monkeypatch.setattr(ws, "get_option_position", lambda c: _option_position())
     monkeypatch.setattr(ws, "get_option_last_price", lambda c: 1.20)  # < 50% of 2.50
     monkeypatch.setattr(ws, "place_buy_to_close",
-                        lambda c, p, qty=1: closes.append((c, p)) or {"id": "close-call"})
+                        lambda c, p, qty=1, max_qty=None: closes.append((c, p)) or {"id": "close-call"})
     monkeypatch.setattr(ws, "find_best_contract",
                         lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
     monkeypatch.setattr(ws, "place_sell_to_open",
@@ -1150,3 +1150,58 @@ def test_stage1_stale_filled_during_cancel_treated_as_success(monkeypatch, fresh
     assert len(sells) == 1
     assert fresh_symbol_state["contract_order_id"] == "fresh"
 
+
+
+def test_stage2_ambiguous_share_count_holds_not_assigned(monkeypatch):
+    """R18: covered call is gone but a partial (1..covered-1) share remainder is
+    ambiguous (odd-lot adoption / partial manual sell) — hold + alert, do NOT
+    declare an assignment (which would drop the shares and naked the call)."""
+    state = _stage2_state()
+    state["current_contract"] = "TSLA260522C00375000"
+    state["contract_order_id"] = "call-abc"
+    state["contract_entry_price"] = 2.50
+    state["contract_strike"] = 375.0
+    state["shares_qty"] = 100  # covered = 100
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "expired", "filled_avg_price": "2.50"})
+    # 50 shares remain — between 0 and the covered 100 → ambiguous
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: {"qty": "50", "avg_entry_price": "340.0"})
+    sold = []
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: sold.append(c) or {"id": "x"})
+    monkeypatch.setattr(ws, "_sell_new_put", lambda *a, **k: sold.append("put"))
+    monkeypatch.setattr(ws, "_sell_new_call", lambda *a, **k: sold.append("call"))
+
+    ws.handle_stage2("TSLA", state, stock_price=380.0, account=_account())
+
+    assert state["stage"] == 2            # unchanged — not declared assigned
+    assert state["shares_qty"] == 100     # unchanged
+    assert sold == []                     # no new put/call opened
+
+
+def test_stage2_call_expired_increments_cycle_count(monkeypatch):
+    """R25: a covered call expiring worthless increments cycle_count + appends
+    history, like the assigned and put-expired paths (it used to skip it)."""
+    state = _stage2_state()
+    state["current_contract"] = "TSLA260522C00375000"
+    state["contract_order_id"] = "call-abc"
+    state["contract_entry_price"] = 2.50
+    state["contract_strike"] = 375.0
+    before = state["cycle_count"]
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "expired", "filled_avg_price": "2.50"})
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: _stock_position_100("TSLA", avg=340.0))
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: {"id": "new-call"})
+
+    ws.handle_stage2("TSLA", state, stock_price=345.0, account=_account())
+
+    assert state["cycle_count"] == before + 1
+    assert any(h["outcome"] == "expired_worthless" and h["type"] == "call"
+               for h in state["cycle_history"])

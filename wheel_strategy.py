@@ -1614,20 +1614,25 @@ def cancel_order(order_id: str) -> bool:
         return False
 
 
-def place_buy_to_close(option_symbol, limit_price, qty=None):
+def place_buy_to_close(option_symbol, limit_price, qty=None, max_qty=None):
     """Buy-to-close a short option position.
 
     qty: number of contracts to close. If None (default), looks up the
-    actual short position size on Alpaca and closes ALL of it. Pass an
-    explicit qty only when you want a deliberate partial close.
+    actual short position size on Alpaca and closes ALL of it (capped at
+    max_qty when provided). Pass an explicit qty only when you want a
+    deliberate partial close.
 
     Why default to "look up": before this fix the function hardcoded
     qty="1", which broke when a state-persistence bug let the wheel sell
     duplicate puts on the same symbol (MARA went to qty=-4 on 2026-04-30).
-    The 50%-profit close fired but only bought back 1 of the 4, leaving
-    3 orphan contracts the wheel didn't track. With auto-lookup, an
-    early-close now correctly closes every contract on that symbol in a
-    single order, no matter how the position got there.
+
+    max_qty (R19, 2026-06-16): cap the auto-lookup close at the bot's TRACKED
+    contract count so we never buy back MORE than the bot is responsible for.
+    If the live position is larger than tracked — e.g. the user hand-sold extra
+    contracts on the same OCC — close only the tracked amount and leave the
+    user's extra alone. The bot-duplicate case that motivated the full
+    auto-lookup is now prevented at the source by client_order_id idempotency
+    (R1), so capping is safe.
     """
     if qty is None:
         pos = get_option_position(option_symbol)
@@ -1638,13 +1643,26 @@ def place_buy_to_close(option_symbol, limit_price, qty=None):
         if qty == 0:
             log(f"place_buy_to_close: position qty=0 for {option_symbol} — skipping")
             return None
+        if max_qty is not None:
+            try:
+                cap = abs(int(max_qty))
+            except (ValueError, TypeError):
+                cap = qty
+            if 0 < cap < qty:
+                log(f"place_buy_to_close: capping close of {option_symbol} at "
+                    f"tracked {cap} (live position {qty}) — leaving user's extra")
+                qty = cap
 
+    # R34 (2026-06-16): nudge the limit up to ensure a fill, but by a PERCENTAGE
+    # (≈5%, floored at 1¢) rather than a flat $0.05. On a cheap option ($0.05) a
+    # flat $0.05 DOUBLED the buy-back cost; the % keeps the concession small.
+    concession = max(0.01, round(limit_price * 0.05, 2))
     order = api_post("/orders", {
         "symbol":          option_symbol,
         "qty":             str(qty),
         "side":            "buy",
         "type":            "limit",
-        "limit_price":     str(round(limit_price + 0.05, 2)),  # slight premium to ensure fill
+        "limit_price":     str(round(limit_price + concession, 2)),
         "time_in_force":   "day",
         "position_intent": "buy_to_close",
     })
@@ -1865,6 +1883,13 @@ def _within_settling_window(sym_state) -> bool:
     when SPREAD_SETTLE_MINUTES is 0 (feature off) or opened_at is missing.
     """
     if not SPREAD_SETTLE_MINUTES:
+        return False
+    # R22 (2026-06-16): the settling window only makes sense for a freshly-FILLED
+    # BOT-opened spread (suppress an insta-stop on a fresh fill's quote noise).
+    # An ADOPTED / hand-opened spread has no open_order_id — its `opened_at` is
+    # just the adoption timestamp, and the position may be old — so its loss-stop
+    # must NOT be suppressed for 20 minutes after we happen to discover it.
+    if not sym_state.get("open_order_id"):
         return False
     # Unknown open time must NOT suppress the stop — _spread_order_age_hours
     # returns 0.0 on a missing/unparseable opened_at, which would otherwise read
@@ -2092,7 +2117,17 @@ def get_option_last_price(contract_symbol):
         pass
     pos = get_option_position(contract_symbol)
     if pos:
-        return abs(float(pos.get("market_value", 0))) / 100
+        # R17 (2026-06-16): market_value is the value of ALL contracts on this
+        # OCC combined, so divide by 100 × qty to get the PER-CONTRACT price.
+        # Dividing by a flat 100 returned an N×-too-high price on a multi-
+        # contract position (e.g. the MARA quad), which kept the 50%-profit
+        # close from ever triggering.
+        mv = abs(float(pos.get("market_value", 0)))
+        try:
+            qty = abs(int(float(pos.get("qty", 1)))) or 1
+        except (ValueError, TypeError):
+            qty = 1
+        return mv / (100.0 * qty)
     return None
 
 
@@ -2246,10 +2281,11 @@ def handle_stage1(symbol, sym_state, stock_price, account):
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
                     log(f"[{symbol}] 50% PROFIT RULE: {contract} @ ${current_price:.2f} vs entry ${entry:.2f}. Closing (marketable @ ${btc_limit:.2f}).")
-                    # place_buy_to_close auto-detects qty and closes ALL
-                    # contracts on this OCC symbol in one order. Priced
-                    # marketable (R4) so it actually fills.
-                    place_buy_to_close(contract, btc_limit)
+                    # place_buy_to_close auto-detects qty and closes the bot's
+                    # contracts on this OCC in one order, capped at the tracked
+                    # count (R19). Priced marketable (R4) so it actually fills.
+                    place_buy_to_close(contract, btc_limit,
+                                       max_qty=sym_state.get("contract_qty"))
                     contract_qty    = sym_state.get("contract_qty") or 1
                     premium_dollars = (entry - current_price) * 100 * contract_qty
                     sym_state["total_premium_collected"] = round(
@@ -2452,7 +2488,36 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 return
 
             stock_pos = get_stock_position(symbol)
-            if not stock_pos or int(float(stock_pos.get("qty", 0))) < 100:
+            cur_qty = int(float(stock_pos.get("qty", 0))) if stock_pos else 0
+            covered = max(1, (sym_state.get("shares_qty") or 100) // 100) * 100
+            # R18 (2026-06-16): only treat the position as "called away" when the
+            # shares are actually GONE (qty <= 0). The old `< 100` heuristic
+            # misfired on a non-100-lot adoption or a partial manual sell (e.g.
+            # 200 → 50 shares left), wrongly declaring an assignment — which
+            # dropped the remaining shares from management and could leave a
+            # partially-naked call. A 1..covered-1 remainder is ambiguous: alert
+            # and hold rather than guess.
+            if 0 < cur_qty < covered:
+                log(f"[{symbol}] Stage 2: call gone but {cur_qty} shares remain "
+                    f"(covered {covered}) — ambiguous (partial sell / odd lot); "
+                    f"holding, not declaring assignment")
+                send_embed(
+                    ERRORS_CH, f"Wheel: {symbol} Stage 2 ambiguous share count",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Covered call `{contract}` is gone but {cur_qty} shares "
+                        f"remain (expected ~0 if assigned, {covered} if expired). "
+                        f"Not auto-classifying — manage manually."
+                    ),
+                    footer=f"wheel_strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH,
+                )
+                log_event(LOG_STREAM, "wheel_strategy.py", "stage2_ambiguous_shares",
+                          result="skipped", symbol=contract,
+                          details={"underlying": symbol, "cur_qty": cur_qty,
+                                   "covered": covered})
+                return
+            if cur_qty <= 0:
                 # Shares called away — back to Stage 1.
                 # Premium accounts for ALL contracts that were assigned (with
                 # multi-contract sales we sold N calls; all N got assigned
@@ -2522,6 +2587,19 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                           details={"underlying": symbol, "premium": premium_dollars,
                                    "total_premium": sym_state["total_premium_collected"],
                                    "contracts": contracts_held})
+                # R25 (2026-06-16): increment cycle_count + append history like
+                # the assigned and put-expired paths do (the CC-expired path was
+                # the only one that skipped it, leaving cycle reporting off by one
+                # whenever a covered call expired worthless).
+                sym_state["cycle_count"]          += 1
+                sym_state["cycle_history"].append({
+                    "cycle": sym_state["cycle_count"],
+                    "type": "call",
+                    "symbol": contract,
+                    "outcome": "expired_worthless",
+                    "premium": premium_dollars,
+                    "contracts": contracts_held,
+                })
                 sym_state["current_contract"]     = None
                 sym_state["contract_entry_price"] = None
                 sym_state["last_action"] = f"Call expired worthless ({contracts_held}× contracts). +${premium_dollars:.2f}. Selling new call."
@@ -2541,10 +2619,10 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 entry = sym_state.get("contract_entry_price")
                 if entry and check_early_close(sym_state, current_price):
                     log(f"[{symbol}] 50% PROFIT RULE on call: closing (marketable @ ${btc_limit:.2f}).")
-                    # place_buy_to_close auto-detects qty so it'll close all
-                    # contracts on this OCC symbol regardless of how many.
-                    # Priced marketable (R4) so it actually fills.
-                    place_buy_to_close(contract, btc_limit)
+                    # place_buy_to_close auto-detects qty, capped at the bot's
+                    # tracked contract count (R19). Priced marketable (R4).
+                    place_buy_to_close(contract, btc_limit,
+                                       max_qty=sym_state.get("contract_qty"))
                     contracts_held  = max(1, (sym_state.get("shares_qty") or 100) // 100)
                     premium_dollars = (entry - current_price) * 100 * contracts_held
                     sym_state["total_premium_collected"] = round(
@@ -2851,6 +2929,8 @@ def _discover_wheel_state(state: dict) -> set:
     """
     discovered: set = set()
     positions = get_positions()
+    occs_present = {p["symbol"] for p in positions
+                    if p.get("asset_class") == "us_option"}
 
     # ─ Phase 1: spread pairs ─
     # Detect spreads BEFORE single-leg adoption so paired legs aren't
@@ -2933,6 +3013,21 @@ def _discover_wheel_state(state: dict) -> set:
 
         sym_state = state.setdefault(ticker, _empty_symbol_state())
         if sym_state.get("current_contract") == symbol:
+            continue
+        # R21 (2026-06-16): the wheel state tracks ONE contract per ticker. If
+        # this ticker already tracks a DIFFERENT contract that is still a live
+        # position, don't clobber it with this second short — a user holding two
+        # short options on the same underlying would otherwise have the first
+        # silently overwritten (and dropped from management). Keep the first;
+        # surface the untracked second instead of losing it.
+        tracked = sym_state.get("current_contract")
+        if tracked and tracked != symbol and tracked in occs_present:
+            log(f"[wheel-discover] {ticker} already tracks {tracked}; a second "
+                f"short {symbol} on the same underlying is NOT wheel-tracked "
+                f"(one contract per ticker)")
+            log_event(LOG_STREAM, "wheel_strategy.py", "second_short_untracked",
+                      result="skipped", symbol=symbol,
+                      details={"underlying": ticker, "tracked": tracked})
             continue
 
         entry_per_share = abs(float(pos.get("avg_entry_price", 0)))
@@ -3631,6 +3726,16 @@ def run_wheel():
     global SYMBOLS
     try:
         state = load_state()
+
+        # R23 (2026-06-16): check market-open BEFORE auto-discovery so we don't
+        # make position/quote API calls or fire adoption embeds off-hours. The
+        # auto-open cold-start path below already requires is_market_open(), so
+        # nothing that should run while the market is open is skipped here.
+        if not is_market_open():
+            log(f"Market closed — skipping wheel cycle (no discovery this cycle).")
+            log_event(LOG_STREAM, "wheel_strategy.py", "cycle_skipped_market_closed",
+                      result="skipped", details={"mode": MODE})
+            return
 
         # Manual mode: build SYMBOLS from live Alpaca positions instead of
         # the static list. Adopts any user-opened option/share positions
