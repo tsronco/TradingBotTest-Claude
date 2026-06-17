@@ -237,7 +237,7 @@ def test_unpaired_hedge_put_and_call_do_not_cross():
 
 def test_compute_close_price_urgent_hits_bid(monkeypatch):
     monkeypatch.setattr(los, "get_option_quote",
-                        lambda occ: {"bid": 0.05, "ask": 0.25})
+                        lambda occ, **_k: {"bid": 0.05, "ask": 0.25})
     # urgent → take the bid so the order actually fills (AAL daily-churn fix)
     assert los.compute_close_price("X", urgent=True) == 0.05
     # non-urgent (take-profit) → mid, no rush to give away the spread
@@ -246,7 +246,7 @@ def test_compute_close_price_urgent_hits_bid(monkeypatch):
 
 def test_compute_close_price_urgent_floored_at_cent(monkeypatch):
     monkeypatch.setattr(los, "get_option_quote",
-                        lambda occ: {"bid": 0.0, "ask": 0.20})
+                        lambda occ, **_k: {"bid": 0.0, "ask": 0.20})
     assert los.compute_close_price("X", urgent=True) == 0.01
 
 
@@ -271,7 +271,7 @@ def test_orphan_long_closes_at_bid_not_mid(monkeypatch):
     order fills instead of resting at the mid forever (the AAL orphan bug)."""
     state = _orphan_state()
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.04, "ask": 0.30})  # mid 0.17
+                        lambda occ, **_k: {"bid": 0.04, "ask": 0.30})  # mid 0.17
     sells = []
     monkeypatch.setattr(ws, "place_sell_to_close",
                         lambda occ, price: sells.append((occ, price)))
@@ -291,7 +291,7 @@ def test_orphan_short_closes_at_ask_not_mid(monkeypatch):
     """Long gone, short present → BTC the short at the ASK (marketable)."""
     state = _orphan_state()
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.10, "ask": 0.40})  # mid 0.25
+                        lambda occ, **_k: {"bid": 0.10, "ask": 0.40})  # mid 0.25
     buys = []
     monkeypatch.setattr(ws, "place_buy_to_close",
                         lambda occ, price: buys.append((occ, price)))
@@ -333,7 +333,7 @@ def test_pdt_close_failure_routes_to_actions_not_errors(monkeypatch):
     monkeypatch.setattr(ws, "ACTIONS_CH", "actions")
     monkeypatch.setattr(ws, "MODE", "manual")
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 1.0, "ask": 1.2})
+                        lambda occ, **_k: {"bid": 1.0, "ask": 1.2})
 
     def _raise_pdt(occ, price):
         raise _PDTError("403 Client Error: Forbidden for url: .../orders")

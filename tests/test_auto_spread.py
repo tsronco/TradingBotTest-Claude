@@ -190,7 +190,7 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
 
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: quotes.get(occ))
+                        lambda occ, **_k: quotes.get(occ))
 
     # Trend fetcher: return flat history so is_above_sma20 returns True
     # (all real prices in these tests are > 1.0, so synthetic flat 1.0 works)
@@ -895,7 +895,7 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
         cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
-    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ, **_k: quotes.get(occ))
     # Trend fetcher: synthetic flat history
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [1.0] * 20)
@@ -1291,7 +1291,7 @@ def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
         "QQQ260618P00705000": {"bid": 9.41,  "ask": 9.73},
         "QQQ260618P00710000": {"bid": 11.05, "ask": 11.06},
     }
-    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ, **_k: quotes.get(occ))
 
     opened = []
     monkeypatch.setattr(ws, "_open_spread_mleg",
@@ -1342,7 +1342,7 @@ def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1391,7 +1391,7 @@ def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1443,7 +1443,7 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1578,7 +1578,7 @@ def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [13.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.56, "ask": 0.60})
+                        lambda occ, **_k: {"bid": 0.56, "ask": 0.60})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1696,7 +1696,7 @@ def test_auto_open_manual_opens_two_per_cycle(monkeypatch):
         return cands[best]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1802,7 +1802,7 @@ def test_auto_open_bypass_symbols_tried_first(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ or "648000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ or "648000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1877,7 +1877,7 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1979,7 +1979,7 @@ def test_auto_open_second_open_respects_consumed_bp(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))] if cands else None
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within", lambda s, d: False)
     monkeypatch.setattr(ws, "get_recent_daily_closes", lambda s, n=20: [10.0] * 20)
@@ -1994,3 +1994,27 @@ def test_auto_open_second_open_respects_consumed_bp(monkeypatch):
     ws.AUTO_OPEN_SPREADS = True
     ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "150"}, cfg)
     assert len(opened) == 1  # second open blocked by the consumed-BP decrement
+
+
+# ── R15: long-leg quote tolerates a $0 bid (positive ask is enough) ──────────
+
+class _QResp:
+    def __init__(self, payload):
+        self._p = payload
+    def raise_for_status(self):
+        pass
+    def json(self):
+        return self._p
+
+
+def test_get_option_quote_require_bid_false_accepts_zero_bid(monkeypatch):
+    payload = {"quotes": {"X": {"bp": 0, "ap": 0.05}}}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **k: _QResp(payload))
+    assert ws.get_option_quote("X", require_bid=False) == {"bid": 0.0, "ask": 0.05}
+    assert ws.get_option_quote("X") is None  # default strict still rejects a $0 bid
+
+
+def test_get_option_quote_rejects_zero_ask_even_when_lenient(monkeypatch):
+    payload = {"quotes": {"X": {"bp": 0, "ap": 0}}}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **k: _QResp(payload))
+    assert ws.get_option_quote("X", require_bid=False) is None

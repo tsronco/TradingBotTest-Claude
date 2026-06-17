@@ -423,7 +423,11 @@ direction → status.** Source tags reference the original reviewer findings
   open's consumption.
 
 ### R15 — Zero-bid long legs skipped 🟡 Medium  [S34]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `get_option_quote` gained `require_bid`
+  (default True keeps every caller strict); the auto-open long-leg fetch passes
+  `require_bid=False` so a far-OTM long hedge with a $0 bid / positive ask is
+  accepted (we BUY it — only the ask matters). Unblocks sm500 cheap-underlying
+  widths. +2 tests (plus mock-signature updates to opener tests). SM.
 - **Location:** `wheel_strategy.py:~1585-1590` (`get_option_quote` returns None if
   bid OR ask is 0).
 - **Scenario:** A far-OTM long leg legitimately has bid $0.00 / ask $0.05 →
@@ -727,7 +731,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R12 | `normalize_scores` small-pool gate | 2b | ✅ DONE |
 | R13 | Null order id reopen loop | 2b | ✅ DONE |
 | R14 | Multi-open stale BP | 2b | ✅ DONE |
-| R15 | Zero-bid long leg skipped | 2b | NOT STARTED |
+| R15 | Zero-bid long leg skipped | 2b | ✅ DONE |
 | R16 | Earnings window / cons-agg CSP gate | 2b | NOT STARTED |
 | R17 | Multi-contract market_value/100 | 3 | NOT STARTED |
 | R18 | Stage-2 <100 share misdetect | 3 | NOT STARTED |

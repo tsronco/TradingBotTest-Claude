@@ -1711,11 +1711,17 @@ def round_to_nearest_5(price):
     return round(price / 5) * 5
 
 
-def get_option_quote(contract_symbol):
+def get_option_quote(contract_symbol, require_bid=True):
     """Fetch the current bid/ask for an option contract.
 
     Returns dict {"bid": float, "ask": float} or None if unavailable.
     Note: Alpaca options data lives under v1beta1, NOT v2 (stock data uses v2).
+
+    require_bid=False (R15): accept a $0 bid as long as the ask > 0. Used ONLY
+    for a LONG spread leg — we BUY it, so a positive ask is all that's needed,
+    and a far-OTM long hedge legitimately shows bid $0.00 / ask $0.05. The
+    default True keeps every other caller strict: a SHORT leg we must be able to
+    sell needs a real two-sided market.
     """
     try:
         resp = _alpaca_request(
@@ -1732,7 +1738,7 @@ def get_option_quote(contract_symbol):
             q = quotes[contract_symbol]
             bid = float(q.get("bp") or 0)
             ask = float(q.get("ap") or 0)
-            if bid > 0 and ask > 0:
+            if ask > 0 and (bid > 0 or not require_bid):
                 return {"bid": bid, "ask": ask}
     except Exception as e:
         log(f"get_option_quote({contract_symbol}) failed: {e}")
@@ -3383,7 +3389,10 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 continue
             # Need the long quote BEFORE the risk check: the gate now uses
             # net-of-credit max loss, so net_credit must be known here.
-            long_q = get_option_quote(long_contract["symbol"])
+            # require_bid=False (R15): a far-OTM long hedge legitimately shows a
+            # $0 bid; we BUY it, so a positive ask is enough. Skipping these
+            # made sm500 cheap-underlying spreads find no eligible width.
+            long_q = get_option_quote(long_contract["symbol"], require_bid=False)
             if not long_q:
                 continue
             long_mid = (long_q["bid"] + long_q["ask"]) / 2.0

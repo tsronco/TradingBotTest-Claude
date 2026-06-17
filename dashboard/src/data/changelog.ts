@@ -31,6 +31,19 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Auto-open: accept a $0-bid long hedge leg (don’t skip valid cheap spreads)',
+    details:
+      'Money-loss review finding R15 (Phase 2b). get_option_quote rejected any ' +
+      'leg with a $0 bid OR $0 ask — correct for a SHORT leg we must be able to ' +
+      'sell, but a far-OTM long hedge legitimately shows bid $0.00 / ask $0.05, ' +
+      'and we BUY the long (only the ask matters). Skipping those made sm500 ' +
+      'cheap-underlying spreads find no eligible width. get_option_quote gained ' +
+      'a require_bid flag (default True keeps every caller strict); the auto-open ' +
+      'long-leg fetch passes require_bid=False. SM accounts. +2 pytest (567 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Multi-open cycle: decrement buying power after each spread (no over-leverage)',
     details:
       'Money-loss review finding R14 (Phase 2b). When a cycle opens more than ' +
