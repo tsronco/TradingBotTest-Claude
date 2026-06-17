@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-17T17:50:20.396019Z",
+    "last_checked": "2026-06-17T18:00:09.744223Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.73 vs entry $0.45",
+    "last_action": "Monitoring COIN260626C00205000: $0.71 vs entry $0.45",
     "contract_qty": 1
   },
   "MARA": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.37 vs entry $0.44",
+    "last_action": "Monitoring RIOT260626P00025000: $0.41 vs entry $0.44",
     "contract_qty": 1
   },
   "SMCI": {
