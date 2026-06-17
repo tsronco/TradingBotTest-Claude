@@ -31,6 +31,24 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D10: session tokens now expire server-side after 30 days',
+    details:
+      'D10 money-loss remediation (medium severity). Previously, decodeSession verified\n' +
+      'the HMAC signature but never checked the session age — a validly-signed cookie\n' +
+      'was accepted indefinitely. A copied or stolen session (browser export, device\n' +
+      'access, leaked log) granted permanent order-placement access.\n\n' +
+      'Fix: after HMAC verification, decodeSession now computes\n' +
+      '  age = Date.now() / 1000 − session.loggedInAt\n' +
+      'and returns null when age > MAX_AGE_SECONDS (30 days). The boundary is strict\n' +
+      '(>), so a token aged exactly 30 days is still valid. Session creation is\n' +
+      'unchanged — only decoding is affected.\n\n' +
+      '6 new vitest tests: expired → null, fresh → passes, exactly-at-boundary →\n' +
+      'passes, one-second-over → null, bad-signature-expired → null, missing-secret\n' +
+      'fresh → null. Full suite: 690/690.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D8: login rate-limit hardened — rightmost XFF + global failure backstop',
     details:
       'D8 money-loss remediation (high severity). The old clientIp() took the LEFTMOST\n' +

@@ -36,11 +36,18 @@ export function decodeSession(token: string): Session | null {
   const a = Buffer.from(sig, 'hex');
   const b = Buffer.from(expected, 'hex');
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  let session: Session;
   try {
-    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Session;
+    session = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Session;
   } catch {
     return null;
   }
+  // D10: reject tokens older than MAX_AGE_SECONDS.
+  // loggedInAt is in unix seconds; Date.now() is in ms — divide to compare.
+  // Strict > so a token aged exactly MAX_AGE_SECONDS is still accepted.
+  const nowSeconds = Date.now() / 1000;
+  if (nowSeconds - session.loggedInAt > MAX_AGE_SECONDS) return null;
+  return session;
 }
 
 export function serializeSessionCookie(

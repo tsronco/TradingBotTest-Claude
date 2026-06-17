@@ -192,7 +192,7 @@ direction → status.**
 - **Test direction:** vitest: forged multi-hop `X-Forwarded-For` resolves to the trusted-hop IP, so N failures from one real client still lock out; the global counter trips regardless of IP.
 
 ### D10 — Session token has no server-side expiry 🟡 Medium  [S8]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Added age check to `decodeSession` in `dashboard/api/_lib/session.ts`. After HMAC verification and payload parsing, computes `Date.now() / 1000 − session.loggedInAt` (both in unix seconds) and returns null when the result is strictly greater than `MAX_AGE_SECONDS` (30 days). Strict `>` so a token aged exactly 30 days is still accepted. Session creation is unchanged. Updated existing test fixture from hardcoded `loggedInAt: 1700000000` (Nov 2023, > 30 days) to a pinned `NOW_SECONDS` with `vi.useFakeTimers()` so the existing round-trip test stays green. 6 new vitest tests cover: expired token → null; fresh token → decodes; at-boundary token → decodes (boundary is inclusive); one-second-past-boundary → null; bad-signature expired token → still null (signature check runs first); missing SECRET + fresh token → null. Full suite: 690/690 (684 baseline + 6 new).
 - **Location:** `dashboard/api/_lib/session.ts:24–43` — `decodeSession` verifies the HMAC but never checks `loggedInAt` against `MAX_AGE_SECONDS` (that 30-day value is only applied to the browser cookie `maxAge`).
 - **Scenario:** A copied/stolen session cookie (browser export, device access, a leaked log) is accepted by the server indefinitely.
 - **Cost:** Indefinite order-placement access from a single leaked cookie.
@@ -282,7 +282,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D14 | Spread-close pre-fill-mid P&L | 2 | ✅ DONE |
 | D3 | Backup-code consumption race | 3 | ✅ DONE |
 | D8 | `X-Forwarded-For` rate-limit bypass | 3 | ✅ DONE |
-| D10 | No server-side session expiry | 3 | ⬜ TODO |
+| D10 | No server-side session expiry | 3 | ✅ DONE |
 | D9 | Short-call exposure understates → TOTP skip | 4 | ⬜ TODO |
 | D12 | Debit-spread close P&L mis-signed | 4 | ⬜ TODO |
 | D15 | Import cursor date-truncation duplicates | 4 | ⬜ TODO |
