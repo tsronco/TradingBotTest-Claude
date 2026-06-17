@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-16T19:51:52.914458Z"
+    "last_checked": "2026-06-17T13:31:54.570561Z"
   },
   "F": {
     "stage": 1,
@@ -23,19 +23,19 @@
   },
   "SNAP": {
     "stage": 2,
-    "current_contract": "SNAP260626C00006000",
-    "contract_order_id": "3c119d4c-bc16-4205-a4c2-dd2052b37eec",
-    "contract_entry_price": 0.09,
-    "contract_entry_date": "2026-06-09T16:11:38.829656Z",
-    "contract_expiration": "2026-06-26",
+    "current_contract": "SNAP260702C00006000",
+    "contract_order_id": "9c498898-b3a3-42c5-a982-3de6d979378d",
+    "contract_entry_price": null,
+    "contract_entry_date": "2026-06-17T13:31:52.880021Z",
+    "contract_expiration": "2026-07-02",
     "contract_type": "call",
     "contract_strike": 6.0,
     "contract_qty": 1,
     "cost_basis_per_share": 5.659091,
     "shares_qty": 110,
     "total_cost": 622.50001,
-    "total_premium_collected": 33.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 39.0,
+    "total_premium_today": 6.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Monitoring SNAP260626C00006000: $0.07 vs entry $0.09"
+    "last_action": "Sold-to-open 1\u00d7 SNAP260702C00006000 @ $0.07. Awaiting fill."
   },
   "NVTS": {
     "stage": 1,
