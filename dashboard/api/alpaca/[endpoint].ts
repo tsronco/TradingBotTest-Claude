@@ -44,12 +44,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const endpoint = String(req.query.endpoint ?? '');
   const mode = modeFromQuery(req.query.mode);
 
-  // D1 — gate every live endpoint behind LIVE_ENABLED, matching the submit
-  // guard in trades/[action].ts. Applies to mutations (modify/cancel) and
-  // GET reads alike so the "live off" posture is consistent across the whole
-  // Alpaca surface.
-  if (liveGuard(mode, res)) return;
-
   try {
     if (endpoint === 'account') {
       const account = await alpacaTrade<unknown>(mode, '/v2/account');
@@ -328,6 +322,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ symbol, timeframe, bars: resp?.bars ?? [] });
     }
     if (endpoint === 'modify-order' && req.method === 'POST') {
+      // D1 — gate live money-moving writes behind LIVE_ENABLED.
+      // GET reads are intentionally left ungated so live monitoring works.
+      if (liveGuard(mode, res)) return;
       const body = (req.body ?? {}) as { order_id?: string; qty?: number; limit_price?: number; stop_price?: number; tif?: string };
       if (!body.order_id) return res.status(400).json({ error: 'order_id_required' });
       const patch: Record<string, unknown> = {};
@@ -367,6 +364,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ order: updated });
     }
     if (endpoint === 'cancel-order' && req.method === 'POST') {
+      // D1 — gate live money-moving writes behind LIVE_ENABLED.
+      // GET reads are intentionally left ungated so live monitoring works.
+      if (liveGuard(mode, res)) return;
       const body = (req.body ?? {}) as { order_id?: string };
       if (!body.order_id) return res.status(400).json({ error: 'order_id_required' });
 

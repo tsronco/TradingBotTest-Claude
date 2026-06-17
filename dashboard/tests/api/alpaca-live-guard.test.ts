@@ -1,10 +1,18 @@
 /**
- * D1 — LIVE_ENABLED gate on modify-order, cancel-order, and GET reads.
+ * D1 — LIVE_ENABLED gate on modify-order and cancel-order (writes only).
  *
- * These tests verify that when mode=live and LIVE_ENABLED is not 'true',
- * the endpoint returns 403 and makes NO Alpaca mutation or data call.
- * When LIVE_ENABLED='true' the path passes through.
+ * After the decouple decision (2026-06-17): the gate applies ONLY to the
+ * two money-moving write endpoints (modify-order, cancel-order). GET read
+ * endpoints (account, positions, equity-history, etc.) are intentionally
+ * ungated — live monitoring must keep working without LIVE_ENABLED.
+ *
+ * Write-guard tests: when mode=live and LIVE_ENABLED is not 'true', the
+ * endpoint returns 403 and makes NO Alpaca mutation call.
+ * When LIVE_ENABLED='true' the write path passes through.
  * Paper modes (conservative) always pass through regardless of LIVE_ENABLED.
+ *
+ * Read-passthrough tests: mode=live GET reads MUST call Alpaca regardless
+ * of LIVE_ENABLED (reads are accepted as Low risk: single-user, read-only).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -235,25 +243,14 @@ describe('alpaca/[endpoint] — cancel-order — live guard (D1)', () => {
   });
 });
 
-// ── GET reads (positions) ─────────────────────────────────────────────────────
+// ── GET reads (positions) — decouple: reads are NOT gated ────────────────────
+//
+// After the 2026-06-17 decouple decision, live GET reads must pass through
+// regardless of LIVE_ENABLED. The guard only applies to write endpoints.
 
-describe('alpaca/[endpoint] — GET positions — live guard (D1)', () => {
-  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED is unset', async () => {
-    modeFromQueryMock.mockReturnValue('live');
-    const { default: handler } = await import('../../api/alpaca/[endpoint]');
-    const res = mockRes();
-    await handler(
-      mockReq('positions', 'GET', 'live'),
-      res as unknown as import('@vercel/node').VercelResponse,
-    );
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect((res.json as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ error: 'live_trading_disabled' });
-    expect(alpacaTradeMock).not.toHaveBeenCalled();
-    expect(alpacaDataMock).not.toHaveBeenCalled();
-  });
-
-  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED="true"', async () => {
-    process.env.LIVE_ENABLED = 'true';
+describe('alpaca/[endpoint] — GET positions — live reads ungated (D1 decouple)', () => {
+  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED is unset', async () => {
+    // LIVE_ENABLED is unset (deleted in beforeEach) — reads must still work
     modeFromQueryMock.mockReturnValue('live');
     alpacaTradeMock.mockResolvedValue([]);
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
@@ -262,6 +259,22 @@ describe('alpaca/[endpoint] — GET positions — live guard (D1)', () => {
       mockReq('positions', 'GET', 'live'),
       res as unknown as import('@vercel/node').VercelResponse,
     );
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('passes through when mode=live and LIVE_ENABLED="false"', async () => {
+    process.env.LIVE_ENABLED = 'false';
+    modeFromQueryMock.mockReturnValue('live');
+    alpacaTradeMock.mockResolvedValue([]);
+    const { default: handler } = await import('../../api/alpaca/[endpoint]');
+    const res = mockRes();
+    await handler(
+      mockReq('positions', 'GET', 'live'),
+      res as unknown as import('@vercel/node').VercelResponse,
+    );
+    expect(res.status).not.toHaveBeenCalledWith(403);
     expect(alpacaTradeMock).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -280,34 +293,38 @@ describe('alpaca/[endpoint] — GET positions — live guard (D1)', () => {
   });
 });
 
-// ── GET reads (account) ───────────────────────────────────────────────────────
+// ── GET reads (account) — decouple: reads are NOT gated ──────────────────────
 
-describe('alpaca/[endpoint] — GET account — live guard (D1)', () => {
-  it('returns 403 when mode=live and LIVE_ENABLED is unset', async () => {
+describe('alpaca/[endpoint] — GET account — live reads ungated (D1 decouple)', () => {
+  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED is unset', async () => {
     modeFromQueryMock.mockReturnValue('live');
+    alpacaTradeMock.mockResolvedValue({ equity: '1000' });
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
     await handler(
       mockReq('account', 'GET', 'live'),
       res as unknown as import('@vercel/node').VercelResponse,
     );
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(alpacaTradeMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
 
-// ── GET reads (equity-history) ────────────────────────────────────────────────
+// ── GET reads (equity-history) — decouple: reads are NOT gated ───────────────
 
-describe('alpaca/[endpoint] — GET equity-history — live guard (D1)', () => {
-  it('returns 403 when mode=live and LIVE_ENABLED is unset', async () => {
+describe('alpaca/[endpoint] — GET equity-history — live reads ungated (D1 decouple)', () => {
+  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED is unset', async () => {
     modeFromQueryMock.mockReturnValue('live');
+    alpacaTradeMock.mockResolvedValue({ timestamp: [], equity: [] });
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
     await handler(
       mockReq('equity-history', 'GET', 'live'),
       res as unknown as import('@vercel/node').VercelResponse,
     );
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(alpacaTradeMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

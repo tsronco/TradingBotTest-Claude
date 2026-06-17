@@ -43,8 +43,8 @@ A bug only matters to a surface that executes the path.
 | Code path | live (real $, placement gated OFF) | manual / cons / agg (paper) | sm500/1k/2k (paper) |
 |---|---|---|---|
 | Order **submit** (`trades/submit`, `submitSpread`, `import`) | ❌ blocked by `LIVE_ENABLED` | ✅ | ✅ |
-| Order **modify / cancel** (`alpaca/modify-order`, `cancel-order`) | ⚠️ **NOT gated (D1)** | ✅ | ✅ |
-| **Read** account / positions / orders (`alpaca/[endpoint]` GET) | ⚠️ not gated (D1) | ✅ | ✅ |
+| Order **modify / cancel** (`alpaca/modify-order`, `cancel-order`) | ✅ **gated by D1 fix** | ✅ | ✅ |
+| **Read** account / positions / orders (`alpaca/[endpoint]` GET) | ✅ intentionally ungated (D1 decouple — Low risk) | ✅ | ✅ |
 | **Auth** (login / session / TOTP / backup codes) | ✅ gates everything | ✅ | ✅ |
 | **Trade-record lifecycle** (submit + grade-cron sync / close detect) | ✅ records when on | ✅ | ✅ |
 | **Import** from Alpaca activity log | ✅ | ✅ | ✅ |
@@ -121,7 +121,7 @@ Each entry: **location → scenario → why it costs money → fix direction →
 direction → status.**
 
 ### D1 — `modify-order` / `cancel-order` (and GET reads) have no `LIVE_ENABLED` gate 🔴 Critical  [O1, S10; read-side O9]
-- **Status:** ✅ DONE (2026-06-17). Added `liveGuard()` helper to `api/_lib/alpaca.ts` and wired it at the top of the `alpaca/[endpoint].ts` handler; 13 new vitest tests cover modify/cancel/read gating (live blocked, live enabled passes, paper always passes).
+- **Status:** ✅ DONE (2026-06-17). Added `liveGuard()` helper to `api/_lib/alpaca.ts`; wired inside the `modify-order` and `cancel-order` branches only (writes-only decouple, 2026-06-17). GET reads (account/positions/orders/equity-history) are intentionally left ungated so live monitoring keeps working without `LIVE_ENABLED`; O9 read-exposure accepted as Low risk (single-user, read-only). 13 new vitest tests cover modify/cancel gating (live blocked, live enabled passes, paper always passes) and read passthrough (live reads pass through even with `LIVE_ENABLED` unset).
 - **Location:** `dashboard/api/alpaca/[endpoint].ts` — `modify-order` branch (~324–362) and `cancel-order` branch (~363–389) read `mode` from `req.query.mode` via `modeFromQuery` (which returns `'live'`) and call `alpacaTradeMutation('live', …)` (real endpoint). GET reads (`account`/`positions`/`orders`/`equity-history`, ~45–322) are likewise ungated. The submit guard exists at `trades/[action].ts` (`draft.account === 'live' && process.env.LIVE_ENABLED !== 'true'` → 403) but was never mirrored here. UI reaches it: `accountsForSelection` (`src/lib/account-utils.ts:82,92–99`) admits `live`; `Orders.tsx:318–334` renders live `[modify]`/`[cancel]` wired to `mode=live`.
 - **Scenario:** With a real working order on `live`, an authenticated session PATCHes its limit to a fill-immediately price (or cancels it) — no `LIVE_ENABLED`, no TOTP. PATCHing a resting limit is an economic action; dragging a sell limit to marketable dumps a real position at a bad price.
 - **Cost:** Direct real-money loss / unintended execution on the live account, while the whole app's posture is "live is disabled."
