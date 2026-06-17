@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fmtUsd } from '../../lib/format';
@@ -18,6 +18,13 @@ export function ConfirmModal({ preview, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reasonByRule, setReasonByRule] = useState<Record<string, string>>({});
+  // D2 — stable idempotency key. Generated ONCE when the modal mounts and
+  // held in a ref (not state) so it never triggers a re-render and is
+  // reused on every place() call — including after a network error re-enables
+  // the button. If the first POST reached Alpaca but the response was lost,
+  // re-clicking sends the same key → Alpaca rejects the duplicate → server
+  // resolves the existing order rather than double-placing.
+  const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
   const blocks = useMemo(
     () => preview.rule_warnings.filter((w) => w.severity === 'block'),
@@ -42,7 +49,13 @@ export function ConfirmModal({ preview, onClose }: Props) {
       : (preview.requires_totp ? 'CONFIRM + TOTP' : 'CONFIRM');
 
   async function place() {
-    setError(null); setSubmitting(true);
+    // D2 — disable the button synchronously as the VERY FIRST statement,
+    // before any await. This prevents a second click during the pending
+    // request even in the common (non-dropped-response) case. The stable
+    // idempotency key (idempotencyKeyRef) handles the dropped-response /
+    // transport-retry case where the button is re-enabled after an error.
+    setSubmitting(true);
+    setError(null);
     try {
       const rule_violations = preview.rule_warnings.map((w) => {
         if (w.severity === 'block') {
@@ -53,6 +66,9 @@ export function ConfirmModal({ preview, onClose }: Props) {
       const body: any = {
         ...draft,
         rule_violations,
+        // D2 — include the stable per-modal-instance idempotency key so the
+        // server can stamp it as Alpaca's client_order_id and detect duplicates.
+        idempotency_key: idempotencyKeyRef.current,
       };
       if (preview.requires_totp) body.totp_code = totp;
       const res = await api<{ id: string }>('/api/trades/submit', {

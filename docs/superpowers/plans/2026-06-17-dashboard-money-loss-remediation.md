@@ -129,7 +129,7 @@ direction → status.**
 - **Test direction:** vitest: `mode=live` + `LIVE_ENABLED` unset → modify-order and cancel-order each return 403 and make **no** Alpaca mutation call; `LIVE_ENABLED='true'` → passes through; paper modes always pass.
 
 ### D2 — No idempotency key on order submit → retry double-places 🔴 Critical  [O2, S3; bot-R1 cousin]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Stable `client_order_id` stamped on every stock/option `createOrder` and mleg `alpacaBody`; duplicate-422 resolved via `GET /v2/orders:by_client_order_id`; `ConfirmModal` generates one UUID in a `useRef` (stable across re-renders/re-clicks) and disables the button synchronously before any `await`. 9 new vitest tests (5 server-side, 4 client-side).
 - **Location:** `dashboard/api/trades/[action].ts` — stock/option `createOrder(orderPayload)` (~630), spread `alpacaBody` mleg POST (~405–415), import opens (~1267+). None set `client_order_id`. Client: `src/components/order/ConfirmModal.tsx:44–66` (button disabled only after `setSubmitting(true)`); `src/lib/api.ts` POST has no idempotency token.
 - **Scenario:** User places an order; Alpaca creates it but the HTTP response is lost (network blip, Vercel cold-start timeout, mobile handoff). `api()` throws, `setSubmitting(false)` re-enables the button, the user clicks again → a second byte-identical POST → **two real fills**. (A naive double-*click* is already blocked by `submitting`; the live exposure is specifically the dropped-response/retry path.)
 - **Cost:** Doubled real-money position / premium on live; doubled paper position elsewhere. The changelog already records the *bot* fixing exactly this (R1, `client_order_id`); the dashboard never got it.
@@ -282,7 +282,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | ID | Title | Phase | Status |
 |---|---|---|---|
 | D1 | Live modify/cancel/read missing `LIVE_ENABLED` gate | 1 | ✅ DONE |
-| D2 | No idempotency key on submit (double-place) | 1 | ⬜ TODO |
+| D2 | No idempotency key on submit (double-place) | 1 | ✅ DONE |
 | D4 | Month-index read-modify-write lost update | 2 | ⬜ TODO |
 | D5 | Closing fills imported as opens (phantom trades) | 2 | ⬜ TODO |
 | D6 | Spread `syncFillData` skips modify-chain | 2 | ⬜ TODO |

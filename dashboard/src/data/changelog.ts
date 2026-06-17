@@ -31,6 +31,26 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'Idempotency key on all order submits — prevents double-place on retry (D2)',
+    details:
+      'Money-loss remediation finding D2. No order path previously sent a client_order_id ' +
+      'to Alpaca. If the HTTP response was lost (network blip, Vercel cold-start, mobile ' +
+      'handoff), api() threw, the confirm button re-enabled, and a re-click sent a ' +
+      'byte-identical POST — two real fills on the live account once placement is enabled.\n\n' +
+      'Two-layer fix mirrors the Python bot\'s R1 pattern:\n' +
+      'A. Server (api/trades/[action].ts): pre-allocate the trade id before hitting Alpaca, ' +
+      'derive client_order_id from the caller-supplied idempotency_key (or fallback "dash-<id>"), ' +
+      'stamp it on createOrder (stock/option) and the mleg alpacaBody (spread). On a 422 ' +
+      'duplicate-id rejection, resolve the already-created order via ' +
+      'GET /v2/orders:by_client_order_id and proceed — one trade record, no error surfaced.\n' +
+      'B. Client (ConfirmModal.tsx): generate one UUID in a useRef at modal-mount so the key ' +
+      'is stable across re-renders and re-clicks. Disable the confirm button synchronously ' +
+      'as the first statement in place() before any await (belt-and-suspenders). ' +
+      'Include idempotency_key in every submit payload.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Gate live order modify/cancel behind LIVE_ENABLED only (D1 — writes only)',
     details:
       'Money-loss remediation finding D1. The modify-order and cancel-order endpoints ' +

@@ -43,6 +43,11 @@ interface OrderDraft {
   entry_reasoning: string;
   tags: string[];
   totp_code?: string;
+  // D2 — idempotency key. Generated once by ConfirmModal and reused on
+  // every retry of the same order so that a dropped-response re-click
+  // cannot double-place. If omitted, the server derives a deterministic
+  // fallback from the pre-allocated trade id.
+  idempotency_key?: string;
 }
 
 // SM accounts behave like manual (hand-traded small accounts) — mirror manual's
@@ -77,6 +82,8 @@ interface SpreadPayload {
   tags?: string[];
   totp_code?: string;
   rule_warnings_at_entry?: any[];
+  // D2 — idempotency key (same as OrderDraft.idempotency_key)
+  idempotency_key?: string;
 }
 
 const VALID_SPREAD_TYPES: ReadonlySet<SpreadType> = new Set<SpreadType>([
@@ -398,6 +405,11 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // D2 — Pre-allocate the trade id so we can derive a deterministic
+  // client_order_id before hitting Alpaca (same pattern as stock/option submit).
+  const id = await allocateTradeId();
+  const clientOrderId = (p.idempotency_key?.trim() ?? '') || `dash-${id}`;
+
   // Build the mleg order. Alpaca's multi-leg order endpoint expects
   // order_class:'mleg' with a `legs` array carrying side + position_intent
   // per leg. The top-level `limit_price` is the net debit/credit (negative
@@ -408,6 +420,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     type: 'limit',
     limit_price: String(p.limit_price),
     time_in_force: p.tif ?? 'day',
+    client_order_id: clientOrderId,
     legs: [
       { symbol: p.short_leg.occ, side: 'sell', ratio_qty: '1', position_intent: 'sell_to_open' },
       { symbol: p.long_leg.occ,  side: 'buy',  ratio_qty: '1', position_intent: 'buy_to_open'  },
@@ -421,13 +434,24 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
       { method: 'POST', body: alpacaBody },
     );
   } catch (err) {
-    return res.status(502).json({
-      error: 'alpaca_order_failed',
-      detail: err instanceof Error ? err.message : String(err),
-    });
+    // D2 — duplicate client_order_id: resolve the already-created order
+    if (isDuplicateClientOrderIdError(err)) {
+      const existing = await getOrderByClientOrderId(modeFromAccount(p.account), clientOrderId);
+      if (existing?.id) {
+        alpacaOrder = existing;
+      } else {
+        return res.status(502).json({
+          error: 'alpaca_order_failed',
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      return res.status(502).json({
+        error: 'alpaca_order_failed',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
-
-  const id = await allocateTradeId();
   const now = new Date();
   const trade: Trade = {
     id,
@@ -501,6 +525,41 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
   await kv().set(monthKey, [...monthList, id]);
 
   return res.status(200).json({ id, trade_id: id, alpaca_order_id: alpacaOrder.id });
+}
+
+/**
+ * D2 — duplicate-id resolution (mirrors the Python bot's R1 pattern).
+ *
+ * When Alpaca rejects a POST /v2/orders with 422 because client_order_id
+ * already exists, fetch the already-created order by that id instead of
+ * surfacing an error. This turns a dropped-response retry into a harmless
+ * no-op (the caller gets the same order back, allocates ONE trade record).
+ *
+ * Returns the existing order on success, or null if the lookup fails
+ * (so the original error can propagate — we never silently swallow a
+ * genuine Alpaca error that isn't a duplicate-id rejection).
+ */
+async function getOrderByClientOrderId(
+  mode: string,
+  clientOrderId: string,
+): Promise<any> {
+  try {
+    return await alpacaTrade<any>(mode as any, '/v2/orders:by_client_order_id', {
+      client_order_id: clientOrderId,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when an Alpaca error looks like a duplicate client_order_id rejection
+ * (422 with the id in the error text). Mirrors the Python bot's detection
+ * heuristic from api_post().
+ */
+function isDuplicateClientOrderIdError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes('422') && msg.toLowerCase().includes('client_order_id');
 }
 
 async function submit(req: VercelRequest, res: VercelResponse) {
@@ -592,6 +651,18 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // D2 — Pre-allocate the trade id so we can derive a deterministic
+  // client_order_id before hitting Alpaca. This way if the response is lost
+  // and the client retries with the same idempotency_key, Alpaca rejects the
+  // duplicate (422) and we look up the already-created order rather than
+  // double-placing.
+  const id = await allocateTradeId();
+  // Use the caller-supplied idempotency key (generated once by ConfirmModal
+  // and held in a ref across re-clicks). Fall back to a derivation from the
+  // pre-allocated trade id so every order carries a client_order_id even when
+  // the frontend didn't send one (import path, older clients).
+  const clientOrderId = (draft.idempotency_key?.trim() ?? '') || `dash-${id}`;
+
   // Alpaca submit (paper for now)
   const client = alpacaFor(modeFromAccount(draft.account) as any);
   // Map our STO/STC/BTO/BTC option side semantics to Alpaca's required
@@ -615,6 +686,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
         limit_price: draft.limit_price ?? undefined,
         stop_price: draft.stop_price ?? undefined,
         trail_percent: draft.trail_pct ?? undefined,
+        client_order_id: clientOrderId,
       }
     : {
         symbol: draft.contract_symbol,
@@ -624,20 +696,37 @@ async function submit(req: VercelRequest, res: VercelResponse) {
         time_in_force: draft.tif,
         limit_price: draft.limit_price ?? undefined,
         position_intent: positionIntent,
+        client_order_id: clientOrderId,
       };
   let alpacaOrder: any;
   try {
     alpacaOrder = await client.createOrder(orderPayload);
   } catch (err) {
-    // Surface the Alpaca error verbatim — the previous behavior swallowed it
-    // into a generic 500, which made order failures impossible to diagnose
-    // from the UI. Most Alpaca rejects (422 insufficient_buying_power, 422
-    // position_intent_required, 403 market_closed, etc.) carry the actionable
-    // detail in the error message.
-    return res.status(502).json({
-      error: 'alpaca_order_failed',
-      detail: err instanceof Error ? err.message : String(err),
-    });
+    // D2 — duplicate client_order_id: a prior attempt already created this
+    // order (the HTTP response was lost before the client received it). Look
+    // up the existing order rather than surfacing an error or double-placing.
+    if (isDuplicateClientOrderIdError(err)) {
+      const existing = await getOrderByClientOrderId(modeFromAccount(draft.account), clientOrderId);
+      if (existing?.id) {
+        alpacaOrder = existing;
+      } else {
+        // Lookup failed — fall through and surface the original error
+        return res.status(502).json({
+          error: 'alpaca_order_failed',
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      // Surface the Alpaca error verbatim — the previous behavior swallowed it
+      // into a generic 500, which made order failures impossible to diagnose
+      // from the UI. Most Alpaca rejects (422 insufficient_buying_power, 422
+      // position_intent_required, 403 market_closed, etc.) carry the actionable
+      // detail in the error message.
+      return res.status(502).json({
+        error: 'alpaca_order_failed',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Snapshot Greeks for option opens
@@ -668,8 +757,6 @@ async function submit(req: VercelRequest, res: VercelResponse) {
       }
     },
   );
-
-  const id = await allocateTradeId();
   const now = new Date();
   const trade: Trade = {
     id,
