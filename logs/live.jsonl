@@ -3616,3 +3616,6 @@
 {"timestamp": "2026-06-17T19:53:32.828240+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-06-17T19:53:33.188736+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-06-17T19:53:33.571707+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-17T20:03:44.126372+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-06-17T20:03:44.404679+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-06-17T20:03:44.686489+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
