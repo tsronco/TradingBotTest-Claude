@@ -1150,3 +1150,32 @@ def test_stage1_stale_filled_during_cancel_treated_as_success(monkeypatch, fresh
     assert len(sells) == 1
     assert fresh_symbol_state["contract_order_id"] == "fresh"
 
+
+
+def test_stage2_ambiguous_share_count_holds_not_assigned(monkeypatch):
+    """R18: covered call is gone but a partial (1..covered-1) share remainder is
+    ambiguous (odd-lot adoption / partial manual sell) — hold + alert, do NOT
+    declare an assignment (which would drop the shares and naked the call)."""
+    state = _stage2_state()
+    state["current_contract"] = "TSLA260522C00375000"
+    state["contract_order_id"] = "call-abc"
+    state["contract_entry_price"] = 2.50
+    state["contract_strike"] = 375.0
+    state["shares_qty"] = 100  # covered = 100
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "expired", "filled_avg_price": "2.50"})
+    # 50 shares remain — between 0 and the covered 100 → ambiguous
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: {"qty": "50", "avg_entry_price": "340.0"})
+    sold = []
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: sold.append(c) or {"id": "x"})
+    monkeypatch.setattr(ws, "_sell_new_put", lambda *a, **k: sold.append("put"))
+    monkeypatch.setattr(ws, "_sell_new_call", lambda *a, **k: sold.append("call"))
+
+    ws.handle_stage2("TSLA", state, stock_price=380.0, account=_account())
+
+    assert state["stage"] == 2            # unchanged — not declared assigned
+    assert state["shares_qty"] == 100     # unchanged
+    assert sold == []                     # no new put/call opened

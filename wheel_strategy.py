@@ -1639,12 +1639,16 @@ def place_buy_to_close(option_symbol, limit_price, qty=None):
             log(f"place_buy_to_close: position qty=0 for {option_symbol} — skipping")
             return None
 
+    # R34 (2026-06-16): nudge the limit up to ensure a fill, but by a PERCENTAGE
+    # (≈5%, floored at 1¢) rather than a flat $0.05. On a cheap option ($0.05) a
+    # flat $0.05 DOUBLED the buy-back cost; the % keeps the concession small.
+    concession = max(0.01, round(limit_price * 0.05, 2))
     order = api_post("/orders", {
         "symbol":          option_symbol,
         "qty":             str(qty),
         "side":            "buy",
         "type":            "limit",
-        "limit_price":     str(round(limit_price + 0.05, 2)),  # slight premium to ensure fill
+        "limit_price":     str(round(limit_price + concession, 2)),
         "time_in_force":   "day",
         "position_intent": "buy_to_close",
     })
@@ -2092,7 +2096,17 @@ def get_option_last_price(contract_symbol):
         pass
     pos = get_option_position(contract_symbol)
     if pos:
-        return abs(float(pos.get("market_value", 0))) / 100
+        # R17 (2026-06-16): market_value is the value of ALL contracts on this
+        # OCC combined, so divide by 100 × qty to get the PER-CONTRACT price.
+        # Dividing by a flat 100 returned an N×-too-high price on a multi-
+        # contract position (e.g. the MARA quad), which kept the 50%-profit
+        # close from ever triggering.
+        mv = abs(float(pos.get("market_value", 0)))
+        try:
+            qty = abs(int(float(pos.get("qty", 1)))) or 1
+        except (ValueError, TypeError):
+            qty = 1
+        return mv / (100.0 * qty)
     return None
 
 
@@ -2452,7 +2466,36 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                 return
 
             stock_pos = get_stock_position(symbol)
-            if not stock_pos or int(float(stock_pos.get("qty", 0))) < 100:
+            cur_qty = int(float(stock_pos.get("qty", 0))) if stock_pos else 0
+            covered = max(1, (sym_state.get("shares_qty") or 100) // 100) * 100
+            # R18 (2026-06-16): only treat the position as "called away" when the
+            # shares are actually GONE (qty <= 0). The old `< 100` heuristic
+            # misfired on a non-100-lot adoption or a partial manual sell (e.g.
+            # 200 → 50 shares left), wrongly declaring an assignment — which
+            # dropped the remaining shares from management and could leave a
+            # partially-naked call. A 1..covered-1 remainder is ambiguous: alert
+            # and hold rather than guess.
+            if 0 < cur_qty < covered:
+                log(f"[{symbol}] Stage 2: call gone but {cur_qty} shares remain "
+                    f"(covered {covered}) — ambiguous (partial sell / odd lot); "
+                    f"holding, not declaring assignment")
+                send_embed(
+                    ERRORS_CH, f"Wheel: {symbol} Stage 2 ambiguous share count",
+                    color=Color.YELLOW,
+                    description=(
+                        f"Covered call `{contract}` is gone but {cur_qty} shares "
+                        f"remain (expected ~0 if assigned, {covered} if expired). "
+                        f"Not auto-classifying — manage manually."
+                    ),
+                    footer=f"wheel_strategy.py · {MODE}",
+                    actions_channel=ACTIONS_CH,
+                )
+                log_event(LOG_STREAM, "wheel_strategy.py", "stage2_ambiguous_shares",
+                          result="skipped", symbol=contract,
+                          details={"underlying": symbol, "cur_qty": cur_qty,
+                                   "covered": covered})
+                return
+            if cur_qty <= 0:
                 # Shares called away — back to Stage 1.
                 # Premium accounts for ALL contracts that were assigned (with
                 # multi-contract sales we sold N calls; all N got assigned

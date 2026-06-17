@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-17',
+    category: 'fix',
+    title: 'Phase 3 batch: multi-contract price, Stage-2 assignment detection, cheap-option close concession',
+    details:
+      'Money-loss review Phase 3 (R17/R18/R34). R17: get_option_last_price\'s ' +
+      'position fallback divided the COMBINED market_value by 100, returning an ' +
+      'N×-too-high price on a multi-contract position (which kept the 50%-profit ' +
+      'close from triggering) — now divides by 100 × qty. R18: the Stage-2 ' +
+      '"called away" check used a < 100-share heuristic that misfired on an ' +
+      'odd-lot adoption or a partial manual sell (declaring a phantom assignment ' +
+      'and dropping the shares / nakeding the call); it now only declares ' +
+      'assignment when shares are actually gone (qty ≤ 0) and alerts + holds on ' +
+      'an ambiguous 1..covered-1 remainder. R34: the buy-to-close limit nudge is ' +
+      'now a ~5% concession (floored at 1¢) instead of a flat $0.05, which on a ' +
+      '$0.05 option had DOUBLED the buy-back cost. +6 pytest (577 total).',
+  },
+  {
     date: '2026-06-16',
     category: 'fix',
     title: 'Earnings guard now blocks same-day prints (completes Phase 2b)',

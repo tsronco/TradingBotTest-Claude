@@ -744,8 +744,8 @@ ordering, the hedge hand-off, and PDT routing.
 | R14 | Multi-open stale BP | 2b | ✅ DONE |
 | R15 | Zero-bid long leg skipped | 2b | ✅ DONE |
 | R16 | Earnings window / cons-agg CSP gate | 2b | ✅ DONE (money bug; cache + CSP gate deferred) |
-| R17 | Multi-contract market_value/100 | 3 | NOT STARTED |
-| R18 | Stage-2 <100 share misdetect | 3 | NOT STARTED |
+| R17 | Multi-contract market_value/100 | 3 | ✅ DONE |
+| R18 | Stage-2 <100 share misdetect | 3 | ✅ DONE |
 | R19 | `place_buy_to_close` full-position close | 3 | NOT STARTED |
 | R20 | `_available_qty` seed vs reconcile | 3 | NOT STARTED |
 | R21 | Single-leg adoption overwrite | 3 | NOT STARTED |
@@ -758,4 +758,4 @@ ordering, the hedge hand-off, and PDT routing.
 | R28 | round_strike off-grid | 3 | NOT STARTED |
 | R29 | Duplicate adoption embeds | 3 | NOT STARTED |
 | R30 | Width-loop monotonicity | 3 | NOT STARTED |
-| R34 | `place_buy_to_close` flat +$0.05 overpay | 3 | NOT STARTED |
+| R34 | `place_buy_to_close` flat +$0.05 overpay | 3 | ✅ DONE |
