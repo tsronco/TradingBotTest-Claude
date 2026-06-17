@@ -31,6 +31,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D5: closing fills (BTC/STC) no longer imported as phantom open trades',
+    details:
+      'The importer classified every buy fill as a BTO open and every sell fill as an STO open, ' +
+      'because Alpaca\'s `side` field does not distinguish opening from closing. A buy-to-close ' +
+      'of a short option arrived as side:\'buy\' and was treated as a new BTO open — phantom trade ' +
+      'record added to trades:index:open, then immediately "closed" by the next cron tick with ' +
+      'fabricated P&L when detectClose saw the position already gone.\n\n' +
+      'Fix: filter activities using Alpaca\'s `position_effect` field (\'opening\' / \'closing\') ' +
+      'before spread-pairing and singles classification. Only \'opening\' fills are imported; ' +
+      '\'closing\' fills are skipped entirely — closes are picked up by the existing cron ' +
+      'external-close detection on the original opening trade. Fills with no position_effect ' +
+      '(legacy records) default to opening so no legitimate open is silently dropped.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D4: month-index converted to Redis list — concurrent appends can no longer lose a trade',
     details:
       'The per-month trade index (trades:index:YYYY-MM) was written with a read-modify-write ' +

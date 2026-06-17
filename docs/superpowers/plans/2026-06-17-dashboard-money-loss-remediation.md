@@ -90,7 +90,7 @@ Takeaways:
 | ID | Severity | Surfaces | Title |
 |---|---|---|---|
 | D4 | 🟠 High | all | Month-index written read-modify-write → concurrent submit/import drops a trade from history (no P&L, no grading) |
-| D5 | 🟠 High | all (import) | Closing fills (`side: sell` = BTC) imported as STO **opens** → phantom duplicate trades |
+| D5 | 🟠 High ✅ | all (import) | Closing fills (`side: sell` = BTC) imported as STO **opens** → phantom duplicate trades |
 | D6 | 🟠 High | all (spreads) | Spread `syncFillData` skips the modify-chain walk → a modified spread is stuck "unfilled" forever |
 | D7 | 🟠 High | all | `syncFillData` re-runs every cron tick for filled/no-modify trades; a throttle/error then **blocks `detectClose`** → trade stuck open, P&L never recorded |
 | D13 | 🟡 Medium | active accounts | `findClosingFill` fetches only 1 page (100 activities) → on busy accounts the close is missed → trade stuck open |
@@ -147,7 +147,7 @@ direction → status.**
 - **Test direction:** vitest with the KV mock: two concurrent appends to the same month key both survive (list semantics); readers return both ids.
 
 ### D5 — Closing fills imported as STO opens → phantom trades 🟠 High  [S4]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Added `position_effect?: string` to the `RawFill` interface in `dashboard/api/trades/[action].ts`. Pre-filter `activities → openingFills` inserted before `groupFillsIntoSpreadsAndSingles`: any fill whose `position_effect` normalises to `'closing'` is skipped; absent/undefined defaults to opening (safe — must not silently drop genuine opens from legacy records). 4 new vitest tests: (1) STO-open + BTC-close stream imports exactly one trade (the open); (2) lone closing fill imports nothing; (3) closing spread pair (both legs `position_effect:'closing'`) imports neither spread nor singles; (4) fill with no `position_effect` still imports (safe-default). Full suite: 652/652 (648 baseline + 4 new).
 - **Location:** `dashboard/api/trades/[action].ts:1412–1419` — `if (sideRaw === 'sell_short' || sideRaw === 'sell') side = 'STO'`. Alpaca uses `side:'sell'` for **both** short-open (STO) and buy-to-close is `buy`… but a sell-to-close (STC) of a long and a sell-to-open both surface as `sell`; more importantly a BTC close of a short carries `side:'buy'` and is treated as a BTO **open**. Net: closing fills are misclassified as opens. Dedup (`orderIdAlreadyImported`) keys on the *open* order id, so the close (different order id) passes.
 - **Scenario:** The 5-min auto-import window slides over a closing fill; it's imported as a fresh "open," added to `trades:index:open`, consumes a trade id, and on its first cron pass `detectClose` queries a position that's already gone → spurious Path-3 external-close with fabricated P&L.
 - **Cost:** Phantom trades inflate open-count and corrupt `/trades` P&L history (bookkeeping integrity on the active book).

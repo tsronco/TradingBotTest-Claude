@@ -1245,6 +1245,11 @@ interface RawFill {
   price?: string;
   qty?: string;
   order_id?: string;
+  /** Alpaca FILL field — 'opening' | 'closing'. Present on options fills; may
+   *  be absent on legacy records or certain account types.  When absent we treat
+   *  the fill as opening (safe default — we must not silently drop genuine
+   *  opens just because the field is missing). */
+  position_effect?: string;
 }
 
 interface ParsedOcc {
@@ -1452,7 +1457,21 @@ export async function runImport({
   // For stocks: skipped in v1 (FIFO matching not implemented; see brief).
   // For spreads: detected by pairing two option fills.
 
-  const optionFills: RawFill[] = activities.filter((a) => {
+  // D5: only import OPENING fills. Alpaca FILL activities carry a
+  // `position_effect` field ('opening' | 'closing') that distinguishes a
+  // short-open / long-open from a buy-to-close / sell-to-close. Without this
+  // filter a BTC fill (side:'buy') was misclassified as a BTO open → phantom
+  // duplicate trade record on the next auto-import window.
+  //
+  // Safe-default: if the field is absent (legacy records, account types that
+  // don't return it) we treat the fill as opening. We must not silently drop
+  // legitimate opens just because the field is missing.
+  const openingFills: RawFill[] = activities.filter((a) => {
+    const pe = (a.position_effect ?? '').toLowerCase();
+    return pe !== 'closing';
+  });
+
+  const optionFills: RawFill[] = openingFills.filter((a) => {
     if (!a.symbol) return false;
     return parseOcc(a.symbol) !== null;
   });

@@ -286,6 +286,124 @@ describe('POST /api/trades/import', () => {
   });
 });
 
+describe('D5 — position_effect: closing fills are not imported as opens', () => {
+  it('STO opening fill + BTC closing fill → exactly one trade imported (the opening STO)', async () => {
+    // D5 regression: BTC carry side:'buy', which was previously treated as BTO open.
+    // With position_effect:'closing' the importer must skip it entirely.
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-open', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'NVTS260605P00020500', side: 'sell', price: '2.12', qty: '2',
+        order_id: 'sto-order-1', position_effect: 'opening',
+      },
+      {
+        id: 'fill-close', activity_type: 'FILL', transaction_time: '2026-05-20T14:00:00Z',
+        symbol: 'NVTS260605P00020500', side: 'buy', price: '1.05', qty: '2',
+        order_id: 'btc-order-2', position_effect: 'closing',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    // Only the STO open should be imported; the BTC close must be skipped.
+    expect(body.imported.imported).toBe(1);
+    // The one trade written must be for the opening fill (order_id = 'sto-order-1').
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCalls).toHaveLength(1);
+    expect(tradeSetCalls[0][1]).toMatchObject({
+      side: 'STO',
+      alpaca_order_id: 'sto-order-1',
+    });
+  });
+
+  it('lone closing fill (position_effect:closing) → imports nothing', async () => {
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-btc', activity_type: 'FILL', transaction_time: '2026-05-20T14:00:00Z',
+        symbol: 'NVTS260605P00020500', side: 'buy', price: '1.05', qty: '2',
+        order_id: 'btc-order-only', position_effect: 'closing',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(0);
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCalls).toHaveLength(0);
+  });
+
+  it('closing spread pair (position_effect:closing on both legs) → not imported as a new spread', async () => {
+    // BTC of a put credit spread: buy-to-close short + sell-to-close long, both closing.
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'close-1', activity_type: 'FILL', transaction_time: '2026-05-20T15:00:00Z',
+        symbol: 'AAL260529P00012500', side: 'buy', price: '0.16', qty: '1',
+        order_id: 'mleg-close-1', position_effect: 'closing',
+      },
+      {
+        id: 'close-2', activity_type: 'FILL', transaction_time: '2026-05-20T15:00:00Z',
+        symbol: 'AAL260529P00011500', side: 'sell', price: '0.03', qty: '1',
+        order_id: 'mleg-close-1', position_effect: 'closing',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(0);
+    expect(body.imported.spread_pairs_found).toBe(0);
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCalls).toHaveLength(0);
+  });
+
+  it('fill with no position_effect (legacy/missing) → imported as open (safe default)', async () => {
+    // Fills without position_effect must not be silently dropped — they could be
+    // legitimate opens from accounts/endpoints that don't return this field.
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-no-pe', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'NVTS260605P00020500', side: 'sell', price: '2.12', qty: '2',
+        order_id: 'sto-no-pe', // position_effect absent
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(1);
+  });
+});
+
 describe('parseOcc + groupFillsIntoSpreadsAndSingles', () => {
   it('parses standard OCC option symbol', async () => {
     const { parseOcc } = await import('../../api/trades/[action]') as any;
