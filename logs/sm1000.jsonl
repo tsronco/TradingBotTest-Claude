@@ -5787,3 +5787,10 @@
 {"timestamp": "2026-06-17T15:49:46.438965+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 41, "equity": 1000.0}}
 {"timestamp": "2026-06-17T15:49:46.440283+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-17T15:49:47.128714+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-17T15:59:10.941024+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-17T16:00:00.533009+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.075, "min_net_credit": 0.05, "short_mid": 0.335, "long_mid": 0.41}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-17T16:00:01.991312+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "QCOM", "details": {"price": 217.74}}
+{"timestamp": "2026-06-17T16:00:03.374327+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 206.335}}
+{"timestamp": "2026-06-17T16:00:03.374553+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 41, "equity": 1000.0}}
+{"timestamp": "2026-06-17T16:00:03.375799+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-17T16:00:04.354853+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
