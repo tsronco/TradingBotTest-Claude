@@ -153,13 +153,24 @@ function isWrongTypeError(e: unknown): boolean {
 async function migrateStringToList(key: string): Promise<string[]> {
   // Key currently holds a JSON-array string (legacy format).
   // Read it, delete the string key, re-write as a list.
+  //
+  // Accepted one-time risk: if two Lambda invocations both catch WRONGTYPE on
+  // the same legacy key and both reach this point concurrently, the del→rpush
+  // sequence runs twice — pushing the same ids twice into the list. This is a
+  // non-zero-probability but extremely rare event (same month key, same 100ms
+  // cold-start window). The ids themselves (trade:T-… records) are never lost —
+  // they exist independently in KV. readMonthIndex dedups on every read, so
+  // the duplicate list entries are transparently collapsed for all callers.
   const raw = await kv().get<unknown>(key);
   const ids: string[] = Array.isArray(raw) ? (raw as string[]) : [];
+  // Dedup before rpush so a single migration call never introduces duplicates
+  // (defensive belt-and-suspenders; the race scenario is handled by read-dedup).
+  const uniqueIds = [...new Set(ids)];
   await kv().del(key);
-  if (ids.length > 0) {
-    await kv().rpush(key, ...ids);
+  if (uniqueIds.length > 0) {
+    await kv().rpush(key, ...uniqueIds);
   }
-  return ids;
+  return uniqueIds;
 }
 
 /**
@@ -171,7 +182,13 @@ async function migrateStringToList(key: string): Promise<string[]> {
 export async function readMonthIndex(month: string): Promise<string[]> {
   const key = tradesIndexMonthKey(month);
   try {
-    return (await kv().lrange<string>(key, 0, -1)) ?? [];
+    const ids = (await kv().lrange<string>(key, 0, -1)) ?? [];
+    // Dedup preserving first-occurrence order. Belt-and-suspenders against the
+    // concurrent-migration race (two readers both run migrateStringToList on the
+    // same legacy key, pushing ids twice). Trade records themselves survive in
+    // trade:T-… and are always the source of truth; the index is just a lookup
+    // list, so collapsing duplicates here is safe and correct.
+    return [...new Set(ids)];
   } catch (e) {
     if (isWrongTypeError(e)) {
       // Legacy JSON-array string key — migrate and return.

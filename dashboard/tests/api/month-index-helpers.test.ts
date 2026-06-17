@@ -229,3 +229,56 @@ describe('legacy month-index migration', () => {
     expect(ids).toContain('T-2026-04-30-003');
   });
 });
+
+// ── Test 4: concurrent reader migration race (D4 hardening) ──────────────────
+//
+// If two readers both catch WRONGTYPE on the same legacy string key and both
+// run migrateStringToList concurrently, the del→rpush sequence runs twice —
+// each rpush pushes the same ids, so the list ends up with duplicates.
+// readMonthIndex must dedup on read so callers always get a clean id list,
+// regardless of how many times the migration raced.
+describe('readMonthIndex — dedup on read (D4 hardening)', () => {
+  it('two concurrent readers of a legacy key return no duplicate ids', async () => {
+    const month = '2026-03';
+    const key = `trades:index:${month}`;
+    // Seed a legacy JSON-array string key with two ids.
+    kvStore.seedLegacyString(key, ['T-2026-03-01-001', 'T-2026-03-01-002']);
+
+    // Both readers see the legacy string key and both invoke migrateStringToList
+    // concurrently. In the in-process mock the del→rpush runs twice, pushing
+    // the same ids twice into the underlying list.
+    const [idsA, idsB] = await Promise.all([
+      readMonthIndex(month),
+      readMonthIndex(month),
+    ]);
+
+    // Each reader must return exactly 2 unique ids (no duplicates).
+    expect(idsA).toHaveLength(2);
+    expect(idsB).toHaveLength(2);
+    expect(new Set(idsA).size).toBe(2);
+    expect(new Set(idsB).size).toBe(2);
+
+    // A third read also returns clean results (the list in KV may still have
+    // duplicate entries, but readMonthIndex must dedup them on every read).
+    const idsC = await readMonthIndex(month);
+    expect(idsC).toHaveLength(2);
+    expect(idsC).toContain('T-2026-03-01-001');
+    expect(idsC).toContain('T-2026-03-01-002');
+
+    // Insertion order must be preserved (first occurrence wins).
+    expect(idsC[0]).toBe('T-2026-03-01-001');
+    expect(idsC[1]).toBe('T-2026-03-01-002');
+  });
+
+  it('readMonthIndex dedups even when a list key has duplicate entries at rest', async () => {
+    // Directly create a list-type key that already has duplicate ids
+    // (simulates the state left behind by a prior concurrent migration race).
+    const month = '2026-02';
+    const key = `trades:index:${month}`;
+    await kvStore.rpush(key, 'T-2026-02-01-001', 'T-2026-02-01-002', 'T-2026-02-01-001', 'T-2026-02-01-002');
+
+    const ids = await readMonthIndex(month);
+    expect(ids).toHaveLength(2);
+    expect(ids).toEqual(['T-2026-02-01-001', 'T-2026-02-01-002']);
+  });
+});
