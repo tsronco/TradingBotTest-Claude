@@ -16,7 +16,7 @@
     "shares_qty": 100,
     "total_cost": 19430.0,
     "total_premium_collected": 618.0,
-    "total_premium_today": 9.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -87,7 +87,7 @@
     "shares_qty": 100,
     "total_cost": 4287.0,
     "total_premium_collected": 186.0,
-    "total_premium_today": 2.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -131,7 +131,7 @@
     "shares_qty": 100,
     "total_cost": 21980.0,
     "total_premium_collected": 642.0,
-    "total_premium_today": 4.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -224,7 +224,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 237.0,
-    "total_premium_today": 28.0,
+    "total_premium_today": 0.0,
     "cycle_count": 2,
     "cycle_history": [
       {
@@ -267,7 +267,7 @@
     "shares_qty": 100,
     "total_cost": 15366.0,
     "total_premium_collected": 312.0,
-    "total_premium_today": 6.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -295,7 +295,7 @@
     "shares_qty": 100,
     "total_cost": 7973.0,
     "total_premium_collected": 53.0,
-    "total_premium_today": 9.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [
       {

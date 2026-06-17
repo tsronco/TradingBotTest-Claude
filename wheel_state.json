@@ -54,7 +54,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 47.0,
-    "total_premium_today": 4.0,
+    "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Monitoring BAC260710P00050000: $0.08 vs entry $0.07",
@@ -145,7 +145,7 @@
     "shares_qty": 0,
     "total_cost": null,
     "total_premium_collected": 71.0,
-    "total_premium_today": 19.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -191,7 +191,7 @@
     "shares_qty": 100,
     "total_cost": 1586.0,
     "total_premium_collected": 17.0,
-    "total_premium_today": 1.0,
+    "total_premium_today": 0.0,
     "cycle_count": 1,
     "cycle_history": [
       {
