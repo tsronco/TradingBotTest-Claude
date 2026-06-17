@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'Phase 3 batch: settle-window only for bot-opens, no off-hours discovery, CC-expiry cycle count',
+    details:
+      'Money-loss review Phase 3 (R22/R23/R25). R22: the 20-min settling window ' +
+      '(which suppresses the spread loss-stop right after a fresh bot fill) was ' +
+      'also applied to ADOPTED/hand-opened spreads — silencing their loss-stop ' +
+      'for 20 min after the bot merely discovered them. It now only applies to ' +
+      'bot-opened spreads (those with an open_order_id). R23: run_wheel now ' +
+      'checks market-open BEFORE auto-discovery, so it no longer makes position/' +
+      'quote API calls or fires adoption embeds off-hours (the auto-open cold-' +
+      'start path already required market-open). R25: a covered call expiring ' +
+      'worthless now increments cycle_count + appends history like the other ' +
+      'paths (it was the only one that skipped it, leaving cycle reporting off ' +
+      'by one). +4 pytest (585 total).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Phase 3 batch: cap buy-to-close at tracked qty, re-baseline ladder size, don’t clobber a 2nd short',
     details:
       'Money-loss review Phase 3 (R19/R20/R21), all manual/live. R19: ' +

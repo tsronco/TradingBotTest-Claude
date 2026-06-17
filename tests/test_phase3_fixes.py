@@ -107,3 +107,18 @@ def test_discover_keeps_first_short_does_not_clobber_second(monkeypatch, manual_
     # A second discovery pass must not overwrite the tracked contract.
     ws._discover_wheel_state(state)
     assert state["AAL"]["current_contract"] == tracked
+
+
+# ── R23: run_wheel skips discovery (no API calls / embeds) when market closed ─
+
+def test_run_wheel_skips_discovery_when_market_closed(monkeypatch, manual_mode, tmp_path):
+    import json
+    state_file = tmp_path / "wheel_state_manual.json"
+    state_file.write_text(json.dumps({"_meta": {}}))
+    monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(ws, "is_market_open", lambda: False)
+    called = []
+    monkeypatch.setattr(ws, "_discover_wheel_state", lambda state: called.append("disc") or set())
+    monkeypatch.setattr(ws, "get_positions", lambda: called.append("pos") or [])
+    ws.run_wheel()
+    assert called == []  # no discovery / position lookups off-hours

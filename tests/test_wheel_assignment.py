@@ -1179,3 +1179,29 @@ def test_stage2_ambiguous_share_count_holds_not_assigned(monkeypatch):
     assert state["stage"] == 2            # unchanged — not declared assigned
     assert state["shares_qty"] == 100     # unchanged
     assert sold == []                     # no new put/call opened
+
+
+def test_stage2_call_expired_increments_cycle_count(monkeypatch):
+    """R25: a covered call expiring worthless increments cycle_count + appends
+    history, like the assigned and put-expired paths (it used to skip it)."""
+    state = _stage2_state()
+    state["current_contract"] = "TSLA260522C00375000"
+    state["contract_order_id"] = "call-abc"
+    state["contract_entry_price"] = 2.50
+    state["contract_strike"] = 375.0
+    before = state["cycle_count"]
+
+    monkeypatch.setattr(ws, "get_option_position", lambda c: None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"id": oid, "status": "expired", "filled_avg_price": "2.50"})
+    monkeypatch.setattr(ws, "get_stock_position",
+                        lambda s: _stock_position_100("TSLA", avg=340.0))
+    monkeypatch.setattr(ws, "find_best_contract",
+                        lambda sym, t, target, *a: _option_contract("TSLA", strike=375, option_type="call"))
+    monkeypatch.setattr(ws, "place_sell_to_open", lambda c, p, qty=1: {"id": "new-call"})
+
+    ws.handle_stage2("TSLA", state, stock_price=345.0, account=_account())
+
+    assert state["cycle_count"] == before + 1
+    assert any(h["outcome"] == "expired_worthless" and h["type"] == "call"
+               for h in state["cycle_history"])

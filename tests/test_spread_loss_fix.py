@@ -106,7 +106,16 @@ def test_settling_window_off_when_disabled(monkeypatch):
 
 def test_settling_window_suppresses_recent_open(monkeypatch):
     monkeypatch.setattr(ws, "SPREAD_SETTLE_MINUTES", 20)
-    assert ws._within_settling_window({"opened_at": _now_iso()}) is True
+    assert ws._within_settling_window(
+        {"opened_at": _now_iso(), "open_order_id": "ord-1"}) is True
+
+
+def test_settling_window_not_applied_to_adopted_spread(monkeypatch):
+    # R22: an adopted/hand-opened spread (no open_order_id) is NOT suppressed,
+    # even with a fresh opened_at — its loss-stop stays live.
+    monkeypatch.setattr(ws, "SPREAD_SETTLE_MINUTES", 20)
+    assert ws._within_settling_window(
+        {"opened_at": _now_iso(), "open_order_id": None}) is False
 
 
 def test_settling_window_does_not_suppress_when_open_time_unknown(monkeypatch):

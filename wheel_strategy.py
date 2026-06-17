@@ -1884,6 +1884,13 @@ def _within_settling_window(sym_state) -> bool:
     """
     if not SPREAD_SETTLE_MINUTES:
         return False
+    # R22 (2026-06-16): the settling window only makes sense for a freshly-FILLED
+    # BOT-opened spread (suppress an insta-stop on a fresh fill's quote noise).
+    # An ADOPTED / hand-opened spread has no open_order_id — its `opened_at` is
+    # just the adoption timestamp, and the position may be old — so its loss-stop
+    # must NOT be suppressed for 20 minutes after we happen to discover it.
+    if not sym_state.get("open_order_id"):
+        return False
     # Unknown open time must NOT suppress the stop — _spread_order_age_hours
     # returns 0.0 on a missing/unparseable opened_at, which would otherwise read
     # as "just opened" forever and disable the stop entirely. Only a genuinely
@@ -2580,6 +2587,19 @@ def handle_stage2(symbol, sym_state, stock_price, account):
                           details={"underlying": symbol, "premium": premium_dollars,
                                    "total_premium": sym_state["total_premium_collected"],
                                    "contracts": contracts_held})
+                # R25 (2026-06-16): increment cycle_count + append history like
+                # the assigned and put-expired paths do (the CC-expired path was
+                # the only one that skipped it, leaving cycle reporting off by one
+                # whenever a covered call expired worthless).
+                sym_state["cycle_count"]          += 1
+                sym_state["cycle_history"].append({
+                    "cycle": sym_state["cycle_count"],
+                    "type": "call",
+                    "symbol": contract,
+                    "outcome": "expired_worthless",
+                    "premium": premium_dollars,
+                    "contracts": contracts_held,
+                })
                 sym_state["current_contract"]     = None
                 sym_state["contract_entry_price"] = None
                 sym_state["last_action"] = f"Call expired worthless ({contracts_held}× contracts). +${premium_dollars:.2f}. Selling new call."
@@ -3706,6 +3726,16 @@ def run_wheel():
     global SYMBOLS
     try:
         state = load_state()
+
+        # R23 (2026-06-16): check market-open BEFORE auto-discovery so we don't
+        # make position/quote API calls or fire adoption embeds off-hours. The
+        # auto-open cold-start path below already requires is_market_open(), so
+        # nothing that should run while the market is open is skipped here.
+        if not is_market_open():
+            log(f"Market closed — skipping wheel cycle (no discovery this cycle).")
+            log_event(LOG_STREAM, "wheel_strategy.py", "cycle_skipped_market_closed",
+                      result="skipped", details={"mode": MODE})
+            return
 
         # Manual mode: build SYMBOLS from live Alpaca positions instead of
         # the static list. Adopts any user-opened option/share positions

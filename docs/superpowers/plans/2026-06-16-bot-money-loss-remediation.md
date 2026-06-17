@@ -749,10 +749,10 @@ ordering, the hedge hand-off, and PDT routing.
 | R19 | `place_buy_to_close` full-position close | 3 | ✅ DONE |
 | R20 | `_available_qty` seed vs reconcile | 3 | ✅ DONE |
 | R21 | Single-leg adoption overwrite | 3 | ✅ DONE |
-| R22 | Adopted-spread settle window | 3 | NOT STARTED |
-| R23 | Discovery before market-open | 3 | NOT STARTED |
+| R22 | Adopted-spread settle window | 3 | ✅ DONE |
+| R23 | Discovery before market-open | 3 | ✅ DONE |
 | R24 | STO mid won't fill | 3 | NOT STARTED |
-| R25 | cycle_count CC off-by-one | 3 | NOT STARTED |
+| R25 | cycle_count CC off-by-one | 3 | ✅ DONE |
 | R26 | TSLA hardcoded cycle | 3 | NOT STARTED |
 | R27 | entry_price KeyError | 3 | NOT STARTED |
 | R28 | round_strike off-grid | 3 | NOT STARTED |
