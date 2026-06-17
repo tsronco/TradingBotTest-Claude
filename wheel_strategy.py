@@ -315,6 +315,10 @@ def _empty_spread_state() -> dict:
         # leave these None so _resolve_pending_spread short-circuits to
         # "gone" and the existing position/orphan path runs unchanged.
         "open_order_id": None,
+        # R13: the client_order_id we stamped on the opening mleg (R1). Alpaca
+        # echoes it; we keep it so a lost/None numeric order id doesn't make
+        # _resolve_pending_spread misread a still-working open as "gone".
+        "open_client_order_id": None,
         "open_limit_credit": None,
         "total_premium_collected": 0.0,
         "cycle_count": 0,
@@ -1707,11 +1711,17 @@ def round_to_nearest_5(price):
     return round(price / 5) * 5
 
 
-def get_option_quote(contract_symbol):
+def get_option_quote(contract_symbol, require_bid=True):
     """Fetch the current bid/ask for an option contract.
 
     Returns dict {"bid": float, "ask": float} or None if unavailable.
     Note: Alpaca options data lives under v1beta1, NOT v2 (stock data uses v2).
+
+    require_bid=False (R15): accept a $0 bid as long as the ask > 0. Used ONLY
+    for a LONG spread leg — we BUY it, so a positive ask is all that's needed,
+    and a far-OTM long hedge legitimately shows bid $0.00 / ask $0.05. The
+    default True keeps every other caller strict: a SHORT leg we must be able to
+    sell needs a real two-sided market.
     """
     try:
         resp = _alpaca_request(
@@ -1728,7 +1738,7 @@ def get_option_quote(contract_symbol):
             q = quotes[contract_symbol]
             bid = float(q.get("bp") or 0)
             ask = float(q.get("ap") or 0)
-            if bid > 0 and ask > 0:
+            if ask > 0 and (bid > 0 or not require_bid):
                 return {"bid": bid, "ask": ask}
     except Exception as e:
         log(f"get_option_quote({contract_symbol}) failed: {e}")
@@ -1985,10 +1995,17 @@ def _resolve_pending_spread(sym_state):
       "filled"  — opening order filled; legs are now/imminently positions.
       "gone"    — order canceled/rejected/expired/404/no id.
     """
-    order_id = sym_state.get("open_order_id")
-    if not order_id:
+    order_id   = sym_state.get("open_order_id")
+    client_oid = sym_state.get("open_client_order_id")
+    if not order_id and not client_oid:
+        # Adopted/hand-opened spread (neither id) → existing position/orphan path.
         return "gone"
-    order = get_order(order_id)
+    # R13: if the numeric id was lost/None from the open response but we kept the
+    # client_order_id (R1 stamps it on every order POST; Alpaca echoes it),
+    # resolve the pending order by that instead of misreading a still-working
+    # open as "gone" — which would prematurely delete state and fire a
+    # misleading "did not fill" embed.
+    order = get_order(order_id) if order_id else _get_order_by_client_id(client_oid)
     if order is None:
         return "gone"
     status = order.get("status", "")
@@ -3251,8 +3268,22 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
     # every cycle; the remaining single-stock candidates fill any slots the
     # bypass symbols didn't claim (e.g. when none clears the c/w + risk gates).
     bypass_first = [s for s in sorted_syms if s in bypass_syms]
+    # R12 (2026-06-16): percentile ranks are only meaningful on a pool big
+    # enough to rank. On a degenerate 1-2 name eligible pool, normalize_scores
+    # hands the single best candidate a 100 regardless of its absolute quality,
+    # so `norm[s] >= threshold` rubber-stamps it. Require a minimum eligible
+    # pool before trusting the percentile floor for SINGLE STOCKS; below it,
+    # hold single-stock opens this cycle (the absolute credit/width + trend +
+    # risk gates still protect, and the curated bypass ETFs are unaffected —
+    # they don't rely on the percentile). None = off (non-SM modes unchanged).
+    min_pool = cfg.get("wheelability_min_pool")
+    pool_ok = (min_pool is None) or (len(raw) >= int(min_pool))
+    if not pool_ok:
+        log(f"[auto-spread] eligible pool {len(raw)} < wheelability_min_pool "
+            f"{min_pool} — percentile rank not meaningful; holding single-stock "
+            f"opens this cycle (bypass ETFs still eligible)")
     others       = [s for s in sorted_syms
-                    if s not in bypass_syms and norm[s] >= threshold]
+                    if s not in bypass_syms and norm[s] >= threshold and pool_ok]
     eligible_syms = bypass_first + others
     if not eligible_syms:
         log(f"[auto-spread] best remaining wheelability < {threshold} "
@@ -3358,7 +3389,10 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                 continue
             # Need the long quote BEFORE the risk check: the gate now uses
             # net-of-credit max loss, so net_credit must be known here.
-            long_q = get_option_quote(long_contract["symbol"])
+            # require_bid=False (R15): a far-OTM long hedge legitimately shows a
+            # $0 bid; we BUY it, so a positive ask is enough. Skipping these
+            # made sm500 cheap-underlying spreads find no eligible width.
+            long_q = get_option_quote(long_contract["symbol"], require_bid=False)
             if not long_q:
                 continue
             long_mid = (long_q["bid"] + long_q["ask"]) / 2.0
@@ -3523,6 +3557,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
             continue
 
         order_id = order.get("id", "?") if isinstance(order, dict) else "?"
+        client_oid = order.get("client_order_id") if isinstance(order, dict) else None
 
         # Seed spread_active state so the inherited manual handle_spread
         # adopts and manages exits on subsequent cycles (no new exit code).
@@ -3538,6 +3573,7 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
         ss["width"]      = width
         ss["opened_at"]  = datetime.utcnow().isoformat() + "Z"
         ss["open_order_id"] = order_id if order_id != "?" else None
+        ss["open_client_order_id"] = client_oid  # R13: resolve fallback
         ss["open_limit_credit"] = limit_credit
         ss["last_action"] = (
             f"Auto-opened put credit spread short=${short_strike:.2f} "
@@ -3568,6 +3604,12 @@ def _auto_open_spread(state: dict, account: dict, cfg: dict) -> None:
                       "max_loss": max_loss, "expiration": expiration,
                   })
         opens_this_cycle += 1
+        # R14 (2026-06-16): the spread just opened reserves its full defined-risk
+        # collateral (width × 100). When max_opens_per_cycle > 1, decrement the
+        # local BP estimate so the NEXT open's bp_fits check sees the consumed
+        # buying power instead of the stale start-of-cycle value (which could
+        # wave through an over-leveraged second open that Alpaca then 403s).
+        options_bp = max(0.0, options_bp - width * 100.0)
         if opens_this_cycle >= max_opens:
             return
         # Otherwise keep iterating — manual mode runs with

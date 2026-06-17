@@ -1423,3 +1423,39 @@ def test_handle_spread_invalid_net_credit_skips_not_crash(monkeypatch, apply_sm_
     ws.handle_spread(state, "AMD", account={"cash": 1000})  # must not raise
     assert "hit" not in closed
     assert "AMD" in state  # state not deleted
+
+
+# ── R13: resolve a pending bot-opened spread by client_order_id when the
+#         numeric order id is lost (prevents misreading it as "gone") ──────────
+
+def test_resolve_pending_spread_adopted_both_ids_none():
+    # Adopted/hand-opened spread (neither id) → existing position/orphan path.
+    assert ws._resolve_pending_spread(
+        {"open_order_id": None, "open_client_order_id": None}) == "gone"
+
+
+def test_resolve_pending_spread_uses_client_id_when_numeric_lost(monkeypatch, apply_sm_mode):
+    from datetime import datetime
+    apply_sm_mode("sm1000")
+    sym = {"open_order_id": None, "open_client_order_id": "sm1000-abc",
+           "opened_at": datetime.utcnow().isoformat() + "Z"}
+    monkeypatch.setattr(ws, "_get_order_by_client_id",
+                        lambda c: {"status": "accepted"} if c == "sm1000-abc" else None)
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: (_ for _ in ()).throw(AssertionError("should use client id")))
+    assert ws._resolve_pending_spread(sym) == "pending"
+
+
+def test_resolve_pending_spread_client_id_filled(monkeypatch, apply_sm_mode):
+    apply_sm_mode("sm1000")
+    sym = {"open_order_id": None, "open_client_order_id": "sm1000-abc"}
+    monkeypatch.setattr(ws, "_get_order_by_client_id", lambda c: {"status": "filled"})
+    assert ws._resolve_pending_spread(sym) == "filled"
+
+
+def test_resolve_pending_spread_numeric_id_preferred(monkeypatch, apply_sm_mode):
+    apply_sm_mode("sm1000")
+    sym = {"open_order_id": "ord-1", "open_client_order_id": "sm1000-abc"}
+    monkeypatch.setattr(ws, "get_order",
+                        lambda oid: {"status": "filled"} if oid == "ord-1" else None)
+    assert ws._resolve_pending_spread(sym) == "filled"

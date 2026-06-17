@@ -31,6 +31,78 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Earnings guard now blocks same-day prints (completes Phase 2b)',
+    details:
+      'Money-loss review finding R16 (Phase 2b). yfinance often dates an ' +
+      'earnings entry at midnight UTC; the old filter kept only timestamps ' +
+      '>= now, so by the afternoon a same-day print was dropped as "past" and ' +
+      'the SM opener could sell a spread straight into that evening\'s earnings. ' +
+      '_next_earnings_dt now filters future earnings on the DATE, and ' +
+      'next_earnings_within compares whole days (same-day = blocked, through the ' +
+      'window). Deferred (reliability, not money-loss): a persistent earnings ' +
+      'cache to survive yfinance rate-limits (needs a committed cache file + ' +
+      'workflow step) and adding an earnings gate to the cons/agg CSP path ' +
+      '(behavior change — needs sign-off). Completes Phase 2b (R12-R16). ' +
+      '+4 pytest (571 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Auto-open: accept a $0-bid long hedge leg (don’t skip valid cheap spreads)',
+    details:
+      'Money-loss review finding R15 (Phase 2b). get_option_quote rejected any ' +
+      'leg with a $0 bid OR $0 ask — correct for a SHORT leg we must be able to ' +
+      'sell, but a far-OTM long hedge legitimately shows bid $0.00 / ask $0.05, ' +
+      'and we BUY the long (only the ask matters). Skipping those made sm500 ' +
+      'cheap-underlying spreads find no eligible width. get_option_quote gained ' +
+      'a require_bid flag (default True keeps every caller strict); the auto-open ' +
+      'long-leg fetch passes require_bid=False. SM accounts. +2 pytest (567 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Multi-open cycle: decrement buying power after each spread (no over-leverage)',
+    details:
+      'Money-loss review finding R14 (Phase 2b). When a cycle opens more than ' +
+      'one spread (max_opens_per_cycle > 1), the buying-power check reused the ' +
+      'start-of-cycle options_bp for every open — so the first open\'s collateral ' +
+      'wasn\'t reflected and a second open could pass a BP gate it shouldn\'t ' +
+      '(Alpaca would then 403 it). The local BP estimate is now decremented by ' +
+      'the spread\'s collateral (width × 100) after each open. SM accounts (manual ' +
+      'too if auto-open is re-enabled — it runs max_opens_per_cycle=2). +1 pytest (565 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'Auto-opened spread: resolve a pending open by client_order_id if the numeric id is lost',
+    details:
+      'Money-loss review finding R13 (Phase 2b). If Alpaca ever returned an ' +
+      'auto-opened spread order with a missing/null numeric id, ' +
+      '_resolve_pending_spread misread the still-working open as "gone" — ' +
+      'prematurely deleting state and firing a misleading "did not fill" embed ' +
+      '(duplicate orders were already blocked by _working_spread_order_exists). ' +
+      'The open now also captures the client_order_id that R1 stamps on every ' +
+      'order (Alpaca echoes it), and resolves the pending order by it when the ' +
+      'numeric id is missing. SM accounts. +4 pytest (564 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
+    title: 'SM auto-open: don’t trust the wheelability gate on a tiny candidate pool',
+    details:
+      'Money-loss review finding R12 (Phase 2b). normalize_scores percentile-' +
+      'ranks the cycle’s candidates, but it always hands the single BEST one a ' +
+      '100 — so the wheelability floor never actually blocks the #1 pick (the ' +
+      'one that opens) regardless of pool size. On a degenerate 1-2 name pool ' +
+      'that means a mediocre name gets rubber-stamped. New wheelability_min_pool ' +
+      '(5 on the SM + manual auto-open blocks) holds single-stock opens when the ' +
+      'eligible pool is too small to rank; the absolute credit/width + trend + ' +
+      'risk gates still protect, and the curated bypass ETFs are unaffected. ' +
+      'SM accounts (manual too if auto-open is ever re-enabled). +3 pytest (560 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Spread state hardening: net_credit guard + adopted-spread sanity clamp',
     details:
       'Money-loss review findings R10/R11 (Phase 2, completes it). R10: a ' +

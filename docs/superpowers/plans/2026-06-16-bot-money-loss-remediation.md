@@ -371,7 +371,14 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Skewed per-leg entries → assert `net_credit` is validated.
 
 ### R12 — `normalize_scores` gate meaningless for small pools 🟡 Medium  [S14]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). Root cause refined: `normalize_scores` always
+  gives the BEST candidate 100, so the wheelability floor never blocks the #1
+  pick (the one that opens) at any `n` — the real gap is a degenerate 1-2 name
+  pool. New `wheelability_min_pool` (config; 5 on SM + manual auto-open blocks,
+  None elsewhere) holds single-stock opens when the eligible pool is too small to
+  rank; the absolute credit/width + trend + risk gates still protect and the
+  curated bypass ETFs are unaffected. +3 tests. SM (+manual if auto-open
+  re-enabled).
 - **Location:** `wheel_strategy.py:~2776-2787` (`i/(n-1)*100`).
 - **Scenario:** When only 2 candidates survive filters, scores are forced to 0
   and 100; the `wheelability_min` (75-80) is auto-cleared by the "winner"
@@ -382,7 +389,12 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** 2-name pool with poor raw scores → assert no open.
 
 ### R13 — Null order id → reopen loop 🟡 Medium  [S24]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). The opener already blocks a duplicate via
+  `_working_spread_order_exists`; the residual harm was misreading a still-
+  pending open as "gone" (premature state delete + misleading embed) when the
+  numeric id was lost. Now the open captures the echoed `client_order_id` (R1
+  stamps it) into `open_client_order_id`, and `_resolve_pending_spread` resolves
+  by it when the numeric id is missing. +4 tests. SM.
 - **Location:** `wheel_strategy.py:~3332-3347` (`open_order_id = id if != "?" else None`).
 - **Scenario:** Alpaca returns `{"id": null}` → `open_order_id=None` → next cycle
   `handle_spread` skips pending-resolution → orphan handler sees both legs absent
@@ -394,7 +406,11 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Null-id open response → assert no reopen, state reconciles.
 
 ### R14 — Multi-open cycle reuses stale buying power 🟡 Medium  [O5, S13]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). After each successful open, the local
+  `options_bp` estimate is decremented by the spread's collateral (`width × 100`)
+  so the next open's `bp_fits` sees the consumed BP instead of the stale
+  start-of-cycle value. +1 test. SM (and manual if auto-open re-enabled — manual
+  runs `max_opens_per_cycle=2`).
 - **Location:** `wheel_strategy.py:~3005-3006` (BP read once), risk checks reuse
   it across opens; `_auto_open_spread` equity is fresh but `options_bp` is stale.
 - **Scenario:** `max_opens_per_cycle > 1` (manual was 2 before auto-open was
@@ -407,7 +423,11 @@ direction → status.** Source tags reference the original reviewer findings
   open's consumption.
 
 ### R15 — Zero-bid long legs skipped 🟡 Medium  [S34]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE (2026-06-16). `get_option_quote` gained `require_bid`
+  (default True keeps every caller strict); the auto-open long-leg fetch passes
+  `require_bid=False` so a far-OTM long hedge with a $0 bid / positive ask is
+  accepted (we BUY it — only the ask matters). Unblocks sm500 cheap-underlying
+  widths. +2 tests (plus mock-signature updates to opener tests). SM.
 - **Location:** `wheel_strategy.py:~1585-1590` (`get_option_quote` returns None if
   bid OR ask is 0).
 - **Scenario:** A far-OTM long leg legitimately has bid $0.00 / ask $0.05 →
@@ -420,7 +440,18 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Zero-bid/positive-ask long → assert the width is considered.
 
 ### R16 — Earnings gaps 🟡 Med/Low  [O7, S7]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE — money bug (2026-06-16). The same-day-earnings hole is
+  fixed: `_next_earnings_dt` now filters future earnings on the DATE (so a
+  midnight-dated same-day print isn't dropped as "past" by the afternoon), and
+  `next_earnings_within` compares whole days (`0 <= days_until <= days`), so a
+  same-day earnings blocks. +4 tests. SM auto-open.
+- **DEFERRED (not money-loss):** (a) persistent earnings cache to survive
+  yfinance rate-limits — it's a *reliability* fix (fail-closed means a rate-limit
+  causes a NO-trade, never a bad trade) and needs a committed cache file + a
+  workflow commit step (infra); tracked separately. (b) Adding an earnings gate
+  to the cons/agg `_sell_new_put` CSP path — a behavior change to those accounts
+  that needs Tim's explicit sign-off (live is already safe via
+  `wheel_skip_new_puts`).
 - **Location:** `earnings.py:44-45` (`0 <= delta <= days*86400`, same-day-past
   returns not-blocked); `_sell_new_put` (cons/agg CSP) has **no** earnings check.
 - **Scenario:** (a) An earnings timestamp a few hours past (yfinance midnight-
@@ -708,11 +739,11 @@ ordering, the hedge hand-off, and PDT routing.
 | R9 | DTE-floor `get_latest_price` unguarded | 2 | ✅ DONE |
 | R10 | `net_credit=None` crash | 2 | ✅ DONE |
 | R11 | Adopted-spread net_credit trust | 2 | ✅ DONE |
-| R12 | `normalize_scores` small-pool gate | 2b | NOT STARTED |
-| R13 | Null order id reopen loop | 2b | NOT STARTED |
-| R14 | Multi-open stale BP | 2b | NOT STARTED |
-| R15 | Zero-bid long leg skipped | 2b | NOT STARTED |
-| R16 | Earnings window / cons-agg CSP gate | 2b | NOT STARTED |
+| R12 | `normalize_scores` small-pool gate | 2b | ✅ DONE |
+| R13 | Null order id reopen loop | 2b | ✅ DONE |
+| R14 | Multi-open stale BP | 2b | ✅ DONE |
+| R15 | Zero-bid long leg skipped | 2b | ✅ DONE |
+| R16 | Earnings window / cons-agg CSP gate | 2b | ✅ DONE (money bug; cache + CSP gate deferred) |
 | R17 | Multi-contract market_value/100 | 3 | NOT STARTED |
 | R18 | Stage-2 <100 share misdetect | 3 | NOT STARTED |
 | R19 | `place_buy_to_close` full-position close | 3 | NOT STARTED |

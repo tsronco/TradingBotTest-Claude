@@ -161,6 +161,10 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
     cfg["max_underlying_price"] = max_underlying_price
+    # Default the R12 minimum-pool gate OFF for the shared harness — most tests
+    # use tiny 1-2 name pools to isolate other behavior. The gate is exercised
+    # explicitly by the dedicated R12 tests below.
+    cfg["wheelability_min_pool"] = None
 
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": str(equity),
@@ -186,7 +190,7 @@ def _wire_sm(monkeypatch, *, equity, options_bp,
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
 
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: quotes.get(occ))
+                        lambda occ, **_k: quotes.get(occ))
 
     # Trend fetcher: return flat history so is_above_sma20 returns True
     # (all real prices in these tests are > 1.0, so synthetic flat 1.0 works)
@@ -876,6 +880,7 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
     ws.AUTO_OPEN_SPREADS = True
     import config
     cfg = dict(config.get_mode("sm1000"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["max_underlying_price"] = None
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": "1000", "options_buying_power": "2000"})
@@ -890,7 +895,7 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
         cands = {k[1]: v for k, v in contracts.items() if k[0] == u}
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
-    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ, **_k: quotes.get(occ))
     # Trend fetcher: synthetic flat history
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [1.0] * 20)
@@ -1073,6 +1078,7 @@ def test_auto_open_spread_skips_symbols_below_sma20(monkeypatch):
     skipped — even if all other gates pass."""
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["trend_filter"] = True
 
     state = {"_meta": {}}
@@ -1108,6 +1114,7 @@ def test_auto_open_spread_proceeds_above_sma20(monkeypatch):
     may block downstream — we only verify the trend gate doesn't.)"""
     ws.AUTO_OPEN_SPREADS = True
     cfg = dict(SM_CFG)
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["trend_filter"] = True
 
     state = {"_meta": {}}
@@ -1243,6 +1250,7 @@ def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
     find_contract_by_delta — find_best_contract is NOT called for the
     short. Long leg still uses find_best_contract (width-walk)."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = -0.40
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["trend_filter"] = False
@@ -1283,7 +1291,7 @@ def test_auto_open_uses_delta_selection_when_configured(monkeypatch):
         "QQQ260618P00705000": {"bid": 9.41,  "ask": 9.73},
         "QQQ260618P00710000": {"bid": 11.05, "ask": 11.06},
     }
-    monkeypatch.setattr(ws, "get_option_quote", lambda occ: quotes.get(occ))
+    monkeypatch.setattr(ws, "get_option_quote", lambda occ, **_k: quotes.get(occ))
 
     opened = []
     monkeypatch.setattr(ws, "_open_spread_mleg",
@@ -1309,6 +1317,7 @@ def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
     """SM/cons/agg/live config (no short_put_target_delta) → falls back to
     the 10%-OTM strike rule via find_best_contract for the short leg."""
     cfg = dict(SM_CFG)  # sm1000 — no short_put_target_delta key
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate
     cfg["wheelability_min"] = 0
     cfg["trend_filter"] = False
 
@@ -1333,7 +1342,7 @@ def test_auto_open_legacy_otm_used_when_no_delta_target(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1355,6 +1364,7 @@ def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
     construction loop. Other gates must still gate — but the wheelability
     floor is skipped for these symbols."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["short_put_target_delta"] = None  # use strike path for simplicity
     cfg["wheelability_min"] = 80
@@ -1381,7 +1391,7 @@ def test_auto_open_bypass_symbol_with_low_score_still_attempted(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1402,6 +1412,7 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
     (legacy behavior). This is the regression check: I did not accidentally
     open the gate for everything when adding bypass."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["short_put_target_delta"] = None
     cfg["wheelability_min"] = 80
@@ -1432,7 +1443,7 @@ def test_auto_open_non_bypass_low_score_still_blocked(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [10.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.55})
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.55})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1536,6 +1547,7 @@ def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
     expiration. This is the AAL diagonal regression check."""
     import config
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = -0.40
     cfg["wheelability_bypass_symbols"] = ["AAL"]
     cfg["trend_filter"] = False
@@ -1566,7 +1578,7 @@ def test_auto_open_long_leg_pinned_to_short_expiration(monkeypatch):
     monkeypatch.setattr(ws, "get_recent_daily_closes",
                         lambda s, n=20: [13.0] * 20)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.56, "ask": 0.60})
+                        lambda occ, **_k: {"bid": 0.56, "ask": 0.60})
     monkeypatch.setattr(ws, "_open_spread_mleg",
                         lambda *a, **kw: {"id": "ord-1"})
     monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
@@ -1648,6 +1660,7 @@ def test_auto_open_manual_opens_two_per_cycle(monkeypatch):
     spreads in a single cycle (e.g. one single-stock + one bypass ETF).
     Verifies opens_this_cycle counter respects the cap and stops at 2."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["wheelability_min"] = 0  # let everything through
     cfg["trend_filter"] = False
     cfg["short_put_target_delta"] = None  # use strike-based path
@@ -1683,7 +1696,7 @@ def test_auto_open_manual_opens_two_per_cycle(monkeypatch):
         return cands[best]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1755,6 +1768,7 @@ def test_auto_open_bypass_symbols_tried_first(monkeypatch):
     attempts every cycle instead of being starved by higher-scoring
     single stocks consuming all slots."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = None  # strike path for easier mocking
     cfg["wheelability_bypass_symbols"] = ["QQQ"]
     cfg["wheelability_min"] = 80
@@ -1788,7 +1802,7 @@ def test_auto_open_bypass_symbols_tried_first(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ or "648000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ or "648000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1820,6 +1834,7 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
     cap of 4, only ONE more spread should open this cycle (filling the
     4th slot), then break — not blow past cap to 5."""
     cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["short_put_target_delta"] = None
     cfg["wheelability_bypass_symbols"] = []  # disable bypass for this test
     cfg["wheelability_min"] = 0
@@ -1862,7 +1877,7 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
         return cands[min(cands, key=lambda s: abs(s - ts))]
     monkeypatch.setattr(ws, "find_best_contract", fake_find)
     monkeypatch.setattr(ws, "get_option_quote",
-                        lambda occ: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
                                     else {"bid": 0.15, "ask": 0.25})
     monkeypatch.setattr(earnings_mod, "next_earnings_within",
                         lambda s, d: False)
@@ -1883,3 +1898,123 @@ def test_auto_open_inline_concurrency_cap_stops_mid_cycle(monkeypatch):
     # max_opens=2 but cap=4 with 3 already open → only 1 new spread fits
     assert len(open_order) == 1, \
         f"inline cap must stop after 1 open (3 existing + 1 new = 4); got {len(open_order)}"
+
+
+# ── R12: minimum eligible-pool guard for the percentile wheelability floor ──
+
+def _tiny_pool_wiring(monkeypatch):
+    contracts = {
+        ("CHEAP", 18.0): _contract("CHEAP260612P00018000", 18.0),
+        ("CHEAP", 17.0): _contract("CHEAP260612P00017000", 17.0),
+    }
+    quotes = {
+        "CHEAP260612P00018000": {"bid": 0.55, "ask": 0.65},  # short mid 0.60
+        "CHEAP260612P00017000": {"bid": 0.20, "ask": 0.30},  # long mid 0.25
+    }
+    return _wire_sm(
+        monkeypatch, equity=1000, options_bp=2000,
+        scored={"CHEAP": {"score": 9.0, "price": 20.0},
+                "OTHER": {"score": 3.0, "price": 50.0}},  # 2-name eligible pool
+        earnings_within={}, contracts_by_strike=contracts, quotes=quotes,
+    )
+
+
+def test_auto_open_holds_single_stock_on_tiny_pool(monkeypatch):
+    """R12: a 2-name pool can't rank, so the percentile floor is meaningless —
+    with wheelability_min_pool=5 the single-stock open is held."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg["wheelability_min_pool"] = 5
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert opened == []
+
+
+def test_auto_open_opens_when_pool_meets_minimum(monkeypatch):
+    """Control: same 2-name pool, but wheelability_min_pool=2 is satisfied →
+    the single-stock open proceeds (the gate only blocks a too-small pool)."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg["wheelability_min_pool"] = 2
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1
+
+
+def test_auto_open_pool_gate_off_by_default(monkeypatch):
+    """No wheelability_min_pool key (non-SM / unset) → gate inactive, opens as
+    before even on a tiny pool."""
+    cfg, opened = _tiny_pool_wiring(monkeypatch)
+    cfg.pop("wheelability_min_pool", None)
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "2000"}, cfg)
+    assert len(opened) == 1
+
+
+def test_auto_open_second_open_respects_consumed_bp(monkeypatch):
+    """R14: with max_opens_per_cycle=2 but BP only enough for ONE spread's
+    collateral, the second open is blocked because the first open's collateral
+    is decremented from the local BP estimate (pre-fix both would open)."""
+    cfg = dict(config.get_mode("manual"))
+    cfg["wheelability_min_pool"] = None
+    cfg["wheelability_min"] = 0
+    cfg["trend_filter"] = False
+    cfg["short_put_target_delta"] = None
+    cfg["min_credit_to_width_pct"] = None
+    cfg["max_risk_pct_equity"] = 0.99  # risk gate is not the constraint here
+
+    scored = {"AAA": {"score": 100.0, "price": 20.0},
+              "BBB": {"score": 99.0,  "price": 20.0}}
+    contracts_by_strike = {
+        ("AAA", 18.0): _contract("AAA260612P00018000", 18.0),
+        ("AAA", 17.0): _contract("AAA260612P00017000", 17.0),
+        ("BBB", 18.0): _contract("BBB260612P00018000", 18.0),
+        ("BBB", 17.0): _contract("BBB260612P00017000", 17.0),
+    }
+    monkeypatch.setattr(screener_core, "score_candidate",
+                        lambda s, free_bp, **kw: scored.get(s))
+    monkeypatch.setattr(screener_core, "build_universe",
+                        lambda u, w: sorted(scored.keys()))
+    # equity high (risk OK); options_bp only fits one $100-collateral spread
+    monkeypatch.setattr(ws, "get_account",
+                        lambda: {"equity": "10000", "options_buying_power": "150"})
+
+    def fake_find(u, t, ts, dmin, dmax, exp_date=None):
+        cands = {k[1]: v for k, v in contracts_by_strike.items() if k[0] == u}
+        return cands[min(cands, key=lambda s: abs(s - ts))] if cands else None
+    monkeypatch.setattr(ws, "find_best_contract", fake_find)
+    monkeypatch.setattr(ws, "get_option_quote",
+                        lambda occ, **_k: {"bid": 0.50, "ask": 0.60} if "18000" in occ
+                                    else {"bid": 0.15, "ask": 0.25})
+    monkeypatch.setattr(earnings_mod, "next_earnings_within", lambda s, d: False)
+    monkeypatch.setattr(ws, "get_recent_daily_closes", lambda s, n=20: [10.0] * 20)
+
+    opened = []
+    monkeypatch.setattr(ws, "_open_spread_mleg",
+                        lambda s, l, q, nc, limit_credit=None: opened.append(s) or {"id": "ord"})
+    monkeypatch.setattr(ws, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log_event", lambda *a, **kw: None)
+    monkeypatch.setattr(ws, "log", lambda *a, **kw: None)
+
+    ws.AUTO_OPEN_SPREADS = True
+    ws._auto_open_spread({"_meta": {}}, {"options_buying_power": "150"}, cfg)
+    assert len(opened) == 1  # second open blocked by the consumed-BP decrement
+
+
+# ── R15: long-leg quote tolerates a $0 bid (positive ask is enough) ──────────
+
+class _QResp:
+    def __init__(self, payload):
+        self._p = payload
+    def raise_for_status(self):
+        pass
+    def json(self):
+        return self._p
+
+
+def test_get_option_quote_require_bid_false_accepts_zero_bid(monkeypatch):
+    payload = {"quotes": {"X": {"bp": 0, "ap": 0.05}}}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **k: _QResp(payload))
+    assert ws.get_option_quote("X", require_bid=False) == {"bid": 0.0, "ask": 0.05}
+    assert ws.get_option_quote("X") is None  # default strict still rejects a $0 bid
+
+
+def test_get_option_quote_rejects_zero_ask_even_when_lenient(monkeypatch):
+    payload = {"quotes": {"X": {"bp": 0, "ap": 0}}}
+    monkeypatch.setattr(ws, "_alpaca_request", lambda *a, **k: _QResp(payload))
+    assert ws.get_option_quote("X", require_bid=False) is None
