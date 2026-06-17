@@ -31,6 +31,29 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D11: past-expiry STO backstop no longer fabricates an expired-worthless win without confirming settlement',
+    details:
+      'D11 money-loss remediation. When Alpaca\'s OPEXP/OPASN settlement activity didn\'t post within\n' +
+      'the 3-day backstop window, the cron silently booked the short option as "expired worthless"\n' +
+      '(full premium kept = a win) regardless of whether it was actually assigned. If the contract\n' +
+      'was ITM and assigned, the 100 delivered shares had no trade record and were invisible to\n' +
+      'exposure and P&L. Additionally, a null filled_avg_price produced realized_pnl=0 (misleading\n' +
+      'breakeven) instead of the real premium.\n\n' +
+      'Fix: conservative backstop posture. When settlement is unconfirmed past the backstop:\n' +
+      '(1) Null filled_avg_price → leave trade open + log [D11] warning (no silent P&L=0 booking).\n' +
+      '(2) Cross-check /v2/positions/{underlying} for assignment evidence. If the position has\n' +
+      '    qty ≥ 100 × contracts, book \'assigned\' so the spawn fires and the delivered shares get\n' +
+      '    a trade record. If no position (404) or insufficient qty, leave the trade OPEN and log\n' +
+      '    a visible warning rather than fabricating a win.\n\n' +
+      'The confirmed-settlement path (OPEXP/OPASN activity present) is completely unchanged.\n\n' +
+      'Known limitation: the position check cannot distinguish freshly-assigned shares from\n' +
+      'pre-existing ones the user already held. Accepted tradeoff — a false-positive \'assigned\'\n' +
+      'creates a visible spawned stock trade the user can delete; a false-negative \'expired\'\n' +
+      'would create invisible real equity with a wrong P&L entry.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D13: findClosingFill now paginates up to 10 pages — closing fills beyond first 100 activities no longer missed',
     details:
       'D13 money-loss remediation. The close-detection cron (Path 3) previously fetched only the\n' +

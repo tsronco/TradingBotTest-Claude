@@ -216,18 +216,30 @@ describe('grade-open-trades — STO put close: assigned vs expired', () => {
     expect(kvLrem).not.toHaveBeenCalledWith('trades:index:open', 0, stoPut.id);
   });
 
-  it('no activity, >3 days past expiry → backstop closes as "expired"', async () => {
+  // D11 (2026-06-17): the old "backstop closes as 'expired'" behavior was replaced
+  // with a conservative posture that cross-checks the underlying position before
+  // booking. Without activity AND without a stock position, the trade now stays
+  // open (so a silently-wrong "expired" win is never fabricated for a truly-assigned
+  // contract). See dashboard/tests/api/cron-d11-settlement-backstop.test.ts for
+  // the full D11 matrix.
+  it('D11: no activity, >3 days past expiry, no stock position → trade stays OPEN (conservative backstop)', async () => {
     vi.setSystemTime(new Date('2026-05-19T14:00:00Z')); // ~3.75 days past 5/15
     alpacaTrade.mockImplementation(async (_mode: string, path: string) => {
       if (path.includes('/v2/account/activities')) return [];
+      if (path.includes('/v2/positions/')) {
+        // No stock position — no assignment evidence
+        throw new Error('alpaca trade 404 on /v2/positions/SNAP: position not found');
+      }
       return null;
     });
 
     const res = await runHandler();
     expect(res.status).toHaveBeenCalledWith(200);
 
+    // Conservative D11 posture: trade stays OPEN, no false-win booking.
     const closed = closedTradeWrite();
-    expect(closed.closed_by).toBe('expired');
+    expect(closed?.closed_by ?? null).toBeNull();
+    expect(kvLrem).not.toHaveBeenCalledWith('trades:index:open', 0, stoPut.id);
     expect(spawnedStockWrite()).toBeUndefined();
   });
 });

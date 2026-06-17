@@ -624,11 +624,89 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
         if (settlement === null) {
           // Activity hasn't posted yet (Alpaca posts OPEXP/OPASN the evening
           // of / morning after expiry). Leave the trade open and retry next
-          // tick — UNLESS we're past the backstop window, in which case fall
-          // back to "expired" so a trade never hangs open forever if the
-          // activity never arrives.
+          // tick — UNLESS we're past the backstop window.
           if (Date.now() < expDate.getTime() + SETTLEMENT_BACKSTOP_MS) return null;
+
+          // D11 — Past the backstop and settlement is still unconfirmed.
+          //
+          // Old (unsafe) path: assume 'expired' and book a win. This silently
+          // fabricates an expired-worthless P&L for a contract that may have
+          // been ASSIGNED. If it was truly assigned, the 100 delivered shares
+          // get no trade record and are invisible to exposure/P&L.
+          //
+          // New (conservative) path:
+          //
+          // (1) Guard null filled_avg_price — booking realized_pnl=0 from a null
+          //     price is misleading (looks like a clean breakeven). If we can't
+          //     even confirm the entry premium, leave the trade open and log.
+          if (trade.filled_avg_price === null || trade.filled_avg_price === undefined) {
+            console.warn(
+              `[D11] settlement unconfirmed past backstop AND filled_avg_price is null — leaving open for manual review`,
+              trade.id,
+              trade.contract_symbol,
+            );
+            return null;
+          }
+          //
+          // (2) Cross-check the underlying stock position for assignment evidence.
+          //     A short put that was assigned delivers 100 × qty shares to the
+          //     account. If such a position is present, treat it as confirmation
+          //     of assignment and book accordingly so the spawn fires.
+          //
+          //     KNOWN LIMITATION: this check cannot distinguish a freshly-assigned
+          //     position from shares the user already held before the put was
+          //     written. If the user held ≥ 100×qty pre-existing shares, this may
+          //     produce a false-positive 'assigned' booking. That is accepted over
+          //     the alternative: a false-negative that silently loses real equity.
+          //     A false-positive creates a visible spawned stock trade the user can
+          //     review/delete; a false-negative creates invisible shares with a
+          //     wrong P&L record.
+          //
+          //     If no shares are found (position 404) or there is any transient
+          //     error, we fall through to the conservative leave-open path.
+          const assignedSharesRequired = 100 * trade.qty;
+          let underlyingQty = 0;
+          try {
+            const pos = await alpacaTrade<any>(mode, `/v2/positions/${encodeURIComponent(trade.symbol)}`);
+            underlyingQty = Math.abs(Number(pos?.qty ?? 0));
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!msg.includes(' 404 ')) {
+              // Transient error (not a missing-position 404) — be conservative.
+              console.error(
+                `[D11] positions fetch failed (non-404), leaving trade open for retry`,
+                trade.id,
+                trade.symbol,
+                e,
+              );
+              return null;
+            }
+            // 404 → no position → fall through to leave-open path
+          }
+
+          if (underlyingQty >= assignedSharesRequired) {
+            // Assignment evidence found — book as 'assigned' so the spawn fires.
+            return {
+              closed_at: expDate.toISOString(),
+              closed_avg_price: 0,
+              realized_pnl: trade.filled_avg_price * 100 * trade.qty,
+              closed_by: 'assigned' as const,
+            };
+          }
+
+          // No assignment evidence (position absent or insufficient qty).
+          // Do NOT fabricate an expired-worthless win — leave the trade open
+          // and emit a visible warning so it can be reviewed.
+          console.warn(
+            `[D11] settlement unconfirmed past backstop, no assignment evidence — leaving open for manual review`,
+            trade.id,
+            trade.contract_symbol,
+            `underlying_qty=${underlyingQty}`,
+            `required_for_assignment=${assignedSharesRequired}`,
+          );
+          return null;
         }
+        // Settlement confirmed by Alpaca activity (OPEXP or OPASN).
         const closedBy = settlement === 'assigned' ? 'assigned' : 'expired';
         return {
           closed_at: expDate.toISOString(),
