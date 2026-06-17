@@ -156,9 +156,11 @@ async function runHandler(trade: any) {
 }
 
 function closedTradeWrite(tradeId: string) {
+  // Find the write that carries closed_by (the actual close, not the
+  // fill_confirmed:true convergence write from the legacy syncFillData guard).
   return kvSet.mock.calls.find(
-    (c: any) => c[0] === `trade:${tradeId}`,
-  )?.[1];
+    (c: any) => c[0] === `trade:${tradeId}` && c[1]?.closed_by != null,
+  )?.[1] ?? null;
 }
 
 function spawnedStockWrite(parentTradeId: string) {

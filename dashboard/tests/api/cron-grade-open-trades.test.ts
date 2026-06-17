@@ -478,10 +478,13 @@ describe('POST /api/cron/grade-open-trades', () => {
       const handler = (await import('../../api/cron/[job]')).default;
       await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
     } finally { vi.useRealTimers(); }
-    // No write to the trade record, no removal from open index.
-    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
-    // expected and are not what this assertion guards against.)
-    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    // Trade stays open — no close write, no removal from open index.
+    // Legacy-guard convergence may write fill_confirmed:true but must NOT
+    // write closed_at (the close path leaves partial-loss spreads for manual).
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -505,12 +508,14 @@ describe('POST /api/cron/grade-open-trades', () => {
       const handler = (await import('../../api/cron/[job]')).default;
       await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
     } finally { vi.useRealTimers(); }
-    // No write to the trade record, no removal from open index.
-    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
-    // expected and are not what this assertion guards against.)
-    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    // Trade stays open — legacy-guard convergence may write fill_confirmed:true
+    // but must NOT write closed_at (not expired yet).
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
     expect(kvLrem).not.toHaveBeenCalled();
-    // No spot fetch should have happened either
+    // No spot fetch should have happened either (expiry is in the future)
     expect(dataMock).not.toHaveBeenCalled();
   });
 

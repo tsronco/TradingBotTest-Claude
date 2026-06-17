@@ -357,11 +357,17 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   if (trade.fill_confirmed) return trade;
 
   // Legacy guard (pre-D7): filled AND has modify history recorded.
-  // Keep as a secondary short-circuit for trades that had modify_history
-  // captured before fill_confirmed was introduced. On the next tick after
-  // this path fires, fill_confirmed will be set and the primary guard above
-  // takes over.
-  if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
+  // For these trades the fill is already known (filled_at is set), so stamp
+  // fill_confirmed:true and persist once — the primary D7 sentinel above then
+  // short-circuits on every subsequent tick without any Alpaca fetch.
+  // Without this convergence step the guard would fire on EVERY tick, leaving
+  // fill_confirmed permanently unset and causing D14 to defer spread-close
+  // P&L bookkeeping for the full 24h backstop.
+  if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) {
+    const converged: Trade = { ...trade, fill_confirmed: true };
+    await kv().set(tradeKey(trade.id), converged);
+    return converged;
+  }
 
   const mode = modeFromAccount(trade.account);
 
@@ -934,13 +940,14 @@ async function detectExternalSpreadClose(mode: Mode, trade: Trade): Promise<Clos
   // realized P&L from that stale value would produce a wrong number on /trades.
   //
   // Fix: if fill_confirmed is absent/false, defer the close to the next tick.
-  // On the next tick the legacy guard won't fire (modify_history is preserved),
-  // syncFillData will fall through to the full walk and set fill_confirmed:true
-  // with the real net_credit, and this path will proceed with the correct value.
+  // syncFillData stamps fill_confirmed:true and persists when it sees
+  // filled_at set (both the common new-trade path and the legacy-guard
+  // convergence path), so after one tick this guard is cleared and the close
+  // proceeds with the confirmed net_credit.
   //
   // Backstop: if the trade is >24h old and still unconfirmed, book with what
   // we have and log the approximation. This prevents indefinite deferral in
-  // the degenerate case where syncFillData persistently cannot reach Alpaca.
+  // the degenerate case where syncFillData persistently cannot reach KV.
   const D14_BACKSTOP_MS = 24 * 60 * 60 * 1000;
   if (!trade.fill_confirmed) {
     const submittedAt = trade.submitted_at ? new Date(trade.submitted_at).getTime() : 0;

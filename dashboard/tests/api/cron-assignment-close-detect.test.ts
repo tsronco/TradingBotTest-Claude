@@ -95,9 +95,11 @@ async function runHandler() {
 }
 
 function closedTradeWrite() {
+  // Find the write that carries closed_by (the actual close, not the
+  // fill_confirmed:true convergence write from the legacy syncFillData guard).
   return kvSet.mock.calls.find(
-    (c: any) => c[0] === `trade:${stoPut.id}`,
-  )?.[1];
+    (c: any) => c[0] === `trade:${stoPut.id}` && c[1]?.closed_by != null,
+  )?.[1] ?? null;
 }
 
 function spawnedStockWrite() {
@@ -315,8 +317,10 @@ describe('grade-open-trades — STO settlement routes to the correct SM account 
     expect(activityModes).not.toContain('conservative');
 
     // And the trade still closes correctly (settlement logic unchanged for SM).
+    // Use the write that carries closed_by (the actual close, not the
+    // fill_confirmed:true convergence write from the legacy syncFillData guard).
     const closed = kvSet.mock.calls.find(
-      (c: any) => c[0] === `trade:${smStoPut.id}`,
+      (c: any) => c[0] === `trade:${smStoPut.id}` && c[1]?.closed_by != null,
     )?.[1];
     expect(closed.closed_by).toBe('expired');
     expect(closed.realized_pnl).toBe(180);

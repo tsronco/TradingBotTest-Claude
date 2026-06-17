@@ -162,10 +162,12 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
 
-    // Trade stays open — no trade-record write, no removal from open index.
-    // (runAutoImport writes import:cursor:* keys as a side-effect — those are
-    // expected and are not what this assertion guards against.)
-    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    // Trade stays open — legacy-guard convergence may write fill_confirmed:true
+    // but must NOT write closed_at (the close itself must not fire).
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -200,8 +202,12 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
 
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
-    // Trade stays open — no trade-record write, no removal from open index.
-    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    // Trade stays open — legacy-guard convergence may write fill_confirmed:true
+    // but must NOT write closed_at (the close itself must not fire).
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
@@ -325,8 +331,12 @@ describe('detectClose Path 3 — external bot-close (option)', () => {
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
     // Trade stays open — orphan handler in the bot will deal with the survivor.
-    // No trade-record write, no removal from open index.
-    expect(kvSet).not.toHaveBeenCalledWith(expect.stringContaining('trade:'), expect.anything());
+    // Legacy-guard convergence may write fill_confirmed:true but must NOT write
+    // closed_at (the close itself must not fire because one leg is still present).
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
     expect(kvLrem).not.toHaveBeenCalled();
   });
 });
@@ -606,20 +616,27 @@ describe('D14 — spread close deferred until entry fill is confirmed', () => {
     ];
   }
 
-  it('D14a: defers close booking when entry fill is NOT yet confirmed (legacy, fill_confirmed absent)', async () => {
-    // Legacy spread: filled_at set, modify_history non-empty → syncFillData
-    // hits legacy guard, returns unchanged (net_credit still stale 0.25).
-    // Both legs gone, closing fills found.
-    // Expected: close is DEFERRED (null returned) this tick.
-    // Without the fix: would book with realized = (0.25 - 0.10) * 100 = $15
-    //   (wrong — real fill credit was 0.23, so real realized is $13).
-    // With the fix: return null, trade stays open until next tick when
-    //   fill_confirmed will be set and net_credit will be 0.23.
+  it('D14a: legacy guard convergence — fill_confirmed set by syncFillData, close booked immediately (not deferred)', async () => {
+    // Legacy spread: filled_at set, modify_history non-empty, fill_confirmed absent.
+    // With the legacy-guard fix, syncFillData stamps fill_confirmed:true and persists
+    // the trade. detectExternalSpreadClose is then called with fill_confirmed:true
+    // and books the close immediately on the SAME tick — no deferral needed.
+    // Both legs gone, closing fills present.
+    // net_credit stays 0.25 (stale mid — minor approximation accepted in exchange
+    // for immediate booking rather than a 24h deferral).
+    // Realized = (0.25 - 0.10) * 100 * 1 = $15.
     const trade = makeLegacySpread('T-D14-001');
 
     kvLrange.mockResolvedValueOnce([trade.id]);
-    kvGet.mockImplementation((k: string) =>
-      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({
+        trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' },
+        hindsight: null, history: [],
+      });
+      return Promise.resolve(null);
+    });
 
     alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
       // detectExternalSpreadClose: both legs gone
@@ -631,17 +648,29 @@ describe('D14 — spread close deferred until entry fill is confirmed', () => {
       }
       return Promise.resolve(null);
     });
+    dataMock.mockResolvedValue({ bars: { GME: [] } });
+    gradeMock.mockResolvedValue({
+      letter: 'B', review: 'r', calibration: 'matched',
+      tendencies_hit: [], model: 's',
+      usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now',
+    });
     kvSet.mockResolvedValue('OK');
 
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq(), mockRes());
 
-    // Close MUST NOT be booked this tick — stale net_credit would give wrong P&L.
-    expect(kvSet).not.toHaveBeenCalledWith(
+    // fill_confirmed:true must be set (legacy guard convergence)
+    expect(kvSet).toHaveBeenCalledWith(
       `trade:${trade.id}`,
-      expect.objectContaining({ closed_at: expect.anything() }),
+      expect.objectContaining({ fill_confirmed: true }),
     );
-    expect(kvLrem).not.toHaveBeenCalled();
+    // Close IS booked on the same tick — no 24h deferral.
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-05-25T11:55:00Z',
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(15, 2),  // (0.25 - 0.10) * 100 = $15
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 
   it('D14b: confirmed spread (fill_confirmed true) books close normally, P&L from real fill', async () => {
@@ -705,10 +734,11 @@ describe('D14 — spread close deferred until entry fill is confirmed', () => {
     expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 
-  it('D14c: backstop — books close with warn after >24h even if still unconfirmed', async () => {
-    // A legacy spread submitted >24h ago that still has no fill_confirmed should NOT
-    // be deferred indefinitely. After the backstop, the close is booked from
-    // whatever net_credit is stored (approximation) and a [D14] console.warn fires.
+  it('D14c: legacy guard convergence bypasses backstop — close books immediately, NO [D14] warn', async () => {
+    // A legacy spread submitted >24h ago with fill_confirmed absent and filled_at set.
+    // With the legacy-guard convergence fix, syncFillData stamps fill_confirmed:true
+    // before detectExternalSpreadClose evaluates the D14 guard. So the D14 defer +
+    // backstop path is never reached — close books immediately without the [D14] warn.
     // System time: 2026-05-25T12:00:00Z. submitted_at: 26h ago.
     const trade = makeLegacySpread('T-D14-003', {
       submitted_at: '2026-05-24T10:00:00Z', // 26h before frozen clock
@@ -747,21 +777,172 @@ describe('D14 — spread close deferred until entry fill is confirmed', () => {
       const handler = (await import('../../api/cron/[job]')).default;
       await handler(mockReq(), mockRes());
 
-      // After >24h backstop: close IS booked (with stale net_credit approximation)
+      // fill_confirmed:true was written by the legacy guard
+      expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+        fill_confirmed: true,
+      }));
+      // Close IS booked immediately (legacy guard bypassed the 24h deferral path)
       expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
         closed_at: '2026-05-25T11:55:00Z',
         closed_by: 'bot_external',
       }));
       expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
 
-      // A console.warn noting the approximation must have fired
+      // The [D14] backstop warn must NOT fire — legacy guard prevented it
       const warnFired = warnSpy.mock.calls.some(
         (args) => args.some((a) => typeof a === 'string' && a.includes('[D14]'))
       );
-      expect(warnFired).toBe(true);
+      expect(warnFired).toBe(false);
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  // ── D14d: legacy-guard convergence ───────────────────────────────────────────
+  //
+  // The root cause of D14 is that the legacy syncFillData guard fires on EVERY
+  // tick for a trade with filled_at set AND non-empty modify_history, returning
+  // BEFORE the code that writes fill_confirmed:true. So fill_confirmed is never
+  // set, and D14's defer logic defers forever (until the 24h backstop).
+  //
+  // Fix: when the legacy guard fires, the fill IS already known (filled_at is
+  // set) — stamp fill_confirmed:true, persist the trade, and return it. The next
+  // tick hits the primary D7 sentinel and skips the guard entirely. As a result,
+  // a legacy modify-history spread is NOT needlessly deferred by D14 from the
+  // second tick onward.
+
+  it('D14d: legacy guard sets fill_confirmed:true and persists — so D14 does NOT defer on next tick', async () => {
+    // Tick 1: legacy spread (filled_at set, modify_history non-empty, fill_confirmed absent).
+    // Expected after tick 1:
+    //   - kvSet called with fill_confirmed:true on the trade record.
+    // Tick 2 simulation: same trade but now with fill_confirmed:true (as if kvSet was applied).
+    // Expected: D14 does NOT defer — both legs gone + closing fills → close is booked.
+
+    // ── Tick 1: legacy guard should converge ────────────────────────────────
+    const trade: any = {
+      id: 'T-D14d-001',
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'GME',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: null,
+      strike: null,
+      expiration: '2026-06-20',
+      contract_type: null,
+      filled_avg_price: 0.25,
+      filled_at: '2026-05-25T11:32:00Z',
+      fill_confirmed: undefined,       // absent — legacy pre-D7
+      alpaca_order_id: 'mleg-open-d14d',
+      alpaca_close_order_id: null,
+      submitted_at: '2026-05-25T11:30:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'r',
+      tags: [],
+      rule_warnings_at_entry: [],
+      // Non-empty: triggers the legacy syncFillData guard
+      modify_history: [{
+        ts: 't', prev_order_id: 'x', new_order_id: 'y',
+        limit_price: null, stop_price: null, source: 'dashboard' as const,
+      }],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'GME260620P00020000', strike: 20.0, entry_premium: 0.38, fill_price: 0.38, qty: 1 },
+        long_leg:  { occ: 'GME260620P00019000', strike: 19.0, entry_premium: 0.13, fill_price: 0.13, qty: 1 },
+        expiration: '2026-06-20',
+        width: 1.0,
+        net_credit: 0.25,
+        max_loss: 0.75,
+      },
+    };
+
+    // Provide closing fills so if D14 fires (incorrectly without deferral on tick 1)
+    // it would have something to work with. The key assertion is that fill_confirmed
+    // gets written so the NEXT tick can proceed.
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve([
+          { id: 'fill-s', activity_type: 'FILL', transaction_time: '2026-05-25T11:55:00Z',
+            symbol: 'GME260620P00020000', side: 'buy', price: '0.12', qty: '1', order_id: 'mleg-close-d14d' },
+          { id: 'fill-l', activity_type: 'FILL', transaction_time: '2026-05-25T11:55:00Z',
+            symbol: 'GME260620P00019000', side: 'sell', price: '0.02', qty: '1', order_id: 'mleg-close-d14d' },
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // The legacy guard must have stamped fill_confirmed:true and persisted — this
+    // is the key assertion. Without the fix, fill_confirmed stays unset and this
+    // expect fails.
+    expect(kvSet).toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ fill_confirmed: true }),
+    );
+
+    // ── Tick 2: with fill_confirmed:true, D14 must NOT defer ─────────────────
+    // Reset mocks and simulate the next cron tick with the now-confirmed trade.
+    kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
+    gradeMock.mockReset(); dataMock.mockReset(); alpacaTradeMock.mockReset();
+
+    const confirmedTrade = { ...trade, fill_confirmed: true };
+    kvLrange.mockResolvedValueOnce([confirmedTrade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${confirmedTrade.id}`) return Promise.resolve(confirmedTrade);
+      if (k === `grade:${confirmedTrade.id}`) return Promise.resolve({
+        trade_id: confirmedTrade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' },
+        hindsight: null, history: [],
+      });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve([
+          { id: 'fill-s', activity_type: 'FILL', transaction_time: '2026-05-25T11:55:00Z',
+            symbol: 'GME260620P00020000', side: 'buy', price: '0.12', qty: '1', order_id: 'mleg-close-d14d' },
+          { id: 'fill-l', activity_type: 'FILL', transaction_time: '2026-05-25T11:55:00Z',
+            symbol: 'GME260620P00019000', side: 'sell', price: '0.02', qty: '1', order_id: 'mleg-close-d14d' },
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { GME: [] } });
+    gradeMock.mockResolvedValue({
+      letter: 'B', review: 'r', calibration: 'matched',
+      tendencies_hit: [], model: 's',
+      usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now',
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler2 = (await import('../../api/cron/[job]')).default;
+    await handler2(mockReq(), mockRes());
+
+    // With fill_confirmed set, D14 must NOT defer — close MUST be booked this tick.
+    // Net debit to close = 0.12 - 0.02 = 0.10. Realized = (0.25 - 0.10) * 100 = $15.
+    expect(kvSet).toHaveBeenCalledWith(`trade:${confirmedTrade.id}`, expect.objectContaining({
+      closed_at: '2026-05-25T11:55:00Z',
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(15, 2),
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, confirmedTrade.id);
   });
 });
 
