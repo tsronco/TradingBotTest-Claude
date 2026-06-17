@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-17T13:58:24.135133Z"
+    "last_checked": "2026-06-17T14:08:15.122012Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,14 +38,14 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260702P00370000: $3.81 vs entry $3.10",
+    "last_action": "Monitoring TSLA260702P00370000: $3.77 vs entry $3.10",
     "contract_qty": 1
   },
   "BAC": {
     "stage": 1,
-    "current_contract": "BAC260710P00050000",
+    "current_contract": null,
     "contract_order_id": "30003e0e-d2dd-4c3a-96e4-cfcf178751d2",
-    "contract_entry_price": 0.08,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-16T18:18:22.596597Z",
     "contract_expiration": "2026-07-10",
     "contract_type": "put",
@@ -53,11 +53,11 @@
     "cost_basis_per_share": null,
     "shares_qty": 0,
     "total_cost": null,
-    "total_premium_collected": 43.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 47.0,
+    "total_premium_today": 4.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260710P00050000: $0.08 vs entry $0.08",
+    "last_action": "Closed early: +$4.00 (1\u00d7 contracts). Selling new put.",
     "contract_qty": 1
   },
   "XOM": {
