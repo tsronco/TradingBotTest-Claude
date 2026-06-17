@@ -549,6 +549,213 @@ describe('POST /api/cron/grade-open-trades', () => {
     }
   });
 
+  // ---- D6: syncFillData mleg spread modify-chain walking -------------------
+  //
+  // A user can modify a spread's limit price on Alpaca's web UI. Alpaca cancels
+  // the original mleg order (status='replaced', carries replaced_by) and creates
+  // a successor. The trade's alpaca_order_id still points at the original.
+  // syncFillData MUST follow the chain to the terminal order and read fill status
+  // from there — mirroring what the single-leg path already does.
+
+  function makeSpreadTrade(id: string, orderId: string, extraFields: any = {}) {
+    return {
+      id,
+      account: 'manual_paper',
+      symbol: 'AAL',
+      asset_class: 'spread',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: null,
+      strike: null,
+      expiration: '2026-07-18',
+      contract_type: null,
+      filled_avg_price: null,
+      filled_at: null,
+      alpaca_order_id: orderId,
+      alpaca_close_order_id: null,
+      submitted_at: '2026-06-17T14:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'test',
+      tags: [],
+      rule_warnings_at_entry: [],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'AAL260718P00012500', strike: 12.5, entry_premium: 0.40, fill_price: null, qty: 1 },
+        long_leg: { occ: 'AAL260718P00011500', strike: 11.5, entry_premium: 0.15, fill_price: null, qty: 1 },
+        expiration: '2026-07-18',
+        width: 1.0,
+        net_credit: 0.25,
+        max_loss: 0.75,
+      },
+      ...extraFields,
+    } as any;
+  }
+
+  it('D6: syncFillData follows replaced_by chain for a spread modified once and now filled', async () => {
+    // User submits spread at $0.25 net credit (id=mleg-A), then modifies it
+    // to $0.20 on Alpaca's web UI. Alpaca cancels A (status='replaced',
+    // replaced_by='mleg-B') and creates B which fills. Trade record still
+    // points at mleg-A. syncFillData must walk A→B and write fill data.
+    const trade = makeSpreadTrade('T-D6-001', 'mleg-A');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/mleg-A')) return Promise.resolve({
+        id: 'mleg-A',
+        status: 'replaced',
+        replaced_by: 'mleg-B',
+        replaces: null,
+        legs: [],
+      });
+      if (path.endsWith('/mleg-B')) return Promise.resolve({
+        id: 'mleg-B',
+        status: 'filled',
+        replaced_by: null,
+        replaces: 'mleg-A',
+        filled_at: '2026-06-17T14:10:00Z',
+        legs: [
+          { symbol: 'AAL260718P00012500', side: 'sell', filled_avg_price: '0.35', filled_qty: '1' },
+          { symbol: 'AAL260718P00011500', side: 'buy', filled_avg_price: '0.12', filled_qty: '1' },
+        ],
+      });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T15:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+
+    // Must repoint to terminal order id and capture fill data
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      alpaca_order_id: 'mleg-B',
+      filled_at: '2026-06-17T14:10:00Z',
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ fill_price: 0.35 }),
+        long_leg: expect.objectContaining({ fill_price: 0.12 }),
+        net_credit: expect.closeTo(0.23, 5),
+      }),
+      filled_avg_price: expect.closeTo(0.23, 5),
+    }));
+  });
+
+  it('D6: syncFillData follows multi-hop chain (replaced → replaced → filled) for spread', async () => {
+    // Three hops: mleg-A (replaced) → mleg-B (replaced) → mleg-C (filled)
+    const trade = makeSpreadTrade('T-D6-002', 'mleg-A');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/mleg-A')) return Promise.resolve({
+        id: 'mleg-A', status: 'replaced', replaced_by: 'mleg-B', replaces: null, legs: [],
+      });
+      if (path.endsWith('/mleg-B')) return Promise.resolve({
+        id: 'mleg-B', status: 'replaced', replaced_by: 'mleg-C', replaces: 'mleg-A', legs: [],
+      });
+      if (path.endsWith('/mleg-C')) return Promise.resolve({
+        id: 'mleg-C', status: 'filled', replaced_by: null, replaces: 'mleg-B',
+        filled_at: '2026-06-17T14:20:00Z',
+        legs: [
+          { symbol: 'AAL260718P00012500', side: 'sell', filled_avg_price: '0.30', filled_qty: '1' },
+          { symbol: 'AAL260718P00011500', side: 'buy', filled_avg_price: '0.10', filled_qty: '1' },
+        ],
+      });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T15:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      alpaca_order_id: 'mleg-C',
+      filled_at: '2026-06-17T14:20:00Z',
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ fill_price: 0.30 }),
+        long_leg: expect.objectContaining({ fill_price: 0.10 }),
+        net_credit: expect.closeTo(0.20, 5),
+      }),
+      filled_avg_price: expect.closeTo(0.20, 5),
+    }));
+  });
+
+  it('D6: syncFillData terminates and does not crash on a malformed cyclic spread chain', async () => {
+    // Pathological case: Alpaca returns a chain where A.replaced_by = B and
+    // B.replaced_by = A (cycle). The walk must cap iterations and not hang.
+    const trade = makeSpreadTrade('T-D6-003', 'mleg-A');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/mleg-A')) return Promise.resolve({
+        id: 'mleg-A', status: 'replaced', replaced_by: 'mleg-B', replaces: null, legs: [],
+      });
+      if (path.endsWith('/mleg-B')) return Promise.resolve({
+        id: 'mleg-B', status: 'replaced', replaced_by: 'mleg-A', replaces: 'mleg-A', legs: [],
+      });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T15:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      // Must complete without throwing or timing out
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+
+    // Neither order is 'filled', so no fill data should be written.
+    // (May or may not write alpaca_order_id repoint — that's acceptable either way.)
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: expect.any(String),
+    }));
+  });
+
+  it('D6: syncFillData pins alpaca_order_id to terminal mleg id even when not yet filled', async () => {
+    // Modified spread whose replacement is still pending. We want the trade id
+    // repointed so next tick reads directly from the terminal, not the replaced order.
+    const trade = makeSpreadTrade('T-D6-004', 'mleg-A');
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/mleg-A')) return Promise.resolve({
+        id: 'mleg-A', status: 'replaced', replaced_by: 'mleg-B', replaces: null, legs: [],
+      });
+      if (path.endsWith('/mleg-B')) return Promise.resolve({
+        id: 'mleg-B', status: 'new', replaced_by: null, replaces: 'mleg-A', filled_at: null, legs: [],
+      });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T15:00:00Z'));
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+
+    // alpaca_order_id pinned to terminal, but no fill data written
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      alpaca_order_id: 'mleg-B',
+      filled_at: null,
+    }));
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: expect.stringContaining('Z'),
+    }));
+  });
+
   // --- SM cross-account routing (Phase 6.x critical fix) ---
   // modeFromAccount() in cron/[job].ts MUST route SM accounts to their own
   // Alpaca creds via syncFillData's alpacaTrade(mode, ...) call — NOT silently

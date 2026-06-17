@@ -346,22 +346,59 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
   const mode = modeFromAccount(trade.account);
 
+  // Shared helper — forward walk to the terminal order following replaced_by.
+  // Caps at 10 hops to guard against malformed/cyclic chains. Returns the
+  // terminal order object (the last one without replaced_by, or the last one
+  // we could reach before the cap or a fetch failure).
+  const fetchOrderById = async (id: string): Promise<any> => {
+    try { return await alpacaTrade<any>(mode, `/v2/orders/${id}`); }
+    catch (e) {
+      console.error('syncFillData order fetch failed', trade.id, id, e);
+      return null;
+    }
+  };
+
+  const walkToTerminal = async (startId: string): Promise<any> => {
+    let cursor = await fetchOrderById(startId);
+    if (!cursor) return null;
+    const seen = new Set<string>([cursor.id]);
+    for (let hops = 0; hops < 10 && cursor.replaced_by; hops++) {
+      if (seen.has(cursor.replaced_by)) break; // cycle guard
+      const next = await fetchOrderById(cursor.replaced_by);
+      if (!next) break;
+      seen.add(next.id);
+      cursor = next;
+    }
+    return cursor;
+  };
+
   // Spread (mleg) path — Alpaca returns a single order with a `legs` array.
   // Match each leg's OCC symbol to short/long and copy fill prices back onto
   // the spread block. Net credit is recomputed from actual fills (may differ
-  // from the order's target net credit by a few cents of slippage). Modify
-  // chain walking is skipped — paper Alpaca mleg orders submit as one unit
-  // and don't have a replaces/replaced_by chain to walk.
+  // from the order's target net credit by a few cents of slippage).
+  //
+  // A user CAN modify a spread's limit price on Alpaca's web UI. Alpaca then
+  // cancels the original mleg order (status='replaced') and creates a successor
+  // linked via replaced_by. We walk the chain to the terminal order before
+  // reading fill status — same as the single-leg path below.
   if (trade.asset_class === 'spread' && trade.spread) {
-    let order: any = null;
-    try {
-      order = await alpacaTrade<any>(mode, `/v2/orders/${trade.alpaca_order_id}`);
-    } catch (e) {
-      console.error('syncFillData mleg order fetch failed', trade.id, trade.alpaca_order_id, e);
+    const terminal = await walkToTerminal(trade.alpaca_order_id);
+    if (!terminal) return trade;
+
+    // Repoint alpaca_order_id to terminal even if not yet filled, so next tick
+    // reads directly from the current order without re-walking the chain.
+    const idChanged = terminal.id !== trade.alpaca_order_id;
+
+    if (terminal.status !== 'filled') {
+      if (idChanged) {
+        const updated: Trade = { ...trade, alpaca_order_id: terminal.id };
+        await kv().set(tradeKey(trade.id), updated);
+        return updated;
+      }
       return trade;
     }
-    if (!order || order.status !== 'filled') return trade;
-    const legs = order.legs ?? [];
+
+    const legs = terminal.legs ?? [];
     const shortFill = legs.find((l: any) => l.symbol === trade.spread!.short_leg.occ);
     const longFill = legs.find((l: any) => l.symbol === trade.spread!.long_leg.occ);
     if (!shortFill || !longFill) return trade;
@@ -371,7 +408,8 @@ async function syncFillData(trade: Trade): Promise<Trade> {
     const netCredit = shortPx - longPx;
     const updated: Trade = {
       ...trade,
-      filled_at: order.filled_at ?? new Date().toISOString(),
+      alpaca_order_id: terminal.id,          // pin to terminal order
+      filled_at: terminal.filled_at ?? new Date().toISOString(),
       filled_avg_price: netCredit,           // back-compat for legacy consumers
       spread: {
         ...trade.spread,
@@ -392,29 +430,17 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   // modified yet, or modified externally and not yet seen by us) or the
   // terminal (pinned by a previous syncFillData run). Cap each direction at
   // 10 hops to avoid an infinite loop on malformed Alpaca responses.
-  const fetchOrder = async (id: string): Promise<any> => {
-    try { return await alpacaTrade<any>(mode, `/v2/orders/${id}`); }
-    catch (e) {
-      console.error('syncFillData order fetch failed', trade.id, id, e);
-      return null;
-    }
-  };
+  // (Uses fetchOrderById + walkToTerminal defined above, shared with the spread path.)
 
   // Forward walk to terminal
-  let cursor = await fetchOrder(trade.alpaca_order_id);
-  if (!cursor) return trade;
-  for (let hops = 0; hops < 10 && cursor.replaced_by; hops++) {
-    const next = await fetchOrder(cursor.replaced_by);
-    if (!next) break;
-    cursor = next;
-  }
-  const terminal = cursor;
+  const terminal = await walkToTerminal(trade.alpaca_order_id);
+  if (!terminal) return trade;
 
   // Backward walk from terminal to collect prior orders. Start with the
   // terminal in the chain, prepend each `replaces` predecessor.
   const chain: any[] = [terminal];
   for (let hops = 0; hops < 10 && chain[0]?.replaces; hops++) {
-    const prev = await fetchOrder(chain[0].replaces);
+    const prev = await fetchOrderById(chain[0].replaces);
     if (!prev) break;
     chain.unshift(prev);
   }

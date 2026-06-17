@@ -155,12 +155,8 @@ direction → status.**
 - **Test direction:** vitest: an activity stream containing an STO open followed by its BTC close imports exactly one (opening) trade; a lone closing fill imports nothing.
 
 ### D6 — Spread `syncFillData` skips the modify-chain walk → modified spread stuck unfilled 🟠 High  [S5]
-- **Status:** ⬜ TODO
-- **Location:** `dashboard/api/cron/[job].ts:355–386` — the spread branch deliberately does not walk `replaces`/`replaced_by` ("paper mleg orders submit as one unit…"). But a user can PATCH a spread's limit on Alpaca's web UI; the trade's `alpaca_order_id` then points at the now-`replaced` order. `syncFillData` fetches it, sees `status:'replaced'` (not filled), returns; the trade stays `filled_at: null` forever and `detectClose` Path 0 leaves it open.
-- **Scenario:** Live (or paper) spread modified post-submit on Alpaca's UI; it fills, but the dashboard never updates.
-- **Cost:** A real spread position is invisible to the dashboard — realized P&L never recorded, grading never fires, open-index entry never cleaned. Worst on live.
-- **Fix direction:** For spread orders, also walk `replaced_by` to the terminal order before reading status (mirror the single-leg path).
-- **Test direction:** vitest: a spread order with `status:'replaced'` + `replaced_by` → `syncFillData` follows to the filled successor and writes `filled_at`/`net_credit`.
+- **Status:** ✅ DONE — 2026-06-17. Extracted `fetchOrderById` + `walkToTerminal` helpers at the top of `syncFillData` (shared by both paths). Spread branch now calls `walkToTerminal` before reading fill status, repoints `alpaca_order_id` to the terminal order, and proceeds identically to before for reading leg fill prices. Iteration cap 10 hops + cycle guard (`seen` set) prevents infinite loops on malformed chains. 4 new vitest tests covering: single-hop replaced→filled, multi-hop (A→B→C filled), malformed/cyclic termination, and pending-not-filled repoint.
+- **Location:** `dashboard/api/cron/[job].ts` — spread branch of `syncFillData`; single-leg path updated to use shared `fetchOrderById` / `walkToTerminal` (removing the now-redundant inline `fetchOrder` closure).
 
 ### D7 — `syncFillData` re-runs every tick; a throttle then blocks close detection 🟠 High  [S2]
 - **Status:** ⬜ TODO
@@ -294,7 +290,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D2 | No idempotency key on submit (double-place) | 1 | ✅ DONE |
 | D4 | Month-index read-modify-write lost update | 2 | ✅ DONE |
 | D5 | Closing fills imported as opens (phantom trades) | 2 | ⬜ TODO |
-| D6 | Spread `syncFillData` skips modify-chain | 2 | ⬜ TODO |
+| D6 | Spread `syncFillData` skips modify-chain | 2 | ✅ DONE |
 | D7 | `syncFillData` every-tick + blocks close detection | 2 | ⬜ TODO |
 | D13 | `findClosingFill` single-page cap | 2 | ⬜ TODO |
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ⬜ TODO |

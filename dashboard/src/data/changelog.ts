@@ -31,6 +31,24 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D6: spread syncFillData now walks the Alpaca modify-chain to the terminal order',
+    details:
+      'A user modifying a spread\'s limit price on Alpaca\'s web UI causes Alpaca to cancel the ' +
+      'original mleg order (status=\'replaced\') and create a successor linked via replaced_by. ' +
+      'The dashboard\'s trade record still pointed at the original order. syncFillData fetched it, ' +
+      'saw status:\'replaced\' (not \'filled\'), and returned without writing fill data — the trade ' +
+      'stayed filled_at:null forever, detectClose Path 0 saw an unfilled order and left it open, ' +
+      'and realized P&L / grading never fired. On live this is a real money-tracking gap.\n\n' +
+      'Fix: extracted fetchOrderById + walkToTerminal helpers (shared by both the spread and ' +
+      'single-leg paths). The spread branch now follows the replaced_by chain to the terminal ' +
+      'order before reading fill status, repoints alpaca_order_id to the terminal, and writes ' +
+      'leg fill prices / net_credit exactly as before. Iteration cap of 10 hops plus a cycle ' +
+      'guard prevent infinite loops on malformed Alpaca chains. The single-leg path now uses ' +
+      'the same shared helpers (removing a redundant inline fetchOrder closure).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D5: closing fills (BTC/STC) no longer imported as phantom open trades',
     details:
       'The importer classified every buy fill as a BTO open and every sell fill as an STO open, ' +
