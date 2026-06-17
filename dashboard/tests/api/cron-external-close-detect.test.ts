@@ -764,3 +764,576 @@ describe('D14 — spread close deferred until entry fill is confirmed', () => {
     }
   });
 });
+
+// ─── D12: debit-spread close P&L sign correctness ────────────────────────────
+//
+// detectExternalSpreadClose previously used `(net_credit − netDebitToClose)` for
+// ALL spread types. For debit spreads net_credit=0, so the formula collapsed to
+// `−netDebitToClose` which ignores the net_debit basis and produces a wrong sign
+// on the P&L (a winning debit spread closes as a loss, a losing one as a gain).
+//
+// Correct math:
+//   credit spreads: realized = (net_credit  − netDebitToClose)  × 100 × qty
+//   debit  spreads: realized = (netCreditToClose − net_debit)   × 100 × qty
+//     where netCreditToClose = longPx − shortPx  (net received to close)
+//
+// Tests: four spread types × favorable/unfavorable close + credit regression
+describe('D12 — debit-spread external-close P&L sign correctness', () => {
+  // All expirations far in the future so Path 2/2b never fires
+  function makeSpreadTrade(id: string, spreadOverrides: any, tradeOverrides: any = {}): any {
+    return {
+      id,
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'SPY',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: null,
+      strike: null,
+      expiration: '2026-12-19',
+      contract_type: null,
+      filled_avg_price: spreadOverrides.net_debit ?? spreadOverrides.net_credit ?? 0,
+      filled_at: '2026-05-24T15:00:00Z',
+      fill_confirmed: true,
+      alpaca_order_id: `mleg-open-${id}`,
+      alpaca_close_order_id: null,
+      submitted_at: '2026-05-24T14:55:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'r',
+      tags: [],
+      rule_warnings_at_entry: [],
+      modify_history: [{ ts: 'x', prev_order_id: 'x', new_order_id: 'x', limit_price: null, stop_price: null, source: 'dashboard' as const }],
+      schema: 1,
+      spread: spreadOverrides,
+      ...tradeOverrides,
+    };
+  }
+
+  function mockBothLegsClosed(shortOcc: string, longOcc: string, shortClosePrice: string, longClosePrice: string) {
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: position not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve([
+          { id: 'fill-short', activity_type: 'FILL', transaction_time: '2026-05-25T15:30:00Z', symbol: shortOcc, side: 'buy', price: shortClosePrice, qty: '1', order_id: 'close-order-1' },
+          { id: 'fill-long',  activity_type: 'FILL', transaction_time: '2026-05-25T15:30:00Z', symbol: longOcc,  side: 'sell', price: longClosePrice, qty: '1', order_id: 'close-order-1' },
+        ]);
+      }
+      return Promise.resolve(null);
+    });
+  }
+
+  // D12a: put_debit closed FAVORABLY (long put appreciated, net received > net_debit)
+  // put_debit: BTO higher-strike put, STO lower-strike put.
+  //   short_leg = lower strike (e.g. 450), long_leg = higher strike (e.g. 460)
+  //   Opened for net_debit = $1.50/share (paid $150 per contract)
+  //   Close: buy back short @ $0.20, sell long @ $2.00
+  //   netCreditToClose = 2.00 - 0.20 = $1.80  (received more than paid)
+  //   realized = (1.80 - 1.50) × 100 × 1 = +$30 (a WIN)
+  it('D12a: put_debit closed favorably → positive realized P&L', async () => {
+    const spread = {
+      spread_type: 'put_debit',
+      short_leg: { occ: 'SPY261219P00450000', strike: 450, entry_premium: 0.30, fill_price: 0.30, qty: 1 },
+      long_leg:  { occ: 'SPY261219P00460000', strike: 460, entry_premium: 1.80, fill_price: 1.80, qty: 1 },
+      expiration: '2026-12-19',
+      width: 10,
+      net_credit: 0,
+      net_debit: 1.50,
+      max_loss: 1.50,
+      max_profit: 8.50,
+    };
+    const trade = makeSpreadTrade('T-D12-001', spread);
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    mockBothLegsClosed('SPY261219P00450000', 'SPY261219P00460000', '0.20', '2.00');
+    dataMock.mockResolvedValue({ bars: { SPY: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(30, 2),   // (1.80 - 0.20 - 1.50) × 100 = +30
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12b: put_debit closed UNFAVORABLY (spread decayed, received less than debit)
+  //   Close: buy back short @ $0.10, sell long @ $0.50
+  //   netCreditToClose = 0.50 - 0.10 = $0.40
+  //   realized = (0.40 - 1.50) × 100 × 1 = -$110 (a LOSS, max = -$150)
+  it('D12b: put_debit closed unfavorably → negative realized P&L (bounded debit loss)', async () => {
+    const spread = {
+      spread_type: 'put_debit',
+      short_leg: { occ: 'SPY261219P00450000', strike: 450, entry_premium: 0.30, fill_price: 0.30, qty: 1 },
+      long_leg:  { occ: 'SPY261219P00460000', strike: 460, entry_premium: 1.80, fill_price: 1.80, qty: 1 },
+      expiration: '2026-12-19',
+      width: 10,
+      net_credit: 0,
+      net_debit: 1.50,
+      max_loss: 1.50,
+      max_profit: 8.50,
+    };
+    const trade = makeSpreadTrade('T-D12-002', spread);
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    mockBothLegsClosed('SPY261219P00450000', 'SPY261219P00460000', '0.10', '0.50');
+    dataMock.mockResolvedValue({ bars: { SPY: [] } });
+    gradeMock.mockResolvedValue({ letter: 'F', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(-110, 2),  // (0.40 - 1.50) × 100 = -110
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12c: call_debit closed FAVORABLY
+  //   call_debit: BTO lower-strike call, STO higher-strike call.
+  //   short_leg = higher strike (e.g. 510), long_leg = lower strike (e.g. 500)
+  //   net_debit = $2.00/share. Close: buy back short @ $0.30, sell long @ $3.00
+  //   netCreditToClose = 3.00 - 0.30 = $2.70
+  //   realized = (2.70 - 2.00) × 100 × 1 = +$70
+  it('D12c: call_debit closed favorably → positive realized P&L', async () => {
+    const spread = {
+      spread_type: 'call_debit',
+      short_leg: { occ: 'SPY261219C00510000', strike: 510, entry_premium: 0.80, fill_price: 0.80, qty: 1 },
+      long_leg:  { occ: 'SPY261219C00500000', strike: 500, entry_premium: 2.80, fill_price: 2.80, qty: 1 },
+      expiration: '2026-12-19',
+      width: 10,
+      net_credit: 0,
+      net_debit: 2.00,
+      max_loss: 2.00,
+      max_profit: 8.00,
+    };
+    const trade = makeSpreadTrade('T-D12-003', spread);
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    mockBothLegsClosed('SPY261219C00510000', 'SPY261219C00500000', '0.30', '3.00');
+    dataMock.mockResolvedValue({ bars: { SPY: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(70, 2),   // (2.70 - 2.00) × 100 = +70
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12d: put_credit regression guard — existing math must not change
+  //   net_credit = $0.25. Close: buy back short @ $0.10, sell long @ $0.03
+  //   netDebitToClose = 0.10 - 0.03 = $0.07
+  //   realized = (0.25 - 0.07) × 100 × 1 = +$18
+  it('D12d: put_credit external close — realized P&L unchanged (regression guard)', async () => {
+    const spread = {
+      spread_type: 'put_credit',
+      short_leg: { occ: 'SPY261219P00480000', strike: 480, entry_premium: 0.37, fill_price: 0.37, qty: 1 },
+      long_leg:  { occ: 'SPY261219P00470000', strike: 470, entry_premium: 0.12, fill_price: 0.12, qty: 1 },
+      expiration: '2026-12-19',
+      width: 10,
+      net_credit: 0.25,
+      net_debit: 0,
+      max_loss: 9.75,
+      max_profit: 0.25,
+    };
+    const trade = makeSpreadTrade('T-D12-004', spread);
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    mockBothLegsClosed('SPY261219P00480000', 'SPY261219P00470000', '0.10', '0.03');
+    dataMock.mockResolvedValue({ bars: { SPY: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(18, 2),   // (0.25 - 0.07) × 100 = +18
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12e: call_credit regression guard
+  //   net_credit = $0.50. Close: buy back short @ $0.20, sell long @ $0.05
+  //   netDebitToClose = 0.20 - 0.05 = $0.15
+  //   realized = (0.50 - 0.15) × 100 × 1 = +$35
+  it('D12e: call_credit external close — realized P&L unchanged (regression guard)', async () => {
+    const spread = {
+      spread_type: 'call_credit',
+      short_leg: { occ: 'SPY261219C00500000', strike: 500, entry_premium: 0.70, fill_price: 0.70, qty: 1 },
+      long_leg:  { occ: 'SPY261219C00510000', strike: 510, entry_premium: 0.20, fill_price: 0.20, qty: 1 },
+      expiration: '2026-12-19',
+      width: 10,
+      net_credit: 0.50,
+      net_debit: 0,
+      max_loss: 9.50,
+      max_profit: 0.50,
+    };
+    const trade = makeSpreadTrade('T-D12-005', spread);
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    mockBothLegsClosed('SPY261219C00500000', 'SPY261219C00510000', '0.20', '0.05');
+    dataMock.mockResolvedValue({ bars: { SPY: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: expect.closeTo(35, 2),   // (0.50 - 0.15) × 100 = +35
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+});
+
+// ─── D12: Path 2b expiry geometry for debit spreads ──────────────────────────
+//
+// Path 2b (spread-past-expiry detectClose) uses the credit-spread OTM/ITM
+// geometry for ALL spread types. For debit spreads the direction is inverted:
+//   put_debit max profit → spot < short_leg.strike (both puts ITM)
+//   put_debit max loss   → spot >= long_leg.strike (both puts OTM, worthless)
+//   call_debit max profit → spot >= short_leg.strike (both calls ITM)
+//   call_debit max loss   → spot < long_leg.strike (both calls OTM, worthless)
+//
+// These tests use future expirations but set fake time PAST them so Path 2b fires.
+describe('D12 — Path 2b expiry geometry for debit spreads', () => {
+  // For these tests we need fake time AFTER the expiration.
+  // The base test file's beforeEach sets 2026-05-25 (before all test expirations).
+  // Each it block overrides with its own vi.setSystemTime() call inside.
+
+  function makeDebitSpreadTrade(id: string, spreadType: string, shortLeg: any, longLeg: any, netDebit: number, maxProfit: number): any {
+    const width = Math.abs(shortLeg.strike - longLeg.strike);
+    return {
+      id,
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'SPY',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: null,
+      strike: null,
+      expiration: '2026-06-20',
+      contract_type: null,
+      filled_avg_price: netDebit,
+      filled_at: '2026-05-24T15:00:00Z',
+      fill_confirmed: true,
+      alpaca_order_id: `mleg-open-${id}`,
+      alpaca_close_order_id: null,
+      submitted_at: '2026-05-24T14:55:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'r',
+      tags: [],
+      rule_warnings_at_entry: [],
+      modify_history: [{ ts: 'x', prev_order_id: 'x', new_order_id: 'x', limit_price: null, stop_price: null, source: 'dashboard' as const }],
+      schema: 1,
+      spread: {
+        spread_type: spreadType,
+        short_leg: shortLeg,
+        long_leg: longLeg,
+        expiration: '2026-06-20',
+        width,
+        net_credit: 0,
+        net_debit: netDebit,
+        max_loss: netDebit,
+        max_profit: maxProfit,
+      },
+    };
+  }
+
+  // D12f: put_debit expired fully ITM (max profit)
+  //   put_debit: short_leg = lower strike 450, long_leg = higher strike 460
+  //   spot = 440 < short_leg.strike 450 → both puts ITM → max profit
+  //   net_debit = $1.50, max_profit = $8.50, width = $10
+  //   realized = max_profit × 100 × qty = 8.50 × 100 = +$850
+  it('D12f: put_debit expired fully ITM → max profit', async () => {
+    const trade = makeDebitSpreadTrade(
+      'T-D12-006', 'put_debit',
+      { occ: 'SPY260620P00450000', strike: 450, entry_premium: 0.30, fill_price: 0.30, qty: 1 },
+      { occ: 'SPY260620P00460000', strike: 460, entry_premium: 1.80, fill_price: 1.80, qty: 1 },
+      1.50, 8.50,
+    );
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Position check returns 404 for both legs (expired, gone from Alpaca)
+    // No activity fills (they expired, not externally closed) → Path 2b fires
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      return Promise.resolve([]);
+    });
+    // Spot 440 — below short_leg.strike 450 → both puts ITM → max profit
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '440' } });
+      return Promise.resolve({ bars: { SPY: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    vi.setSystemTime(new Date('2026-06-21T01:00:00Z')); // after 2026-06-20 expiry
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+      realized_pnl: expect.closeTo(850, 2),  // max_profit × 100 × qty = 8.50 × 100 = +850
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12g: put_debit expired fully OTM (max loss)
+  //   spot = 470 >= long_leg.strike 460 → both puts OTM → worthless
+  //   realized = -net_debit × 100 × qty = -1.50 × 100 = -$150
+  it('D12g: put_debit expired fully OTM → max loss (full debit lost)', async () => {
+    const trade = makeDebitSpreadTrade(
+      'T-D12-007', 'put_debit',
+      { occ: 'SPY260620P00450000', strike: 450, entry_premium: 0.30, fill_price: 0.30, qty: 1 },
+      { occ: 'SPY260620P00460000', strike: 460, entry_premium: 1.80, fill_price: 1.80, qty: 1 },
+      1.50, 8.50,
+    );
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      return Promise.resolve([]);
+    });
+    // Spot 470 >= long_leg.strike 460 → both OTM → worthless
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '470' } });
+      return Promise.resolve({ bars: { SPY: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'F', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    vi.setSystemTime(new Date('2026-06-21T01:00:00Z'));
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+      realized_pnl: expect.closeTo(-150, 2),  // -net_debit × 100 × qty = -1.50 × 100
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12h: call_debit expired fully ITM (max profit)
+  //   call_debit: short_leg = higher strike 510, long_leg = lower strike 500
+  //   spot = 525 >= short_leg.strike 510 → both calls ITM → max profit
+  //   net_debit = $2.00, max_profit = $8.00
+  //   realized = max_profit × 100 × qty = 8.00 × 100 = +$800
+  it('D12h: call_debit expired fully ITM → max profit', async () => {
+    const trade = makeDebitSpreadTrade(
+      'T-D12-008', 'call_debit',
+      { occ: 'SPY260620C00510000', strike: 510, entry_premium: 0.80, fill_price: 0.80, qty: 1 },
+      { occ: 'SPY260620C00500000', strike: 500, entry_premium: 2.80, fill_price: 2.80, qty: 1 },
+      2.00, 8.00,
+    );
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      return Promise.resolve([]);
+    });
+    // Spot 525 >= short_leg.strike 510 → both calls ITM → max profit
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '525' } });
+      return Promise.resolve({ bars: { SPY: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    vi.setSystemTime(new Date('2026-06-21T01:00:00Z'));
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+      realized_pnl: expect.closeTo(800, 2),  // max_profit × 100 × qty = 8.00 × 100 = +800
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12i: call_debit expired OTM (max loss)
+  //   spot = 490 < long_leg.strike 500 → both calls OTM → worthless
+  //   realized = -net_debit × 100 × qty = -2.00 × 100 = -$200
+  it('D12i: call_debit expired fully OTM → max loss (full debit lost)', async () => {
+    const trade = makeDebitSpreadTrade(
+      'T-D12-009', 'call_debit',
+      { occ: 'SPY260620C00510000', strike: 510, entry_premium: 0.80, fill_price: 0.80, qty: 1 },
+      { occ: 'SPY260620C00500000', strike: 500, entry_premium: 2.80, fill_price: 2.80, qty: 1 },
+      2.00, 8.00,
+    );
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      return Promise.resolve([]);
+    });
+    // Spot 490 < long_leg.strike 500 → both OTM → worthless
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '490' } });
+      return Promise.resolve({ bars: { SPY: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'F', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    vi.setSystemTime(new Date('2026-06-21T01:00:00Z'));
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+      realized_pnl: expect.closeTo(-200, 2),  // -net_debit × 100 × qty = -2.00 × 100
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  // D12j: put_credit expired OTM (regression guard — existing behavior unchanged)
+  //   put_credit: short_leg = higher strike 480, long_leg = lower strike 470
+  //   spot = 490 >= short_leg.strike 480 → OTM → keep net_credit
+  //   net_credit = 0.25, realized = 0.25 × 100 × 1 = +$25
+  it('D12j: put_credit expired OTM (spot >= short.strike) → keep net_credit (regression)', async () => {
+    const trade: any = {
+      id: 'T-D12-010',
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'SPY',
+      side: 'STO', qty: 1, contract_symbol: null,
+      strike: null, expiration: '2026-06-20', contract_type: null,
+      filled_avg_price: 0.25, filled_at: '2026-05-24T15:00:00Z', fill_confirmed: true,
+      alpaca_order_id: 'mleg-open-d12j', alpaca_close_order_id: null,
+      submitted_at: '2026-05-24T14:55:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      modify_history: [{ ts: 'x', prev_order_id: 'x', new_order_id: 'x', limit_price: null, stop_price: null, source: 'dashboard' as const }],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'SPY260620P00480000', strike: 480, entry_premium: 0.37, fill_price: 0.37, qty: 1 },
+        long_leg:  { occ: 'SPY260620P00470000', strike: 470, entry_premium: 0.12, fill_price: 0.12, qty: 1 },
+        expiration: '2026-06-20',
+        width: 10,
+        net_credit: 0.25,
+        net_debit: 0,
+        max_loss: 9.75,
+        max_profit: 0.25,
+      },
+    };
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      return Promise.resolve([]);
+    });
+    // Spot 490 >= short_leg.strike 480 → OTM → keep full credit
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '490' } });
+      return Promise.resolve({ bars: { SPY: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    vi.setSystemTime(new Date('2026-06-21T01:00:00Z'));
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+      realized_pnl: expect.closeTo(25, 2),  // net_credit × 100 = 0.25 × 100
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+});

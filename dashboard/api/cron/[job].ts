@@ -731,10 +731,24 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   // Path 2b: spread past expiration with no close order = resolve by spot vs strikes.
   // The bot (Phase 2 handle_spread) clears the legs on Alpaca's side at expiry, but
   // the dashboard's trade record stays pinned to trades:index:open with closed_at=null
-  // unless we resolve it here. Three outcomes:
-  //   • spot >= short_strike  → both legs worthless OTM, keep full net credit (win)
-  //   • spot <  long_strike   → both legs deep ITM, full max loss
-  //   • between strikes       → partial loss, leave for manual resolution
+  // unless we resolve it here.
+  //
+  // D12 — debit-spread geometry is the INVERSE of credit spreads:
+  //
+  // Credit spreads (put_credit, call_credit):
+  //   • spot >= short_strike  → legs worthless OTM, keep full net_credit (max profit)
+  //   • spot <  long_strike   → legs deep ITM, full max_loss
+  //   • between strikes       → partial, leave for manual
+  //
+  // Debit spreads (put_debit, call_debit):
+  //   put_debit  (short = lower strike, long = higher strike — BTO the expensive one):
+  //     • spot < short_strike  → both puts ITM → max profit (= max_profit × 100)
+  //     • spot >= long_strike  → both puts OTM → full debit lost (= -net_debit × 100)
+  //     • between strikes      → partial, leave for manual
+  //   call_debit (short = higher strike, long = lower strike — BTO the cheap one):
+  //     • spot >= short_strike → both calls ITM → max profit
+  //     • spot <  long_strike  → both calls OTM → full debit lost
+  //     • between strikes      → partial, leave for manual
   if (trade.asset_class === 'spread' && trade.spread) {
     const exp = trade.spread.expiration;
     const expDate = new Date(exp + 'T20:00:00Z'); // ~4 PM ET = 20:00 UTC during EDT
@@ -753,26 +767,64 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
         return null;
       }
 
-      const { short_leg, long_leg, net_credit, max_loss, width } = trade.spread;
+      const { spread_type, short_leg, long_leg, net_credit, max_loss, width } = trade.spread;
+      const net_debit = trade.spread.net_debit ?? 0;
+      const max_profit = trade.spread.max_profit ?? net_credit; // backward-compat: pre-D12 records lack max_profit
       const qty = short_leg.qty;
+      const isCredit = spread_type === 'put_credit' || spread_type === 'call_credit';
 
-      if (spot >= short_leg.strike) {
-        // Worthless OTM — keep full credit
-        return {
-          closed_at: expDate.toISOString(),
-          closed_avg_price: 0,
-          realized_pnl: Math.round(net_credit * 100 * qty * 100) / 100,
-          closed_by: 'expired',
-        };
-      }
-      if (spot < long_leg.strike) {
-        // Deep ITM — full max loss
-        return {
-          closed_at: expDate.toISOString(),
-          closed_avg_price: width,
-          realized_pnl: Math.round(-max_loss * 100 * qty * 100) / 100,
-          closed_by: 'expired',
-        };
+      if (isCredit) {
+        // Credit spread: OTM when spot >= short_strike (put_credit: short is higher strike,
+        // call_credit: short is lower strike — both cases the short leg defines "worthless" side).
+        if (spot >= short_leg.strike) {
+          // Worthless OTM — keep full credit
+          return {
+            closed_at: expDate.toISOString(),
+            closed_avg_price: 0,
+            realized_pnl: Math.round(net_credit * 100 * qty * 100) / 100,
+            closed_by: 'expired',
+          };
+        }
+        if (spot < long_leg.strike) {
+          // Deep ITM — full max loss
+          return {
+            closed_at: expDate.toISOString(),
+            closed_avg_price: width,
+            realized_pnl: Math.round(-max_loss * 100 * qty * 100) / 100,
+            closed_by: 'expired',
+          };
+        }
+      } else {
+        // Debit spread: geometry is inverted vs credit.
+        // put_debit  (short=lower strike, long=higher strike):
+        //   max profit when spot < short_leg.strike (both ITM)
+        //   max loss   when spot >= long_leg.strike  (both OTM, worthless)
+        // call_debit (short=higher strike, long=lower strike):
+        //   max profit when spot >= short_leg.strike (both ITM)
+        //   max loss   when spot < long_leg.strike   (both OTM, worthless)
+        const isMaxProfit = spread_type === 'put_debit'
+          ? spot < short_leg.strike
+          : spot >= short_leg.strike;  // call_debit
+        const isMaxLoss = spread_type === 'put_debit'
+          ? spot >= long_leg.strike
+          : spot < long_leg.strike;    // call_debit
+
+        if (isMaxProfit) {
+          return {
+            closed_at: expDate.toISOString(),
+            closed_avg_price: 0,
+            realized_pnl: Math.round(max_profit * 100 * qty * 100) / 100,
+            closed_by: 'expired',
+          };
+        }
+        if (isMaxLoss) {
+          return {
+            closed_at: expDate.toISOString(),
+            closed_avg_price: 0,
+            realized_pnl: Math.round(-net_debit * 100 * qty * 100) / 100,
+            closed_by: 'expired',
+          };
+        }
       }
       // Between strikes — partial loss, leave for manual close
       console.warn(
@@ -907,9 +959,34 @@ async function detectExternalSpreadClose(mode: Mode, trade: Trade): Promise<Clos
   }
 
   const qty = trade.spread!.short_leg.qty;
-  const netDebit = shortPx - longPx;        // cost to close
-  const netCredit = trade.spread!.net_credit; // credit captured at open (confirmed or backstop)
-  const realized = Math.round((netCredit - netDebit) * 100 * qty * 100) / 100;
+  const spreadType = trade.spread!.spread_type;
+  const isCredit = spreadType === 'put_credit' || spreadType === 'call_credit';
+
+  // D12 — P&L formula differs for credit vs debit spreads.
+  //
+  // For ALL spread types, the closing fills are:
+  //   shortPx = price paid to buy back the short leg (the STO side)
+  //   longPx  = price received from selling the long leg (the BTO side)
+  //
+  // netCostToClose = shortPx − longPx:
+  //   positive → we paid net (typical credit spread close — buy back short, sell long for less)
+  //   negative → we received net (typical debit spread close — long gained more than short)
+  //
+  // Credit spread (opened for net_credit received):
+  //   realized = (net_credit − netCostToClose) × 100 × qty
+  //
+  // Debit spread (opened for net_debit paid):
+  //   realized = (−netCostToClose − net_debit) × 100 × qty
+  //           = ((longPx − shortPx) − net_debit) × 100 × qty
+  const netCostToClose = shortPx - longPx;
+  let realized: number;
+  if (isCredit) {
+    const netCredit = trade.spread!.net_credit;
+    realized = Math.round((netCredit - netCostToClose) * 100 * qty * 100) / 100;
+  } else {
+    const netDebitAtOpen = trade.spread!.net_debit ?? 0;
+    realized = Math.round((-netCostToClose - netDebitAtOpen) * 100 * qty * 100) / 100;
+  }
 
   // Pick the later of the two fill timestamps for closed_at — the trade
   // isn't truly closed until both legs are out.
@@ -919,7 +996,7 @@ async function detectExternalSpreadClose(mode: Mode, trade: Trade): Promise<Clos
 
   return {
     closed_at: closedAt,
-    closed_avg_price: netDebit,
+    closed_avg_price: netCostToClose,  // net cost to unwind (negative = received net)
     realized_pnl: realized,
     closed_by: 'bot_external',
     alpaca_close_order_id: shortFill.order_id ?? null,

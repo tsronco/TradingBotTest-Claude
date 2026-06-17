@@ -208,7 +208,10 @@ direction → status.**
 - **Test direction:** vitest: STO call exposure equals `strike × qty × 100`; a live short call above threshold sets `requires_totp`.
 
 ### D12 — Debit-spread close P&L mis-signed (uses `net_credit` = 0) 🟡 Medium  [O6]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Two code sites fixed in `dashboard/api/cron/[job].ts`:
+  1. **`detectExternalSpreadClose`** — renamed the single `netDebit` variable to `netCostToClose = shortPx − longPx` (works for both types). Branched on `isCredit = spread_type in {put_credit, call_credit}`. Credit: `realized = (net_credit − netCostToClose) × 100 × qty` (unchanged). Debit: `realized = (−netCostToClose − net_debit) × 100 × qty`, i.e. `(longPx − shortPx − net_debit) × 100 × qty`. `closed_avg_price` stores `netCostToClose` (negative when debit spread is closed at a gain).
+  2. **Path 2b expiry geometry** — added a debit-spread branch. Credit spreads keep the existing OTM (`spot >= short_strike → keep net_credit`) / ITM (`spot < long_strike → full max_loss`) geometry unchanged. Debit spreads use the inverted geometry: `put_debit` max profit when `spot < short_leg.strike` (both puts ITM); max loss when `spot >= long_leg.strike` (both OTM). `call_debit` max profit when `spot >= short_leg.strike` (both calls ITM); max loss when `spot < long_leg.strike` (both OTM). Realized: max profit = `max_profit × 100 × qty`; max loss = `−net_debit × 100 × qty`.
+  10 new vitest tests: D12a (put_debit external close favorable → +$30), D12b (put_debit unfavorable → −$110), D12c (call_debit favorable → +$70), D12d (put_credit regression → +$18), D12e (call_credit regression → +$35), D12f (put_debit expired ITM → +$850), D12g (put_debit expired OTM → −$150), D12h (call_debit expired ITM → +$800), D12i (call_debit expired OTM → −$200), D12j (put_credit expired OTM regression → +$25). Full suite: 702/702 (692 baseline + 10 new).
 - **Location:** `dashboard/api/cron/[job].ts:728–767` (`detectExternalSpreadClose`) and ~613–651 (Path 2b expiry); `spreadMath` stores `net_credit: 0` for `put_debit`/`call_debit` (`trades/[action].ts:110–117`). Close P&L `(net_credit − netDebitToClose) × 100 × qty` is always ≤ 0 for a debit spread, and the Path-2b expiry geometry assumes credit-spread shape.
 - **Scenario:** A debit vertical opened via the Strategy Builder on manual/live, closed externally or held to expiry → wrong realized P&L (a winning debit spread books as a loss).
 - **Cost:** Wrong P&L on debit spreads. Latent today (credit spreads dominate; no debit vertical opened yet) but fully reachable via the form.
@@ -284,5 +287,5 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D8 | `X-Forwarded-For` rate-limit bypass | 3 | ✅ DONE |
 | D10 | No server-side session expiry | 3 | ✅ DONE |
 | D9 | Short-call exposure understates → TOTP skip | 4 | ✅ DONE |
-| D12 | Debit-spread close P&L mis-signed | 4 | ⬜ TODO |
+| D12 | Debit-spread close P&L mis-signed | 4 | ✅ DONE |
 | D15 | Import cursor date-truncation duplicates | 4 | ⬜ TODO |

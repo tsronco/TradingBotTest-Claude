@@ -31,6 +31,25 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D12: debit-spread close P&L sign corrected for external close and expiry',
+    details:
+      'D12 money-loss remediation (medium severity). Two code sites in api/cron/[job].ts\n' +
+      'assumed credit-spread math for ALL spread types:\n\n' +
+      '1. detectExternalSpreadClose: used (net_credit − netDebitToClose) × 100 × qty. For\n' +
+      '   debit spreads net_credit=0, so a $150 winner (debit spread sold back above cost)\n' +
+      '   booked as e.g. −$70. Fixed: branched on isCreditSpread(). Credit formula unchanged;\n' +
+      '   debit formula: (longPx − shortPx − net_debit) × 100 × qty.\n\n' +
+      '2. Path 2b expiry geometry: "OTM → keep net_credit" and "ITM → full max_loss" were\n' +
+      '   both correct for credit spreads but wrong for debit spreads (direction inverted).\n' +
+      '   Fixed: added debit branch. put_debit max profit when spot < short.strike (both\n' +
+      '   puts ITM); call_debit max profit when spot >= short.strike (both calls ITM). Max\n' +
+      '   loss in each case is −net_debit × 100 × qty (debit fully lost).\n\n' +
+      '10 new vitest tests covering all four spread types in external-close and expiry paths,\n' +
+      'plus credit-spread regression guards. Full suite: 702/702.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D9: short-call exposure now uses assignment notional, not premium',
     details:
       'D9 money-loss remediation (medium severity). Previously, computeExposure\n' +
