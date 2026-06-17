@@ -106,8 +106,20 @@ export async function runGradeOpenTrades(): Promise<{
     // the trade is permanently stuck showing "submitted · limit $X" with
     // no entry price, and grade-on-close uses submitted_at as the start
     // instead of the actual fill time.
+    //
+    // Wrapped in try/catch to decouple sync failures from close detection.
+    // A transient Alpaca rate-limit or network error in syncFillData must
+    // never skip detectClose — a real (possibly live) close that Alpaca
+    // already processed must still get its P&L recorded this tick.
+    // Note: syncFillData's inner fetchOrderById already swallows its own
+    // errors and returns trade unchanged, so in practice syncFillData does
+    // not throw. The outer try/catch is a belt-and-suspenders guarantee.
     const beforeFilledAt = trade.filled_at;
-    trade = await syncFillData(trade);
+    try {
+      trade = await syncFillData(trade);
+    } catch (e) {
+      console.error('[gradeOpenTrades] syncFillData failed, proceeding to detectClose', trade.id, e);
+    }
     if (trade.filled_at && trade.filled_at !== beforeFilledAt) synced += 1;
 
     const closeInfo = await detectClose(trade);
@@ -335,15 +347,22 @@ interface CloseInfo {
  * set, this is a no-op aside from the Alpaca read on subsequent calls.
  */
 async function syncFillData(trade: Trade): Promise<Trade> {
-  // Idempotent termination: filled AND we've captured at least one modify
-  // event (or we'll fall through and re-check the chain — cheap if no
-  // chain exists). Empty/undefined modify_history → re-walk.
+  // D7 sentinel: once we've confirmed a fill from Alpaca and written
+  // fill_confirmed:true, the fill data is captured and immutable —
+  // no further Alpaca order fetch is needed. Early-return without any
+  // network call so we don't burn rate budget on every 5-min tick for
+  // every filled trade across all 7 accounts.
   //
-  // For trades with no modifies, modify_history stays empty array and we
-  // re-fetch the head order each tick to confirm. That's 1 Alpaca call
-  // per tick per filled trade with no modifies — acceptable. Could
-  // optimize later with a `modify_history_checked: true` sentinel.
+  // Undefined on legacy/pre-D7 trades → fall through and confirm once.
+  if (trade.fill_confirmed) return trade;
+
+  // Legacy guard (pre-D7): filled AND has modify history recorded.
+  // Keep as a secondary short-circuit for trades that had modify_history
+  // captured before fill_confirmed was introduced. On the next tick after
+  // this path fires, fill_confirmed will be set and the primary guard above
+  // takes over.
   if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade;
+
   const mode = modeFromAccount(trade.account);
 
   // Shared helper — forward walk to the terminal order following replaced_by.
@@ -411,6 +430,7 @@ async function syncFillData(trade: Trade): Promise<Trade> {
       alpaca_order_id: terminal.id,          // pin to terminal order
       filled_at: terminal.filled_at ?? new Date().toISOString(),
       filled_avg_price: netCredit,           // back-compat for legacy consumers
+      fill_confirmed: true,                  // D7 sentinel: skip sync on future ticks
       spread: {
         ...trade.spread,
         short_leg: { ...trade.spread.short_leg, fill_price: shortPx },
@@ -486,6 +506,7 @@ async function syncFillData(trade: Trade): Promise<Trade> {
     filled_at: order.filled_at,
     filled_avg_price: Number(order.filled_avg_price),
     modify_history: backfilled,
+    fill_confirmed: true,      // D7 sentinel: skip sync on future ticks
   };
   await kv().set(tradeKey(trade.id), updated);
   return updated;

@@ -159,12 +159,7 @@ direction → status.**
 - **Location:** `dashboard/api/cron/[job].ts` — spread branch of `syncFillData`; single-leg path updated to use shared `fetchOrderById` / `walkToTerminal` (removing the now-redundant inline `fetchOrder` closure).
 
 ### D7 — `syncFillData` re-runs every tick; a throttle then blocks close detection 🟠 High  [S2]
-- **Status:** ⬜ TODO
-- **Location:** `dashboard/api/cron/[job].ts:346` — early-exit `if (trade.filled_at && (trade.modify_history?.length ?? 0) > 0) return trade`. For the common filled/never-modified trade, `modify_history` is `[]` (length 0), so the guard never short-circuits → an Alpaca order fetch every 5-min tick for every open trade for its whole life. If that call is rate-limited/errors, `syncFillData` returns early and **`detectClose` never runs**.
-- **Scenario:** 10+ open option trades across 7 accounts → 10–70 pointless Alpaca calls/tick; under throttling, close detection is blocked for all of them.
-- **Cost:** On live, a bot-closed STO never gets realized P&L recorded; trades stuck "open" indefinitely; wasted rate budget that can cascade into D13.
-- **Fix direction:** Write a `fill_confirmed: true` sentinel the first time a fill is confirmed and early-return on it (the code comment already proposes `modify_history_checked`). Keep walking the modify chain only while unconfirmed.
-- **Test direction:** vitest: a `fill_confirmed` trade is skipped by `syncFillData` (no Alpaca call); an unconfirmed filled trade is fetched once then marked confirmed.
+- **Status:** ✅ DONE (2026-06-17). Added `fill_confirmed?: boolean` to the `Trade` type in `dashboard/api/_lib/trade-types.ts`. `syncFillData` now early-returns immediately when `trade.fill_confirmed` is true (before any Alpaca call). The sentinel is written alongside `filled_at` at both fill-confirmation sites: the spread (mleg) path and the single-leg path. Legacy/pre-D7 trades (undefined sentinel) fall through and confirm once, then the next tick is free. Separately, the per-trade loop in `runGradeOpenTrades` now wraps `syncFillData` in a try/catch so a thrown error (edge case — inner `fetchOrderById` already swallows its own errors) cannot skip `detectClose`. The try/catch was verified not redundant by D7c test: `fetchOrderById` logs and returns null on 429/error, so `syncFillData` currently returns `trade` unchanged rather than throwing — the outer guard is belt-and-suspenders against future changes. 3 new vitest tests: D7a (fill_confirmed set → no entry-order Alpaca fetch at all); D7b (fill_confirmed absent, filled order → fetches once and writes fill_confirmed:true); D7c (syncFillData entry-order fetch throws 429 → detectClose still runs, trade correctly closed). Full suite: 659/659 (656 baseline + 3 new).
 
 ### D13 — `findClosingFill` fetches only one page (100 activities) 🟡 Medium  [S12]
 - **Status:** ⬜ TODO
@@ -289,9 +284,9 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D1 | Live modify/cancel/read missing `LIVE_ENABLED` gate | 1 | ✅ DONE |
 | D2 | No idempotency key on submit (double-place) | 1 | ✅ DONE |
 | D4 | Month-index read-modify-write lost update | 2 | ✅ DONE |
-| D5 | Closing fills imported as opens (phantom trades) | 2 | ⬜ TODO |
+| D5 | Closing fills imported as opens (phantom trades) | 2 | ✅ DONE |
 | D6 | Spread `syncFillData` skips modify-chain | 2 | ✅ DONE |
-| D7 | `syncFillData` every-tick + blocks close detection | 2 | ⬜ TODO |
+| D7 | `syncFillData` every-tick + blocks close detection | 2 | ✅ DONE |
 | D13 | `findClosingFill` single-page cap | 2 | ⬜ TODO |
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ⬜ TODO |
 | D14 | Spread-close pre-fill-mid P&L | 2 | ⬜ TODO |

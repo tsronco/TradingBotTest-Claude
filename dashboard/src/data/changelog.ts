@@ -31,6 +31,24 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D7: fill_confirmed sentinel stops redundant Alpaca fetches; sync errors no longer block close detection',
+    details:
+      'Two coupled problems fixed — D7 high-severity money-loss remediation.\n\n' +
+      '1. Redundant fetches: the old syncFillData early-exit required modify_history.length > 0, ' +
+      'so filled-but-never-modified trades (the common case) triggered an Alpaca order fetch on ' +
+      'every 5-min cron tick for their entire open life — 10–70 wasted calls/tick across 7 accounts ' +
+      'under load. Fix: new fill_confirmed:true sentinel written once when a fill is first confirmed ' +
+      '(both the spread/mleg path and single-leg path). Subsequent ticks early-return before any ' +
+      'network call. Legacy trades without the sentinel fall through and confirm once, then are free.\n\n' +
+      '2. Close-detection isolation: a transient sync failure (Alpaca 429, network blip) inside ' +
+      'syncFillData must never prevent detectClose from running for that trade. The per-trade ' +
+      'processing loop now wraps syncFillData in try/catch so an unexpected throw skips the sync ' +
+      'step but proceeds to detectClose — a real bot-closed live trade gets its P&L recorded ' +
+      'regardless of the sync error.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D6: spread syncFillData now walks the Alpaca modify-chain to the terminal order',
     details:
       'A user modifying a spread\'s limit price on Alpaca\'s web UI causes Alpaca to cancel the ' +

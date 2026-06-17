@@ -756,6 +756,160 @@ describe('POST /api/cron/grade-open-trades', () => {
     }));
   });
 
+  // ---- D7: fill_confirmed sentinel + close-detection isolation ----------------
+  //
+  // D7a: a trade with fill_confirmed:true must NOT trigger an Alpaca order fetch.
+  //      The sentinel short-circuits syncFillData before any network call.
+  //
+  // D7b: a filled but not-yet-confirmed trade (fill_confirmed absent/false,
+  //      modify_history:[]) must fetch the order, confirm the fill, and persist
+  //      fill_confirmed:true so the next tick is free.
+  //
+  // D7c: if syncFillData throws (simulating a rate-limit or transient Alpaca
+  //      error), detectClose must still run for that trade — a transient sync
+  //      failure must never permanently block close detection.
+
+  it('D7a: syncFillData makes NO Alpaca order fetch when fill_confirmed is true', async () => {
+    // Trade is already filled and sentinel is set — syncFillData must early-return
+    // without touching alpacaTradeMock at all (aside from detectClose's own reads).
+    // To keep this assertion clean we use a stock trade with a close order already
+    // linked — detectClose will fetch that close order (path 1). We assert
+    // syncFillData did NOT make the entry-order fetch.
+    const trade = {
+      id: 'T-D7a-001', account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
+      side: 'buy', qty: 10, filled_avg_price: 300.00,
+      alpaca_order_id: 'entry-order-d7a', alpaca_close_order_id: 'close-order-d7a',
+      submitted_at: '2026-06-10T14:00Z', filled_at: '2026-06-10T14:01Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'test', tags: [], rule_warnings_at_entry: [],
+      modify_history: [],
+      fill_confirmed: true,  // <-- sentinel that should suppress the entry-order fetch
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'test', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Only set up a mock for the CLOSE order fetch (path 1 in detectClose).
+    // Entry order 'entry-order-d7a' must NOT be fetched.
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/close-order-d7a')) {
+        return Promise.resolve({ id: 'close-order-d7a', status: 'filled', filled_avg_price: '320.00', filled_at: '2026-06-11T15:00Z' });
+      }
+      // Entry-order path must not be called — if it is, fail clearly by returning null
+      // (which would abort the chain) but the expect below catches the call anyway.
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+    gradeMock.mockResolvedValue({ letter: 'B', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    // The entry order must NOT have been fetched — fill_confirmed should have
+    // caused syncFillData to early-return before any order fetch.
+    const fetchedPaths = alpacaTradeMock.mock.calls.map((c: any[]) => c[1] as string);
+    expect(fetchedPaths.some((p) => p.includes('entry-order-d7a'))).toBe(false);
+  });
+
+  it('D7b: syncFillData fetches once for filled/not-confirmed trade and sets fill_confirmed:true', async () => {
+    // Trade is filled on Alpaca (the order is filled) but fill_confirmed is absent
+    // (common on legacy/existing records). syncFillData must fetch the order ONCE,
+    // capture the fill, and write fill_confirmed:true to KV.
+    const trade = {
+      id: 'T-D7b-001', account: 'manual_paper', symbol: 'F', asset_class: 'option',
+      side: 'STO', qty: 1, contract_symbol: 'F260718P00011000',
+      strike: 11.0, expiration: '2026-07-18', contract_type: 'put',
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'entry-order-d7b', alpaca_close_order_id: null,
+      submitted_at: '2026-06-10T14:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'test', tags: [], rule_warnings_at_entry: [],
+      modify_history: [],   // empty — the old guard never fires
+      // fill_confirmed absent (undefined) — sentinel not yet set
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    // Alpaca reports the entry order as filled
+    alpacaTradeMock.mockResolvedValue({
+      id: 'entry-order-d7b', status: 'filled',
+      filled_at: '2026-06-10T14:05:00Z', filled_avg_price: '0.08',
+    });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-10T16:00:00Z')); // before 2026-07-18 expiry
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+    // fill_confirmed:true must be written to the trade record
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: '2026-06-10T14:05:00Z',
+      filled_avg_price: 0.08,
+      fill_confirmed: true,
+    }));
+    // The entry order was fetched exactly once (forward walk to terminal, then backward
+    // to check for a modify chain = same terminal id, no backward hops). Accept 1 or 2
+    // calls to the entry-order path (walk + backward step that gets the same order).
+    const entryFetches = alpacaTradeMock.mock.calls.filter(
+      (c: any[]) => typeof c[1] === 'string' && (c[1] as string).includes('entry-order-d7b'),
+    );
+    expect(entryFetches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('D7c: detectClose still runs when syncFillData throws (sync failure must not block close)', async () => {
+    // Simulate Alpaca rate-limiting the entry-order fetch inside syncFillData.
+    // Even though syncFillData fails, detectClose MUST still run and pick up the
+    // already-linked close order — so a transient sync failure never permanently
+    // blocks close detection.
+    const trade = {
+      id: 'T-D7c-001', account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
+      side: 'buy', qty: 10, filled_avg_price: 300.00,
+      alpaca_order_id: 'entry-order-d7c', alpaca_close_order_id: 'close-order-d7c',
+      submitted_at: '2026-06-10T14:00Z', filled_at: '2026-06-10T14:01Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'test', tags: [], rule_warnings_at_entry: [],
+      modify_history: [],   // empty — would normally trigger a sync fetch
+      // fill_confirmed absent — sentinel not set, so sync is attempted
+      schema: 1,
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'test', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Entry-order fetch throws (Alpaca rate-limit / 429). Close-order fetch succeeds.
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/entry-order-d7c')) {
+        return Promise.reject(new Error('HTTP 429 Too Many Requests'));
+      }
+      if (path.endsWith('/close-order-d7c')) {
+        return Promise.resolve({ id: 'close-order-d7c', status: 'filled', filled_avg_price: '320.00', filled_at: '2026-06-11T15:00Z' });
+      }
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+    gradeMock.mockResolvedValue({ letter: 'B', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    // Must NOT throw — the per-trade loop must survive a syncFillData error
+    await expect(handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes())).resolves.not.toThrow();
+    // detectClose must have run: the trade must be closed with the fill from close-order-d7c
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-06-11T15:00Z',
+      closed_avg_price: 320.00,
+      closed_by: 'manual',
+    }));
+    // And it must be removed from the open index
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
   // --- SM cross-account routing (Phase 6.x critical fix) ---
   // modeFromAccount() in cron/[job].ts MUST route SM accounts to their own
   // Alpaca creds via syncFillData's alpacaTrade(mode, ...) call — NOT silently

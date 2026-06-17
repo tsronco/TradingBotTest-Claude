@@ -123,6 +123,13 @@ export interface Trade {
   ai_grade_inherited?: boolean;
   cost_basis_at_entry?: number | null;
   earnings_during_hold?: boolean;
+  /**
+   * Set to true the first time syncFillData confirms a fill from Alpaca.
+   * Once set, syncFillData skips the Alpaca order fetch on every subsequent
+   * cron tick — the fill data is already captured and won't change.
+   * Undefined on legacy trades (treat as not-yet-confirmed).
+   */
+  fill_confirmed?: boolean;
 }
 
 export interface GradeEntry {
