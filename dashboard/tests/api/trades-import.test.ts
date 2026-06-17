@@ -433,3 +433,95 @@ describe('parseOcc + groupFillsIntoSpreadsAndSingles', () => {
     expect(out.singles[0].symbol).toBe('NVTS');
   });
 });
+
+describe('D15 — cross-month-boundary dedup: fill already imported in prior month is not re-imported', () => {
+  it('fill from Apr 30 that is before the since cursor is dropped by timestamp filter even though Alpaca re-offers it', async () => {
+    // Scenario: since = '2026-04-30T23:00:00Z' (within April), after = '2026-04-30'.
+    // Alpaca re-serves a fill at 2026-04-30T22:30:00Z (before the since cursor).
+    // That fill was already imported in a prior run. Pre-fix: no client-side
+    // timestamp guard → the fill passes the date-granular `after` filter and
+    // reaches the dedup step (which may or may not catch it depending on the
+    // month index). Post-fix: fills where transaction_time <= since are dropped
+    // immediately by a client-side timestamp filter, before they even hit dedup.
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-before-cursor',
+        activity_type: 'FILL',
+        transaction_time: '2026-04-30T22:30:00Z',  // BEFORE since=23:00
+        symbol: 'NVTS260605P00020500',
+        side: 'sell',
+        price: '2.12',
+        qty: '2',
+        order_id: 'sto-before-april-cursor',
+        position_effect: 'opening',
+      },
+      {
+        // This fill IS after the cursor and should be imported.
+        id: 'fill-after-cursor',
+        activity_type: 'FILL',
+        transaction_time: '2026-04-30T23:30:00Z',  // AFTER since=23:00
+        symbol: 'TSLA260605P00200000',
+        side: 'sell',
+        price: '3.00',
+        qty: '1',
+        order_id: 'sto-after-cursor',
+        position_effect: 'opening',
+      },
+    ]);
+
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-04-30T23:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    // The pre-cursor fill must be dropped; the post-cursor fill must be imported.
+    expect(body.imported.imported).toBe(1);
+    // skipped_existing is 0 — it was filtered by timestamp, not by dedup.
+    expect(body.imported.skipped_existing).toBe(0);
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    // Only one trade written (the post-cursor fill).
+    expect(tradeSetCalls).toHaveLength(1);
+    expect(tradeSetCalls[0][1]).toMatchObject({ alpaca_order_id: 'sto-after-cursor' });
+  });
+
+  it('fill whose transaction_time is before the since cursor is dropped (timestamp filter)', async () => {
+    // Even if dedup somehow missed it, a fill timestamped before `since` should
+    // be filtered client-side so it never reaches the dedup path.
+    // `since = '2026-05-01T06:00:00Z'`; fill transaction_time = '2026-05-01T05:30:00Z'
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-before-since',
+        activity_type: 'FILL',
+        transaction_time: '2026-05-01T05:30:00Z',
+        symbol: 'NVTS260605P00020500',
+        side: 'sell',
+        price: '2.12',
+        qty: '2',
+        order_id: 'sto-before-cursor',
+        position_effect: 'opening',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T06:00:00Z' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(0);
+    // Dropped by timestamp filter (not skipped_existing — it never reached dedup)
+    expect(body.imported.skipped_existing).toBe(0);
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCalls).toHaveLength(0);
+  });
+});

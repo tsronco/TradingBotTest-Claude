@@ -1451,6 +1451,24 @@ export async function runImport({
     pageToken = lastId;
   }
 
+  // D15: client-side timestamp filter.  Alpaca's `after` param is DATE-granular
+  // (YYYY-MM-DD), so it re-offers ALL fills from the cursor date regardless of
+  // the time component.  Without this guard, fills that happened before the
+  // precise `since` timestamp but on the same calendar date would pass the
+  // date-only filter and — if they hadn't been imported yet — create duplicate
+  // trade records.  Drop any fill whose precise transaction_time is on or before
+  // the full ISO `since` cursor so only truly new fills reach the import logic.
+  // Fills with a missing/invalid timestamp are kept (safe default — we must not
+  // silently drop genuine opens just because the timestamp field is absent).
+  const sinceTs = Date.parse(since);
+  const afterSince: RawFill[] = Number.isFinite(sinceTs)
+    ? activities.filter((a) => {
+        const ts = Date.parse(a.transaction_time ?? '');
+        // If the fill timestamp is parseable and is <= the since cursor, drop it.
+        return !Number.isFinite(ts) || ts > sinceTs;
+      })
+    : activities;
+
   // Only OPENING fills are imported here — closes will be picked up by the
   // cron's external-close detection on the next tick.
   // For options: STO (sell_short) and BTO (buy that creates a new long).
@@ -1466,7 +1484,7 @@ export async function runImport({
   // Safe-default: if the field is absent (legacy records, account types that
   // don't return it) we treat the fill as opening. We must not silently drop
   // legitimate opens just because the field is missing.
-  const openingFills: RawFill[] = activities.filter((a) => {
+  const openingFills: RawFill[] = afterSince.filter((a) => {
     const pe = (a.position_effect ?? '').toLowerCase();
     return pe !== 'closing';
   });

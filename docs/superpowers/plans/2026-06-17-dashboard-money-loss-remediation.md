@@ -111,7 +111,7 @@ Takeaways:
 |---|---|---|---|
 | D9 | 🟡 Medium | all (TOTP gate) | Short-**call** exposure uses premium, not assignment notional → undersized → skips the TOTP threshold (incl. live) |
 | D12 | 🟡 Medium | manual, live (latent) | Debit-spread close P&L is mis-signed (uses `net_credit` = 0) → a winning debit spread books as a loss |
-| D15 | 🟢 Low | all (import) | Import cursor `after: since.slice(0,10)` is date-granular → month-boundary re-import → duplicate trade records |
+| D15 | 🟢 Low ✅ | all (import) | Import cursor `after: since.slice(0,10)` is date-granular → month-boundary re-import → duplicate trade records |
 
 ---
 
@@ -219,7 +219,7 @@ direction → status.**
 - **Test direction:** vitest: a `call_debit`/`put_debit` closed above cost books a positive realized P&L; a losing one books the bounded debit loss.
 
 ### D15 — Import cursor date-truncation → month-boundary duplicates 🟢 Low  [S13, S14]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE — client-side timestamp filter added to `runImport` in `dashboard/api/trades/[action].ts`. After fetching activities with the date-granular `after` param, any fill whose `transaction_time` is `<= since` is dropped before it reaches the dedup or opening-fill logic. Fills with a missing/unparseable timestamp are kept (safe default). Two vitest tests added: (1) a pre-cursor fill on the same day as `since` is dropped while a post-cursor fill on the same day is imported; (2) a fill timestamped before `since` on a different same-date window is dropped. Full suite: 704/704 passing.
 - **Location:** `dashboard/api/trades/[action].ts:1261–1264` — `after: since.slice(0,10)` (Alpaca's `after` is date-granular). Re-offers all fills from the cursor date; dedup (`orderIdAlreadyImported`) only checks the *current* month's index, so a cursor on a month boundary checks the wrong month and re-imports.
 - **Scenario:** Importer runs with a cursor on the last day of a month; a fill imported into the prior month re-imports into the new month.
 - **Cost:** Duplicate trade records inflate win count + total realized P&L on `/performance`.
@@ -288,4 +288,4 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D10 | No server-side session expiry | 3 | ✅ DONE |
 | D9 | Short-call exposure understates → TOTP skip | 4 | ✅ DONE |
 | D12 | Debit-spread close P&L mis-signed | 4 | ✅ DONE |
-| D15 | Import cursor date-truncation duplicates | 4 | ⬜ TODO |
+| D15 | Import cursor date-truncation duplicates | 4 | ✅ DONE |

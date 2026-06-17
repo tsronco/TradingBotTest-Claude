@@ -31,6 +31,25 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D15: import dedup — client-side timestamp filter prevents pre-cursor fills re-importing',
+    details:
+      'D15 money-loss remediation (low severity). Alpaca\'s `after` param on\n' +
+      '/v2/account/activities is DATE-granular (YYYY-MM-DD only), so it re-offers\n' +
+      'all fills from the cursor date regardless of time. Without a client-side\n' +
+      'guard, fills that happened earlier in the same day than the `since` cursor\n' +
+      'could be imported as duplicate trade records, inflating win count and total\n' +
+      'realized P&L on /performance.\n\n' +
+      'Fix: after fetching the Alpaca activity page, any fill whose precise\n' +
+      'transaction_time is <= the full ISO `since` cursor is dropped before it\n' +
+      'reaches the dedup or opening-fill logic. Fills with a missing/unparseable\n' +
+      'timestamp are kept (safe default — must not silently drop genuine opens).\n\n' +
+      'Location: dashboard/api/trades/[action].ts runImport(), new `afterSince`\n' +
+      'filter block after activity pagination.\n' +
+      'Tests: 2 new vitest tests in tests/api/trades-import.test.ts (D15 suite).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D12: debit-spread close P&L sign corrected for external close and expiry',
     details:
       'D12 money-loss remediation (medium severity). Two code sites in api/cron/[job].ts\n' +
