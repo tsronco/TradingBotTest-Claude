@@ -15,6 +15,7 @@ import {
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey, importCursorKey,
+  idemKey, IDEM_INDEX_TTL_SECONDS,
 } from '../_lib/kv-keys.js';
 import { alpacaFor } from '../_lib/alpaca.js';
 import { resolveCostBasisForCc } from '../_lib/cost-basis.js';
@@ -405,9 +406,14 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // D2 — Pre-allocate the trade id so we can derive a deterministic
-  // client_order_id before hitting Alpaca (same pattern as stock/option submit).
-  const id = await allocateTradeId();
+  // D2 — KV idempotency index: same cross-request dedup as stock/option submit.
+  // See claimIdemIndex() for the full race-safety analysis.
+  const idemClaim = await claimIdemIndex(p.idempotency_key);
+  if (!idemClaim.winner) {
+    const { id: origId, trade: origTrade } = idemClaim;
+    return res.status(200).json({ id: origId, trade_id: origId, alpaca_order_id: origTrade.alpaca_order_id });
+  }
+  const id = idemClaim.id;
   const clientOrderId = (p.idempotency_key?.trim() ?? '') || `dash-${id}`;
 
   // Build the mleg order. Alpaca's multi-leg order endpoint expects
@@ -562,6 +568,80 @@ function isDuplicateClientOrderIdError(err: unknown): boolean {
   return msg.includes('422') && msg.toLowerCase().includes('client_order_id');
 }
 
+/**
+ * D2 — KV idempotency index: cross-request order dedup.
+ *
+ * Called BEFORE allocateTradeId() in both submit and submitSpread.
+ *
+ * Strategy (race-safe via nx):
+ *   1. Check kvGet(idemKey) — fast path if a prior request already settled.
+ *   2. allocateTradeId() to reserve a fresh id.
+ *   3. kv().set(idemKey, id, { nx: true, ex: TTL }) — atomic claim.
+ *      - 'OK'  → this request won; proceed to Alpaca with `id`.
+ *      - null  → another request won; kvGet(idemKey) returns the winner's id.
+ *        Load that trade record and return it immediately (no Alpaca call).
+ *
+ * Returns:
+ *   { winner: true, id }            — this request won the claim; use `id`
+ *   { winner: false, trade, id }    — another request already succeeded;
+ *                                     return `trade` to the caller verbatim
+ *
+ * If idempotencyKey is absent (dash-<id> fallback path), returns winner:true
+ * with a freshly allocated id — no index is written because the fallback key
+ * changes on every request and cannot provide cross-request dedup.
+ */
+async function claimIdemIndex(
+  idempotencyKey: string | undefined,
+): Promise<
+  | { winner: true; id: string }
+  | { winner: false; id: string; trade: Trade }
+> {
+  const rawKey = idempotencyKey?.trim() ?? '';
+
+  // No stable key supplied — allocate an id and skip the index entirely.
+  if (!rawKey) {
+    const id = await allocateTradeId();
+    return { winner: true, id };
+  }
+
+  const kk = idemKey(rawKey);
+
+  // Fast path: a prior request has already settled and written the index.
+  const existing = await kv().get<string>(kk);
+  if (existing) {
+    const trade = await kv().get<Trade>(tradeKey(existing));
+    if (trade) {
+      return { winner: false, id: existing, trade };
+    }
+    // Index entry exists but trade record is gone (shouldn't happen in
+    // practice). Fall through and let this request win.
+  }
+
+  // Allocate a trade id, then atomically claim the index entry.
+  const id = await allocateTradeId();
+  const claimed = await kv().set(kk, id, { nx: true, ex: IDEM_INDEX_TTL_SECONDS });
+
+  if (claimed !== null) {
+    // 'OK' — this request won the claim.
+    return { winner: true, id };
+  }
+
+  // null — lost the race to another concurrent request. Read the winner's id.
+  const winnerId = await kv().get<string>(kk);
+  if (winnerId) {
+    const trade = await kv().get<Trade>(tradeKey(winnerId));
+    if (trade) {
+      return { winner: false, id: winnerId, trade };
+    }
+  }
+
+  // Edge case: won→lost but winner's record isn't in KV yet (extremely tight
+  // race between write and the read above). Treat this request as the winner
+  // with its own id — worst case the first record wins and the second is
+  // orphaned, which is no worse than the pre-index behavior.
+  return { winner: true, id };
+}
+
 async function submit(req: VercelRequest, res: VercelResponse) {
   if (isSpreadPayload(req.body)) return submitSpread(req, res);
   const draft = (req.body ?? {}) as OrderDraft;
@@ -651,16 +731,27 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // D2 — Pre-allocate the trade id so we can derive a deterministic
-  // client_order_id before hitting Alpaca. This way if the response is lost
-  // and the client retries with the same idempotency_key, Alpaca rejects the
-  // duplicate (422) and we look up the already-created order rather than
-  // double-placing.
-  const id = await allocateTradeId();
+  // D2 — KV idempotency index: check/claim before allocating an id or hitting
+  // Alpaca. If a prior request with the same idempotency_key already succeeded,
+  // return that existing trade record immediately (no Alpaca call, no new
+  // trade record). This closes the cross-request dedup gap where: request 1
+  // places the order + writes record T-1, response is lost; request 2 would
+  // previously allocate T-2 and call Alpaca again (422 caught → T-2 still
+  // written as a phantom duplicate). With the index, request 2 short-circuits.
+  const idemClaim = await claimIdemIndex(draft.idempotency_key);
+  if (!idemClaim.winner) {
+    // Another request already settled. Return the original trade record.
+    const { id: origId, trade: origTrade } = idemClaim;
+    return res.status(200).json({ id: origId, alpaca_order_id: origTrade.alpaca_order_id });
+  }
+  const id = idemClaim.id;
   // Use the caller-supplied idempotency key (generated once by ConfirmModal
   // and held in a ref across re-clicks). Fall back to a derivation from the
   // pre-allocated trade id so every order carries a client_order_id even when
   // the frontend didn't send one (import path, older clients).
+  // NOTE: the `dash-<id>` fallback is NOT retry-idempotent — it derives from
+  // a new id on every request. Only a stable caller-supplied key qualifies
+  // for cross-request dedup via the KV index above.
   const clientOrderId = (draft.idempotency_key?.trim() ?? '') || `dash-${id}`;
 
   // Alpaca submit (paper for now)

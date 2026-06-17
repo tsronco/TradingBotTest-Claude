@@ -130,6 +130,176 @@ const SPREAD_DRAFT = {
   entry_reasoning: 'Bullish AAL above $12.50',
 };
 
+// ---------------------------------------------------------------------------
+// D2 — KV idempotency index: cross-request dedup
+//
+// These tests cover the gap where two *sequential HTTP requests* share the
+// same idempotency_key. The first request succeeds and writes the index;
+// the second should short-circuit before allocating a trade id or calling
+// Alpaca, and return the SAME trade id as the first request.
+//
+// The within-one-request 422 path (Alpaca duplicate rejection) is tested in
+// the existing describe block below; this block tests the KV index path.
+// ---------------------------------------------------------------------------
+
+const kvSetNxReturn = vi.fn();   // controls whether kv().set(…, {nx:true}) returns 'OK' or null
+
+describe('D2 — KV idempotency index (cross-request dedup)', () => {
+  beforeEach(() => {
+    kvSetNxReturn.mockReset();
+  });
+
+  it('stock: second call with same idempotency_key returns first trade id without calling Alpaca again', async () => {
+    const IDEM_KEY = 'cross-request-stock-key-abc';
+
+    // --- First request: kv set with nx wins ('OK'), Alpaca succeeds ----------
+    alpacaCreateOrder.mockResolvedValue({ id: 'alp-first-order', submitted_at: '2026-06-17T13:00:00Z' });
+
+    // Override kvSet: the nx claim for the idem key succeeds on first request ('OK'),
+    // all other sets return 'OK' normally.
+    kvSet.mockImplementation((key: string, _val: unknown, opts?: any) => {
+      if (opts?.nx && key.startsWith('trades:idem:')) {
+        return Promise.resolve('OK');   // first caller wins the claim
+      }
+      return Promise.resolve('OK');
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res1 = mockRes();
+    await handler(mockReq({ ...STOCK_DRAFT, idempotency_key: IDEM_KEY }), res1);
+
+    expect(res1.status).not.toHaveBeenCalledWith(502);
+    const firstJson = (res1.json as any).mock.calls[0][0];
+    const firstTradeId = firstJson.id ?? firstJson.trade_id;
+    expect(firstTradeId).toMatch(/^T-\d{4}-\d{2}-\d{2}-\d{3}$/);
+
+    // Capture how many times createOrder was called after the first request
+    const callsAfterFirst = alpacaCreateOrder.mock.calls.length;
+    expect(callsAfterFirst).toBe(1);
+
+    // --- Second request: kv get returns the stored trade id (index hit) ------
+    // Now simulate: the idem index key exists in KV and returns the first trade id.
+    // The nx set returns null (key already exists), so the handler should load the
+    // existing trade record and return it without calling Alpaca.
+
+    // Build a fake existing trade record matching the first trade id
+    const fakeExistingTrade = {
+      id: firstTradeId,
+      account: 'conservative_paper',
+      asset_class: 'stock',
+      symbol: 'TSLA',
+      alpaca_order_id: 'alp-first-order',
+    };
+
+    // Wire kvGet: idem key returns the first trade id; trade key returns the record
+    kvGet.mockImplementation((key: string) => {
+      if (key === 'config:totp_thresholds') {
+        return Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 });
+      }
+      if (key === `trades:idem:${IDEM_KEY}`) {
+        return Promise.resolve(firstTradeId);
+      }
+      if (key === `trade:${firstTradeId}`) {
+        return Promise.resolve(fakeExistingTrade);
+      }
+      return Promise.resolve(null);
+    });
+
+    // nx set would fail (index already exists), but if the implementation checks
+    // kvGet first and early-returns on an existing idem index entry, the set may
+    // not even be called. Either strategy is fine — just assert Alpaca is not called.
+    kvSet.mockImplementation((key: string, _val: unknown, opts?: any) => {
+      if (opts?.nx && key.startsWith('trades:idem:')) {
+        return Promise.resolve(null);   // second caller loses the claim
+      }
+      return Promise.resolve('OK');
+    });
+
+    const res2 = mockRes();
+    await handler(mockReq({ ...STOCK_DRAFT, idempotency_key: IDEM_KEY }), res2);
+
+    // Must not error
+    expect(res2.status).not.toHaveBeenCalledWith(502);
+    expect(res2.status).not.toHaveBeenCalledWith(500);
+
+    // Alpaca createOrder must NOT have been called again
+    expect(alpacaCreateOrder.mock.calls.length).toBe(callsAfterFirst);
+
+    // Must return the SAME trade id
+    const secondJson = (res2.json as any).mock.calls[0][0];
+    const secondTradeId = secondJson.id ?? secondJson.trade_id;
+    expect(secondTradeId).toBe(firstTradeId);
+  });
+
+  it('spread: second call with same idempotency_key returns first trade id without calling Alpaca again', async () => {
+    const IDEM_KEY = 'cross-request-spread-key-xyz';
+
+    // --- First request: succeeds --------------------------------------------
+    alpacaTradeMutationMock.mockResolvedValue({
+      id: 'alp-spread-first', status: 'new', submitted_at: '2026-06-17T13:00:00Z',
+    });
+    kvSet.mockImplementation((key: string, _val: unknown, opts?: any) => {
+      if (opts?.nx && key.startsWith('trades:idem:')) {
+        return Promise.resolve('OK');
+      }
+      return Promise.resolve('OK');
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res1 = mockRes();
+    await handler(mockReq({ ...SPREAD_DRAFT, idempotency_key: IDEM_KEY }), res1);
+
+    expect(res1.status).not.toHaveBeenCalledWith(502);
+    const firstJson = (res1.json as any).mock.calls[0][0];
+    const firstTradeId = firstJson.id ?? firstJson.trade_id;
+    expect(firstTradeId).toMatch(/^T-\d{4}-\d{2}-\d{2}-\d{3}$/);
+
+    const mutationCallsAfterFirst = alpacaTradeMutationMock.mock.calls.length;
+    expect(mutationCallsAfterFirst).toBe(1);
+
+    // --- Second request: KV index hit, early return -------------------------
+    const fakeExistingTrade = {
+      id: firstTradeId,
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'AAL',
+      alpaca_order_id: 'alp-spread-first',
+    };
+
+    kvGet.mockImplementation((key: string) => {
+      if (key === 'config:totp_thresholds') {
+        return Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 });
+      }
+      if (key === `trades:idem:${IDEM_KEY}`) {
+        return Promise.resolve(firstTradeId);
+      }
+      if (key === `trade:${firstTradeId}`) {
+        return Promise.resolve(fakeExistingTrade);
+      }
+      return Promise.resolve(null);
+    });
+    kvSet.mockImplementation((key: string, _val: unknown, opts?: any) => {
+      if (opts?.nx && key.startsWith('trades:idem:')) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve('OK');
+    });
+
+    const res2 = mockRes();
+    await handler(mockReq({ ...SPREAD_DRAFT, idempotency_key: IDEM_KEY }), res2);
+
+    expect(res2.status).not.toHaveBeenCalledWith(502);
+    expect(res2.status).not.toHaveBeenCalledWith(500);
+
+    // Alpaca mutation must NOT have been called again
+    expect(alpacaTradeMutationMock.mock.calls.length).toBe(mutationCallsAfterFirst);
+
+    const secondJson = (res2.json as any).mock.calls[0][0];
+    const secondTradeId = secondJson.id ?? secondJson.trade_id;
+    expect(secondTradeId).toBe(firstTradeId);
+  });
+});
+
 describe('D2 — idempotency key on order submit', () => {
   it('stamps the provided idempotency_key as Alpaca client_order_id on stock submit', async () => {
     alpacaCreateOrder.mockResolvedValue({ id: 'alp-abc-1', submitted_at: '2026-06-17T13:00:00Z' });

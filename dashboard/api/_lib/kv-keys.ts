@@ -35,6 +35,7 @@ export function lastUpdateKey(key: BotStateKey): string {
 
 const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^trade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
+  /^trades:idem:.+$/,
   /^grade:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^assignment-child:T-\d{4}-\d{2}-\d{2}-\d{3}$/,
   /^trades:index:open$/,
@@ -116,4 +117,25 @@ export function assignmentChildKey(parentTradeId: string): string {
 
 export function importCursorKey(account: string): string {
   return `import:cursor:${account}`;
+}
+
+// D2 — KV idempotency index for cross-request order dedup.
+//
+// Maps a caller-supplied idempotency_key → trade id. Written with nx:true
+// (set-if-not-exists) immediately after allocateTradeId() and before the
+// Alpaca call, so a concurrent or sequential retry with the same key either:
+//   • wins the claim (gets 'OK') → proceeds normally, or
+//   • loses the claim (gets null) → reads the winning request's trade id
+//     from KV and returns that existing trade record without calling Alpaca.
+//
+// TTL is 7 days (604800 s). Retries happen within seconds to minutes; a
+// week-long window is generous and keeps the index from growing unbounded.
+//
+// NOTE: the `dash-<id>` fallback (for callers with no key) is NOT retry-
+// idempotent — it derives from a newly-allocated id on every request. Only a
+// stable caller-supplied key qualifies for cross-request dedup.
+export const IDEM_INDEX_TTL_SECONDS = 7 * 24 * 3600; // 604800 s
+
+export function idemKey(idempotencyKey: string): string {
+  return `trades:idem:${idempotencyKey}`;
 }

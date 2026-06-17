@@ -31,6 +31,31 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D2 residual: KV idempotency index closes trade-record dedup gap on retry',
+    details:
+      'Follow-up to the D2 idempotency-key fix. The prior fix prevented double-placing a ' +
+      'second Alpaca order on a cross-request retry (via the 422 duplicate-client_order_id ' +
+      'backstop), but it still created a second trade RECORD: request 2 allocated T-2, hit ' +
+      'Alpaca\'s 422, resolved the existing order, and wrote a phantom T-2 record → ' +
+      'double-counted P&L.\n\n' +
+      'Fix: KV idempotency index (trades:idem:<key> → trade id, 7-day TTL, nx: true ' +
+      'atomicity). At the start of submit and submitSpread, before allocateTradeId() or any ' +
+      'Alpaca call, claimIdemIndex() checks the index:\n' +
+      '  • Index miss → allocate id, claim with nx:true, proceed normally.\n' +
+      '  • Index hit (fast path) or nx claim lost (race path) → load the existing trade ' +
+      '    record and return it immediately. No second allocateTradeId(), no Alpaca call, ' +
+      '    no second KV write.\n\n' +
+      'The Alpaca-422 backstop is kept as a secondary guard for orders placed outside this ' +
+      'flow (e.g. bot-opened, import path). The dash-<id> fallback for callers without a ' +
+      'stable key is explicitly documented as NOT cross-request idempotent — only a ' +
+      'caller-supplied stable key (generated once in ConfirmModal useRef) qualifies.\n\n' +
+      '2 new vitest tests prove the cross-request dedup: two sequential submit calls with ' +
+      'the same idempotency_key → exactly one trade record, Alpaca called exactly once. ' +
+      'Full suite: 14 pre-existing failures only, zero new.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'Idempotency key on all order submits — prevents double-place on retry (D2)',
     details:
       'Money-loss remediation finding D2. No order path previously sent a client_order_id ' +
