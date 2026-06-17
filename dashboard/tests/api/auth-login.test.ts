@@ -4,6 +4,8 @@ import handler from '../../api/auth/[action]';
 import * as rateLimit from '../../api/_lib/rate-limit';
 
 vi.spyOn(rateLimit, 'isRateLimited').mockResolvedValue(false);
+// D8: also mock the new global backstop so existing tests don't hit KV
+vi.spyOn(rateLimit, 'isGloballyRateLimited').mockResolvedValue(false);
 vi.spyOn(rateLimit, 'recordFailure').mockResolvedValue();
 vi.spyOn(rateLimit, 'clearFailures').mockResolvedValue();
 
@@ -84,8 +86,20 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('rate limiting', () => {
-  it('returns 429 when isRateLimited returns true', async () => {
+  it('returns 429 when per-IP isRateLimited returns true', async () => {
     (rateLimit.isRateLimited as any).mockResolvedValueOnce(true);
+    const { req, res } = makeReqRes({
+      password: 'correct-horse-battery-staple',
+      totp: authenticator.generate(secret),
+    });
+    await handler(req, res);
+    expect(res.statusCode).toBe(429);
+  });
+
+  it('returns 429 when global backstop isGloballyRateLimited returns true (D8)', async () => {
+    // Per-IP check passes but global backstop trips (IP-rotation attack scenario)
+    (rateLimit.isRateLimited as any).mockResolvedValueOnce(false);
+    (rateLimit.isGloballyRateLimited as any).mockResolvedValueOnce(true);
     const { req, res } = makeReqRes({
       password: 'correct-horse-battery-staple',
       totp: authenticator.generate(secret),

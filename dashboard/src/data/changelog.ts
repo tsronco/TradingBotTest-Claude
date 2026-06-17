@@ -31,6 +31,30 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D8: login rate-limit hardened — rightmost XFF + global failure backstop',
+    details:
+      'D8 money-loss remediation (high severity). The old clientIp() took the LEFTMOST\n' +
+      'token of x-forwarded-for, which a client can forge freely. Rotating the leftmost\n' +
+      'value per request made every attempt look like a new IP, so the 5-fails/15-min\n' +
+      'lockout never tripped — unthrottled brute-force on DASHBOARD_PASSWORD + TOTP.\n\n' +
+      'Fix 1 — Trusted header: switched to the RIGHTMOST token of x-forwarded-for.\n' +
+      'Vercel docs confirm Vercel rewrites this header entirely ("does not forward external\n' +
+      'IPs — this restriction is in place to prevent IP spoofing"), so on vanilla Vercel\n' +
+      'there is exactly one token and rightmost == the real client IP. Under a proxy chain\n' +
+      'the rightmost is the nearest trusted-proxy-added hop, which a client cannot prepend to.\n\n' +
+      'Fix 2 — Global backstop (auth:fail:global): every failed login, regardless of IP,\n' +
+      'increments a global counter (same 15-min sliding window). After 20 global failures\n' +
+      'all login attempts are locked out for 15 min, even from fresh IPs. Completely defeats\n' +
+      'IP-rotation spoofing. The threshold (20 / 15 min) is deliberately loose enough that\n' +
+      'a fat-fingered legitimate user does not get locked out, but tight enough to stop\n' +
+      'any automated brute-force campaign.\n\n' +
+      'Fix 3 — clearFailures now deletes both the per-IP key and the global key on\n' +
+      'successful login, so neither counter bleeds into a new session.\n\n' +
+      '13 new vitest tests (12 in rate-limit.test.ts, 1 in auth-login.test.ts).',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D3: backup-code single-use guarantee made atomic via Redis SADD',
     details:
       'D3 money-loss remediation (high severity). The old consumeBackupCodeIfValid used a\n' +

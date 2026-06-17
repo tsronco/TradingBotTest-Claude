@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyTotp } from '../_lib/totp.js';
 import { encodeSession, serializeSessionCookie, clearSessionCookie } from '../_lib/session.js';
-import { isRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit.js';
+import { isRateLimited, isGloballyRateLimited, recordFailure, clearFailures, clientIp } from '../_lib/rate-limit.js';
 import { looksLikeBackupCode, consumeBackupCodeIfValid } from '../_lib/backup-codes.js';
 import { getSession } from '../_lib/auth-guard.js';
 
@@ -21,8 +21,10 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
 
   const ip = clientIp(req.headers as any);
 
-  // CHANGE: rate-limit check up front
-  if (await isRateLimited(ip)) {
+  // D8: Check per-IP lockout first, then global backstop.
+  // The global backstop defeats IP-rotation spoofing: even if the per-IP counter
+  // never trips (attacker uses a different IP each time), the global counter will.
+  if (await isRateLimited(ip) || await isGloballyRateLimited()) {
     return res.status(429).json({ error: 'too_many_attempts' });
   }
 

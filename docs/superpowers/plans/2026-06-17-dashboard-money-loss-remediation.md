@@ -184,7 +184,7 @@ direction → status.**
 - **Test direction:** vitest with KV mock: two concurrent `consumeBackupCodeIfValid` with the same code → exactly one returns true.
 
 ### D8 — Login rate-limit trusts leftmost `X-Forwarded-For` (spoofable) 🟠 High  [O3]
-- **Status:** ⬜ TODO
+- **Status:** ✅ DONE (2026-06-17). Two-part fix in `dashboard/api/_lib/rate-limit.ts`. (1) `clientIp()` now uses the RIGHTMOST token of `x-forwarded-for` instead of the leftmost. Vercel docs confirm Vercel rewrites `x-forwarded-for` entirely ("does not forward external IPs — this restriction is in place to prevent IP spoofing"), so on vanilla Vercel the header is a single trusted IP and rightmost == leftmost == real client. Under a proxy chain the rightmost is the trusted-proxy-added hop, which a client cannot prepend to — the leftmost is the client-controlled (spoofable) value. (2) New `isGloballyRateLimited()` + `GLOBAL_KEY = 'auth:fail:global'` global counter: every failed login increments it regardless of IP (same 15-min sliding window); after 20 global failures all logins are blocked, defeating IP-rotation spoofing completely. `clearFailures()` now deletes both the per-IP key and the global key. `auth/[action].ts` updated to check `isRateLimited(ip) || isGloballyRateLimited()`. 13 new vitest tests (12 in new `tests/api/rate-limit.test.ts`, 1 new auth-login test for global backstop; existing auth-login mocks updated to stub `isGloballyRateLimited`). Full suite: 684/684 (was 671).
 - **Location:** `dashboard/api/_lib/rate-limit.ts:26–33` (`clientIp` = `xff.split(',')[0]`), used by `auth/[action].ts:22–27,42,53`. Lockout key `auth:fail:<ip>`.
 - **Scenario:** Attacker rotates the client-supplied `X-Forwarded-For` per request → every attempt looks like a new IP → the 5-fails/15-min lockout never trips → online brute-force of `DASHBOARD_PASSWORD` + TOTP/backup proceeds unthrottled.
 - **Cost:** The only throttle on order-placement auth is defeated. (Mitigated by needing the password too; still a real hardening hole.)
@@ -281,7 +281,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ✅ DONE |
 | D14 | Spread-close pre-fill-mid P&L | 2 | ✅ DONE |
 | D3 | Backup-code consumption race | 3 | ✅ DONE |
-| D8 | `X-Forwarded-For` rate-limit bypass | 3 | ⬜ TODO |
+| D8 | `X-Forwarded-For` rate-limit bypass | 3 | ✅ DONE |
 | D10 | No server-side session expiry | 3 | ⬜ TODO |
 | D9 | Short-call exposure understates → TOTP skip | 4 | ⬜ TODO |
 | D12 | Debit-spread close P&L mis-signed | 4 | ⬜ TODO |
