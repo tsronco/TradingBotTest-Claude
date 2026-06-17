@@ -31,6 +31,25 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-17',
     category: 'fix',
+    title: 'D14: spread close no longer books P&L from stale target mid when entry fill is unconfirmed',
+    details:
+      'D14 money-loss remediation (low severity). On legacy pre-D7 spread trades that had\n' +
+      'filled_at set and non-empty modify_history, syncFillData hit its legacy short-circuit\n' +
+      'and returned without re-syncing the real fill credit. If detectExternalSpreadClose ran\n' +
+      'on the same tick, it computed realized P&L from the stale decision-time mid (net_credit)\n' +
+      'rather than the actual fill price — a minor but real P&L inaccuracy on /trades.\n\n' +
+      'Fix: detectExternalSpreadClose now checks fill_confirmed before computing P&L.\n' +
+      'If fill_confirmed is absent/false, the close is deferred (return null) so the next\n' +
+      'cron tick\'s syncFillData can confirm the real entry credit first.\n' +
+      'A 24h backstop prevents indefinite deferral: past that window the close is booked\n' +
+      'with whatever net_credit is stored and a [D14] console.warn notes the approximation.\n\n' +
+      'In the common path (all post-D7 trades), fill_confirmed is set alongside filled_at\n' +
+      'and net_credit atomically — so detectExternalSpreadClose proceeds immediately with\n' +
+      'the correct value and the defer never fires.',
+  },
+  {
+    date: '2026-06-17',
+    category: 'fix',
     title: 'D11: past-expiry STO backstop no longer fabricates an expired-worthless win without confirming settlement',
     details:
       'D11 money-loss remediation. When Alpaca\'s OPEXP/OPASN settlement activity didn\'t post within\n' +

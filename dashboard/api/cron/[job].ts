@@ -871,9 +871,44 @@ async function detectExternalSpreadClose(mode: Mode, trade: Trade): Promise<Clos
   const longPx = Number(longFill.price);
   if (!Number.isFinite(shortPx) || !Number.isFinite(longPx)) return null;
 
+  // D14 — Entry-fill confirmation guard.
+  //
+  // trade.spread.net_credit is the DECISION-TIME target mid until syncFillData
+  // overwrites it with the real leg fill prices. In the common path, syncFillData
+  // already ran (and set fill_confirmed:true) before detectClose is called.
+  // However, on legacy pre-D7 trades that have filled_at AND non-empty
+  // modify_history, syncFillData hits the legacy short-circuit and returns
+  // without re-syncing — leaving net_credit at the stale mid. Computing
+  // realized P&L from that stale value would produce a wrong number on /trades.
+  //
+  // Fix: if fill_confirmed is absent/false, defer the close to the next tick.
+  // On the next tick the legacy guard won't fire (modify_history is preserved),
+  // syncFillData will fall through to the full walk and set fill_confirmed:true
+  // with the real net_credit, and this path will proceed with the correct value.
+  //
+  // Backstop: if the trade is >24h old and still unconfirmed, book with what
+  // we have and log the approximation. This prevents indefinite deferral in
+  // the degenerate case where syncFillData persistently cannot reach Alpaca.
+  const D14_BACKSTOP_MS = 24 * 60 * 60 * 1000;
+  if (!trade.fill_confirmed) {
+    const submittedAt = trade.submitted_at ? new Date(trade.submitted_at).getTime() : 0;
+    const ageMs = Date.now() - submittedAt;
+    if (ageMs < D14_BACKSTOP_MS) {
+      // Defer: let next tick's syncFillData confirm the real entry credit first.
+      return null;
+    }
+    // Past backstop: book anyway to avoid leaving a real close invisible forever.
+    console.warn(
+      '[D14] spread close booked with unconfirmed net_credit (stale mid approximation)',
+      trade.id, trade.symbol,
+      `net_credit=${trade.spread!.net_credit}`,
+      `age_hours=${Math.round(ageMs / 3600000)}`,
+    );
+  }
+
   const qty = trade.spread!.short_leg.qty;
   const netDebit = shortPx - longPx;        // cost to close
-  const netCredit = trade.spread!.net_credit; // credit captured at open
+  const netCredit = trade.spread!.net_credit; // credit captured at open (confirmed or backstop)
   const realized = Math.round((netCredit - netDebit) * 100 * qty * 100) / 100;
 
   // Pick the later of the two fill timestamps for closed_at — the trade

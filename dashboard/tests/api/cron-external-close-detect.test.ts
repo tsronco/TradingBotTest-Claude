@@ -526,3 +526,241 @@ describe('D13 — findClosingFill pagination', () => {
     }
   });
 });
+
+// ─── D14: spread-close P&L deferred until fill is confirmed ──────────────────
+// Gap: a legacy spread trade that has filled_at set (so detectClose Path 0 is
+// bypassed) but fill_confirmed is absent and net_credit is the decision-time
+// target mid. On such a trade, syncFillData hits the legacy guard (line 364:
+// filled_at && modify_history.length > 0) and returns early without re-syncing
+// the real fill credit. Then detectExternalSpreadClose computes realized P&L
+// from the stale mid — a minor but real P&L inaccuracy.
+//
+// Fix: in detectExternalSpreadClose, if !fill_confirmed, defer the close
+// (return null) so syncFillData can capture the real credit on the NEXT tick
+// (which won't hit the legacy guard because modify_history was preserved).
+// A 24h backstop overrides the defer to prevent indefinite deferral.
+describe('D14 — spread close deferred until entry fill is confirmed', () => {
+  // Base fixture: legacy spread — filled_at set, modify_history non-empty,
+  // fill_confirmed absent, net_credit is the stale target mid (0.25).
+  // In this state syncFillData hits the legacy guard and returns unchanged.
+  function makeLegacySpread(id: string, overrides: any = {}): any {
+    return {
+      id,
+      account: 'manual_paper',
+      asset_class: 'spread',
+      symbol: 'GME',
+      side: 'STO',
+      qty: 1,
+      contract_symbol: null,
+      strike: null,
+      expiration: '2026-06-20',
+      contract_type: null,
+      filled_avg_price: 0.25,
+      filled_at: '2026-05-25T11:32:00Z',  // set — Path 0 bypassed
+      fill_confirmed: undefined,            // absent — legacy pre-D7 trade
+      alpaca_order_id: 'mleg-open-d14',
+      alpaca_close_order_id: null,
+      submitted_at: '2026-05-25T11:30:00Z',
+      closed_at: null,
+      realized_pnl: null,
+      closed_avg_price: null,
+      closed_by: null,
+      entry_grade: 'B',
+      entry_reasoning: 'r',
+      tags: [],
+      rule_warnings_at_entry: [],
+      // Non-empty: triggers the legacy syncFillData guard, so no re-sync runs
+      modify_history: [{
+        ts: 't', prev_order_id: 'x', new_order_id: 'y',
+        limit_price: null, stop_price: null, source: 'dashboard' as const,
+      }],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'GME260620P00020000', strike: 20.0, entry_premium: 0.38, fill_price: 0.38, qty: 1 },
+        long_leg:  { occ: 'GME260620P00019000', strike: 19.0, entry_premium: 0.13, fill_price: 0.13, qty: 1 },
+        expiration: '2026-06-20',
+        width: 1.0,
+        net_credit: 0.25,  // stale target mid — real fill was 0.23 (not yet synced)
+        max_loss: 0.75,
+      },
+      ...overrides,
+    };
+  }
+
+  // Common mock for both legs gone + closing fills present
+  function closingFillsMock() {
+    return [
+      {
+        id: 'fill-short-d14', activity_type: 'FILL',
+        transaction_time: '2026-05-25T11:55:00Z',
+        symbol: 'GME260620P00020000', side: 'buy',
+        price: '0.12', qty: '1', order_id: 'mleg-close-d14',
+      },
+      {
+        id: 'fill-long-d14', activity_type: 'FILL',
+        transaction_time: '2026-05-25T11:55:00Z',
+        symbol: 'GME260620P00019000', side: 'sell',
+        price: '0.02', qty: '1', order_id: 'mleg-close-d14',
+      },
+    ];
+  }
+
+  it('D14a: defers close booking when entry fill is NOT yet confirmed (legacy, fill_confirmed absent)', async () => {
+    // Legacy spread: filled_at set, modify_history non-empty → syncFillData
+    // hits legacy guard, returns unchanged (net_credit still stale 0.25).
+    // Both legs gone, closing fills found.
+    // Expected: close is DEFERRED (null returned) this tick.
+    // Without the fix: would book with realized = (0.25 - 0.10) * 100 = $15
+    //   (wrong — real fill credit was 0.23, so real realized is $13).
+    // With the fix: return null, trade stays open until next tick when
+    //   fill_confirmed will be set and net_credit will be 0.23.
+    const trade = makeLegacySpread('T-D14-001');
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      // detectExternalSpreadClose: both legs gone
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve(closingFillsMock());
+      }
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // Close MUST NOT be booked this tick — stale net_credit would give wrong P&L.
+    expect(kvSet).not.toHaveBeenCalledWith(
+      `trade:${trade.id}`,
+      expect.objectContaining({ closed_at: expect.anything() }),
+    );
+    expect(kvLrem).not.toHaveBeenCalled();
+  });
+
+  it('D14b: confirmed spread (fill_confirmed true) books close normally, P&L from real fill', async () => {
+    // fill_confirmed:true → syncFillData early-returns, net_credit is already
+    // the real fill (0.23). detectExternalSpreadClose MUST book immediately.
+    // D14 guard must NOT defer when fill is confirmed.
+    const trade = makeLegacySpread('T-D14-002', {
+      fill_confirmed: true,
+      filled_avg_price: 0.23,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'GME260620P00020000', strike: 20.0, entry_premium: 0.38, fill_price: 0.36, qty: 1 },
+        long_leg:  { occ: 'GME260620P00019000', strike: 19.0, entry_premium: 0.13, fill_price: 0.13, qty: 1 },
+        expiration: '2026-06-20',
+        width: 1.0,
+        net_credit: 0.23,  // confirmed real fill — NOT the stale mid
+        max_loss: 0.77,
+      },
+    });
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({
+        trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' },
+        hindsight: null, history: [],
+      });
+      return Promise.resolve(null);
+    });
+
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve(closingFillsMock());
+      }
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { GME: [] } });
+    gradeMock.mockResolvedValue({
+      letter: 'B', review: 'r', calibration: 'matched',
+      tendencies_hit: [], model: 's',
+      usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now',
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // Net debit = 0.12 - 0.02 = 0.10. Realized = (0.23 - 0.10) * 100 * 1 = $13
+    // (uses the CONFIRMED net_credit of 0.23, not the stale target mid of 0.25)
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-05-25T11:55:00Z',
+      closed_avg_price: expect.closeTo(0.10, 5),
+      realized_pnl: expect.closeTo(13, 2),
+      closed_by: 'bot_external',
+      alpaca_close_order_id: 'mleg-close-d14',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  it('D14c: backstop — books close with warn after >24h even if still unconfirmed', async () => {
+    // A legacy spread submitted >24h ago that still has no fill_confirmed should NOT
+    // be deferred indefinitely. After the backstop, the close is booked from
+    // whatever net_credit is stored (approximation) and a [D14] console.warn fires.
+    // System time: 2026-05-25T12:00:00Z. submitted_at: 26h ago.
+    const trade = makeLegacySpread('T-D14-003', {
+      submitted_at: '2026-05-24T10:00:00Z', // 26h before frozen clock
+    });
+
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({
+        trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' },
+        hindsight: null, history: [],
+      });
+      return Promise.resolve(null);
+    });
+
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) {
+        return Promise.reject(new Error('alpaca trade 404 on /v2/positions/...: not found'));
+      }
+      if (path.includes('/v2/account/activities')) {
+        return Promise.resolve(closingFillsMock());
+      }
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { GME: [] } });
+    gradeMock.mockResolvedValue({
+      letter: 'B', review: 'r', calibration: 'matched',
+      tendencies_hit: [], model: 's',
+      usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now',
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq(), mockRes());
+
+      // After >24h backstop: close IS booked (with stale net_credit approximation)
+      expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+        closed_at: '2026-05-25T11:55:00Z',
+        closed_by: 'bot_external',
+      }));
+      expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+
+      // A console.warn noting the approximation must have fired
+      const warnFired = warnSpy.mock.calls.some(
+        (args) => args.some((a) => typeof a === 'string' && a.includes('[D14]'))
+      );
+      expect(warnFired).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});

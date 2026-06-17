@@ -173,12 +173,7 @@ direction → status.**
 - **Test direction:** vitest: unconfirmed past-backstop STO with shares present in positions → not booked expired (or booked assigned + spawn); null `filled_avg_price` does not silently produce P&L 0.
 
 ### D14 — Spread-close P&L uses pre-fill mid when `syncFillData` hasn't run 🟢 Low  [S7]
-- **Status:** ⬜ TODO
-- **Location:** `dashboard/api/cron/[job].ts:751–753` — `realized = (trade.spread.net_credit − netDebit) × 100 × qty`. `net_credit` is the decision-time mid until `syncFillData` overwrites it with the actual fill; if `detectExternalSpreadClose` fires first, realized is off the target mid, not the entry fill.
-- **Scenario:** A spread closes externally before the next sync tick updates its entry credit.
-- **Cost:** Small realized-P&L inaccuracy on `/trades` (not an order-placement bug).
-- **Fix direction:** Ensure `spread.net_credit` reflects the actual open fill (force a sync) before computing realized close P&L, or derive entry credit from the open fill activity.
-- **Test direction:** vitest: close detection on a not-yet-synced spread uses the actual fill credit, not the target mid.
+- **Status:** ✅ DONE (2026-06-17). The gap was narrower than described: it only fires on legacy pre-D7 spread trades that have `filled_at` set AND non-empty `modify_history` (so `syncFillData` hits the legacy short-circuit at line 364) but `fill_confirmed` absent and `net_credit` still the decision-time target mid. In the common post-D7 path, `syncFillData` sets `filled_at` + `fill_confirmed: true` + real `net_credit` atomically, so `detectExternalSpreadClose` always sees the confirmed value. Fix: added an early-return guard in `detectExternalSpreadClose` — if `!trade.fill_confirmed`, defer the close (return null) so the next cron tick's `syncFillData` can confirm the real entry credit first. A 24h backstop (`D14_BACKSTOP_MS`) overrides the defer after that window and books with a `[D14]` console.warn noting the approximation. The existing `fill_confirmed` path (`detectExternalSpreadClose` body after the guard) is unchanged. 3 new vitest tests: D14a (legacy unconfirmed spread — deferred, no close booked); D14b (confirmed spread — books immediately with real credit); D14c (>24h backstop — books with warn). Full suite: 669/669 (666 baseline + 3 new).
 
 ### D3 — Backup-code consumption is read-modify-write (single-use racy) 🟠 High  [O4, S9]
 - **Status:** ⬜ TODO
@@ -284,7 +279,7 @@ From both reviews' "looks solid" sections, re-noted so we know what was checked:
 | D7 | `syncFillData` every-tick + blocks close detection | 2 | ✅ DONE |
 | D13 | `findClosingFill` single-page cap | 2 | ✅ DONE |
 | D11 | Past-expiry STO mis-booking (assigned invisible) | 2 | ✅ DONE |
-| D14 | Spread-close pre-fill-mid P&L | 2 | ⬜ TODO |
+| D14 | Spread-close pre-fill-mid P&L | 2 | ✅ DONE |
 | D3 | Backup-code consumption race | 3 | ⬜ TODO |
 | D8 | `X-Forwarded-For` rate-limit bypass | 3 | ⬜ TODO |
 | D10 | No server-side session expiry | 3 | ⬜ TODO |
