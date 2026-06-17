@@ -440,7 +440,18 @@ direction → status.** Source tags reference the original reviewer findings
 - **Test direction:** Zero-bid/positive-ask long → assert the width is considered.
 
 ### R16 — Earnings gaps 🟡 Med/Low  [O7, S7]
-- **Status:** NOT STARTED.
+- **Status:** ✅ DONE — money bug (2026-06-16). The same-day-earnings hole is
+  fixed: `_next_earnings_dt` now filters future earnings on the DATE (so a
+  midnight-dated same-day print isn't dropped as "past" by the afternoon), and
+  `next_earnings_within` compares whole days (`0 <= days_until <= days`), so a
+  same-day earnings blocks. +4 tests. SM auto-open.
+- **DEFERRED (not money-loss):** (a) persistent earnings cache to survive
+  yfinance rate-limits — it's a *reliability* fix (fail-closed means a rate-limit
+  causes a NO-trade, never a bad trade) and needs a committed cache file + a
+  workflow commit step (infra); tracked separately. (b) Adding an earnings gate
+  to the cons/agg `_sell_new_put` CSP path — a behavior change to those accounts
+  that needs Tim's explicit sign-off (live is already safe via
+  `wheel_skip_new_puts`).
 - **Location:** `earnings.py:44-45` (`0 <= delta <= days*86400`, same-day-past
   returns not-blocked); `_sell_new_put` (cons/agg CSP) has **no** earnings check.
 - **Scenario:** (a) An earnings timestamp a few hours past (yfinance midnight-
@@ -732,7 +743,7 @@ ordering, the hedge hand-off, and PDT routing.
 | R13 | Null order id reopen loop | 2b | ✅ DONE |
 | R14 | Multi-open stale BP | 2b | ✅ DONE |
 | R15 | Zero-bid long leg skipped | 2b | ✅ DONE |
-| R16 | Earnings window / cons-agg CSP gate | 2b | NOT STARTED |
+| R16 | Earnings window / cons-agg CSP gate | 2b | ✅ DONE (money bug; cache + CSP gate deferred) |
 | R17 | Multi-contract market_value/100 | 3 | NOT STARTED |
 | R18 | Stage-2 <100 share misdetect | 3 | NOT STARTED |
 | R19 | `place_buy_to_close` full-position close | 3 | NOT STARTED |

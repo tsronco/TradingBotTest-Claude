@@ -21,10 +21,16 @@ def _next_earnings_dt(symbol: str) -> Optional[dt.datetime]:
             edf = yf.Ticker(symbol).get_earnings_dates(limit=8)
             if edf is None or len(edf) == 0:
                 return None
-            now = dt.datetime.now(dt.timezone.utc)
-            future = [ix.to_pydatetime() for ix in edf.index
-                      if ix.to_pydatetime().astimezone(dt.timezone.utc) >= now]
-            return min(future).astimezone(dt.timezone.utc) if future else None
+            today = dt.datetime.now(dt.timezone.utc).date()
+            # R16 (2026-06-16): include same-DAY earnings. yfinance often dates an
+            # entry at midnight UTC, so a `>= now` (timestamp) filter would DROP an
+            # earnings happening later today once it's past midnight — letting the
+            # opener sell premium straight into a same-session print. Filter on the
+            # DATE so today's earnings is still caught.
+            future = [ix.to_pydatetime().astimezone(dt.timezone.utc)
+                      for ix in edf.index
+                      if ix.to_pydatetime().astimezone(dt.timezone.utc).date() >= today]
+            return min(future) if future else None
         except Exception as e:
             if attempt + 1 < _MAX_ATTEMPTS:
                 print(f"[earnings] {symbol} attempt {attempt+1}/{_MAX_ATTEMPTS} failed: {type(e).__name__}: {e}; retrying in {_BACKOFFS[attempt]}s", flush=True)
@@ -41,5 +47,10 @@ def next_earnings_within(symbol: str, days: int) -> bool:
     nxt = _CACHE[symbol]
     if nxt is None:
         return True  # unknown -> conservative block
-    delta = (nxt - dt.datetime.now(dt.timezone.utc)).total_seconds()
-    return 0 <= delta <= days * 86400
+    # Whole-DAY difference (R16), robust to yfinance's midnight dating: a same-
+    # day earnings (days_until == 0) blocks, through `days` out. The old seconds-
+    # based `0 <= delta` let a same-day midnight-dated earnings — whose delta is
+    # NEGATIVE by the afternoon — slip through as "not within" and open into it.
+    days_until = (nxt.astimezone(dt.timezone.utc).date()
+                  - dt.datetime.now(dt.timezone.utc).date()).days
+    return 0 <= days_until <= days

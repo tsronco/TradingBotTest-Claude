@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-16',
     category: 'fix',
+    title: 'Earnings guard now blocks same-day prints (completes Phase 2b)',
+    details:
+      'Money-loss review finding R16 (Phase 2b). yfinance often dates an ' +
+      'earnings entry at midnight UTC; the old filter kept only timestamps ' +
+      '>= now, so by the afternoon a same-day print was dropped as "past" and ' +
+      'the SM opener could sell a spread straight into that evening\'s earnings. ' +
+      '_next_earnings_dt now filters future earnings on the DATE, and ' +
+      'next_earnings_within compares whole days (same-day = blocked, through the ' +
+      'window). Deferred (reliability, not money-loss): a persistent earnings ' +
+      'cache to survive yfinance rate-limits (needs a committed cache file + ' +
+      'workflow step) and adding an earnings gate to the cons/agg CSP path ' +
+      '(behavior change — needs sign-off). Completes Phase 2b (R12-R16). ' +
+      '+4 pytest (571 total).',
+  },
+  {
+    date: '2026-06-16',
+    category: 'fix',
     title: 'Auto-open: accept a $0-bid long hedge leg (don’t skip valid cheap spreads)',
     details:
       'Money-loss review finding R15 (Phase 2b). get_option_quote rejected any ' +
