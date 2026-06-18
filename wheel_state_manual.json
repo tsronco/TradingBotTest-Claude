@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T13:31:48.011777Z"
+    "last_checked": "2026-06-18T13:41:57.050836Z"
   },
   "F": {
     "stage": 1,
@@ -47,7 +47,7 @@
         "shares": 110
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 SNAP260702C00006000 @ $0.06. Awaiting fill."
+    "last_action": "Awaiting fill on SNAP260702C00006000."
   },
   "NVTS": {
     "stage": 1,
