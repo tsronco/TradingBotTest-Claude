@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T19:54:26.546126Z",
+    "last_checked": "2026-06-18T20:05:14.915091Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.20 vs entry $0.17",
+    "last_action": "Monitoring COIN260626C00205000: $0.21 vs entry $0.17",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.56 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.54 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.31 vs entry $0.44",
+    "last_action": "Monitoring RIOT260626P00025000: $0.30 vs entry $0.44",
     "contract_qty": 1
   },
   "SMCI": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $5.45 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $5.04 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.30 vs entry $0.15",
+    "last_action": "Monitoring BAC260626P00055000: $0.28 vs entry $0.15",
     "contract_qty": 1
   },
   "XOM": {
@@ -307,7 +307,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 KO260626C00085000 @ $0.04. Awaiting fill.",
+    "last_action": "Awaiting fill on KO260626C00085000.",
     "contract_qty": 1
   },
   "PLTR": {
