@@ -6055,3 +6055,11 @@
 {"timestamp": "2026-06-18T15:19:39.704976+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 40, "equity": 1000.0}}
 {"timestamp": "2026-06-18T15:19:39.706384+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-18T15:19:40.465837+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-18T15:28:42.895279+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-18T15:28:53.922721+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "QCOM", "details": {"price": 222.45}}
+{"timestamp": "2026-06-18T15:28:56.795027+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.03, "min_net_credit": 0.05, "short_mid": 0.28, "long_mid": 0.31}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-18T15:28:57.782384+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 208.965}}
+{"timestamp": "2026-06-18T15:28:58.460206+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "AVGO", "details": {"price": 409.01}}
+{"timestamp": "2026-06-18T15:28:58.460421+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 42, "equity": 1000.0}}
+{"timestamp": "2026-06-18T15:28:58.461685+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-18T15:28:58.849696+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
