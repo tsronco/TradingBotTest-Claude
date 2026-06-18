@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T14:10:35.174675Z",
+    "last_checked": "2026-06-18T14:19:50.803875Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.39 vs entry $0.45",
+    "last_action": "Monitoring COIN260626C00205000: $0.41 vs entry $0.45",
     "contract_qty": 1
   },
   "MARA": {
@@ -71,14 +71,14 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.36 vs entry $0.44",
+    "last_action": "Monitoring RIOT260626P00025000: $0.35 vs entry $0.44",
     "contract_qty": 1
   },
   "SMCI": {
     "stage": 2,
-    "current_contract": "SMCI260626C00045000",
+    "current_contract": null,
     "contract_order_id": "467662c0-0bb7-4ee5-a045-5164ee97eb17",
-    "contract_entry_price": 0.03,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-18T13:40:25.795572Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "call",
@@ -86,8 +86,8 @@
     "cost_basis_per_share": 42.87,
     "shares_qty": 100,
     "total_cost": 4287.0,
-    "total_premium_collected": 186.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 188.0,
+    "total_premium_today": 2.0,
     "cycle_count": 1,
     "cycle_history": [
       {
@@ -115,7 +115,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring SMCI260626C00045000: $0.06 vs entry $0.03",
+    "last_action": "Closed early: +$2.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "NVDA": {
