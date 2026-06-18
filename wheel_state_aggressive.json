@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T19:48:15.508041Z",
+    "last_checked": "2026-06-18T19:54:26.546126Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.30 vs entry $0.17",
+    "last_action": "Monitoring COIN260626C00205000: $0.20 vs entry $0.17",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.59 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.56 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260626P00025000: $0.33 vs entry $0.44",
+    "last_action": "Monitoring RIOT260626P00025000: $0.31 vs entry $0.44",
     "contract_qty": 1
   },
   "SMCI": {
@@ -143,7 +143,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring NVDA260624C00230000: $0.12 vs entry $0.10",
+    "last_action": "Monitoring NVDA260624C00230000: $0.13 vs entry $0.10",
     "contract_qty": 1
   },
   "AMD": {
@@ -208,7 +208,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring TSLA260624P00395000: $6.03 vs entry $5.15",
+    "last_action": "Monitoring TSLA260624P00395000: $5.45 vs entry $5.15",
     "contract_qty": 1
   },
   "BAC": {
@@ -251,7 +251,7 @@
         "contracts": 1
       }
     ],
-    "last_action": "Monitoring BAC260626P00055000: $0.26 vs entry $0.15",
+    "last_action": "Monitoring BAC260626P00055000: $0.30 vs entry $0.15",
     "contract_qty": 1
   },
   "XOM": {
@@ -284,10 +284,10 @@
   },
   "KO": {
     "stage": 2,
-    "current_contract": null,
-    "contract_order_id": "f8197ce5-8950-4486-b9d3-6a8594a7cfab",
+    "current_contract": "KO260626C00085000",
+    "contract_order_id": "f5128e3b-d09f-4a26-ad5b-bb40d010c4ee",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-17T13:50:19.745931Z",
+    "contract_entry_date": "2026-06-18T19:54:22.904296Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "call",
     "contract_strike": 85.0,
@@ -307,14 +307,14 @@
         "shares": 100
       }
     ],
-    "last_action": "Closed early: +$3.00 (1\u00d7 contracts). Selling new call.",
+    "last_action": "Sold-to-open 1\u00d7 KO260626C00085000 @ $0.04. Awaiting fill.",
     "contract_qty": 1
   },
   "PLTR": {
     "stage": 2,
-    "current_contract": "PLTR260626C00160000",
+    "current_contract": null,
     "contract_order_id": "a5b9ff54-2227-4144-a1f0-9e084d79f158",
-    "contract_entry_price": 0.15,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-16T13:39:50.106991Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "call",
@@ -322,8 +322,8 @@
     "cost_basis_per_share": 151.15,
     "shares_qty": 100,
     "total_cost": 15115.0,
-    "total_premium_collected": 563.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 574.0,
+    "total_premium_today": 11.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -335,7 +335,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring PLTR260626C00160000: $0.11 vs entry $0.15",
+    "last_action": "Closed early: +$11.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "SOFI": {
