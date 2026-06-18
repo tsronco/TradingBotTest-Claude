@@ -6028,3 +6028,10 @@
 {"timestamp": "2026-06-18T14:39:22.615818+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 40, "equity": 1000.0}}
 {"timestamp": "2026-06-18T14:39:22.617084+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-18T14:39:23.171974+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-18T14:48:57.977363+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-18T14:49:12.932592+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 127.59}}
+{"timestamp": "2026-06-18T14:49:15.317001+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "AAL", "details": {"net_credit": -0.26, "min_net_credit": 0.05, "short_mid": 0.205, "long_mid": 0.465}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-18T14:49:18.263981+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "RIG", "details": {"price": 5.19}}
+{"timestamp": "2026-06-18T14:49:18.264208+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 40, "equity": 1000.0}}
+{"timestamp": "2026-06-18T14:49:18.265557+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-18T14:49:18.690711+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
