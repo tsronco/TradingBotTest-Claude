@@ -192,6 +192,98 @@ describe('POST /api/trades/import', () => {
     });
   });
 
+  it('imported spread carries fill_confirmed:true and the short leg order_id (so its bot-close is not deferred 24h and a re-import dedups)', async () => {
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-1', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'AAL260529P00012500', side: 'sell', price: '0.37', qty: '1', order_id: 'mleg-leg-short',
+      },
+      {
+        id: 'fill-2', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'AAL260529P00011500', side: 'buy', price: '0.12', qty: '1', order_id: 'mleg-leg-long',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    const tradeSetCall = kvSet.mock.calls.find((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCall![1]).toMatchObject({
+      asset_class: 'spread',
+      fill_confirmed: true,
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ order_id: 'mleg-leg-short' }),
+        long_leg: expect.objectContaining({ order_id: 'mleg-leg-long' }),
+      }),
+    });
+  });
+
+  it('imported single option carries fill_confirmed:true', async () => {
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-1', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'NVTS260605P00020500', side: 'sell', price: '2.12', qty: '2', order_id: 'sto-order-1',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k.startsWith('trades:index:')) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    const tradeSetCall = kvSet.mock.calls.find((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCall![1]).toMatchObject({ asset_class: 'option', fill_confirmed: true });
+  });
+
+  it('dedups against a dashboard-placed spread via the leg order_id captured on short_leg', async () => {
+    // A dashboard-placed spread stores alpaca_order_id = the MLEG PARENT id, which
+    // never equals the per-leg fill order_id from the activity stream. Once
+    // syncFillData records the leg order ids onto spread.short_leg.order_id, the
+    // importer must recognize the fill as already covered and skip it.
+    alpacaTradeMock.mockResolvedValue([
+      {
+        id: 'fill-1', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'AAL260529P00012500', side: 'sell', price: '0.37', qty: '1', order_id: 'leg-short-99',
+      },
+      {
+        id: 'fill-2', activity_type: 'FILL', transaction_time: '2026-05-14T13:30:00Z',
+        symbol: 'AAL260529P00011500', side: 'buy', price: '0.12', qty: '1', order_id: 'leg-long-99',
+      },
+    ]);
+    kvGet.mockImplementation((k: string) => {
+      if (k === 'trades:index:2026-05') return Promise.resolve(['T-2026-05-14-030']);
+      if (k === 'trade:T-2026-05-14-030') return Promise.resolve({
+        id: 'T-2026-05-14-030', account: 'manual_paper', asset_class: 'spread',
+        symbol: 'AAL', alpaca_order_id: 'mleg-parent-abc',  // parent id, NOT the leg id
+        spread: {
+          spread_type: 'put_credit',
+          short_leg: { occ: 'AAL260529P00012500', order_id: 'leg-short-99' },
+          long_leg: { occ: 'AAL260529P00011500', order_id: 'leg-long-99' },
+        },
+      });
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-05-01T00:00:00Z' }), res);
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(0);
+    expect(body.imported.skipped_existing).toBe(1);
+    // No new trade record written
+    const tradeSetCalls = kvSet.mock.calls.filter((c: any[]) => c[0]?.startsWith('trade:'));
+    expect(tradeSetCalls).toHaveLength(0);
+  });
+
   it('imports a single STO option fill that does not pair', async () => {
     alpacaTradeMock.mockResolvedValue([
       {

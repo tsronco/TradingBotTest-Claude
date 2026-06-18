@@ -1567,6 +1567,11 @@ export async function runImport({
         exposure_at_submit: maxLoss * 100 * qty,
         rule_warnings_at_entry: [],
         modify_history: [],
+        // Imported records come straight from a FILL activity — they are filled
+        // by definition. Stamp fill_confirmed so detectExternalSpreadClose's D14
+        // guard doesn't defer the bot-close for 24h waiting on a sync that has
+        // nothing left to confirm.
+        fill_confirmed: true,
         schema: 1,
         spread: {
           spread_type: 'put_credit',
@@ -1576,6 +1581,7 @@ export async function runImport({
             entry_premium: shortPx,
             fill_price: shortPx,
             qty,
+            order_id: shortOrderId || undefined,
           },
           long_leg: {
             occ: pair.long.symbol ?? '',
@@ -1583,6 +1589,7 @@ export async function runImport({
             entry_premium: longPx,
             fill_price: longPx,
             qty,
+            order_id: pair.long.order_id ?? undefined,
           },
           expiration: pair.short_occ.expiration,
           width,
@@ -1672,6 +1679,8 @@ export async function runImport({
         exposure_at_submit: price * 100 * qty,
         rule_warnings_at_entry: [],
         modify_history: [],
+        // Imported from a FILL activity — filled by definition (see spread note above).
+        fill_confirmed: true,
         schema: 1,
       };
       await kv().set(tradeKey(id), trade);

@@ -369,6 +369,108 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(kvLrem).not.toHaveBeenCalled();
   });
 
+  it('syncFillData requests the mleg order with nested=true and captures per-leg order ids', async () => {
+    // The bug: without nested=true Alpaca returns the parent mleg order with no
+    // `legs` array, so the spread fill never syncs and the trade is stuck at
+    // "submitted" forever. This asserts the fetch carries nested=true and that
+    // the leg order ids are persisted (for later import dedup).
+    const trade = {
+      id: 'T-2026-05-15-010', account: 'manual_paper', symbol: 'QQQ', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: 'QQQ260529P00072200',
+      strike: 722, expiration: '2027-05-29', contract_type: 'put',
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'alpaca-mleg-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-15T14:00:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'QQQ260529P00072200', strike: 722, entry_premium: 6.21, fill_price: null, qty: 1 },
+        long_leg: { occ: 'QQQ260529P00069000', strike: 690, entry_premium: 1.44, fill_price: null, qty: 1 },
+        expiration: '2027-05-29', width: 32, net_credit: 4.77, max_loss: 27.23,
+      },
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/orders/')) return Promise.resolve({
+        id: 'alpaca-mleg-1', status: 'filled', filled_at: '2026-05-15T14:05:00Z',
+        legs: [
+          { symbol: 'QQQ260529P00072200', side: 'sell', filled_avg_price: '6.20', id: 'leg-short-id' },
+          { symbol: 'QQQ260529P00069000', side: 'buy', filled_avg_price: '1.43', id: 'leg-long-id' },
+        ],
+      });
+      // position still exists → detectExternalSpreadClose no-ops (isolates sync)
+      if (path.includes('/v2/positions/')) return Promise.resolve({ symbol: 'x', qty: '1' });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+
+    const orderCall = alpacaTradeMock.mock.calls.find(
+      (c: any[]) => typeof c[1] === 'string' && c[1].includes('/v2/orders/'));
+    expect(orderCall![2]).toMatchObject({ nested: 'true' });
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: '2026-05-15T14:05:00Z',
+      fill_confirmed: true,
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ fill_price: 6.20, order_id: 'leg-short-id' }),
+        long_leg: expect.objectContaining({ fill_price: 1.43, order_id: 'leg-long-id' }),
+      }),
+    }));
+  });
+
+  it('syncFillData falls back to the FILL activity stream when the mleg order returns no legs', async () => {
+    const trade = {
+      id: 'T-2026-05-15-011', account: 'manual_paper', symbol: 'QQQ', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: 'QQQ260529P00072200',
+      strike: 722, expiration: '2027-05-29', contract_type: 'put',
+      filled_avg_price: null, filled_at: null,
+      alpaca_order_id: 'alpaca-mleg-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-15T14:00:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'QQQ260529P00072200', strike: 722, entry_premium: 6.21, fill_price: null, qty: 1 },
+        long_leg: { occ: 'QQQ260529P00069000', strike: 690, entry_premium: 1.44, fill_price: null, qty: 1 },
+        expiration: '2027-05-29', width: 32, net_credit: 4.77, max_loss: 27.23,
+      },
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      // mleg parent comes back filled but WITHOUT legs (nested unavailable)
+      if (path.includes('/v2/orders/')) return Promise.resolve({
+        id: 'alpaca-mleg-1', status: 'filled', filled_at: '2026-05-15T14:05:00Z', legs: [],
+      });
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'f1', symbol: 'QQQ260529P00072200', side: 'sell', price: '6.20', order_id: 'leg-short-id', transaction_time: '2026-05-15T14:05:00Z' },
+        { id: 'f2', symbol: 'QQQ260529P00069000', side: 'buy', price: '1.43', order_id: 'leg-long-id', transaction_time: '2026-05-15T14:05:00Z' },
+      ]);
+      if (path.includes('/v2/positions/')) return Promise.resolve({ symbol: 'x', qty: '1' });
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      filled_at: '2026-05-15T14:05:00Z',
+      fill_confirmed: true,
+      spread: expect.objectContaining({
+        short_leg: expect.objectContaining({ fill_price: 6.20, order_id: 'leg-short-id' }),
+        long_leg: expect.objectContaining({ fill_price: 1.43, order_id: 'leg-long-id' }),
+      }),
+    }));
+  });
+
   // ---- detectClose spread expiry branch ------------------------------------
 
   function makeFilledSpreadTrade(overrides: any = {}) {

@@ -375,8 +375,14 @@ async function syncFillData(trade: Trade): Promise<Trade> {
   // Caps at 10 hops to guard against malformed/cyclic chains. Returns the
   // terminal order object (the last one without replaced_by, or the last one
   // we could reach before the cap or a fetch failure).
+  // nested=true is REQUIRED for multi-leg (mleg) spread orders: without it
+  // Alpaca returns the parent order with NO `legs` array, so the spread fill
+  // sync below can never match its legs and `filled_at` is never written —
+  // the trade is stuck at "submitted" forever (the bug that left every
+  // dashboard-placed spread showing a "—" fill). Harmless for single-leg
+  // orders (they simply have no legs to roll up).
   const fetchOrderById = async (id: string): Promise<any> => {
-    try { return await alpacaTrade<any>(mode, `/v2/orders/${id}`); }
+    try { return await alpacaTrade<any>(mode, `/v2/orders/${id}`, { nested: 'true' }); }
     catch (e) {
       console.error('syncFillData order fetch failed', trade.id, id, e);
       return null;
@@ -424,23 +430,47 @@ async function syncFillData(trade: Trade): Promise<Trade> {
     }
 
     const legs = terminal.legs ?? [];
-    const shortFill = legs.find((l: any) => l.symbol === trade.spread!.short_leg.occ);
-    const longFill = legs.find((l: any) => l.symbol === trade.spread!.long_leg.occ);
+    let shortFill = legs.find((l: any) => l.symbol === trade.spread!.short_leg.occ);
+    let longFill = legs.find((l: any) => l.symbol === trade.spread!.long_leg.occ);
+
+    // Belt-and-suspenders: if the parent order came back without usable legs
+    // (e.g. an account/order shape where nested roll-up is unavailable), fall
+    // back to the FILL activity stream for each leg's opening fill so the
+    // trade can still confirm instead of being stuck open forever.
+    if (!shortFill || !longFill) {
+      const [s, l] = await Promise.all([
+        shortFill ? Promise.resolve(shortFill) : findOpeningLegFill(mode, trade, trade.spread.short_leg.occ, 'sell'),
+        longFill ? Promise.resolve(longFill) : findOpeningLegFill(mode, trade, trade.spread.long_leg.occ, 'buy'),
+      ]);
+      shortFill = s;
+      longFill = l;
+    }
     if (!shortFill || !longFill) return trade;
-    const shortPx = parseFloat(shortFill.filled_avg_price);
-    const longPx = parseFloat(longFill.filled_avg_price);
+
+    // Leg fill price comes from `filled_avg_price` (nested order leg) or
+    // `price` (activity-stream fallback). Same for the leg order id.
+    const shortPx = parseFloat(shortFill.filled_avg_price ?? shortFill.price);
+    const longPx = parseFloat(longFill.filled_avg_price ?? longFill.price);
     if (!Number.isFinite(shortPx) || !Number.isFinite(longPx)) return trade;
     const netCredit = shortPx - longPx;
+    const filledAt =
+      terminal.filled_at ?? shortFill.transaction_time ?? longFill.transaction_time ?? new Date().toISOString();
     const updated: Trade = {
       ...trade,
       alpaca_order_id: terminal.id,          // pin to terminal order
-      filled_at: terminal.filled_at ?? new Date().toISOString(),
+      filled_at: filledAt,
       filled_avg_price: netCredit,           // back-compat for legacy consumers
       fill_confirmed: true,                  // D7 sentinel: skip sync on future ticks
       spread: {
         ...trade.spread,
-        short_leg: { ...trade.spread.short_leg, fill_price: shortPx },
-        long_leg: { ...trade.spread.long_leg, fill_price: longPx },
+        // Persist the per-leg Alpaca order ids so a later /api/trades/import
+        // dedups against this dashboard-placed spread (orderIdAlreadyImported
+        // checks spread.short_leg.order_id) instead of creating a duplicate.
+        // Order id: nested mleg legs carry it as `id` (no order_id field);
+        // activity-stream fallback rows carry the real order id as `order_id`
+        // (their `id` is the ACTIVITY id). Prefer order_id, fall back to id.
+        short_leg: { ...trade.spread.short_leg, fill_price: shortPx, order_id: shortFill.order_id ?? shortFill.id ?? trade.spread.short_leg.order_id },
+        long_leg: { ...trade.spread.long_leg, fill_price: longPx, order_id: longFill.order_id ?? longFill.id ?? trade.spread.long_leg.order_id },
         net_credit: netCredit,
         max_loss: trade.spread.width - netCredit,
       },
@@ -1121,6 +1151,56 @@ async function findClosingFill(
     `findClosingFill page cap reached (${MAX_FILL_PAGES} pages)`,
     trade.id, occ, 'no matching closing fill found — will retry next cron tick',
   );
+  return null;
+}
+
+/**
+ * Fallback for the spread fill-sync when the nested mleg order doesn't
+ * surface its legs: walk the FILL activity stream for this leg's OPENING
+ * fill (short leg → 'sell', long leg → 'buy') on or after the spread's
+ * submission time. Returns the raw activity (with `price`, `order_id`,
+ * `transaction_time`) or null if no matching fill has posted yet.
+ */
+async function findOpeningLegFill(
+  mode: Mode,
+  trade: Trade,
+  occ: string,
+  side: 'buy' | 'sell',
+): Promise<ActivityFill | null> {
+  const submitted = trade.submitted_at ? Date.parse(trade.submitted_at) : NaN;
+  // Start the date window a day before submission to absorb timezone edges.
+  const anchor = Number.isFinite(submitted) ? submitted : Date.now();
+  const after = new Date(anchor - 86400000).toISOString().slice(0, 10);
+  const PAGE_SIZE = 100;
+
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_FILL_PAGES; page++) {
+    let activities: ActivityFill[];
+    try {
+      const params: Record<string, string | number | undefined> = {
+        activity_types: 'FILL',
+        after,
+        page_size: PAGE_SIZE,
+      };
+      if (pageToken) params.page_token = pageToken;
+      const raw = await alpacaTrade<ActivityFill[]>(mode, '/v2/account/activities', params);
+      activities = Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      console.error('findOpeningLegFill activities fetch failed', trade.id, occ, e);
+      return null;
+    }
+
+    for (const a of activities) {
+      if (a.symbol !== occ) continue;
+      if ((a.side ?? '').toLowerCase() !== side) continue;
+      return a;
+    }
+
+    if (activities.length < PAGE_SIZE) return null;
+    const lastId = activities[activities.length - 1]?.id;
+    if (!lastId) return null;
+    pageToken = lastId;
+  }
   return null;
 }
 

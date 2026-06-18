@@ -29,6 +29,33 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-18',
+    category: 'fix',
+    title: 'Spread fills now sync (nested=true) + imports confirm immediately — stuck "submitted" spreads heal',
+    details:
+      'Dashboard-placed multi-leg (mleg) spreads were stuck at "submitted" with a "—"\n' +
+      'fill forever, and their bot-closes were never picked up. Root cause: syncFillData\n' +
+      'fetched the parent mleg order without `?nested=true`, so Alpaca returned it with no\n' +
+      '`legs` array — the leg match failed and filled_at was never written. Since the record\n' +
+      'never looked "filled," external-close detection could not touch it either.\n\n' +
+      'Fixes (api/cron/[job].ts, api/trades/[action].ts):\n' +
+      '1. fetchOrderById now passes nested=true so the mleg parent rolls up its legs.\n' +
+      '2. Belt-and-suspenders fallback: if a filled mleg order still returns no usable legs,\n' +
+      '   syncFillData reads each leg\'s opening fill from the /v2/account/activities FILL\n' +
+      '   stream instead of giving up.\n' +
+      '3. syncFillData now records each leg\'s Alpaca order id onto spread.short_leg.order_id /\n' +
+      '   long_leg.order_id, so a later Import dedups against a dashboard-placed spread\n' +
+      '   (orderIdAlreadyImported already checked that field — it was just never populated)\n' +
+      '   instead of creating a duplicate record.\n' +
+      '4. Imported records (spread + single option) are stamped fill_confirmed:true — they\n' +
+      '   come straight from a FILL activity, so the D14 close guard no longer defers their\n' +
+      '   bot-close for up to 24h.\n\n' +
+      'Self-healing: once deployed, the grade-open-trades cron re-syncs every still-open\n' +
+      'spread on its next tick — previously-stuck records pick up their fill (and then their\n' +
+      'close, if the bot already closed them) with no manual intervention.\n\n' +
+      'Tests: +5 vitest (2 cron sync/fallback, 3 import fill_confirmed + leg-id dedup). 710 green.',
+  },
+  {
     date: '2026-06-17',
     category: 'fix',
     title: 'D15: import dedup — client-side timestamp filter prevents pre-cursor fills re-importing',
