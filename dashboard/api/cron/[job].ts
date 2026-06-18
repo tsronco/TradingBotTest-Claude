@@ -91,8 +91,19 @@ async function gradeOpenTrades(res: VercelResponse) {
  * Exported so the on-demand refresh action (POST /api/trades/refresh)
  * can run the same logic from a button click without going through the
  * cron auth path. Idempotent — safe to call repeatedly.
+ *
+ * Options (all optional — defaults reproduce the normal cron tick):
+ *   sweepBudget  — max trades to fill-sync + close-detect this call.
+ *   gradeBudget  — max AI hindsight grades this call (overflow → needs-grade queue).
+ *   timeBudgetMs — soft wall-clock cap; the sweep stops between trades once
+ *                  exceeded. Used by drain mode to process a big backlog in one
+ *                  request while staying clear of the serverless time limit.
  */
-export async function runGradeOpenTrades(): Promise<{
+export async function runGradeOpenTrades(opts: {
+  sweepBudget?: number;
+  gradeBudget?: number;
+  timeBudgetMs?: number;
+} = {}): Promise<{
   graded: number;
   synced: number;
   remaining_open: number;
@@ -100,6 +111,12 @@ export async function runGradeOpenTrades(): Promise<{
   assignments_skipped: number;
   auto_imported: Record<string, number | string>;
 }> {
+  const startedAt = Date.now();
+  const sweepBudget = opts.sweepBudget ?? SWEEP_BUDGET;
+  const gradeBudget = opts.gradeBudget ?? MAX_GRADE_PER_TICK;
+  const timeBudgetMs = opts.timeBudgetMs;
+  const outOfTime = () => timeBudgetMs !== undefined && Date.now() - startedAt > timeBudgetMs;
+
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
 
   let graded = 0;        // trades CLOSED this tick (what /trades surfaces as "closed")
@@ -107,24 +124,29 @@ export async function runGradeOpenTrades(): Promise<{
   let aiGrades = 0;      // expensive Sonnet grade calls used this tick
   let remaining = openIds.length;
 
-  // Rotating sweep window: process at most SWEEP_BUDGET trades starting from a
+  // Rotating sweep window: process at most sweepBudget trades starting from a
   // stored cursor, wrapping around. This guarantees every open trade is
-  // fill-synced + close-detected within ceil(N / SWEEP_BUDGET) ticks even when
+  // fill-synced + close-detected within ceil(N / sweepBudget) ticks even when
   // N is large — the old "always start at index 0, break after 3 closes" path
   // never reached the tail of a big index.
   const N = openIds.length;
   const startRaw = (await kv().get<number>(KV_KEYS.tradesSweepCursor)) ?? 0;
   const start = N > 0 ? (((startRaw % N) + N) % N) : 0;
-  const sweepCount = Math.min(SWEEP_BUDGET, N);
+  const sweepCount = Math.min(sweepBudget, N);
   // Advance the cursor for next tick before doing the work, so a mid-sweep
-  // crash still makes forward progress on the following tick.
+  // crash still makes forward progress on the following tick. (When the loop
+  // stops early on timeBudget, the post-loop write below corrects this to the
+  // actual stopping point so a follow-up call resumes where this one left off.)
   if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + sweepCount) % N);
 
   // Drain previously-queued closed-but-ungraded trades first (older closes get
   // their hindsight grade before we spend budget on new ones this tick).
-  aiGrades += await drainNeedsGrade(MAX_GRADE_PER_TICK);
+  aiGrades += await drainNeedsGrade(gradeBudget);
 
+  let processed = 0;
   for (let k = 0; k < sweepCount; k++) {
+    if (outOfTime()) break;
+    processed = k + 1;   // count this index as covered (we advance past it even on stale-skip)
     const id = openIds[(start + k) % N];
     let trade = await kv().get<Trade>(tradeKey(id));
     if (!trade) {
@@ -242,12 +264,17 @@ export async function runGradeOpenTrades(): Promise<{
     // expensive step, so it's budgeted: grade inline while budget remains,
     // otherwise queue for a later tick (the trade still shows closed with P&L
     // immediately — only the hindsight letter is deferred).
-    if (aiGrades < MAX_GRADE_PER_TICK) {
+    if (aiGrades < gradeBudget) {
       if (await gradeClosedTrade(closedTrade)) aiGrades += 1;
     } else {
       await enqueueNeedsGrade(closedTrade.id);
     }
   }
+
+  // Correct the sweep cursor to where we actually stopped (matters when the
+  // loop broke early on timeBudget — a follow-up call then resumes from here
+  // instead of re-walking from the pre-set full-window position).
+  if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + processed) % N);
 
   // Drain assignments-pending — spawn follow-on stock trades for assigned puts
   const drainResult = await drainAssignmentsAndSpawn();

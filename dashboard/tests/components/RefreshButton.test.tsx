@@ -28,8 +28,8 @@ describe('RefreshButton', () => {
 
   it('renders in default ready state', () => {
     renderWith();
-    expect(screen.getByRole('button')).toHaveTextContent(/refresh/i);
-    expect(screen.getByRole('button')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /refresh/i })).toHaveTextContent(/refresh/i);
+    expect(screen.getByRole('button', { name: /refresh/i })).not.toBeDisabled();
   });
 
   it('shows "nothing to update" when result has no changes', async () => {
@@ -42,7 +42,7 @@ describe('RefreshButton', () => {
       assignments_skipped: 0,
     });
     renderWith();
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     await waitFor(() => {
       expect(screen.getByText(/nothing to update · 3 open/i)).toBeInTheDocument();
     });
@@ -58,7 +58,7 @@ describe('RefreshButton', () => {
       assignments_skipped: 0,
     });
     renderWith();
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     await waitFor(() => {
       expect(
         screen.getByText(/1 synced · 2 closed · 1 assigned · 5 still open/i),
@@ -76,22 +76,35 @@ describe('RefreshButton', () => {
       assignments_skipped: 0,
     });
     renderWith();
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     await waitFor(() => {
-      expect(screen.getByRole('button')).toBeDisabled();
+      expect(screen.getByRole('button', { name: /refresh/i })).toBeDisabled();
     });
-    expect(screen.getByRole('button')).toHaveTextContent(/refresh · 15s/i);
+    expect(screen.getByRole('button', { name: /refresh/i })).toHaveTextContent(/refresh · 15s/i);
   });
 
   it('shows error message when the request fails', async () => {
     (api as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
     renderWith();
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     await waitFor(() => {
       expect(screen.getByText(/error: boom/i)).toBeInTheDocument();
     });
     // No cooldown on failure — button should be clickable again
-    expect(screen.getByRole('button')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /refresh/i })).not.toBeDisabled();
+  });
+
+  it('drain button calls the refresh endpoint in drain mode', async () => {
+    (api as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true, drain: true, graded: 40, synced: 0, remaining_open: 12,
+      assignments_spawned: 0, assignments_skipped: 0,
+    });
+    renderWith();
+    fireEvent.click(screen.getByRole('button', { name: /drain backlog/i }));
+    await waitFor(() => {
+      expect(api).toHaveBeenCalledWith('/api/trades/refresh?mode=drain', { method: 'POST' });
+    });
+    expect(screen.getByText(/40 closed · 12 still open/i)).toBeInTheDocument();
   });
 
   it('does not call the API again when clicked during cooldown', async () => {
@@ -104,11 +117,11 @@ describe('RefreshButton', () => {
       assignments_skipped: 0,
     });
     renderWith();
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     await waitFor(() => {
-      expect(screen.getByRole('button')).toBeDisabled();
+      expect(screen.getByRole('button', { name: /refresh/i })).toBeDisabled();
     });
-    fireEvent.click(screen.getByRole('button')); // ignored
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i })); // ignored
     expect(api).toHaveBeenCalledTimes(1);
   });
 });

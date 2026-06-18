@@ -607,6 +607,55 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(kvSet).toHaveBeenCalledWith('trades:cursor:sweep', 30);
   });
 
+  it('drain mode lifts the per-tick sweep cap and queues all grades', async () => {
+    const trades = Array.from({ length: 35 }, (_, i) => closeableStockTrade(i + 1));
+    kvLrange.mockResolvedValueOnce(trades.map((t) => t.id));
+    kvLrem.mockResolvedValue(1);
+    const byId = new Map(trades.map((t) => [t.id, t]));
+    let needsGrade: string[] = [];
+    kvGet.mockImplementation((k: string) => {
+      if (k === 'trades:index:needs_grade') return Promise.resolve(needsGrade);
+      const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
+      if (tid && byId.has(tid)) return Promise.resolve(byId.get(tid));
+      if (k.startsWith('grade:')) return Promise.resolve({ trade_id: k.slice('grade:'.length), entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    kvSet.mockImplementation((k: string, v: any) => {
+      if (k === 'trades:index:needs_grade') needsGrade = v;
+      return Promise.resolve('OK');
+    });
+    alpacaTradeMock.mockImplementation((_m: any, path: string) =>
+      path.includes('/close-') ? Promise.resolve({ id: 'c', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' }) : Promise.resolve(null));
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+
+    const { runGradeOpenTrades } = await import('../../api/cron/[job]');
+    const r = await runGradeOpenTrades({ sweepBudget: Number.MAX_SAFE_INTEGER, gradeBudget: 0, timeBudgetMs: 45_000 });
+
+    // All 35 closed in one call (far past the normal 30 cap); 0 graded inline,
+    // all deferred to the queue.
+    expect(r.graded).toBe(35);
+    expect(gradeMock).not.toHaveBeenCalled();
+    expect(needsGrade).toHaveLength(35);
+  });
+
+  it('drain stops early when the time budget is already exhausted', async () => {
+    const trades = Array.from({ length: 5 }, (_, i) => closeableStockTrade(i + 1));
+    kvLrange.mockResolvedValueOnce(trades.map((t) => t.id));
+    const byId = new Map(trades.map((t) => [t.id, t]));
+    kvGet.mockImplementation((k: string) => {
+      const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
+      if (tid && byId.has(tid)) return Promise.resolve(byId.get(tid));
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockResolvedValue({ id: 'c', status: 'filled', filled_avg_price: '362.20', filled_at: 'x' });
+    kvSet.mockResolvedValue('OK');
+
+    const { runGradeOpenTrades } = await import('../../api/cron/[job]');
+    const r = await runGradeOpenTrades({ timeBudgetMs: -1 }); // already out of time
+
+    expect(r.graded).toBe(0); // the loop broke before processing any trade
+  });
+
   // ---- detectClose spread expiry branch ------------------------------------
 
   function makeFilledSpreadTrade(overrides: any = {}) {

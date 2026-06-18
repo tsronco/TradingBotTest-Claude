@@ -28,12 +28,13 @@ export default function RefreshButton() {
     return () => clearTimeout(id);
   }, [cooldownLeft]);
 
-  const handleClick = useCallback(async () => {
+  const run = useCallback(async (drain: boolean) => {
     if (loading || cooldownLeft > 0) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api<RefreshResult>('/api/trades/refresh', { method: 'POST' });
+      const path = drain ? '/api/trades/refresh?mode=drain' : '/api/trades/refresh';
+      const data = await api<RefreshResult>(path, { method: 'POST' });
       setLastResult(data);
       setCooldownLeft(COOLDOWN_SECONDS);
       // Invalidate trades-list queries so the table re-fetches with the
@@ -47,18 +48,18 @@ export default function RefreshButton() {
   }, [loading, cooldownLeft, qc]);
 
   const disabled = loading || cooldownLeft > 0;
+  const btnClass = (d: boolean) =>
+    `px-3 py-1.5 border rounded-sm tracking-wider transition-colors ${
+      d ? 'border-border text-dim cursor-not-allowed' : 'border-hi/40 text-hi hover:bg-hi/5'
+    }`;
 
   return (
-    <div className="flex items-center gap-3 text-[11px]">
+    <div className="flex items-center gap-2 text-[11px]">
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => run(false)}
         disabled={disabled}
-        className={`px-3 py-1.5 border rounded-sm tracking-wider transition-colors ${
-          disabled
-            ? 'border-border text-dim cursor-not-allowed'
-            : 'border-hi/40 text-hi hover:bg-hi/5'
-        }`}
+        className={btnClass(disabled)}
         title={
           cooldownLeft > 0
             ? `wait ${cooldownLeft}s before refreshing again`
@@ -75,6 +76,17 @@ export default function RefreshButton() {
         ) : (
           <>[↻ refresh]</>
         )}
+      </button>
+
+      {/* Drain: clears a large backlog in one click (no per-tick cap, ~45s budget). */}
+      <button
+        type="button"
+        onClick={() => run(true)}
+        disabled={disabled}
+        className={btnClass(disabled)}
+        title="drain the whole open backlog in one pass (syncs + close-detects until ~45s budget; grades fill in later)"
+      >
+        [drain backlog]
       </button>
 
       {/* Inline result strip — collapses when there's nothing to show */}

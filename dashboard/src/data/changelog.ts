@@ -30,6 +30,21 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
+    category: 'feature',
+    title: 'Trades page: "drain backlog" button clears the whole open backlog in one click',
+    details:
+      'After the cron-cap fix, clearing a large existing backlog (~300 stuck-open trades) still\n' +
+      'meant clicking [↻ refresh] many times (30 trades/click). Added a second button, [drain\n' +
+      'backlog], that runs the lifecycle sweep with no per-tick cap and a ~45s soft wall-clock\n' +
+      'budget — so it processes as many trades as fit in one request without risking a 504, then\n' +
+      'a follow-up click resumes from the rotating cursor. AI grading is deferred entirely to the\n' +
+      'needs-grade queue during a drain so closes land fast; the cron fills in hindsight grades\n' +
+      'later. Wiring: runGradeOpenTrades({ sweepBudget, gradeBudget, timeBudgetMs }) opts +\n' +
+      'POST /api/trades/refresh?mode=drain. Normal [↻ refresh] (30/tick, inline grading) unchanged.\n' +
+      'Tests: +4 vitest (drain no-cap+queue, time-budget halt, endpoint opts, drain button). 718 green.',
+  },
+  {
+    date: '2026-06-18',
     category: 'fix',
     title: 'Grade-cron no longer caps at 3/tick or times out — drains the whole open backlog',
     details:

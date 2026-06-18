@@ -160,10 +160,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  * throttle because the underlying loop is idempotent and capped at
  * MAX_PER_TICK trades per call — repeat clicks just no-op.
  */
-async function refresh(_req: VercelRequest, res: VercelResponse) {
+async function refresh(req: VercelRequest, res: VercelResponse) {
+  // Drain mode (?mode=drain): for clearing a large backlog in one click. Lifts
+  // the per-tick sweep cap and keeps fill-syncing + close-detecting until a
+  // soft wall-clock budget (well under the 60s function limit) is hit, so it
+  // never 504s. AI grading is deferred entirely to the needs-grade queue
+  // (gradeBudget 0) so closes land fast; the cron fills in hindsight grades
+  // on later ticks. A follow-up drain click resumes from the rotating cursor.
+  const drain = String((req.query?.mode ?? '')) === 'drain';
   try {
-    const result = await runGradeOpenTrades();
-    return res.status(200).json({ ok: true, ...result });
+    const result = drain
+      ? await runGradeOpenTrades({
+          sweepBudget: Number.MAX_SAFE_INTEGER,
+          gradeBudget: 0,
+          timeBudgetMs: 45_000,
+        })
+      : await runGradeOpenTrades();
+    return res.status(200).json({ ok: true, drain, ...result });
   } catch (e) {
     console.error('[refresh] runGradeOpenTrades failed', e);
     return res.status(500).json({

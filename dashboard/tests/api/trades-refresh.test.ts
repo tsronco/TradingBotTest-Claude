@@ -36,17 +36,17 @@ vi.mock('../../api/_lib/grading', () => ({ gradeTrade: vi.fn() }));
 // Intercept the cron's runGradeOpenTrades — that function is unit-tested
 // elsewhere; here we only care the refresh action forwards its result.
 vi.mock('../../api/cron/[job]', () => ({
-  runGradeOpenTrades: () => runGradeOpenTradesMock(),
+  runGradeOpenTrades: (...a: any[]) => runGradeOpenTradesMock(...a),
 }));
 
 beforeEach(() => {
   runGradeOpenTradesMock.mockReset();
 });
 
-function mockReq(): VercelRequest {
+function mockReq(query: Record<string, string> = {}): VercelRequest {
   return {
     method: 'POST',
-    query: { action: 'refresh' },
+    query: { action: 'refresh', ...query },
     body: {},
     headers: {},
   } as unknown as VercelRequest;
@@ -75,12 +75,32 @@ describe('POST /api/trades/refresh', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       ok: true,
+      drain: false,
       graded: 2,
       synced: 1,
       remaining_open: 5,
       assignments_spawned: 0,
       assignments_skipped: 0,
     });
+    // Default mode → no drain options passed.
+    expect(runGradeOpenTradesMock).toHaveBeenCalledWith();
+  });
+
+  it('mode=drain runs with no sweep cap, zero grade budget, and a time budget', async () => {
+    runGradeOpenTradesMock.mockResolvedValueOnce({
+      graded: 40, synced: 0, remaining_open: 12, assignments_spawned: 0, assignments_skipped: 0,
+    });
+    const mod = await import('../../api/trades/[action]');
+    const res = mockRes() as VercelResponse;
+    await mod.default(mockReq({ mode: 'drain' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, drain: true, graded: 40 }));
+    expect(runGradeOpenTradesMock).toHaveBeenCalledWith(expect.objectContaining({
+      sweepBudget: Number.MAX_SAFE_INTEGER,
+      gradeBudget: 0,
+      timeBudgetMs: 45_000,
+    }));
   });
 
   it('returns 500 with refresh_failed when runGradeOpenTrades throws', async () => {
