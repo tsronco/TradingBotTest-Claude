@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T18:18:17.437795Z"
+    "last_checked": "2026-06-18T18:28:24.989728Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260702P00370000: $3.96 vs entry $3.10",
+    "last_action": "Monitoring TSLA260702P00370000: $4.07 vs entry $3.10",
     "contract_qty": 1
   },
   "BAC": {
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260710P00050000: $0.08 vs entry $0.07",
+    "last_action": "Monitoring BAC260710P00050000: $0.11 vs entry $0.07",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.94 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.91 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -110,7 +110,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring KO260702P00075000: $0.16 vs entry $0.11",
+    "last_action": "Monitoring KO260702P00075000: $0.14 vs entry $0.11",
     "contract_qty": 1
   },
   "PLTR": {
@@ -129,7 +129,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PLTR260618P00140000: $11.84 vs entry $1.82",
+    "last_action": "Monitoring PLTR260618P00140000: $12.00 vs entry $1.82",
     "contract_qty": 1
   },
   "SOFI": {
@@ -175,7 +175,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring PFE260702P00025000: $0.32 vs entry $0.08",
+    "last_action": "Monitoring PFE260702P00025000: $0.29 vs entry $0.08",
     "contract_qty": 1
   },
   "F": {
@@ -264,7 +264,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260702P00115000: $2.19 vs entry $4.05",
+    "last_action": "Monitoring INTC260702P00115000: $2.10 vs entry $4.05",
     "contract_qty": 1
   }
 }
