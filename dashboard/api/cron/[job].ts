@@ -345,6 +345,9 @@ async function drainNeedsGrade(budget: number): Promise<number> {
     if (used >= budget) { remainingQueue.push(id); continue; }
     const t = await kv().get<Trade>(tradeKey(id));
     if (!t || !t.closed_at) continue; // gone or no longer closed — drop silently
+    // Already graded (e.g. the user hit "grade now")? Drop without re-grading.
+    const g = await kv().get<GradeRecord>(gradeKey(id));
+    if (g?.hindsight) continue;
     try {
       if (await gradeClosedTrade(t)) used += 1;
     } catch (e) {

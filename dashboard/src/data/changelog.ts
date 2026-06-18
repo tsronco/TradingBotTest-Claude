@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
     category: 'feature',
+    title: 'Trade detail: "delete trade" action for cleaning up duplicates / bad imports',
+    details:
+      'New DANGER panel on /trade/:id with a two-step [delete trade] → [confirm delete]. Wires\n' +
+      'POST /api/trades?action=delete, which scrubs the id from the open index, its month index,\n' +
+      'and the needs-grade queue, then drops the trade + grade records. Removes the trade from\n' +
+      'P&L / win-rate / calibration aggregates; does NOT touch Alpaca. Built to clear the QQQ\n' +
+      'duplicate (the dashboard-placed spread + its auto-import twin both closing at +$249, which\n' +
+      'double-counted the win). Also: drainNeedsGrade now skips a queued trade that already has a\n' +
+      'hindsight grade (e.g. graded via the "grade now" button) instead of re-grading it.\n' +
+      'Tests: +4 vitest (delete index/record scrub, needs-grade removal, 404, malformed id). 722 green.',
+  },
+  {
+    date: '2026-06-18',
+    category: 'feature',
     title: 'Trades page: "drain backlog" button clears the whole open backlog in one click',
     details:
       'After the cron-cap fix, clearing a large existing backlog (~300 stuck-open trades) still\n' +

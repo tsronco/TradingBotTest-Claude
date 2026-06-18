@@ -141,9 +141,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST' && action === 'update') return updateTrade(req, res);
   if (req.method === 'POST' && action === 'import') return importFromAlpaca(req, res);
   if (req.method === 'POST' && action === 'refresh') return refresh(req, res);
+  if (req.method === 'POST' && action === 'delete') return deleteTrade(req, res);
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'method_not_allowed' });
+}
+
+/**
+ * Permanently delete a trade record and scrub it from every index it can
+ * appear in. Intended for cleaning up duplicates / bad imports (e.g. a
+ * dashboard-placed spread that the auto-importer re-created as a second
+ * record). This removes the trade from P&L, win-rate, and calibration
+ * aggregates. Idempotent on the indexes (lrem/filter are no-ops if absent).
+ *
+ * The month index key is derived from the trade id (T-YYYY-MM-DD-NNN), so a
+ * missing trade record doesn't block the cleanup.
+ */
+async function deleteTrade(req: VercelRequest, res: VercelResponse) {
+  const id = String((req.body as any)?.id ?? req.query.id ?? '');
+  if (!/^T-\d{4}-\d{2}-\d{2}-\d+$/.test(id)) return res.status(400).json({ error: 'invalid_trade_id' });
+
+  const trade = await kv().get<Trade>(tradeKey(id));
+  if (!trade) return res.status(404).json({ error: 'trade_not_found' });
+
+  const month = id.slice(2, 9); // "T-2026-06-17-030" → "2026-06"
+
+  // Remove from the open index and this month's index (Redis lists).
+  await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
+  await kv().lrem(tradesIndexMonthKey(month), 0, id);
+
+  // Remove from the needs-grade queue (JSON-array backed).
+  const nq = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
+  if (nq.includes(id)) {
+    await kv().set(KV_KEYS.tradesIndexNeedsGrade, nq.filter((x) => x !== id));
+  }
+
+  // Drop the trade + grade records.
+  await kv().del(tradeKey(id));
+  await kv().del(gradeKey(id));
+
+  return res.status(200).json({ ok: true, deleted: id });
 }
 
 /**

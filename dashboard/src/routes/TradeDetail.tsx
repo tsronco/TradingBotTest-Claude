@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTrade } from '../hooks/useTrade';
@@ -48,6 +48,7 @@ export default function TradeDetail() {
       <ErrorBoundary><RuleViolationsPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><GradePanel trade={data.trade} grade={data.grade} /></ErrorBoundary>
       <ErrorBoundary><TagsJournal trade={data.trade} /></ErrorBoundary>
+      <ErrorBoundary><DeletePanel trade={data.trade} /></ErrorBoundary>
 
       {/* footer ribbon per brand guidelines */}
       <div className="footer-ribbon mt-6 flex items-center gap-3 text-[11px] text-dim">
@@ -63,6 +64,67 @@ export default function TradeDetail() {
         <span className="caret" />
       </div>
     </div>
+  );
+}
+
+/**
+ * Danger zone — permanently delete this trade record. Used to clean up
+ * duplicates / bad imports. Two-step (arm → confirm) so a stray tap can't
+ * nuke a record. On success, navigates back to /trades.
+ */
+function DeletePanel({ trade }: { trade: Trade }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [armed, setArmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const del = useMutation({
+    mutationFn: () => api(`/api/trades/delete?id=${trade.id}`, { method: 'POST', body: JSON.stringify({ id: trade.id }) }),
+    onMutate: () => setError(null),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['trades'] });
+      navigate('/trades');
+    },
+    onError: (e: Error) => { setError(e.message ?? 'delete failed.'); setArmed(false); },
+  });
+
+  return (
+    <article className="relative border border-red/40 bg-panel/60 rounded-sm" style={{ overflow: 'visible' }}>
+      <div className="absolute -top-2.5 left-3 px-2 bg-bg text-[10px] tracking-[0.25em] flex items-center gap-2 z-10">
+        <span className="text-dim">┌──</span><span className="text-red">DANGER</span><span className="text-dim">──┐</span>
+      </div>
+      <div className="p-4 flex flex-col gap-2">
+        <div className="text-mid text-[10px]">
+          permanently delete this trade record — removes it from P&amp;L, win-rate, and
+          calibration. Use for duplicates / bad imports. This does NOT touch Alpaca.
+        </div>
+        <div className="flex items-center gap-3">
+          {!armed ? (
+            <button
+              type="button"
+              className="px-3 py-1.5 border border-red/40 text-red text-[11px] rounded-sm tracking-wider hover:bg-red/5"
+              onClick={() => setArmed(true)}
+            >[delete trade]</button>
+          ) : (
+            <>
+              <span className="text-red text-[10px]">delete {trade.id}? this can't be undone.</span>
+              <button
+                type="button"
+                className="px-3 py-1.5 border border-red text-red text-[11px] rounded-sm tracking-wider hover:bg-red/10 disabled:opacity-50"
+                onClick={() => del.mutate()}
+                disabled={del.isPending}
+              >[{del.isPending ? 'deleting…' : 'confirm delete'}]</button>
+              <button
+                type="button"
+                className="px-3 py-1.5 border border-border text-dim text-[11px] rounded-sm tracking-wider hover:bg-hi/5"
+                onClick={() => setArmed(false)}
+                disabled={del.isPending}
+              >[cancel]</button>
+            </>
+          )}
+          {error && <span className="text-red text-[10px]">error: {error}</span>}
+        </div>
+      </div>
+    </article>
   );
 }
 
