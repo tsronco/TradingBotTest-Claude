@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T17:01:44.534030Z"
+    "last_checked": "2026-06-18T17:12:07.684440Z"
   },
   "F": {
     "stage": 1,
@@ -94,34 +94,5 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Adopted spread short=$746.00 long=$728.00 credit=$3.01"
-  },
-  "QQQ": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "QQQ260624P00722000",
-      "strike": 722.0,
-      "entry_premium": 6.2,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "QQQ260624P00690000",
-      "strike": 690.0,
-      "entry_premium": 1.43,
-      "qty": 1
-    },
-    "expiration": "2026-06-24",
-    "net_credit": 4.77,
-    "max_loss": 27.23,
-    "width": 32.0,
-    "opened_at": "2026-06-17T17:41:36.948932Z",
-    "tripwire_breach_since": null,
-    "open_order_id": null,
-    "open_client_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$722.00 long=$690.00 credit=$4.77"
   }
 }
