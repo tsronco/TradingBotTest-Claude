@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-18T18:49:59.097833Z",
+    "last_checked": "2026-06-18T18:59:48.177376Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.17 vs entry $0.17",
+    "last_action": "Monitoring COIN260626C00205000: $0.14 vs entry $0.17",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260626P00014000: $0.67 vs entry $0.43",
+    "last_action": "Monitoring MARA260626P00014000: $0.68 vs entry $0.43",
     "contract_qty": 1
   },
   "RIOT": {
