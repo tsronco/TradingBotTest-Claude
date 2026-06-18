@@ -19,7 +19,22 @@ import type { Tendency, Proposal, ManualRule } from '../_lib/rules-types.js';
 import { newId } from '../_lib/rules-types.js';
 import { fetchEarningsDates, earningsInWindow } from '../_lib/fundamentals-fetch.js';
 
-const MAX_PER_TICK = 3;
+// AI hindsight grades to run per tick. Small because gradeTrade is a Sonnet
+// call (seconds + tokens); closes beyond this land on the needs-grade queue
+// and are drained on later ticks. This caps ONLY grading — never fill-sync or
+// close detection (those are cheap Alpaca reads and must run for every trade
+// every tick so nothing is left stuck "open"). The old MAX_PER_TICK=3 used
+// this same number to break the whole sweep, which stranded any trade past the
+// first 3 closes — with a large open index the tail (newest trades) never got
+// synced or close-detected.
+const MAX_GRADE_PER_TICK = 5;
+
+// Trades to fill-sync + close-detect per tick. Bounded so a large backlog can't
+// blow the serverless time budget (the function runs under maxDuration=60s; a
+// worst-case trade does several Alpaca reads, so this stays well clear), but
+// combined with a rotating cursor it sweeps the entire open index over a
+// handful of ticks. A ~300-trade backlog fully sweeps in ~10 ticks (~50 min).
+const SWEEP_BUDGET = 30;
 
 // How long to wait for Alpaca to post the OPEXP/OPASN settlement activity
 // before assuming a past-expiry STO simply expired worthless. Alpaca normally
@@ -87,12 +102,30 @@ export async function runGradeOpenTrades(): Promise<{
 }> {
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
 
-  let graded = 0;
+  let graded = 0;        // trades CLOSED this tick (what /trades surfaces as "closed")
   let synced = 0;
+  let aiGrades = 0;      // expensive Sonnet grade calls used this tick
   let remaining = openIds.length;
 
-  for (const id of openIds) {
-    if (graded >= MAX_PER_TICK) break;
+  // Rotating sweep window: process at most SWEEP_BUDGET trades starting from a
+  // stored cursor, wrapping around. This guarantees every open trade is
+  // fill-synced + close-detected within ceil(N / SWEEP_BUDGET) ticks even when
+  // N is large — the old "always start at index 0, break after 3 closes" path
+  // never reached the tail of a big index.
+  const N = openIds.length;
+  const startRaw = (await kv().get<number>(KV_KEYS.tradesSweepCursor)) ?? 0;
+  const start = N > 0 ? (((startRaw % N) + N) % N) : 0;
+  const sweepCount = Math.min(SWEEP_BUDGET, N);
+  // Advance the cursor for next tick before doing the work, so a mid-sweep
+  // crash still makes forward progress on the following tick.
+  if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + sweepCount) % N);
+
+  // Drain previously-queued closed-but-ungraded trades first (older closes get
+  // their hindsight grade before we spend budget on new ones this tick).
+  aiGrades += await drainNeedsGrade(MAX_GRADE_PER_TICK);
+
+  for (let k = 0; k < sweepCount; k++) {
+    const id = openIds[(start + k) % N];
     let trade = await kv().get<Trade>(tradeKey(id));
     if (!trade) {
       // Stale entry — remove it from the list
@@ -205,22 +238,15 @@ export async function runGradeOpenTrades(): Promise<{
     // Skip AI grading for canceled trades — entry never filled, nothing to grade.
     if (closeInfo.closed_by === 'canceled') continue;
 
-    // Pull bars and grade
-    const start = closedTrade.filled_at ?? closedTrade.submitted_at;
-    const end = closedTrade.closed_at ?? new Date().toISOString();
-    let bars: Array<{ t: string; c: number }> = [];
-    try {
-      const data = await alpacaData<any>(modeFromAccount(closedTrade.account), '/v2/stocks/bars', {
-        symbols: closedTrade.symbol, timeframe: '1Min', start, end, limit: 500,
-      });
-      bars = (data?.bars?.[closedTrade.symbol] ?? []).map((b: any) => ({ t: b.t, c: b.c }));
-    } catch { /* bars are optional */ }
-
-    const grade = await kv().get<GradeRecord>(gradeKey(id));
-    if (!grade) continue;
-    const hindsight = await gradeTrade({ trade: closedTrade, bars });
-    const next = { ...grade, hindsight };
-    await kv().set(gradeKey(id), next);
+    // The close itself is already persisted above. AI grading is the only
+    // expensive step, so it's budgeted: grade inline while budget remains,
+    // otherwise queue for a later tick (the trade still shows closed with P&L
+    // immediately — only the hindsight letter is deferred).
+    if (aiGrades < MAX_GRADE_PER_TICK) {
+      if (await gradeClosedTrade(closedTrade)) aiGrades += 1;
+    } else {
+      await enqueueNeedsGrade(closedTrade.id);
+    }
   }
 
   // Drain assignments-pending — spawn follow-on stock trades for assigned puts
@@ -240,6 +266,67 @@ export async function runGradeOpenTrades(): Promise<{
     assignments_skipped: drainResult.skipped,
     auto_imported: importResult,
   };
+}
+
+/**
+ * Fetch context bars and run the AI hindsight grade for an already-closed
+ * trade, writing the result onto its grade record. Returns true if a grade
+ * was produced, false if there was no grade record to attach to (nothing to
+ * do). Throws are the caller's responsibility to budget around — but the bars
+ * fetch is best-effort (grading proceeds without bars).
+ */
+async function gradeClosedTrade(closedTrade: Trade): Promise<boolean> {
+  const grade = await kv().get<GradeRecord>(gradeKey(closedTrade.id));
+  if (!grade) return false;
+
+  const start = closedTrade.filled_at ?? closedTrade.submitted_at;
+  const end = closedTrade.closed_at ?? new Date().toISOString();
+  let bars: Array<{ t: string; c: number }> = [];
+  try {
+    const data = await alpacaData<any>(modeFromAccount(closedTrade.account), '/v2/stocks/bars', {
+      symbols: closedTrade.symbol, timeframe: '1Min', start, end, limit: 500,
+    });
+    bars = (data?.bars?.[closedTrade.symbol] ?? []).map((b: any) => ({ t: b.t, c: b.c }));
+  } catch { /* bars are optional */ }
+
+  const hindsight = await gradeTrade({ trade: closedTrade, bars });
+  await kv().set(gradeKey(closedTrade.id), { ...grade, hindsight });
+  return true;
+}
+
+/** Append a trade id to the needs-grade queue (deduped, JSON-array backed). */
+async function enqueueNeedsGrade(id: string): Promise<void> {
+  const q = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
+  if (q.includes(id)) return;
+  q.push(id);
+  await kv().set(KV_KEYS.tradesIndexNeedsGrade, q);
+}
+
+/**
+ * Grade up to `budget` queued closed-but-ungraded trades. Returns how many AI
+ * grades were performed (so the caller can subtract from its per-tick budget).
+ * Entries whose trade/grade record is gone are dropped from the queue.
+ */
+async function drainNeedsGrade(budget: number): Promise<number> {
+  if (budget <= 0) return 0;
+  const q = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
+  if (q.length === 0) return 0;
+
+  let used = 0;
+  const remainingQueue: string[] = [];
+  for (const id of q) {
+    if (used >= budget) { remainingQueue.push(id); continue; }
+    const t = await kv().get<Trade>(tradeKey(id));
+    if (!t || !t.closed_at) continue; // gone or no longer closed — drop silently
+    try {
+      if (await gradeClosedTrade(t)) used += 1;
+    } catch (e) {
+      console.error('drainNeedsGrade gradeClosedTrade failed', id, e);
+      remainingQueue.push(id); // keep for retry
+    }
+  }
+  await kv().set(KV_KEYS.tradesIndexNeedsGrade, remainingQueue);
+  return used;
 }
 
 // Per-account auto-import tag policy:

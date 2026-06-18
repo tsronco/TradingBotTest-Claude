@@ -31,6 +31,31 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
     category: 'fix',
+    title: 'Grade-cron no longer caps at 3/tick or times out — drains the whole open backlog',
+    details:
+      'Two coupled problems on the trade-lifecycle cron (api/cron/[job].ts), surfaced by a\n' +
+      '~310-trade open backlog and a 504 on the aggressive account:\n\n' +
+      '1. MAX_PER_TICK=3 broke the ENTIRE sweep after 3 closes — and fill-sync + close\n' +
+      '   detection ran inside that same loop, always starting at index 0. So with a big\n' +
+      '   open index the tail (newest trades, e.g. the stuck QQQ spreads) was never synced or\n' +
+      '   close-detected. Fix: the cap now applies ONLY to AI grading (the lone expensive\n' +
+      '   step). Fill-sync + close-detection run for every swept trade.\n\n' +
+      '2. With nothing closing early, the old loop walked all ~310 open trades doing Alpaca\n' +
+      '   reads each — over the Vercel 10s default function limit → 504. Fixes:\n' +
+      '   • Rotating sweep cursor (trades:cursor:sweep) processes up to SWEEP_BUDGET=30\n' +
+      '     trades/tick, wrapping, so the full index is covered over ~10 ticks (~50 min) with\n' +
+      '     bounded per-tick work.\n' +
+      '   • maxDuration raised to 60s (vercel.json functions config) for headroom.\n' +
+      '   • AI grading budgeted at 5/tick; closes beyond budget are still recorded immediately\n' +
+      '     (exit + P&L visible) and their hindsight letter is deferred via a needs-grade queue\n' +
+      '     (trades:index:needs_grade) drained on later ticks.\n\n' +
+      'Net: every open trade gets fill-synced + close-detected within a few ticks, closes show\n' +
+      'up promptly, and the function no longer times out on a large backlog.\n' +
+      'Tests: +4 vitest (8-close tick, grade budget+queue, queue drain, cursor wrap). 714 green.',
+  },
+  {
+    date: '2026-06-18',
+    category: 'fix',
     title: 'Spread fills now sync (nested=true) + imports confirm immediately — stuck "submitted" spreads heal',
     details:
       'Dashboard-placed multi-leg (mleg) spreads were stuck at "submitted" with a "—"\n' +

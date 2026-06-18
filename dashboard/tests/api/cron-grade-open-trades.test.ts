@@ -471,6 +471,142 @@ describe('POST /api/cron/grade-open-trades', () => {
     }));
   });
 
+  // ---- sweep budget / rotation / grade queue -------------------------------
+
+  // A stock trade whose Alpaca close order has filled → detectClose Path 1
+  // closes it. fill_confirmed:true so syncFillData makes no entry-order fetch.
+  function closeableStockTrade(n: number) {
+    return {
+      id: `T-2026-05-04-${String(n).padStart(3, '0')}`, account: 'conservative_paper', symbol: 'TSLA',
+      asset_class: 'stock', side: 'buy', qty: 10, filled_avg_price: 319.85, exposure_at_submit: 3198.5,
+      alpaca_order_id: `entry-${n}`, alpaca_close_order_id: `close-${n}`,
+      filled_at: '2026-05-04T13:30Z', closed_at: null, realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'A', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [], schema: 1, fill_confirmed: true,
+    } as any;
+  }
+
+  it('closes more than 3 trades in one tick (old MAX_PER_TICK=3 cap is gone)', async () => {
+    const trades = Array.from({ length: 8 }, (_, i) => closeableStockTrade(i + 1));
+    kvLrange.mockResolvedValueOnce(trades.map((t) => t.id));
+    kvLrem.mockResolvedValue(1);
+    const byId = new Map(trades.map((t) => [t.id, t]));
+    kvGet.mockImplementation((k: string) => {
+      const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
+      if (tid && byId.has(tid)) return Promise.resolve(byId.get(tid));
+      if (k.startsWith('grade:')) return Promise.resolve({ trade_id: k.slice('grade:'.length), entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Every close order is filled.
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/close-')) return Promise.resolve({ id: 'c', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+    gradeMock.mockResolvedValue({ letter: 'B+', review: 'r', calibration: 'over_1', tendencies_hit: [], model: 'sonnet', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+
+    // All 8 closed this tick (would have been capped at 3 before).
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, graded: 8 }));
+    expect(kvLrem).toHaveBeenCalledTimes(8);
+  });
+
+  it('budgets AI grading at 5/tick and queues the overflow (closes still recorded)', async () => {
+    const trades = Array.from({ length: 7 }, (_, i) => closeableStockTrade(i + 1));
+    kvLrange.mockResolvedValueOnce(trades.map((t) => t.id));
+    kvLrem.mockResolvedValue(1);
+    const byId = new Map(trades.map((t) => [t.id, t]));
+    let needsGrade: string[] = [];
+    kvGet.mockImplementation((k: string) => {
+      if (k === 'trades:index:needs_grade') return Promise.resolve(needsGrade);
+      const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
+      if (tid && byId.has(tid)) return Promise.resolve(byId.get(tid));
+      if (k.startsWith('grade:')) return Promise.resolve({ trade_id: k.slice('grade:'.length), entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    kvSet.mockImplementation((k: string, v: any) => {
+      if (k === 'trades:index:needs_grade') needsGrade = v;
+      return Promise.resolve('OK');
+    });
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/close-')) return Promise.resolve({ id: 'c', status: 'filled', filled_avg_price: '362.20', filled_at: '2026-05-04T20:09Z' });
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+    gradeMock.mockResolvedValue({ letter: 'B+', review: 'r', calibration: 'over_1', tendencies_hit: [], model: 'sonnet', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+
+    // 7 closed, but only 5 AI-graded; 2 deferred to the needs-grade queue.
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ graded: 7 }));
+    expect(gradeMock).toHaveBeenCalledTimes(5);
+    expect(needsGrade).toHaveLength(2);
+  });
+
+  it('drains the needs-grade queue on a later tick (no open trades)', async () => {
+    const closed = {
+      id: 'T-2026-05-04-090', account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+      side: 'buy', qty: 10, filled_avg_price: 319.85, closed_at: '2026-05-04T20:09Z',
+      closed_avg_price: 362.20, realized_pnl: 423.5, closed_by: 'manual',
+      filled_at: '2026-05-04T13:30Z', entry_grade: 'A', entry_reasoning: 'r', tags: [],
+      rule_warnings_at_entry: [], schema: 1, fill_confirmed: true,
+    } as any;
+    kvLrange.mockResolvedValueOnce([]); // no open trades
+    let needsGrade: string[] = [closed.id];
+    kvGet.mockImplementation((k: string) => {
+      if (k === 'trades:index:needs_grade') return Promise.resolve(needsGrade);
+      if (k === `trade:${closed.id}`) return Promise.resolve(closed);
+      if (k === `grade:${closed.id}`) return Promise.resolve({ trade_id: closed.id, entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    kvSet.mockImplementation((k: string, v: any) => {
+      if (k === 'trades:index:needs_grade') needsGrade = v;
+      return Promise.resolve('OK');
+    });
+    dataMock.mockResolvedValue({ bars: { TSLA: [] } });
+    gradeMock.mockResolvedValue({ letter: 'B+', review: 'r', calibration: 'over_1', tendencies_hit: [], model: 'sonnet', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+
+    expect(gradeMock).toHaveBeenCalledTimes(1);
+    expect(needsGrade).toHaveLength(0); // queue drained
+  });
+
+  it('advances and wraps the sweep cursor so the tail of a large index is reached', async () => {
+    // 40 open trades, none closeable (close order still "new"). SWEEP_BUDGET=30,
+    // so tick 1 (cursor 0) covers indices 0..29 and writes cursor=30; the next
+    // tick starts at 30 and reaches the tail (indices 30..39).
+    const ids = Array.from({ length: 40 }, (_, i) => `T-x-${String(i).padStart(3, '0')}`);
+    kvLrange.mockResolvedValueOnce(ids);
+    kvGet.mockImplementation((k: string) => {
+      if (k === 'trades:cursor:sweep') return Promise.resolve(0);
+      const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
+      if (tid) return Promise.resolve({
+        id: tid, account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+        side: 'buy', qty: 1, filled_avg_price: 1, alpaca_order_id: `e-${tid}`, alpaca_close_order_id: `c-${tid}`,
+        filled_at: '2026-05-04T13:30Z', closed_at: null, closed_by: null, entry_grade: 'A', entry_reasoning: 'r',
+        tags: [], rule_warnings_at_entry: [], schema: 1, fill_confirmed: true,
+      });
+      return Promise.resolve(null);
+    });
+    // close orders are NOT filled → nothing closes
+    alpacaTradeMock.mockResolvedValue({ id: 'c', status: 'new' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+
+    // cursor advanced to 30 for the next tick (which will then cover the tail)
+    expect(kvSet).toHaveBeenCalledWith('trades:cursor:sweep', 30);
+  });
+
   // ---- detectClose spread expiry branch ------------------------------------
 
   function makeFilledSpreadTrade(overrides: any = {}) {

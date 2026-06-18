@@ -64,6 +64,14 @@ export const KV_KEYS = {
   tagsList: 'tags:list',
   backupCodesHashed: 'auth:backup_codes_hashed',
   tradesIndexOpen: 'trades:index:open',
+  // Rotating cursor (integer index) so the grade-open-trades sweep covers the
+  // whole open index over successive ticks instead of always restarting at 0.
+  tradesSweepCursor: 'trades:cursor:sweep',
+  // Queue of closed-but-not-yet-AI-graded trade ids. A close is cheap (Alpaca
+  // reads + KV writes); the AI hindsight grade is expensive (Sonnet call), so
+  // closes beyond the per-tick grade budget land here and are drained on later
+  // ticks. Stored as a JSON string array (low-traffic — not the open index).
+  tradesIndexNeedsGrade: 'trades:index:needs_grade',
 } as const;
 
 export function tradeKey(id: string): string {
