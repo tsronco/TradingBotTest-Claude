@@ -6367,3 +6367,10 @@
 {"timestamp": "2026-06-18T15:47:42.129507+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 41, "equity": 2000.0}}
 {"timestamp": "2026-06-18T15:47:42.130691+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-18T15:47:42.751268+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-18T15:56:44.721101+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-18T15:57:39.307384+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": 0.0, "min_net_credit": 0.05, "short_mid": 0.31, "long_mid": 0.31}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-18T15:57:40.982114+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 208.74}}
+{"timestamp": "2026-06-18T15:57:46.391123+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "MSFT", "details": {"price": 377.885}}
+{"timestamp": "2026-06-18T15:57:46.391316+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 41, "equity": 2000.0}}
+{"timestamp": "2026-06-18T15:57:46.392430+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-18T15:57:47.169816+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
