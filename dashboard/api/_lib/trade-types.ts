@@ -63,6 +63,11 @@ export interface SpreadLeg {
   entry_premium: number | null;   // null until fill
   fill_price: number | null;      // null until fill; populated by syncFillData
   qty: number;
+  // Alpaca order id for this leg, captured by syncFillData from the nested
+  // mleg order (or the FILL activity fallback). Lets the importer dedup a
+  // dashboard-placed spread against the Alpaca activity log. Undefined on
+  // legacy records and until the first successful fill sync.
+  order_id?: string;
 }
 
 export type SpreadType = 'put_credit' | 'put_debit' | 'call_credit' | 'call_debit';
