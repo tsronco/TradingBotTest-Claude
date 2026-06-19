@@ -31,6 +31,36 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
     category: 'feature',
+    title: 'Trades table — sortable column headers + defaults to the manual paper filter',
+    details:
+      'Click any header on /trades to sort by that column; click again to flip direction (▲/▼).\n' +
+      'Date, symbol, side, qty, entry, exit, P&L, grade, AI grade, and tags are all sortable. Open\n' +
+      'trades with no exit or realized P&L always sort to the bottom, whichever direction you pick.\n\n' +
+      'Sorting runs client-side over the rows currently loaded, so set SHOW to "all" if you want it\n' +
+      'to order the whole ledger rather than just the visible page.\n\n' +
+      'The account filter now defaults to manual_paper instead of "all" — that\'s the hand-managed\n' +
+      'account we look at most. Switch it back to [any] or another account anytime. Sort logic lives\n' +
+      'in src/lib/trade-sort.ts (pure, unit-tested); the table sorts trade+grade pairs together so the\n' +
+      'AI-grade column can never desync from its row.',
+  },
+  {
+    date: '2026-06-18',
+    category: 'fix',
+    title: 'Fix two TypeScript errors in the trades submit endpoint (idempotency dedup)',
+    details:
+      'api/trades/[action].ts threw two TS2339 "Property \'trade\' does not exist" errors on every\n' +
+      'Vercel build. claimIdemIndex returns a discriminated union ({winner:true,id} |\n' +
+      '{winner:false,id,trade}); under strict mode `if (!idemClaim.winner)` narrows it correctly,\n' +
+      'which is why local `tsc -b` passed. But api/ sits outside the local tsc project graph, and\n' +
+      'Vercel\'s @vercel/node compiles those functions with default (non-strict) options where that\n' +
+      'narrowing does not apply — so the build flagged the .trade access. Fix: name the union\n' +
+      '(IdemClaim) and assert the loser branch explicitly (idemClaim as ExistingClaim) at both call\n' +
+      'sites, justified by the !winner guard right above. Runtime behavior unchanged — purely a\n' +
+      'type-safety / clean-build fix.',
+  },
+  {
+    date: '2026-06-18',
+    category: 'feature',
     title: 'Trade detail: "delete trade" action for cleaning up duplicates / bad imports',
     details:
       'New DANGER panel on /trade/:id with a two-step [delete trade] → [confirm delete]. Wires\n' +

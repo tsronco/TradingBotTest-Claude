@@ -1,11 +1,12 @@
 // dashboard/src/routes/Trades.tsx
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTrades, type TradesFilters } from '../hooks/useTrades';
 import { api } from '../lib/api';
 import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
+import { sortTradePairs, defaultDir, type SortKey, type SortState, type TradeRowPair } from '../lib/trade-sort';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
 import RefreshButton from '../components/trades/RefreshButton';
 import { useDisplayName } from '../hooks/useDisplayName';
@@ -15,10 +16,43 @@ const ASSET_CLASSES = ['stock', 'option'] as const;
 const GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'] as const;
 const STATUSES = ['open', 'closed'] as const;
 
+// Trades table columns, in render order. `key` drives client-side sorting
+// (see lib/trade-sort.ts); `align` matches the cell alignment in TradeRow.
+const COLUMNS: { key: SortKey; label: string; align: 'left' | 'right' | 'center' }[] = [
+  { key: 'date', label: 'date', align: 'left' },
+  { key: 'symbol', label: 'symbol', align: 'left' },
+  { key: 'side', label: 'side', align: 'left' },
+  { key: 'qty', label: 'qty', align: 'right' },
+  { key: 'entry', label: 'entry', align: 'right' },
+  { key: 'exit', label: 'exit', align: 'right' },
+  { key: 'pnl', label: 'P&L', align: 'right' },
+  { key: 'grade', label: 'grade', align: 'center' },
+  { key: 'ai', label: 'ai', align: 'center' },
+  { key: 'tags', label: 'tags', align: 'left' },
+];
+
 export default function Trades() {
-  const [filters, setFilters] = useState<TradesFilters>({ limit: 50, offset: 0 });
+  const [filters, setFilters] = useState<TradesFilters>({ limit: 50, offset: 0, account: 'manual_paper' });
+  const [sort, setSort] = useState<SortState | null>(null);
   const { data, isLoading } = useTrades(filters);
   const { handle } = useDisplayName();
+
+  // Zip trades with their grade summaries, then sort the pairs together so the
+  // AI-grade column can't desync from its row. Sorting is client-side over the
+  // currently-loaded page (set SHOW to "all" to sort the whole ledger).
+  const sortedPairs = useMemo<TradeRowPair[]>(() => {
+    if (!data) return [];
+    const pairs: TradeRowPair[] = data.trades.map((t, i) => ({ trade: t, grade: data.grades[i] }));
+    return sortTradePairs(pairs, sort);
+  }, [data, sort]);
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: defaultDir(key) },
+    );
+  }
   const tagsQ = useQuery({
     queryKey: ['settings-tags'],
     queryFn: () => api<{ tags: string[] }>('/api/settings/tags'),
@@ -91,23 +125,36 @@ export default function Trades() {
         <table className="w-full text-[10px] tnum">
           <thead className="text-dim">
             <tr className="border-b border-border">
-              <th className="text-left px-3 py-2">date</th>
-              <th className="text-left px-3 py-2">symbol</th>
-              <th className="text-left px-3 py-2">side</th>
-              <th className="text-right px-3 py-2">qty</th>
-              <th className="text-right px-3 py-2">entry</th>
-              <th className="text-right px-3 py-2">exit</th>
-              <th className="text-right px-3 py-2">P&amp;L</th>
-              <th className="text-center px-3 py-2">grade</th>
-              <th className="text-center px-3 py-2">ai</th>
-              <th className="text-left px-3 py-2">tags</th>
+              {COLUMNS.map((col) => {
+                const active = sort?.key === col.key;
+                const alignClass = col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left';
+                return (
+                  <th
+                    key={col.key}
+                    className={`${alignClass} px-3 py-2`}
+                    aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.key)}
+                      className={`inline-flex items-center gap-1 hover:text-hi ${active ? 'text-hi' : ''}`}
+                      title={`sort by ${col.label}`}
+                    >
+                      <span>{col.label}</span>
+                      <span className={`text-[8px] leading-none ${active ? '' : 'opacity-40'}`}>
+                        {active ? (sort!.dir === 'asc' ? '▲' : '▼') : '↕'}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr><td colSpan={10} className="text-mid text-[12px] p-3">loading…</td></tr>
             )}
-            {data?.trades.map((t, i) => <TradeRow key={t.id} trade={t} gradeSummary={data.grades[i]} />)}
+            {sortedPairs.map(({ trade, grade }) => <TradeRow key={trade.id} trade={trade} gradeSummary={grade} />)}
             {!isLoading && data && data.trades.length === 0 && (
               <tr><td colSpan={10} className="text-dim text-[12px] p-3">{handle}@dash:~/portfolio/trades$ ls — total 0 — none</td></tr>
             )}

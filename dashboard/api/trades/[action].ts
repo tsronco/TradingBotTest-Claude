@@ -461,7 +461,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
   // See claimIdemIndex() for the full race-safety analysis.
   const idemClaim = await claimIdemIndex(p.idempotency_key);
   if (!idemClaim.winner) {
-    const { id: origId, trade: origTrade } = idemClaim;
+    const { id: origId, trade: origTrade } = idemClaim as ExistingClaim;
     return res.status(200).json({ id: origId, trade_id: origId, alpaca_order_id: origTrade.alpaca_order_id });
   }
   const id = idemClaim.id;
@@ -639,12 +639,18 @@ function isDuplicateClientOrderIdError(err: unknown): boolean {
  * with a freshly allocated id — no index is written because the fallback key
  * changes on every request and cannot provide cross-request dedup.
  */
+type IdemClaim =
+  | { winner: true; id: string }
+  | { winner: false; id: string; trade: Trade };
+// @vercel/node type-checks api/ with default (non-strict) options, where
+// `if (!idemClaim.winner)` does NOT narrow this union — so name the loser
+// branch and assert it explicitly at the two call sites below. (Local
+// `tsc -b` never sees api/, so this only shows up on Vercel builds.)
+type ExistingClaim = Extract<IdemClaim, { winner: false }>;
+
 async function claimIdemIndex(
   idempotencyKey: string | undefined,
-): Promise<
-  | { winner: true; id: string }
-  | { winner: false; id: string; trade: Trade }
-> {
+): Promise<IdemClaim> {
   const rawKey = idempotencyKey?.trim() ?? '';
 
   // No stable key supplied — allocate an id and skip the index entirely.
@@ -790,7 +796,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
   const idemClaim = await claimIdemIndex(draft.idempotency_key);
   if (!idemClaim.winner) {
     // Another request already settled. Return the original trade record.
-    const { id: origId, trade: origTrade } = idemClaim;
+    const { id: origId, trade: origTrade } = idemClaim as ExistingClaim;
     return res.status(200).json({ id: origId, alpaca_order_id: origTrade.alpaca_order_id });
   }
   const id = idemClaim.id;
