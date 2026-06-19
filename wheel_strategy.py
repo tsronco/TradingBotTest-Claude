@@ -123,7 +123,7 @@ def apply_mode(mode_name: str) -> None:
     global CALL_EXPIRY_DAYS_MIN, CALL_EXPIRY_DAYS_MAX
     global EARLY_CLOSE_PCT, STALE_AFTER_HOURS
     global TRADES_CH, ERRORS_CH, SUMMARY_CH, ACTIONS_CH, LOG_STREAM, MODE
-    global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS
+    global WHEEL_SKIP_NEW_PUTS, AUTO_DISCOVER_SYMBOLS, EXCLUDED_SYMBOLS
     global SPREAD_MANAGEMENT, SPREAD_EARLY_CLOSE_PCT, SPREAD_STOP_LOSS_PCT, SPREAD_DTE_FLOOR
     global SPREAD_STOP_CREDIT_MULT
     global AUTO_OPEN_SPREADS
@@ -179,6 +179,10 @@ def apply_mode(mode_name: str) -> None:
 
     WHEEL_SKIP_NEW_PUTS   = cfg.get("wheel_skip_new_puts", False)
     AUTO_DISCOVER_SYMBOLS = cfg.get("auto_discover_symbols", False)
+    # Symbols the wheel must not touch (no covered-call sale, no put mgmt),
+    # even though they show up in auto-discovery. Empty for every mode that
+    # doesn't opt in via config.excluded_symbols.
+    EXCLUDED_SYMBOLS      = config.excluded_symbols(mode_name)
 
     SPREAD_MANAGEMENT       = cfg.get("spread_management", False)
     SPREAD_EARLY_CLOSE_PCT  = cfg.get("spread_early_close_pct", 0.50)
@@ -3743,6 +3747,17 @@ def run_wheel():
         # without modification.
         if AUTO_DISCOVER_SYMBOLS:
             discovered = _discover_wheel_state(state)
+            # Drop any symbol the user has handed back to manual control. The
+            # position still shows in Alpaca, but the bot must not manage it —
+            # no covered-call sale on assignment, no put management. Lets the
+            # user close the position by hand without the bot re-covering it.
+            if EXCLUDED_SYMBOLS:
+                skipped = sorted(discovered & EXCLUDED_SYMBOLS)
+                if skipped:
+                    log(f"Excluding {', '.join(skipped)} from wheel management "
+                        f"(config.excluded_symbols) — bot will not sell calls or "
+                        f"manage options on these.")
+                discovered = discovered - EXCLUDED_SYMBOLS
             SYMBOLS = sorted(discovered)
             log(f"Auto-discovered {len(SYMBOLS)} wheel symbols: {', '.join(SYMBOLS) if SYMBOLS else '(none)'}")
             if not SYMBOLS:

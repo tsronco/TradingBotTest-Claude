@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-19',
+    category: 'config',
+    title: 'Manual bot: excluded SNAP so it stops covering/managing the underwater 100 shares',
+    details:
+      'SNAP was assigned (100 shares) and is severely underwater. A pending covered call is being\n' +
+      'cancelled, and on the next cycle the manual bot would have auto-discovered the shares and sold\n' +
+      'ANOTHER covered call (handle_stage2 → _sell_new_call) — re-locking the shares so they could not\n' +
+      'be sold by hand. strategy.py would also have started trail/ladder/stop on them (the ladder buys\n' +
+      'MORE shares on the way down — the opposite of getting out).\n\n' +
+      'Added a new manual-mode config key `excluded_symbols: ["SNAP"]` plus a `config.excluded_symbols()`\n' +
+      'helper. Both wheel_strategy.py (discovery filter) and strategy.py (held filter) now skip any listed\n' +
+      'symbol entirely: no covered-call sale, no put management, no trail/ladder/stop. The position stays\n' +
+      'in Alpaca; the bot just leaves it alone so the user can close the 100 shares manually.\n\n' +
+      'Default is an empty set, so conservative/aggressive/live/SM are byte-unaffected. Remove SNAP from\n' +
+      'the list (config.py, manual mode) once the shares are sold to hand it back to the bot.',
+  },
+  {
     date: '2026-06-18',
     category: 'fix',
     title: 'One-time data correction: fixed 14 mis-booked manual spreads (removed ~$2,841 P&L overstatement)',
