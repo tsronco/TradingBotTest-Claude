@@ -881,6 +881,18 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
     }
   }
 
+  // Path 2b-pre: a REAL external close is ground truth and must be detected BEFORE
+  // the spot-vs-strikes expiry fabrication below. Otherwise a spread the bot closed
+  // *before* expiry gets re-booked as a fabricated worthless/ITM expiry once its
+  // expiration date passes — the MU phantom-+$950 bug (closed −$185 on 06-16,
+  // mis-booked +$950 on the 06-18 expiry tick). detectExternalSpreadClose returns
+  // null when no closing fills exist (a genuine expiry), so real expiries still fall
+  // through to Path 2b below.
+  if (trade.asset_class === 'spread' && trade.spread) {
+    const realClose = await detectExternalSpreadClose(mode, trade);
+    if (realClose) return realClose;
+  }
+
   // Path 2b: spread past expiration with no close order = resolve by spot vs strikes.
   // The bot (Phase 2 handle_spread) clears the legs on Alpaca's side at expiry, but
   // the dashboard's trade record stays pinned to trades:index:open with closed_at=null
@@ -1006,10 +1018,8 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
     const closeInfo = await detectExternalOptionClose(mode, trade);
     if (closeInfo) return closeInfo;
   }
-  if (trade.asset_class === 'spread' && trade.spread) {
-    const closeInfo = await detectExternalSpreadClose(mode, trade);
-    if (closeInfo) return closeInfo;
-  }
+  // (spread external-close is handled in Path 2b-pre above — moved ahead of the
+  // Path 2b expiry fabrication so a real close always wins over a spot guess.)
 
   return null;
 }

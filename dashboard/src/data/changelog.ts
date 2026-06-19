@@ -30,6 +30,29 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
+    category: 'fix',
+    title: 'Spread P&L integrity: a bot-closed spread no longer mis-books as a fabricated expiry win',
+    details:
+      'Found while reconciling a manual MU put-credit spread: the dashboard showed it +$950\n' +
+      '"expired worthless" when Alpaca\'s activity log proved the bot had tripwire-closed it on\n' +
+      '06-16 for a -$185 LOSS. Root cause in detectClose (api/cron/[job].ts): Path 2b (spread\n' +
+      'past-expiration) fabricates a settlement from current spot vs strikes and ran BEFORE Path 3\n' +
+      '(real external-close detection). When the bot closes a spread before expiry but the cron only\n' +
+      'resolves it after the expiration date passes, Path 2b saw spot above the short strike and\n' +
+      'booked the full credit as a win — steamrolling the real close. (The single-option Path 2 was\n' +
+      'already hardened against this exact "fabricate a win" mistake under D11; its spread cousin was\n' +
+      'not.) The interaction is nasty: the 06-16 tripwire fix forces bot closes into the <=2-DTE\n' +
+      'window — exactly where this strikes — so it would mis-book MORE trades over time, corrupting\n' +
+      'realized P&L, win rate, and AI calibration.\n\n' +
+      'Fix: detectExternalSpreadClose now runs ahead of the Path 2b fabrication (a real close is\n' +
+      'ground truth; it returns null on genuine expiries with no closing fills, so real expiries\n' +
+      'still settle via Path 2b). +1 regression test (MU scenario: closed -$185 on 06-16, resolved\n' +
+      'after the 06-18 expiry with spot above the short strike -> books bot_external -$185, never the\n' +
+      '+$950 fabrication). 738 vitest green. A one-time audit + correction of already-mis-booked\n' +
+      'records follows separately.',
+  },
+  {
+    date: '2026-06-18',
     category: 'feature',
     title: 'Trades table — sortable column headers + defaults to the manual paper filter',
     details:

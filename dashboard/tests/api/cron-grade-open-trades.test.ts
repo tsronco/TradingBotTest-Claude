@@ -806,6 +806,75 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(dataMock).not.toHaveBeenCalled();
   });
 
+  it('detectClose: a bot-closed spread past expiry books the REAL external close, not a fabricated worthless-expiry win', async () => {
+    // Regression for the MU phantom-+$950 bug. The bot tripwire-closed this
+    // put-credit spread at a LOSS on 06-16 (BTC short @ 37.05 / STC long @ 25.70
+    // = 11.35 net cost vs 9.50 credit → −$185). The cron only resolved it AFTER
+    // the 06-18 expiry date passed, so Path 2b (spot-vs-strikes fabrication) saw
+    // MU above the short strike and booked +$950 "expired" — steamrolling the
+    // real close. A real external close is ground truth and must win.
+    const trade = {
+      id: 'T-2026-06-15-003', account: 'manual_paper', symbol: 'MU', asset_class: 'spread',
+      side: 'STO', qty: 1, contract_symbol: null,
+      strike: null, expiration: '2026-06-18', contract_type: null,
+      filled_avg_price: 9.50, filled_at: '2026-06-15T14:01:39Z',
+      alpaca_order_id: 'mleg-mu', alpaca_close_order_id: null,
+      submitted_at: '2026-06-15T13:46Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'C+', entry_reasoning: 'earnings play', tags: ['earnings_play'], rule_warnings_at_entry: [],
+      fill_confirmed: true, // short-circuits syncFillData; clears the D14 defer guard
+      schema: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'MU260618P01035000', strike: 1035, entry_premium: 35.75, fill_price: 35.75, qty: 1 },
+        long_leg: { occ: 'MU260618P01010000', strike: 1010, entry_premium: 26.25, fill_price: 26.25, qty: 1 },
+        expiration: '2026-06-18', width: 25, net_credit: 9.50, max_loss: 15.50,
+      },
+    } as any;
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'C+', reasoning: 'earnings play', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Both legs gone from positions; the activity stream carries the REAL closing
+    // fills at a loss. Spot is above the short strike (so the buggy Path 2b would
+    // otherwise book the full +$950 credit).
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.resolve(null); // 404-equivalent → gone
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'f-short', symbol: 'MU260618P01035000', side: 'buy',  price: '37.05', order_id: 'o-short', transaction_time: '2026-06-16T15:41:53Z' },
+        { id: 'f-long',  symbol: 'MU260618P01010000', side: 'sell', price: '25.70', order_id: 'o-long',  transaction_time: '2026-06-16T15:41:53Z' },
+      ]);
+      return Promise.resolve(null);
+    });
+    dataMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/trades/latest')) return Promise.resolve({ trade: { p: '1043.00' } }); // above short strike
+      return Promise.resolve({ bars: { MU: [] } });
+    });
+    gradeMock.mockResolvedValue({ letter: 'D', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-18T20:30:00Z')); // AFTER the 06-18 expiry → Path 2b is armed
+    try {
+      const handler = (await import('../../api/cron/[job]')).default;
+      await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
+    } finally { vi.useRealTimers(); }
+
+    // The real close must win: bot_external at the actual −$185 loss.
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'bot_external',
+      realized_pnl: -185,
+      closed_at: '2026-06-16T15:41:53Z',
+    }));
+    // And it must NOT fabricate the +$950 worthless-expiry win.
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_by: 'expired',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
   it('syncFillData no-ops on still-pending entry orders', async () => {
     // Freeze time before the option expiry (2026-05-29) so detectClose Path 2
     // (option past expiration / backstop) does not fire. Without a fake timer,
