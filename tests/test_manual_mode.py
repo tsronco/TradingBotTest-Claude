@@ -282,3 +282,108 @@ def test_manual_stop_sells_only_free_qty_not_full_liquidation(monkeypatch):
     strategy._manual_run_symbol("SNAP", sym_state, 10, 6.00)
     assert calls["close_all"] == 0                       # no full-position liquidation
     assert calls["orders"] == [("SNAP", 10, "sell")]     # bounded sell of free shares
+
+
+# ── Excluded symbols: bot hands a position back to manual control ───────────
+# A symbol in config.MODES[mode]["excluded_symbols"] must be skipped by BOTH
+# wheel_strategy (no covered-call sale on assignment, no put mgmt) and
+# strategy.py (no trail/ladder/stop). Used to let the user exit a position by
+# hand without the bot re-covering or laddering into it. SNAP added 2026-06-19:
+# assigned 100 shares underwater, a pending CC is being cancelled, and the bot
+# must not sell another one.
+
+def test_excluded_symbols_helper_normalizes_and_defaults():
+    excl = config.excluded_symbols("manual")
+    assert "SNAP" in excl
+    # set is already uppercased/normalized
+    assert excl == {s.upper() for s in excl}
+    # modes that don't opt in get an empty set — unaffected
+    assert config.excluded_symbols("conservative") == set()
+    assert config.excluded_symbols("aggressive") == set()
+    assert config.excluded_symbols("live") == set()
+
+
+def test_apply_mode_sets_excluded_symbols_on_both_scripts():
+    wheel_strategy.apply_mode("manual")
+    assert "SNAP" in wheel_strategy.EXCLUDED_SYMBOLS
+    strategy.apply_mode("manual")
+    assert "SNAP" in strategy.EXCLUDED_SYMBOLS
+    # Conservative carries none.
+    wheel_strategy.apply_mode("conservative")
+    assert wheel_strategy.EXCLUDED_SYMBOLS == set()
+    strategy.apply_mode("conservative")
+    assert strategy.EXCLUDED_SYMBOLS == set()
+
+
+def test_wheel_skips_excluded_symbol_no_covered_call(monkeypatch, tmp_path):
+    """run_wheel must not manage an excluded symbol even when discovery sees
+    it as a held Stage 2 position (which would otherwise sell a covered call)."""
+    import json
+    wheel_strategy.apply_mode("manual")
+    assert "SNAP" in wheel_strategy.EXCLUDED_SYMBOLS
+
+    def _stage2():
+        s = wheel_strategy._empty_symbol_state()
+        s["stage"] = 2
+        s["shares_qty"] = 100
+        s["cost_basis_per_share"] = 10.0
+        return s
+
+    state = {"_meta": {}, "SNAP": _stage2(), "TSLA": _stage2()}
+    state_file = tmp_path / "wheel_state_manual.json"
+    state_file.write_text(json.dumps(state))
+    monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)
+    monkeypatch.setattr(wheel_strategy, "get_account",
+                        lambda: {"cash": "10000", "options_buying_power": "10000",
+                                 "portfolio_value": "10000"})
+    # Discovery sees both names; the exclusion filter must drop SNAP.
+    monkeypatch.setattr(wheel_strategy, "_discover_wheel_state",
+                        lambda state: {"SNAP", "TSLA"})
+
+    priced = []
+    monkeypatch.setattr(wheel_strategy, "get_latest_price",
+                        lambda sym: (priced.append(sym), 10.0)[1])
+    handled = []
+    monkeypatch.setattr(wheel_strategy, "handle_stage2",
+                        lambda symbol, *a, **kw: handled.append(symbol))
+    monkeypatch.setattr(wheel_strategy, "handle_stage1",
+                        lambda symbol, *a, **kw: handled.append(symbol))
+
+    wheel_strategy.run_wheel()
+
+    assert "SNAP" not in handled, "bot must not manage excluded SNAP"
+    assert "SNAP" not in priced, "bot must not even price excluded SNAP"
+    assert "TSLA" in handled, "non-excluded symbols still managed"
+
+
+def test_strategy_skips_excluded_symbol(monkeypatch, tmp_path):
+    """run_one_cycle_manual must not seed or run an excluded symbol, but must
+    still manage other held stocks."""
+    import json
+    strategy.apply_mode("manual")
+    assert "SNAP" in strategy.EXCLUDED_SYMBOLS
+
+    state_file = tmp_path / "strategy_state_manual.json"
+    state_file.write_text(json.dumps({}))
+    monkeypatch.setattr(strategy, "STATE_FILE", str(state_file))
+    monkeypatch.setattr(strategy, "get_stock_positions", lambda: [
+        {"symbol": "SNAP", "qty": "100", "avg_entry_price": "10.00"},
+        {"symbol": "AAPL", "qty": "100", "avg_entry_price": "190.00"},
+    ])
+    monkeypatch.setattr(strategy, "send_embed", lambda *a, **kw: None)
+    monkeypatch.setattr(strategy, "log_event", lambda *a, **kw: None)
+
+    seeded = []
+    monkeypatch.setattr(strategy, "_manual_seed_state",
+                        lambda symbol, position: seeded.append(symbol) or
+                        {"position_qty": 100, "initial_qty": 100, "entry_price": 1.0,
+                         "stop_price": 0.9})
+    ran = []
+    monkeypatch.setattr(strategy, "_manual_run_symbol",
+                        lambda symbol, *a, **kw: ran.append(symbol) or {"position_qty": 100})
+
+    strategy.run_one_cycle_manual()
+
+    assert "SNAP" not in seeded and "SNAP" not in ran, "bot must not manage excluded SNAP"
+    assert "AAPL" in seeded and "AAPL" in ran, "non-excluded stocks still managed"

@@ -237,6 +237,18 @@ MODES = {
         "wheel_symbols":       [],
         "auto_discover_symbols": True,
 
+        # Symbols the bot must leave completely alone on this account, even
+        # though it auto-discovers from positions. Both strategy.py (no
+        # trail/ladder/stop) and wheel_strategy.py (no covered-call sale on
+        # assignment, no put management) skip any symbol listed here. Used to
+        # hand a position back to manual control so the user can exit it
+        # themselves without the bot re-entering or covering it.
+        #
+        # SNAP added 2026-06-19 — assigned 100 shares severely underwater; a
+        # pending covered call is being cancelled and the bot must not sell
+        # another one so the user can close the shares by hand.
+        "excluded_symbols":    ["SNAP"],
+
         # Wheel never opens Stage 1 puts on this account. Existing puts are
         # still managed (50% close) and assignments still trigger Stage 2
         # covered call sales.
@@ -658,6 +670,16 @@ def get_mode(mode_name: str) -> dict:
         valid = ", ".join(sorted(MODES))
         raise ValueError(f"Unknown mode '{mode_name}'. Valid: {valid}")
     return MODES[mode_name]
+
+
+def excluded_symbols(mode_name: str) -> set:
+    """Uppercased set of symbols the bot must leave alone in `mode_name`.
+
+    Defaults to an empty set for any mode that doesn't define the key, so
+    conservative/aggressive/live/SM are unaffected unless explicitly opted in.
+    """
+    raw = get_mode(mode_name).get("excluded_symbols", []) or []
+    return {str(s).strip().upper() for s in raw if str(s).strip()}
 
 
 def parse_mode_arg(argv: list[str]) -> tuple[str, list[str]]:

@@ -64,10 +64,14 @@ def apply_mode(mode_name: str) -> None:
     stream from config.MODES[mode_name].
     """
     global API_KEY, API_SECRET, BASE_URL, HEADERS, STATE_FILE
-    global TRADES_CH, ERRORS_CH, ACTIONS_CH, LOG_STREAM, MODE
+    global TRADES_CH, ERRORS_CH, ACTIONS_CH, LOG_STREAM, MODE, EXCLUDED_SYMBOLS
 
     cfg = config.get_mode(mode_name)
     MODE = mode_name
+    # Symbols handed back to manual control — strategy.py must not seed,
+    # trail/ladder/stop, or otherwise touch them even though auto-discovery
+    # sees the position. Empty for modes that don't opt in.
+    EXCLUDED_SYMBOLS = config.excluded_symbols(mode_name)
 
     API_KEY    = os.getenv(cfg["alpaca_key_env"])
     API_SECRET = os.getenv(cfg["alpaca_secret_env"])
@@ -906,6 +910,16 @@ def run_one_cycle_manual():
 
     # Index Alpaca positions for quick lookup
     held = {p["symbol"]: p for p in positions}
+
+    # Drop symbols handed back to manual control — the user wants to manage
+    # (e.g. exit) these by hand, so the bot leaves them alone: no seed, no
+    # trail/ladder/stop. The position stays in Alpaca; the bot just ignores it.
+    if EXCLUDED_SYMBOLS:
+        excluded_held = sorted(s for s in held if s.upper() in EXCLUDED_SYMBOLS)
+        if excluded_held:
+            log(f"Excluding {', '.join(excluded_held)} from strategy management "
+                f"(config.excluded_symbols) — bot will not trail/ladder/stop these.")
+        held = {s: p for s, p in held.items() if s.upper() not in EXCLUDED_SYMBOLS}
 
     if not held:
         log("No stock positions held — manual strategy cycle is a no-op.")
