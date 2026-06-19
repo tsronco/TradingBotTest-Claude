@@ -31,6 +31,25 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-18',
     category: 'fix',
+    title: 'One-time data correction: fixed 14 mis-booked manual spreads (removed ~$2,841 P&L overstatement)',
+    details:
+      'Audited all 25 manual put-credit spreads against the Alpaca activity log (the companion cleanup to\n' +
+      'the detectClose code fix shipped earlier today). Found:\n' +
+      '  • 12 records booked as fabricated worthless-expiry WINS when the bot had actually closed them\n' +
+      '    earlier (e.g. MU 1035/1010 showed +$950, real close was -$185; MU 755/745 showed +$140, real\n' +
+      '    -$660; INTC 118/113 showed +$150, real -$265).\n' +
+      '  • 2 spreads stuck "open" despite real closes (NVDA 212/207.5 real +$101; PINS 20.5/19.5 real -$29).\n' +
+      '  • 1 duplicate (QQQ 724/712 double-recorded by the auto-importer).\n\n' +
+      'Each was corrected to its real close P&L (closed_by bot_external, realized_pnl / closed_avg_price /\n' +
+      'closed_at from the actual leg fills), the duplicate was deleted, and all 13 were re-queued for AI\n' +
+      're-grade against the true outcomes. Method validated: for all 8 spreads the dashboard had ALREADY\n' +
+      'booked correctly, the independent recompute matched the stored P&L to the penny.\n\n' +
+      'Bottom line: the manual spread book was being shown as roughly breakeven-positive; its true realized\n' +
+      'P&L is -$1,068. The strategy has been losing money — the phantom max-profit bookings were hiding it.',
+  },
+  {
+    date: '2026-06-18',
+    category: 'fix',
     title: 'Spread P&L integrity: a bot-closed spread no longer mis-books as a fabricated expiry win',
     details:
       'Found while reconciling a manual MU put-credit spread: the dashboard showed it +$950\n' +
