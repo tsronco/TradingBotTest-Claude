@@ -20,6 +20,7 @@ Usage:
 """
 import json
 import os
+import random
 import sys
 import time
 import urllib.error
@@ -31,8 +32,10 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
-GH_TOKEN  = os.environ["GITHUB_ACCESS_TOKEN"]
-CRON_KEY  = os.environ["CRONJOB_API_KEY"]
+# "" fallback keeps the module import-safe without .env (tests/CI); a real
+# run with empty creds still hard-fails at the API call (recorded, exit 1).
+GH_TOKEN  = os.environ.get("GITHUB_ACCESS_TOKEN", "")
+CRON_KEY  = os.environ.get("CRONJOB_API_KEY", "")
 
 REPO      = "tsronco/TradingBotTest-Claude"
 GH_HEADERS = {
@@ -200,25 +203,64 @@ JOBS = [
 ]
 
 
-def cronjob_request(method: str, path: str, body: dict | None = None, _retries: int = 3) -> dict:
+RETRIES = 6
+BACKOFF_BASE = 2
+BACKOFF_CAP = 32
+
+
+def compute_backoff(attempt: int, retry_after: str | None = None) -> float:
+    """Seconds to wait before the next retry.
+
+    Honors a server ``Retry-After`` (seconds) when present; otherwise
+    exponential with a cap plus jitter to avoid lockstep retries.
+    """
+    if retry_after:
+        try:
+            return float(retry_after)
+        except ValueError:
+            pass
+    return min(BACKOFF_BASE * (2 ** attempt), BACKOFF_CAP) + random.uniform(0, 1)
+
+
+def exit_code_for(failures: list[tuple[str, str]]) -> int:
+    """0 = all good; 75 = only recoverable rate-limit partials; 1 = hard."""
+    if not failures:
+        return 0
+    if any(kind == "hard" for _, kind in failures):
+        return 1
+    return 75
+
+
+class CronRateLimited(RuntimeError):
+    pass
+
+
+def cronjob_request(method: str, path: str, body: dict | None = None,
+                    _retries: int = RETRIES) -> dict:
     """Make a request to cron-job.org API. Retries on 429 with backoff."""
     url = f"{CRONJOB_BASE}{path}"
     data = json.dumps(body).encode("utf-8") if body is not None else None
     for attempt in range(_retries):
-        req = urllib.request.Request(url, data=data, method=method, headers=CRONJOB_HEADERS)
+        req = urllib.request.Request(url, data=data, method=method,
+                                     headers=CRONJOB_HEADERS)
         try:
             with urllib.request.urlopen(req, timeout=20) as resp:
                 payload = resp.read()
                 return json.loads(payload) if payload else {}
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < _retries - 1:
-                wait = 2 ** (attempt + 1)  # 2, 4, 8 seconds
-                print(f"  Rate limited (429), retrying in {wait}s...")
-                time.sleep(wait)
-                continue
-            print(f"  HTTP {e.code}: {e.read().decode()[:300]}", file=sys.stderr)
+            if e.code == 429:
+                if attempt < _retries - 1:
+                    wait = compute_backoff(
+                        attempt, e.headers.get("Retry-After"))
+                    print(f"  Rate limited (429), retrying in "
+                          f"{wait:.1f}s...")
+                    time.sleep(wait)
+                    continue
+                raise CronRateLimited(f"429 exhausted for {method} {path}")
+            print(f"  HTTP {e.code}: {e.read().decode()[:300]}",
+                  file=sys.stderr)
             raise
-    raise RuntimeError(f"Exhausted retries for {method} {path}")
+    raise CronRateLimited(f"Exhausted retries for {method} {path}")
 
 
 def list_existing_jobs() -> list[dict]:
@@ -284,37 +326,57 @@ def build_job_body(spec: dict) -> dict:
     }
 
 
-def main() -> None:
+def main() -> int:
     print(f"Configuring cron-job.org for repo {REPO}")
     print()
-
-    # Step 1: index existing jobs by title so we can PATCH or PUT
     existing = list_existing_jobs()
     by_title = {j.get("title"): j for j in existing if j.get("title")}
     titles = {spec["title"] for spec in JOBS}
 
-    # Step 2: PATCH where job exists, PUT where it doesn't (sleep between calls)
+    failures: list[tuple[str, str]] = []
     for i, spec in enumerate(JOBS):
-        sched = f"hours={spec['hours']} minutes={spec['minutes']} wdays={spec['wdays']}"
-        if spec["title"] in by_title:
-            jid = by_title[spec["title"]]["jobId"]
-            patch_job(jid, spec)
-            print(f"  [OK] Updated '{spec['title']}' (jobId={jid}) -- {sched}")
-        else:
-            body = build_job_body(spec)
-            result = cronjob_request("PUT", "/jobs", body)
-            jid = result.get("jobId")
-            print(f"  [OK] Created '{spec['title']}' (jobId={jid}) -- {sched}")
+        sched = (f"hours={spec['hours']} minutes={spec['minutes']} "
+                 f"wdays={spec['wdays']}")
+        try:
+            if spec["title"] in by_title:
+                jid = by_title[spec["title"]]["jobId"]
+                patch_job(jid, spec)
+                print(f"  [OK] Updated '{spec['title']}' (jobId={jid}) "
+                      f"-- {sched}")
+            else:
+                body = build_job_body(spec)
+                result = cronjob_request("PUT", "/jobs", body)
+                jid = result.get("jobId")
+                print(f"  [OK] Created '{spec['title']}' (jobId={jid}) "
+                      f"-- {sched}")
+        except CronRateLimited:
+            print(f"  [RATE-LIMITED] '{spec['title']}' — will need a re-run")
+            failures.append((spec["title"], "ratelimit"))
+        except Exception as e:  # noqa: BLE001 - record + continue
+            print(f"  [FAIL] '{spec['title']}': {e}", file=sys.stderr)
+            failures.append((spec["title"], "hard"))
         if i < len(JOBS) - 1:
-            time.sleep(2)  # be polite to the API
+            time.sleep(2)
     print()
 
-    # Step 3: list back and confirm
     print("Final state:")
-    for job in list_existing_jobs():
-        if job.get("title") in titles:
-            print(f"  {job['title']}: enabled={job.get('enabled')} jobId={job.get('jobId')} url={job.get('url')}")
+    try:
+        for job in list_existing_jobs():
+            if job.get("title") in titles:
+                print(f"  {job['title']}: enabled={job.get('enabled')} "
+                      f"jobId={job.get('jobId')} url={job.get('url')}")
+    except Exception:  # listing is best-effort
+        pass
+
+    code = exit_code_for(failures)
+    if code == 75:
+        print(f"\n  {len(failures)} job(s) rate-limited — re-run Apply to "
+              "finish the rest (idempotent).")
+    elif code == 1:
+        print("\n  Some jobs failed for non-rate-limit reasons — see above.",
+              file=sys.stderr)
+    return code
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

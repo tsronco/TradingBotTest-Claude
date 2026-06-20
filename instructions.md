@@ -52,7 +52,7 @@ and — much later, if ever — the live account (Step 10).
 - GitHub, Alpaca paper, Discord: **free**
 - cron-job.org: **free** tier is enough
 - Vercel: **free** Hobby plan (the dashboard is built to stay under the 12-function limit)
-- Upstash Redis (via Vercel Marketplace): **free** tier is enough
+- Upstash Redis: provisioned automatically by the installer (free plan requested; if your Upstash account requires a card it falls back to pay-as-you-go, ~$0–$1/mo for this dashboard)
 - Anthropic API (dashboard AI grading only): **paid**, usage-based — this is the
   AI that grades your closed trades and surfaces tendencies. The cost driver is
   *trade volume*, not time: the grader only calls the model when a trade closes,
@@ -122,6 +122,93 @@ You'll type commands here. "Run X" below means: type it, press Enter.
 ### 4. A GitHub account
 
 Sign up at https://github.com if you don't have one. (Free.)
+
+---
+
+# The fast path: `python setup.py`
+
+Most of the steps below are "make an account, copy a value, paste it
+somewhere." An **interactive wizard** does the paste-and-wire parts for you.
+It **cannot** create the third-party accounts — signups have CAPTCHAs, email
+verification, and (for the live brokerage) legal agreements — so you still do
+those by hand. But once you have your keys, the wizard does the rest.
+
+**What you still do by hand (the irreducible part):**
+
+1. Fork + clone the repo (Step 1 below). *(State-file reset is now done for
+   you by the installer — no manual `echo "{}"` step.)*
+2. Create the accounts you want and copy their keys into a scratch text file:
+   Alpaca paper account(s) (Step 2), a Discord server (Step 3), a GitHub
+   fine-grained PAT with **Contents + Actions + Secrets + Administration +
+   Workflows = Read and write** (Step 6a — Administration lets the installer
+   flip on Actions for you; Workflows is required because the installer
+   rewrites and pushes `.github/workflows/*.yml`; without Administration that
+   stays a one-click manual step), a cron-job.org API key (Step 6b), and —
+   only if you want the dashboard — Vercel + an Anthropic API key (Step 9a) +
+   an **Upstash account with a Management API key** (console.upstash.com →
+   Account → Management API; the installer uses this to create/reuse a free
+   Redis DB automatically — no Vercel Marketplace click required).
+3. Run `python setup.py --web` (or `python setup.py`) and Apply. The
+   dashboard's Redis is provisioned automatically by the installer via the
+   Upstash API — it works on the first Apply, no second pass.
+
+That's the entire manual surface. The installer now also **commits & pushes
+its own rewrites to your fork** (an explicit allowlist — `setup_cronjobs.py`,
+the workflow YAMLs, the reset state files; never `.env` or anything that
+could leak a secret) and **enables Actions on the fork**. If git auth/identity
+isn't set up it doesn't fail — it prints the two exact commands to finish by
+hand.
+
+**What the wizard then does for you:**
+
+```bash
+pip install -r requirements.txt
+pip install -r tools/installer/requirements.txt   # pynacl, for the secrets push
+python setup.py --web      # guided installer in your browser (recommended)
+# or:  python setup.py     # the same flow as a terminal wizard
+```
+
+`--web` opens a local, single-page installer in your browser (localhost only,
+token-gated, nothing is served outside this machine) — step-by-step fields,
+a "Test" button per Alpaca account, one-click secret generation, a masked
+review, and a live progress log. `python setup.py` (no flag) runs the
+identical flow in the terminal instead. Both share the same engine:
+
+it detects your fork from `git remote`, asks which of the seven accounts to
+configure, collects each account's keys (and offers to test them live),
+**auto-creates the Discord channels + webhooks** (if you give it a Discord bot
+token) or takes pasted webhook URLs, **generates** every secret it safely can
+(session/cron/push tokens, the TOTP secret, backup codes), writes both `.env`
+files (merging — it never clobbers existing values), **resets inherited bot
+memory** (blanks `strategy_state*/wheel_state*.json` so your fork starts
+clean), **fixes both fork gotchas** automatically, **bulk-pushes all GitHub
+Actions secrets**, **enables Actions on the fork** (if the PAT has
+Administration scope; otherwise it logs the one-click fallback), runs
+`tools/setup_cronjobs.py`, optionally **deploys the Vercel dashboard** and sets
+its env vars, **commits & pushes its rewrites back to your fork** (safe
+explicit allowlist — never `.env`), and finishes with a health check.
+
+```bash
+python setup.py --dry-run    # walk it without changing anything external
+python setup.py --check      # just health-check an existing .env
+python setup.py --fix-urls   # re-point workflows at your Vercel URL after deploy
+```
+
+> The dashboard's URL only exists *after* its first deploy. The **`--web`**
+> installer handles this for you — it re-points the workflows and re-syncs the
+> cron jobs to the new URL automatically in the same run (no `--fix-urls`
+> needed). The dashboard's Redis is provisioned automatically by the installer
+> via the Upstash API — it works on the first Apply, no second pass.
+> (The terminal `python setup.py` flow still uses `python setup.py --fix-urls`
+> for the URL re-point.)
+
+> The live real-money account is deliberately gated: the wizard warns hard and
+> defaults to **off**. Read Step 10 before ever enabling it.
+
+The numbered steps below remain the **authoritative reference** — they explain
+what each piece is and are the fallback if you'd rather wire something by hand
+or the wizard can't reach a service. You can also run the wizard first and use
+the steps only to understand or troubleshoot what it did.
 
 ---
 
@@ -434,8 +521,10 @@ service act on your GitHub on your behalf.
    - **Repository access:** choose **Only select repositories** → pick
      **your fork** (`YOUR_USERNAME/TradingBotTest-Claude`).
    - **Permissions:** expand **Repository permissions**. Set **Actions** to
-     **Read and write**, and set **Contents** to **Read and write**. Leave
-     everything else as "No access".
+     **Read and write**, set **Contents** to **Read and write**, and set
+     **Workflows** to **Read and write** (Workflows is required because the
+     installer rewrites and pushes `.github/workflows/*.yml`). Leave everything
+     else as "No access".
 4. Click **Generate token**. Copy the token (it starts with `github_pat_`) into
    your text file **now** — like the Alpaca secret, it's shown only once.
 
@@ -643,8 +732,13 @@ one sub-step at a time. Keep your secrets text file open.
      amount of prepaid credit** (e.g. \$5). Anthropic won't answer API calls
      with a \$0 balance. Per the Cost summary, \$5 lasts a long time at personal
      volume.
-3. (Upstash, the bot's cloud memory for the dashboard, is added later in 9d —
-   no separate signup.)
+3. **Upstash** (the dashboard's Redis database — provisioned automatically by
+   the installer). Go to **https://console.upstash.com** → sign up (free) →
+   **Account** → **Management API** → create a key and copy it. The installer
+   uses this key to create (or reuse) a free Redis DB and wire it to Vercel
+   automatically — no Vercel Marketplace click needed. The installer requests
+   the free plan; if your account requires a card it falls back to
+   pay-as-you-go (~$0–$1/mo) and warns you in the log.
 
 ### 9b. Install the dashboard's libraries
 
@@ -749,16 +843,9 @@ file** — you'll need it twice below.
 
 ### 9f. Add the cloud database (Upstash Redis)
 
-This is the dashboard's memory. It's added through Vercel's built-in
-marketplace, not signed up for separately.
-
-1. Go to **https://vercel.com/dashboard** → click your project
-   (`my-tradingbot-dashboard`).
-2. Open the **Storage** tab → **Browse Marketplace** (or **Create Database**) →
-   choose **Upstash** → **Redis**.
-3. Accept the free plan, give it a name, and **connect it to this project**.
-4. Vercel automatically adds `KV_REST_API_URL`, `KV_REST_API_TOKEN` (and a few
-   `REDIS_*`) to the project's settings for you. **Do not set these yourself.**
+The installer provisions this automatically from your Upstash email +
+Management API key — no manual Vercel Storage / Marketplace step. Nothing to
+do here.
 
 ### 9g. Tell Vercel your other secrets
 
