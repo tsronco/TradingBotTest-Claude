@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-20',
+    category: 'ui',
+    title: 'Header now shows the ET date and a live market OPEN/CLOSED pill',
+    details:
+      'The top bar previously showed only the time. It now shows the Eastern-Time date (e.g. "Fri Jun 20") '
+      + 'and a green OPEN / red CLOSED pill next to the clock. The pill accounts for the time of day in ET, '
+      + 'the day of the week (closed Sat/Sun), full-closure holidays (with NYSE observed-date shifts), and '
+      + 'half-days — a half-day reads "OPEN · ½ day" until the 1:00 PM ET early close.\n\n'
+      + 'Hovering (or tapping) the pill shows the reason: Regular session, Weekend, the holiday name '
+      + '(e.g. Juneteenth), Pre-market, or After hours.\n\n'
+      + 'Source of truth is Alpaca\'s /clock endpoint (the same one the bot trusts — it natively handles '
+      + 'holidays, half-days, and rare ad-hoc closures), surfaced through the existing alpaca/[endpoint].ts '
+      + 'catchall so no new Vercel function is consumed. A self-contained NYSE calendar (src/lib/market-status.ts) '
+      + 'computes the same answer locally as an instant, offline-capable baseline for the installed PWA, and '
+      + 'fills the gap if the clock fetch fails.',
+  },
+  {
     date: '2026-06-19',
     category: 'config',
     title: 'Manual bot: excluded SNAP so it stops covering/managing the underwater 100 shares',

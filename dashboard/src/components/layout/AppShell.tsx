@@ -3,13 +3,19 @@ import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import WatchlistTicker from './WatchlistTicker';
 import { useDisplayName } from '../../hooks/useDisplayName';
+import { useMarketClock } from '../../hooks/useMarketClock';
+import { computeMarketStatus } from '../../lib/market-status';
 
-function useEtClock(): string {
+function useNow(): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+  return now;
+}
+
+function fmtEtClock(now: Date): string {
   // Format as HH:MM:SS in America/New_York.
   return now.toLocaleTimeString('en-US', {
     timeZone: 'America/New_York',
@@ -29,7 +35,10 @@ const TMUX_WINDOWS: { idx: number; label: string; match: (path: string) => boole
 ];
 
 export default function AppShell() {
-  const clock = useEtClock();
+  const now = useNow();
+  const clock = fmtEtClock(now);
+  const { data: alpacaClock } = useMarketClock();
+  const market = computeMarketStatus(now, alpacaClock);
   const location = useLocation();
   const { handle } = useDisplayName();
   const activeIdx = TMUX_WINDOWS.find((w) => w.match(location.pathname))?.idx ?? 1;
@@ -75,8 +84,8 @@ export default function AppShell() {
             <span className="text-mid">tmux</span>
             <span className="px-1 text-dim">·</span>
             <span className="text-fg">{handle}@dash</span>
-            <span className="text-dim">:</span>
-            <span className="text-cyan">~/portfolio</span>
+            <span className="text-dim hidden sm:inline">:</span>
+            <span className="text-cyan hidden sm:inline">~/portfolio</span>
             <span className="text-dim ml-1 hidden md:inline">
               [
               {TMUX_WINDOWS.map((w, i) => {
@@ -94,10 +103,19 @@ export default function AppShell() {
             </span>
           </div>
           <div className="flex-1" />
-          <div className="flex items-center gap-4 text-mid">
+          <div className="flex items-center gap-3 sm:gap-4 text-mid">
             <span className="hidden lg:inline"><span className="text-dim">NET</span> <span className="text-hi">●</span> 42ms</span>
             <span className="hidden lg:inline"><span className="text-dim">API</span> <span className="text-hi">OK</span></span>
             <span className="hidden md:inline"><span className="text-dim">BUILD</span> 0.4.2</span>
+            <span className="text-dim tnum">{market.etDateLabel}</span>
+            <span
+              className="flex items-center gap-1 tnum"
+              title={`${market.etDayLabel} · ${market.reason}`}
+              aria-label={`Market ${market.isOpen ? 'open' : 'closed'} — ${market.reason}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${market.isOpen ? 'bg-hi pulse' : 'bg-red/70'}`} />
+              <span className={market.isOpen ? 'text-hi' : 'text-red'}>{market.label}</span>
+            </span>
             <span className="text-fg tnum">{clock}</span>
           </div>
         </div>
