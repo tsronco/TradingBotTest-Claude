@@ -38,16 +38,16 @@ interface CardProps {
 }
 
 const STYLE_BY_KEY: Record<CardProps['acctKey'], {
-  color: string; tag: string; tagText: string; flavor: string; ip: string;
+  color: string; tag: string; tagText: string; flavor: string;
   textClass: string; bgClass: string;
 }> = {
-  CONS:  { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail',         ip: '10.0.0.1', textClass: 'text-hi',    bgClass: 'bg-hi' },
-  AGG:   { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',           ip: '10.0.0.2', textClass: 'text-amber', bgClass: 'bg-amber' },
-  MAN:   { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed',     ip: '10.0.0.3', textClass: 'text-cyan',  bgClass: 'bg-cyan' },
-  LIVE:  { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',        ip: '10.0.0.4', textClass: 'text-red',   bgClass: 'bg-red' },
-  SM500: { color: '#aaaaaa', tag: 'ACCT::SM5 ', tagText: '$500',          flavor: 'SM $500 · auto-spread, user-managed',   ip: '10.0.1.1', textClass: 'text-mid',   bgClass: 'bg-mid' },
-  SM1K:  { color: '#aaaaaa', tag: 'ACCT::SM1K', tagText: '$1,000',        flavor: 'SM $1K · auto-spread, user-managed',    ip: '10.0.1.2', textClass: 'text-mid',   bgClass: 'bg-mid' },
-  SM2K:  { color: '#aaaaaa', tag: 'ACCT::SM2K', tagText: '$2,000',        flavor: 'SM $2K · auto-spread, user-managed',    ip: '10.0.1.3', textClass: 'text-mid',   bgClass: 'bg-mid' },
+  CONS:  { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail',         textClass: 'text-hi',    bgClass: 'bg-hi' },
+  AGG:   { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',           textClass: 'text-amber', bgClass: 'bg-amber' },
+  MAN:   { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed',     textClass: 'text-cyan',  bgClass: 'bg-cyan' },
+  LIVE:  { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',        textClass: 'text-red',   bgClass: 'bg-red' },
+  SM500: { color: '#aaaaaa', tag: 'ACCT::SM5 ', tagText: '$500',          flavor: 'SM $500 · auto-spread, user-managed',   textClass: 'text-mid',   bgClass: 'bg-mid' },
+  SM1K:  { color: '#aaaaaa', tag: 'ACCT::SM1K', tagText: '$1,000',        flavor: 'SM $1K · auto-spread, user-managed',    textClass: 'text-mid',   bgClass: 'bg-mid' },
+  SM2K:  { color: '#aaaaaa', tag: 'ACCT::SM2K', tagText: '$2,000',        flavor: 'SM $2K · auto-spread, user-managed',    textClass: 'text-mid',   bgClass: 'bg-mid' },
 };
 
 export default function AccountCard({ mode, label, acctKey }: CardProps) {
@@ -56,7 +56,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const style = STYLE_BY_KEY[acctKey];
-  const { color, tag: acctTag, tagText, flavor, ip } = style;
+  const { color, tag: acctTag, tagText, flavor } = style;
 
   const { data: acctData, isLoading: acctLoading, error: acctError } = useQuery({
     queryKey: ['account', mode],
@@ -180,7 +180,7 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
             <span className="text-dim">·</span>
             <span className="text-mid">paper</span>
             <span className="text-dim">·</span>
-            <span className="text-mid">{ip}</span>
+            <span className="text-mid">{a.account_number || '—'}</span>
           </div>
           <div className="mt-1 text-fg text-[12px]">{flavor}</div>
 

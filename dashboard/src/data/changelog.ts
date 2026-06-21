@@ -31,6 +31,17 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-20',
     category: 'ui',
+    title: 'Account cards show the real Alpaca account number (was a fake 10.0.0.x IP)',
+    details:
+      'Each account card header carried a hardcoded fake LAN IP (10.0.0.1, etc.) as retro decoration. '
+      + 'Swapped it for the live `account_number` straight off the existing /api/alpaca/account response '
+      + '(it was already in the payload, just unused) — so cards now read the real PA3XVDT9K3SI / 243597269 '
+      + '/ etc. Always correct, auto-covers every account, and nothing to maintain when accounts are added '
+      + 'or sunset. The fake-IP map is gone.',
+  },
+  {
+    date: '2026-06-20',
+    category: 'ui',
     title: 'Header NET / API are now live — real latency + a red API ERR when data is down',
     details:
       'The `NET 42ms` and `API OK` readouts were hardcoded. They are now real: a lightweight ping to\n'
