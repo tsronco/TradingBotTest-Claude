@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Sidebar from './Sidebar';
 import WatchlistTicker from './WatchlistTicker';
 import { useDisplayName } from '../../hooks/useDisplayName';
@@ -45,6 +46,14 @@ export default function AppShell() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showReason, setShowReason] = useState(false);
+  const [reasonPos, setReasonPos] = useState<{ top: number; right: number } | null>(null);
+  const pillRef = useRef<HTMLButtonElement>(null);
+
+  const openReason = () => {
+    const r = pillRef.current?.getBoundingClientRect();
+    setReasonPos(r ? { top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) } : { top: 32, right: 8 });
+    setShowReason(true);
+  };
 
   // close on route change
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -62,20 +71,27 @@ export default function AppShell() {
     };
   }, [drawerOpen]);
 
-  // Market-status pill: the native `title` tooltip is desktop-hover-only, so
-  // tapping the pill on mobile surfaced nothing. Toggle a real popover on tap;
-  // close it on an outside click or Escape.
+  // Market-status pill popover: the native `title` tooltip is desktop-hover-only,
+  // so tapping the pill on mobile surfaced nothing. We render a real popover in a
+  // portal (see below) so it isn't trapped behind the sticky header's stacking
+  // context / the watchlist ticker. Close it on an outside tap, Escape, or any
+  // scroll/resize (its fixed position would otherwise drift from the pill).
   useEffect(() => {
     if (!showReason) return;
+    const close = () => setShowReason(false);
     const onDown = (e: MouseEvent) => {
       if (!(e.target as Element).closest('[data-market-pill]')) setShowReason(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowReason(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
     };
   }, [showReason]);
 
@@ -126,10 +142,11 @@ export default function AppShell() {
             <span className="hidden lg:inline"><span className="text-dim">API</span> <span className="text-hi">OK</span></span>
             <span className="hidden md:inline"><span className="text-dim">BUILD</span> 0.4.2</span>
             <span className="text-dim tnum">{market.etDateLabel}</span>
-            <div className="relative" data-market-pill>
+            <div data-market-pill>
               <button
+                ref={pillRef}
                 type="button"
-                onClick={() => setShowReason((s) => !s)}
+                onClick={() => (showReason ? setShowReason(false) : openReason())}
                 className="flex items-center gap-1 tnum cursor-pointer bg-transparent border-0 p-0 leading-none"
                 title={`${market.etDayLabel} · ${market.reason}`}
                 aria-label={`Market ${market.isOpen ? 'open' : 'closed'} — ${market.reason}`}
@@ -138,15 +155,18 @@ export default function AppShell() {
                 <span className={`w-1.5 h-1.5 rounded-full ${market.isOpen ? 'bg-hi pulse' : 'bg-red/70'}`} />
                 <span className={market.isOpen ? 'text-hi' : 'text-red'}>{market.label}</span>
               </button>
-              {showReason && (
-                <div
-                  role="tooltip"
-                  className="absolute right-0 top-full mt-1 z-40 whitespace-nowrap rounded-sm border border-border bg-panel px-2 py-1 text-[10px] text-mid shadow-lg"
-                >
-                  {market.etDayLabel} · {market.reason}
-                </div>
-              )}
             </div>
+            {showReason && reasonPos && createPortal(
+              <div
+                role="tooltip"
+                data-market-pill
+                style={{ position: 'fixed', top: reasonPos.top, right: reasonPos.right, zIndex: 60 }}
+                className="whitespace-nowrap rounded-sm border border-border bg-panel px-2 py-1 text-[10px] text-mid shadow-lg"
+              >
+                {market.etDayLabel} · {market.reason}
+              </div>,
+              document.body,
+            )}
             <span className="text-fg tnum">{clock}</span>
           </div>
         </div>

@@ -36,7 +36,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'The OPEN/CLOSED pill surfaced its reason via a native HTML `title` tooltip, which only appears on '
       + 'desktop hover — tapping it on a phone did nothing. The pill is now a button that toggles a real '
       + 'popover on tap (closing on an outside tap or Escape), so the reason (Regular session / Weekend / '
-      + 'holiday / Pre-market / After hours) is reachable on mobile. Desktop hover is unchanged — the `title` '
+      + 'holiday / Pre-market / After hours) is reachable on mobile. The popover renders in a portal so it '
+      + 'sits above the sticky header and the scrolling watchlist ticker instead of being clipped behind '
+      + 'them. Desktop hover is unchanged — the `title` '
       + 'is retained for instant hover feedback. Frontend-only; +2 AppShell tests.',
   },
   {
