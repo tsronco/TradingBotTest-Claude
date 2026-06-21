@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "bump": "node tools/bump-version.mjs"
+    "bump": "node tools/bump-version.mjs",
+    "bump:major": "node tools/bump-version.mjs --major"
   },
   "dependencies": {
     "@alpacahq/typescript-sdk": "^0.0.32-preview",

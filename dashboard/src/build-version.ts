@@ -8,4 +8,6 @@
 // the segment(s) from what actually changed. The every-10-minute bot state pushes
 // (logs/*.jsonl, *_state*.json) never count. Seeded from project history (313 bot /
 // 224 dashboard real commits) and bumped by this very change to a clean 0.3.22.
+// A major bump (`npm run bump:major`, e.g. at go-live → 1.0.0) resets bot & dash
+// to 0 — standard semver, and what keeps the numbers from growing without bound.
 export const BUILD_VERSION = '0.3.22';
