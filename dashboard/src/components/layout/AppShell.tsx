@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Sidebar from './Sidebar';
+import { BUILD_VERSION } from '../../build-version';
 import WatchlistTicker from './WatchlistTicker';
 import { useDisplayName } from '../../hooks/useDisplayName';
 import { useMarketClock } from '../../hooks/useMarketClock';
@@ -140,7 +141,7 @@ export default function AppShell() {
           <div className="flex items-center gap-3 sm:gap-4 text-mid">
             <span className="hidden lg:inline"><span className="text-dim">NET</span> <span className="text-hi">●</span> 42ms</span>
             <span className="hidden lg:inline"><span className="text-dim">API</span> <span className="text-hi">OK</span></span>
-            <span className="hidden md:inline"><span className="text-dim">BUILD</span> 0.4.2</span>
+            <span className="hidden md:inline"><span className="text-dim">BUILD</span> {BUILD_VERSION}</span>
             <span className="text-dim tnum">{market.etDateLabel}</span>
             <div data-market-pill>
               <button

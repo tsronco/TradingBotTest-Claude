@@ -3,6 +3,7 @@ import { useLogout } from '../../hooks/useAuth';
 import { useAccount, type AccountMode } from '../../hooks/useAccount';
 import { accountsForSelection } from '../../lib/account-utils';
 import { useDisplayName } from '../../hooks/useDisplayName';
+import { BUILD_VERSION } from '../../build-version';
 
 // Top nav — daily trading + research, in usage order.
 // Settings is grouped at the bottom with changelog and sign-out (account-actions cluster).
@@ -51,7 +52,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div className="mt-3 text-[10px] text-dim flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-hi pulse rounded-sm" />
-          <span>v0.4.2 · paper</span>
+          <span>v{BUILD_VERSION} · paper</span>
         </div>
       </div>
 

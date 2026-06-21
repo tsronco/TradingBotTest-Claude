@@ -30,6 +30,22 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-20',
+    category: 'ui',
+    title: 'Live version in the header + sidebar — major.bot.dashboard (now 0.3.22)',
+    details:
+      'The old `BUILD 0.4.2` was a hardcoded literal that never moved. It now reads a real version from\n'
+      + 'one source (src/build-version.ts), shown in both the top-bar BUILD pill and the sidebar, in the\n'
+      + 'format major.bot.dashboard:\n'
+      + '  • major 0 = pre-live (bumps to 1 the day we go live)\n'
+      + '  • the middle digit ticks on real BOT changes\n'
+      + '  • the last digit ticks on real DASHBOARD changes\n'
+      + 'so a glance tells you which side a release touched. The ~10-minute bot state pushes never count.\n'
+      + '`npm run bump` auto-picks the segment(s) from what changed at ship time. Seeded from project\n'
+      + 'history (313 bot / 224 dashboard real commits) to a clean 0.3.22 — and this change itself ticked\n'
+      + 'the dashboard digit, proving the tooling works.',
+  },
+  {
+    date: '2026-06-20',
     category: 'fix',
     title: 'Market-status pill: the reason now shows on mobile tap (was desktop-hover only)',
     details:
