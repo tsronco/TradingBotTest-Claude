@@ -44,6 +44,7 @@ export default function AppShell() {
   const activeIdx = TMUX_WINDOWS.find((w) => w.match(location.pathname))?.idx ?? 1;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showReason, setShowReason] = useState(false);
 
   // close on route change
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -60,6 +61,23 @@ export default function AppShell() {
       document.body.style.overflow = prev;
     };
   }, [drawerOpen]);
+
+  // Market-status pill: the native `title` tooltip is desktop-hover-only, so
+  // tapping the pill on mobile surfaced nothing. Toggle a real popover on tap;
+  // close it on an outside click or Escape.
+  useEffect(() => {
+    if (!showReason) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('[data-market-pill]')) setShowReason(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowReason(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showReason]);
 
   return (
     <div className="crt vignette dotgrid relative min-h-screen">
@@ -108,14 +126,27 @@ export default function AppShell() {
             <span className="hidden lg:inline"><span className="text-dim">API</span> <span className="text-hi">OK</span></span>
             <span className="hidden md:inline"><span className="text-dim">BUILD</span> 0.4.2</span>
             <span className="text-dim tnum">{market.etDateLabel}</span>
-            <span
-              className="flex items-center gap-1 tnum"
-              title={`${market.etDayLabel} · ${market.reason}`}
-              aria-label={`Market ${market.isOpen ? 'open' : 'closed'} — ${market.reason}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${market.isOpen ? 'bg-hi pulse' : 'bg-red/70'}`} />
-              <span className={market.isOpen ? 'text-hi' : 'text-red'}>{market.label}</span>
-            </span>
+            <div className="relative" data-market-pill>
+              <button
+                type="button"
+                onClick={() => setShowReason((s) => !s)}
+                className="flex items-center gap-1 tnum cursor-pointer bg-transparent border-0 p-0 leading-none"
+                title={`${market.etDayLabel} · ${market.reason}`}
+                aria-label={`Market ${market.isOpen ? 'open' : 'closed'} — ${market.reason}`}
+                aria-expanded={showReason}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${market.isOpen ? 'bg-hi pulse' : 'bg-red/70'}`} />
+                <span className={market.isOpen ? 'text-hi' : 'text-red'}>{market.label}</span>
+              </button>
+              {showReason && (
+                <div
+                  role="tooltip"
+                  className="absolute right-0 top-full mt-1 z-40 whitespace-nowrap rounded-sm border border-border bg-panel px-2 py-1 text-[10px] text-mid shadow-lg"
+                >
+                  {market.etDayLabel} · {market.reason}
+                </div>
+              )}
+            </div>
             <span className="text-fg tnum">{clock}</span>
           </div>
         </div>

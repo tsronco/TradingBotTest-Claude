@@ -30,6 +30,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-20',
+    category: 'fix',
+    title: 'Market-status pill: the reason now shows on mobile tap (was desktop-hover only)',
+    details:
+      'The OPEN/CLOSED pill surfaced its reason via a native HTML `title` tooltip, which only appears on '
+      + 'desktop hover — tapping it on a phone did nothing. The pill is now a button that toggles a real '
+      + 'popover on tap (closing on an outside tap or Escape), so the reason (Regular session / Weekend / '
+      + 'holiday / Pre-market / After hours) is reachable on mobile. Desktop hover is unchanged — the `title` '
+      + 'is retained for instant hover feedback. Frontend-only; +2 AppShell tests.',
+  },
+  {
+    date: '2026-06-20',
     category: 'ui',
     title: 'Header now shows the ET date and a live market OPEN/CLOSED pill',
     details:

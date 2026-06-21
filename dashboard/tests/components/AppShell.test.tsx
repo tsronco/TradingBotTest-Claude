@@ -64,3 +64,23 @@ describe('AppShell drawer', () => {
     expect(document.body.style.overflow).toBe('');
   });
 });
+
+describe('AppShell market pill', () => {
+  it('tap toggles the market-reason popover (mobile fix — native title is hover-only)', () => {
+    renderShell();
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    const pill = screen.getByRole('button', { name: /^market/i });
+    fireEvent.click(pill);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.click(pill);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('a click outside closes the market-reason popover', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: /^market/i }));
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByText('HOME_PAGE'));
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+});
