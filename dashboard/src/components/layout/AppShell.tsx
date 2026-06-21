@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Sidebar from './Sidebar';
 import { BUILD_VERSION } from '../../build-version';
+import { useApiHealth } from '../../hooks/useApiHealth';
 import WatchlistTicker from './WatchlistTicker';
 import { useDisplayName } from '../../hooks/useDisplayName';
 import { useMarketClock } from '../../hooks/useMarketClock';
@@ -41,6 +42,11 @@ export default function AppShell() {
   const clock = fmtEtClock(now);
   const { data: alpacaClock } = useMarketClock();
   const market = computeMarketStatus(now, alpacaClock);
+  const health = useApiHealth();
+  const latencyMs = health.data ?? null;
+  const netColor = health.isError ? 'text-red' : (latencyMs != null && latencyMs > 300) ? 'text-amber' : 'text-hi';
+  const apiText = health.isError ? 'ERR' : health.isSuccess ? 'OK' : '…';
+  const apiColor = health.isError ? 'text-red' : 'text-hi';
   const location = useLocation();
   const { handle } = useDisplayName();
   const activeIdx = TMUX_WINDOWS.find((w) => w.match(location.pathname))?.idx ?? 1;
@@ -139,8 +145,8 @@ export default function AppShell() {
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-3 sm:gap-4 text-mid">
-            <span className="hidden lg:inline"><span className="text-dim">NET</span> <span className="text-hi">●</span> 42ms</span>
-            <span className="hidden lg:inline"><span className="text-dim">API</span> <span className="text-hi">OK</span></span>
+            <span className="hidden lg:inline"><span className="text-dim">NET</span> <span className={netColor}>●</span> {latencyMs != null ? `${latencyMs}ms` : health.isError ? 'down' : '…'}</span>
+            <span className="hidden lg:inline"><span className="text-dim">API</span> <span className={apiColor}>{apiText}</span></span>
             <span className="hidden md:inline"><span className="text-dim">BUILD</span> {BUILD_VERSION}</span>
             <span className="text-dim tnum">{market.etDateLabel}</span>
             <div data-market-pill>

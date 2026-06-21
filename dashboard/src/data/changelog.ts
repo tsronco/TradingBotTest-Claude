@@ -31,6 +31,18 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-20',
     category: 'ui',
+    title: 'Header NET / API are now live — real latency + a red API ERR when data is down',
+    details:
+      'The `NET 42ms` and `API OK` readouts were hardcoded. They are now real: a lightweight ping to\n'
+      + '/api/alpaca/clock (auth-protected, full path: dashboard API → Alpaca → back) every 30s measures\n'
+      + 'the round trip and shows it as NET (green, amber over 300ms, red on failure). API reads OK while\n'
+      + 'that ping succeeds and flips to a red ERR the instant it fails — so a broken feed (Alpaca down,\n'
+      + 'auth expired, a function erroring) is visible at a glance instead of surfacing as a mysteriously\n'
+      + 'empty page. No new Vercel function — reuses the existing clock endpoint (still 10/12).',
+  },
+  {
+    date: '2026-06-20',
+    category: 'ui',
     title: 'Live version in the header + sidebar — major.bot.dashboard (now 0.3.22)',
     details:
       'The old `BUILD 0.4.2` was a hardcoded literal that never moved. It now reads a real version from\n'

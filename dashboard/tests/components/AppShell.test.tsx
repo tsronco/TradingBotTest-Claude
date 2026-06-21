@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -82,5 +82,14 @@ describe('AppShell market pill', () => {
     expect(screen.getByRole('tooltip')).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByText('HOME_PAGE'));
     expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+});
+
+describe('AppShell NET / API health', () => {
+  it('shows a red API ERR when the health ping fails', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+    renderShell();
+    // the /api/alpaca/clock probe rejects → API indicator flips to ERR
+    expect(await screen.findByText('ERR')).toBeInTheDocument();
   });
 });
