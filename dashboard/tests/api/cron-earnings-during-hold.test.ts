@@ -1,5 +1,5 @@
 // Cron populates trade.earnings_during_hold on first close transition.
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest } from '@vercel/node';
 
 const kvGet = vi.fn();
@@ -33,6 +33,16 @@ beforeEach(() => {
   gradeMock.mockReset(); dataMock.mockReset(); alpacaTradeMock.mockReset();
   fetchEarningsDatesMock.mockReset();
   process.env.CRON_TOKEN = 'cron-token';
+  // Freeze the clock before the test option's 2026-06-20 expiry. Without this,
+  // once the real date passes 2026-06-20 the option reads as past-expiry and
+  // detectClose Path 2 (settlement) pre-empts the external-close path this suite
+  // exercises — a date-sensitive failure unrelated to the code under test.
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-06-15T12:00:00Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function mockReq(): VercelRequest {
