@@ -6563,3 +6563,11 @@
 {"timestamp": "2026-06-22T17:49:44.423248+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 44, "equity": 1000.0}}
 {"timestamp": "2026-06-22T17:49:44.424394+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-22T17:49:44.919114+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T17:58:43.937497+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-22T17:59:33.416704+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 120.67}}
+{"timestamp": "2026-06-22T17:59:34.316815+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 208.62}}
+{"timestamp": "2026-06-22T17:59:39.142291+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.015, "min_net_credit": 0.05, "short_mid": 0.36, "long_mid": 0.375}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T17:59:45.730655+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "UBER", "details": {"net_credit": -0.1, "min_net_credit": 0.05, "short_mid": 0.265, "long_mid": 0.365}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T17:59:45.730881+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 44, "equity": 1000.0}}
+{"timestamp": "2026-06-22T17:59:45.732336+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-22T17:59:46.435826+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
