@@ -252,6 +252,19 @@ async function getQuote(symbol: string, asset_class: 'stock' | 'option', mode: s
   return { ask: q?.ap ?? 0, bid: q?.bp ?? 0 };
 }
 
+// Current price of an UNDERLYING stock (mid of the latest quote), used to
+// evaluate OTM-distance rules. Returns null when no usable quote is available
+// so the rule simply doesn't fire rather than mis-firing on bad data.
+async function getUnderlyingPrice(symbol: string, mode: string): Promise<number | null> {
+  try {
+    const { ask, bid } = await getQuote(symbol, 'stock', mode);
+    const mid = ask > 0 && bid > 0 ? (ask + bid) / 2 : (ask || bid || 0);
+    return mid > 0 ? mid : null;
+  } catch {
+    return null;
+  }
+}
+
 // Account → bot mode. MUST match api/_lib/rule-check.ts accountToMode() and the
 // duplicate copy in cron/[job].ts modeFromAccount() exactly — SM accounts route
 // to their own Alpaca credentials, NOT conservative's. (DRY follow-up: these
@@ -292,9 +305,14 @@ async function check(req: VercelRequest, res: VercelResponse) {
     positions = [];
   }
 
+  const assetClass = (draft.asset_class as 'stock' | 'option' | 'spread') ?? 'stock';
+  const underlying_price = assetClass === 'stock'
+    ? null
+    : await getUnderlyingPrice(String(draft.symbol ?? ''), mode);
+
   const violations = await runRuleChecks(
     {
-      asset_class: (draft.asset_class as 'stock' | 'option') ?? 'stock',
+      asset_class: assetClass,
       symbol: String(draft.symbol ?? ''),
       qty: Number(draft.qty ?? 0),
       account,
@@ -303,6 +321,8 @@ async function check(req: VercelRequest, res: VercelResponse) {
       strike: draft.strike ?? null,
       expiration: draft.expiration ?? null,
       tags: Array.isArray(draft.tags) ? draft.tags : undefined,
+      spread_type: (draft as any).spread_type,
+      underlying_price,
     },
     { positions },
   );
@@ -336,10 +356,27 @@ async function preview(req: VercelRequest, res: VercelResponse) {
     });
     const threshold = thresholds[draft.account] ?? Number.POSITIVE_INFINITY;
     requires_totp = exposure >= threshold;
-    rule_warnings = await runStubRuleChecks({
-      asset_class: draft.asset_class, symbol: draft.symbol,
-      qty: draft.qty, account: draft.account,
-    });
+    if (draft.asset_class === 'option') {
+      // Options need the full context (side/strike/type + underlying price) so
+      // the OTM nudge and option-aware rules surface on the confirm modal, the
+      // same set submit() re-checks server-side.
+      const underlying_price = await getUnderlyingPrice(draft.symbol, modeFromAccount(draft.account));
+      rule_warnings = await runStubRuleChecks({
+        asset_class: 'option', symbol: draft.symbol,
+        qty: draft.qty, account: draft.account,
+        side: draft.side as any,
+        option_type: draft.contract_type ?? undefined,
+        strike: draft.strike ?? null,
+        expiration: draft.expiration ?? null,
+        tags: Array.isArray(draft.tags) ? draft.tags : undefined,
+        underlying_price,
+      });
+    } else {
+      rule_warnings = await runStubRuleChecks({
+        asset_class: draft.asset_class, symbol: draft.symbol,
+        qty: draft.qty, account: draft.account,
+      });
+    }
   }
 
   return res.status(200).json({ exposure, requires_totp, rule_warnings, validation_errors });
@@ -363,6 +400,7 @@ async function previewSpread(req: VercelRequest, res: VercelResponse) {
   });
   const threshold = thresholds[p.account] ?? Number.POSITIVE_INFINITY;
   const requires_totp = exposure >= threshold;
+  const underlying_price = await getUnderlyingPrice(p.symbol, modeFromAccount(p.account));
   const rule_warnings = await runStubRuleChecks({
     asset_class: 'spread',
     symbol: p.symbol,
@@ -370,6 +408,10 @@ async function previewSpread(req: VercelRequest, res: VercelResponse) {
     account: p.account,
     expiration: p.expiration,
     spread: { width, net_credit, max_loss },
+    spread_type: p.spread_type,
+    strike: p.short_leg.strike,
+    option_type: p.spread_type === 'put_credit' || p.spread_type === 'put_debit' ? 'put' : 'call',
+    underlying_price,
   });
   return res.status(200).json({
     exposure,
@@ -421,6 +463,7 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
   } catch {
     positions = [];
   }
+  const underlying_price = await getUnderlyingPrice(p.symbol, modeFromAccount(p.account));
   const rule_warnings = await runRuleChecks(
     {
       asset_class: 'spread',
@@ -430,6 +473,10 @@ async function submitSpread(req: VercelRequest, res: VercelResponse) {
       expiration: p.expiration,
       tags: Array.isArray(p.tags) ? p.tags : undefined,
       spread: { width, net_credit, max_loss },
+      spread_type: p.spread_type,
+      strike: p.short_leg.strike,
+      option_type: p.spread_type === 'put_credit' || p.spread_type === 'put_debit' ? 'put' : 'call',
+      underlying_price,
     },
     { positions },
   );
@@ -742,6 +789,9 @@ async function submit(req: VercelRequest, res: VercelResponse) {
   } catch {
     positions = [];
   }
+  const underlying_price = draft.asset_class === 'option'
+    ? await getUnderlyingPrice(draft.symbol, modeFromAccount(draft.account))
+    : null;
   const rule_warnings = await runRuleChecks(
     {
       asset_class: draft.asset_class,
@@ -753,6 +803,7 @@ async function submit(req: VercelRequest, res: VercelResponse) {
       strike: draft.strike ?? null,
       expiration: draft.expiration ?? null,
       tags: Array.isArray(draft.tags) ? draft.tags : undefined,
+      underlying_price,
     },
     { positions },
   );

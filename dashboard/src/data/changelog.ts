@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-22',
+    category: 'feature',
+    title: 'New rule: warns when a short put is sold too close to the money (<7% OTM)',
+    details:
+      'A built-in warn-severity rule check (short_put_too_close_otm) now fires on the order confirm modal '
+      + 'whenever a short put — either a bare cash-secured put (STO) or the short leg of a put credit spread — '
+      + 'has its strike less than 7% below the current stock price. Built to curb the "chase premium close to '
+      + 'the money and blow past the strike" tendency: going further OTM trades a little premium for a much '
+      + 'higher win rate.\n\n'
+      + 'Example that prompted it: an ARM $390/$350 put credit spread with ARM at ~$413.79 — the short $390 '
+      + 'strike was only ~5.75% OTM. That trade now surfaces an amber warning at review.\n\n'
+      + 'Warn-only (one-click override; sometimes going closer is deliberate). The underlying spot price is '
+      + 'now threaded through the preview/check/submit paths so the rule can measure OTM distance. Fires on all '
+      + 'accounts; the bot already opens its own puts ~10% OTM, so this mainly guards hand-placed manual trades.',
+  },
+  {
     date: '2026-06-20',
     category: 'ui',
     title: 'Account cards show the real Alpaca account number (was a fake 10.0.0.x IP)',
