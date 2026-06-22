@@ -6598,3 +6598,10 @@
 {"timestamp": "2026-06-22T18:39:52.144120+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 44, "equity": 1000.0}}
 {"timestamp": "2026-06-22T18:39:52.145167+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
 {"timestamp": "2026-06-22T18:39:52.872449+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T18:48:49.877570+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-22T18:49:04.316447+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 208.91}}
+{"timestamp": "2026-06-22T18:49:05.140589+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "UBER", "details": {"net_credit": -0.1, "min_net_credit": 0.05, "short_mid": 0.285, "long_mid": 0.385}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T18:49:06.680920+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.09, "min_net_credit": 0.05, "short_mid": 0.175, "long_mid": 0.265}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T18:49:06.681120+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 44, "equity": 1000.0}}
+{"timestamp": "2026-06-22T18:49:06.682368+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm1000"}}
+{"timestamp": "2026-06-22T18:49:07.063549+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
