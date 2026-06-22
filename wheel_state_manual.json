@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-22T15:31:48.045746Z"
+    "last_checked": "2026-06-22T15:41:46.315843Z"
   },
   "F": {
     "stage": 1,
@@ -67,33 +67,5 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "SPY": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "SPY260624P00746000",
-      "strike": 746.0,
-      "entry_premium": 4.09,
-      "qty": 3
-    },
-    "long_leg": {
-      "occ": "SPY260624P00728000",
-      "strike": 728.0,
-      "entry_premium": 1.08,
-      "qty": 3
-    },
-    "expiration": "2026-06-24",
-    "net_credit": 3.01,
-    "max_loss": 14.99,
-    "width": 18.0,
-    "opened_at": "2026-06-15T13:41:49.013405Z",
-    "open_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$746.00 long=$728.00 credit=$3.01",
-    "tripwire_breach_since": "2026-06-22T14:31:49.260674Z"
   }
 }
