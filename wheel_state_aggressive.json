@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-22T16:40:52.259486Z",
+    "last_checked": "2026-06-22T16:49:57.980530Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -71,7 +71,7 @@
     "total_premium_today": 27.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260702P00030000: $2.57 vs entry $2.46",
+    "last_action": "Monitoring RIOT260702P00030000: $2.58 vs entry $2.46",
     "contract_qty": 1
   },
   "SMCI": {
