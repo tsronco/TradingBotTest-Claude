@@ -5637,3 +5637,9 @@
 {"timestamp": "2026-06-22T13:56:46.593132+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 6, "equity": 500.0}}
 {"timestamp": "2026-06-22T13:56:46.594645+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-06-22T13:56:47.384810+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T14:05:51.366892+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-22T14:06:03.921495+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.3, "min_net_credit": 0.05, "short_mid": 0.22, "long_mid": 0.52}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T14:06:04.549943+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "RIG", "details": {"price": 5.265}}
+{"timestamp": "2026-06-22T14:06:04.550146+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 6, "equity": 500.0}}
+{"timestamp": "2026-06-22T14:06:04.551400+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-22T14:06:04.933690+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
