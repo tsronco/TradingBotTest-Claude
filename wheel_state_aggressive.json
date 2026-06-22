@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-22T14:59:38.584603Z",
+    "last_checked": "2026-06-22T15:11:11.582159Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,14 +28,14 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.26 vs entry $0.17",
+    "last_action": "Monitoring COIN260626C00205000: $0.23 vs entry $0.17",
     "contract_qty": 1
   },
   "MARA": {
     "stage": 1,
     "current_contract": "MARA260702P00015000",
     "contract_order_id": "cc44517d-1eca-4032-8e20-132b8be5a596",
-    "contract_entry_price": null,
+    "contract_entry_price": 0.62,
     "contract_entry_date": "2026-06-22T13:49:37.459543Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "put",
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Awaiting fill on MARA260702P00015000.",
+    "last_action": "Monitoring MARA260702P00015000: $0.63 vs entry $0.62",
     "contract_qty": 1
   },
   "RIOT": {
