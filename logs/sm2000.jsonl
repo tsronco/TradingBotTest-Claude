@@ -6728,3 +6728,9 @@
 {"timestamp": "2026-06-22T13:57:50.300450+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 37, "equity": 2000.0}}
 {"timestamp": "2026-06-22T13:57:50.301812+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-22T13:57:50.797838+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T14:06:42.592673+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T14:06:55.960341+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PFE", "details": {"price": 25.015}}
+{"timestamp": "2026-06-22T14:06:57.879826+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 127.36}}
+{"timestamp": "2026-06-22T14:06:59.630994+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 38, "equity": 2000.0}}
+{"timestamp": "2026-06-22T14:06:59.632501+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T14:07:00.006323+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
