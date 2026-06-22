@@ -1518,3 +1518,136 @@ describe('D12 — Path 2b expiry geometry for debit spreads', () => {
     expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 });
+
+// ─── Path 4: external STOCK close ────────────────────────────────────────────
+// A dashboard/imported stock trade the user later sold (web UI / bot) never had
+// a close order linked. Path 1/2/3 don't cover stocks, so the record sat "open"
+// forever and bloated the open index. Path 4 closes the unambiguous case:
+// position fully gone + a single closing fill of the exact same qty.
+describe('detectClose Path 4 — external stock close', () => {
+  function makeStockTrade(overrides: any = {}): any {
+    return {
+      id: 'T-2026-05-14-100', account: 'manual_paper',
+      asset_class: 'stock', symbol: 'F',
+      side: 'buy', qty: 100,
+      contract_symbol: null, strike: null, expiration: null, contract_type: null,
+      filled_avg_price: 11.00, filled_at: '2026-05-14T17:00:00Z',
+      alpaca_order_id: 'stk-open-1', alpaca_close_order_id: null,
+      submitted_at: '2026-05-14T17:00:00Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
+      // fill_confirmed short-circuits syncFillData so Path 4 is what's tested.
+      fill_confirmed: true,
+      schema: 1,
+      ...overrides,
+    };
+  }
+
+  it('closes a long stock sold externally (position gone + exact-qty sell fill)', async () => {
+    const trade = makeStockTrade();
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error('alpaca trade 404 on /v2/positions/F: not found'));
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'sell-1', activity_type: 'FILL', transaction_time: '2026-05-22T15:00:00Z',
+          symbol: 'F', side: 'sell', price: '12.00', qty: '100', order_id: 'sell-order-1' },
+      ]);
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { F: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // (12.00 - 11.00) * 100 shares = +$100
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-05-22T15:00:00Z',
+      closed_avg_price: 12.00,
+      realized_pnl: expect.closeTo(100, 2),
+      closed_by: 'bot_external',
+      alpaca_close_order_id: 'sell-order-1',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  it('closes a short stock covered externally (sell_short → buy fill)', async () => {
+    const trade = makeStockTrade({ id: 'T-2026-05-14-101', side: 'sell_short', filled_avg_price: 12.00, qty: 50 });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${trade.id}`) return Promise.resolve(trade);
+      if (k === `grade:${trade.id}`) return Promise.resolve({ trade_id: trade.id, entry: { letter: 'B', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error('alpaca trade 404 on /v2/positions/F: not found'));
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'buy-1', activity_type: 'FILL', transaction_time: '2026-05-22T15:00:00Z',
+          symbol: 'F', side: 'buy', price: '10.00', qty: '50', order_id: 'cover-order-1' },
+      ]);
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { F: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    // short: (entry 12.00 - cover 10.00) * 50 = +$100
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      realized_pnl: expect.closeTo(100, 2),
+      closed_by: 'bot_external',
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+  });
+
+  it('leaves a stock trade open when the position still exists', async () => {
+    const trade = makeStockTrade({ id: 'T-2026-05-14-102' });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.resolve({ symbol: 'F', qty: '100' });
+      return Promise.resolve([]);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ closed_at: expect.anything() }));
+    expect(kvLrem).not.toHaveBeenCalled();
+  });
+
+  it('leaves a stock trade open when the closing fill qty does not match (FIFO ambiguity)', async () => {
+    // Bought 100, but the only sell fill is 40 shares → ambiguous partial / multi-lot.
+    const trade = makeStockTrade({ id: 'T-2026-05-14-103', qty: 100 });
+    kvLrange.mockResolvedValueOnce([trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error('alpaca trade 404 on /v2/positions/F: not found'));
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'sell-1', activity_type: 'FILL', transaction_time: '2026-05-22T15:00:00Z',
+          symbol: 'F', side: 'sell', price: '12.00', qty: '40', order_id: 'sell-order-1' },
+      ]);
+      return Promise.resolve(null);
+    });
+    kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ closed_at: expect.anything() }));
+    expect(kvLrem).not.toHaveBeenCalled();
+  });
+});

@@ -656,6 +656,25 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(r.graded).toBe(0); // the loop broke before processing any trade
   });
 
+  it('out of time → skips the deferrable tail (auto-import) so the run returns instead of 504-ing', async () => {
+    // Core of the "never 504" fix: when the wall-clock budget is spent, the
+    // deferrable tail (assignment spawns + per-account auto-import, which walk
+    // 7 accounts' activity logs) is skipped and runs next tick instead of
+    // pushing the function past the serverless limit.
+    kvLrange.mockResolvedValueOnce([]); // no open trades
+    kvGet.mockResolvedValue(null);
+    kvSet.mockResolvedValue('OK');
+    const tradesMod = await import('../../api/trades/[action]');
+    (tradesMod.runImport as any).mockClear();
+
+    const { runGradeOpenTrades } = await import('../../api/cron/[job]');
+    const r = await runGradeOpenTrades({ timeBudgetMs: -1 });
+
+    expect(r.auto_imported).toEqual({});
+    expect(r.assignments_spawned).toBe(0);
+    expect(tradesMod.runImport).not.toHaveBeenCalled();
+  });
+
   // ---- detectClose spread expiry branch ------------------------------------
 
   function makeFilledSpreadTrade(overrides: any = {}) {

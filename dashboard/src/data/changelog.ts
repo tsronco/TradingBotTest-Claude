@@ -30,6 +30,28 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-22',
+    category: 'fix',
+    title: 'Grade-open cron no longer 504s — fills/closes sync before grading, on a time budget',
+    details:
+      'A filled trade (e.g. the ARM spread) could sit on /trades showing no entry price for hours, and '
+      + 'the [↻ refresh] button returned a 504. Root cause: the grade-open cron had NO wall-clock budget, '
+      + 'so on a large open-trade backlog it ran the full 60s (slow AI grades first) and got killed by '
+      + "Vercel before the cheap fill-sync ran — leaving fresh fills stuck \"submitted.\"\n\n"
+      + 'Three fixes:\n'
+      + '1) The run now self-limits to ~45s and RETURNS cleanly (work done is saved, the rest carries to the '
+      + 'next tick) instead of being killed → no more 504, including on the refresh button.\n'
+      + '2) Reordered so cheap fill-sync + close-detection runs BEFORE AI grading (grading can no longer '
+      + 'starve sync). Grading still runs every tick with the leftover budget and drains the backlog over a '
+      + 'few ticks — nothing is skipped, it just spreads across ticks (the 60s serverless limit makes '
+      + '"grade everything in one shot" impossible).\n'
+      + '3) New stock external-close detection: a stock you sold on Alpaca that previously sat "open" forever '
+      + '(bloating the index) now closes automatically in the unambiguous case (position gone + exact-qty '
+      + 'sell fill). Partial/multi-lot sells are left for manual review to avoid mis-booking P&L.\n\n'
+      + 'Net effect: the bloated "open" count drains on its own, new fills sync within a tick or two, and '
+      + 'grading keeps up automatically.',
+  },
+  {
+    date: '2026-06-22',
     category: 'feature',
     title: 'New rule: warns when a short put is sold too close to the money (<7% OTM)',
     details:
