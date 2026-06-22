@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-22T14:22:03.338697Z"
+    "last_checked": "2026-06-22T14:31:49.261077Z"
   },
   "F": {
     "stage": 1,
@@ -93,6 +93,7 @@
     "total_premium_collected": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Adopted spread short=$746.00 long=$728.00 credit=$3.01"
+    "last_action": "Adopted spread short=$746.00 long=$728.00 credit=$3.01",
+    "tripwire_breach_since": "2026-06-22T14:31:49.260674Z"
   }
 }
