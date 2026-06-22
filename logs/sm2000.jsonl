@@ -6796,3 +6796,9 @@
 {"timestamp": "2026-06-22T15:38:18.076617+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 43, "equity": 2000.0}}
 {"timestamp": "2026-06-22T15:38:18.077938+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-22T15:38:18.816142+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T15:46:48.804876+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T15:47:01.372677+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": 0.025, "min_net_credit": 0.05, "short_mid": 0.32, "long_mid": 0.295}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T15:47:07.636159+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "HBAN", "details": {"net_credit": 0.015, "min_net_credit": 0.05, "short_mid": 0.075, "long_mid": 0.06}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T15:47:09.006424+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 43, "equity": 2000.0}}
+{"timestamp": "2026-06-22T15:47:09.008060+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T15:47:09.422019+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
