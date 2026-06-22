@@ -7159,3 +7159,8 @@
 {"timestamp": "2026-06-22T15:01:46.190635+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SPY"]}}
 {"timestamp": "2026-06-22T15:01:46.938119+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260624P00728000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-06-22T15:01:46.938326+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
+{"timestamp": "2026-06-22T15:11:43.756011+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-06-22T15:11:44.528285+00:00", "script": "wheel_strategy.py", "action": "spread_tripwire_pending", "result": "skipped", "symbol": "SPY", "details": {"stock_price": 744.61, "short_strike": 746.0, "breach_minutes": 39.9, "confirm_minutes": 60, "dte": 2}}
+{"timestamp": "2026-06-22T15:11:44.529830+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SPY"]}}
+{"timestamp": "2026-06-22T15:11:44.871856+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260624P00728000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-06-22T15:11:44.872017+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
