@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-22T14:49:51.190422Z",
+    "last_checked": "2026-06-22T14:59:38.584603Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.27 vs entry $0.17",
+    "last_action": "Monitoring COIN260626C00205000: $0.26 vs entry $0.17",
     "contract_qty": 1
   },
   "MARA": {
