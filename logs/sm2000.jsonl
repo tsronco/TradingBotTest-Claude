@@ -6809,3 +6809,12 @@
 {"timestamp": "2026-06-22T15:58:10.441588+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 43, "equity": 2000.0}}
 {"timestamp": "2026-06-22T15:58:10.442913+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-22T15:58:11.230553+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-22T16:07:18.488081+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T16:07:41.497610+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.115, "min_net_credit": 0.05, "short_mid": 0.385, "long_mid": 0.5}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T16:07:48.378053+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "F", "details": {"price": 14.335}}
+{"timestamp": "2026-06-22T16:07:49.533240+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "HBAN", "details": {"net_credit": 0.015, "min_net_credit": 0.05, "short_mid": 0.075, "long_mid": 0.06}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-22T16:07:50.354413+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PFE", "details": {"price": 25.095}}
+{"timestamp": "2026-06-22T16:07:50.955891+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 209.59}}
+{"timestamp": "2026-06-22T16:07:50.956101+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 43, "equity": 2000.0}}
+{"timestamp": "2026-06-22T16:07:50.957354+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-22T16:07:51.492685+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
