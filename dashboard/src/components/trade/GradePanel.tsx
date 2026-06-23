@@ -35,7 +35,7 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
   const h = grade.hindsight;
   const calLabel = h?.calibration ? CAL_LABELS[h.calibration] : null;
   const calColor = h?.calibration ? CAL_COLORS[h.calibration] : 'text-mid';
-  const canGrade = isGradeable(trade.account as any);
+  const canGrade = isGradeable(trade.account);
 
   return (
     <article className="relative border border-border bg-panel/60 rounded-sm" style={{ overflow: 'visible' }}>
@@ -76,7 +76,7 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
             </div>
           ) : (
             <div className="mt-2">
-              <div className="text-dim text-[10px]">// grading is off for bot accounts</div>
+              <div className="text-dim text-[10px]">// grading is off for bot accounts — only manual &amp; live are AI-graded</div>
             </div>
           )}
         </div>

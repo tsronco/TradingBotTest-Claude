@@ -105,7 +105,7 @@ export default function RefreshButton({ account }: { account?: string }) {
 
       {/* Grade backlog: runs AI grading on the needs-grade queue for this account.
           Only shown on gradeable accounts (manual + live). */}
-      {account && isGradeable(account as any) && (
+      {account && isGradeable(account) && (
         <button
           type="button"
           onClick={() => run('grade')}

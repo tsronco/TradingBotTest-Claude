@@ -178,4 +178,20 @@ describe('cron grading gate', () => {
     expect(finalQueue).toEqual(['l1']);
     expect(r.grade_queue_remaining).toBe(1);
   });
+
+  it('unscoped drain (scheduled cron) grades BOTH manual and live, drops conservative', async () => {
+    const { runGradeOpenTrades } = await import('../../api/cron/[job]');
+
+    // No account → the scheduled-cron path. Must grade every gradeable account
+    // in one pass (the gate must not over-reach and stop manual/live grading).
+    const r = await runGradeOpenTrades();
+
+    expect(gradeTrade).toHaveBeenCalledTimes(2);   // m1 (manual) + l1 (live)
+    expect(r.ai_graded).toBe(2);
+    const finalQueue = kvSet.mock.calls
+      .filter(([k]) => k === KV_KEYS.tradesIndexNeedsGrade)
+      .at(-1)?.[1];
+    expect(finalQueue).toEqual([]);                // c1 (conservative) dropped
+    expect(r.grade_queue_remaining).toBe(0);
+  });
 });

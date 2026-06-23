@@ -11,8 +11,11 @@ export const GRADEABLE_ACCOUNTS: ReadonlySet<AccountId> = new Set<AccountId>([
   'manual_paper', 'live',
 ]);
 
-export function isGradeable(account: AccountId): boolean {
-  return GRADEABLE_ACCOUNTS.has(account);
+// Accepts a plain string so client callers (where the selected account is
+// `string | undefined`) don't need a cast — an unknown string is simply not in
+// the set.
+export function isGradeable(account: string): boolean {
+  return (GRADEABLE_ACCOUNTS as ReadonlySet<string>).has(account);
 }
 
 export type AssetClass = 'stock' | 'option' | 'spread';
