@@ -13,7 +13,7 @@ import type {
   ManualRule, Trigger, BotRulesPayload,
 } from './rules-types.js';
 import type {
-  AssetClass, AccountId, RuleWarning, RuleSeverity, OrderSide, Trade,
+  AssetClass, AccountId, RuleWarning, RuleSeverity, OrderSide, SpreadType, Trade,
 } from './trade-types.js';
 
 export interface RuleCheckInput {
@@ -28,7 +28,19 @@ export interface RuleCheckInput {
   expiration?: string | null;        // YYYY-MM-DD
   tags?: string[];
   spread?: { width: number; net_credit: number; max_loss: number };
+  spread_type?: SpreadType;          // for spreads — distinguishes put_credit etc.
+  // Current price of the UNDERLYING stock (not the option/spread). Threaded
+  // through by the order-form preview/check/submit paths so OTM-distance rules
+  // can be evaluated. Null when a quote isn't available.
+  underlying_price?: number | null;
 }
+
+// Minimum out-of-the-money distance for a short put before we nudge the user.
+// Selling puts close to the money chases premium at the cost of a much higher
+// assignment/blow-through probability; staying further OTM "basically
+// guarantees" the (smaller) premium. Warn-only — sometimes going closer is a
+// deliberate call. See shortPutOtmViolation().
+export const SHORT_PUT_MIN_OTM_PCT = 0.07;
 
 export interface RuleCheckCtx {
   positions?: Array<{ symbol: string; qty: number; avg_entry_price: number }>;
@@ -86,12 +98,55 @@ export async function runRuleChecks(
     }
   }
 
+  // --- Built-in OTM-distance nudge for short puts (warn-only) ---
+  const otm = shortPutOtmViolation(input);
+  if (otm) violations.push(otm);
+
   // --- Legacy stub rules (kept for backward compatibility — preserve existing behavior
   // for sizing_1x, earnings_within_7d, bot_wheel_overlap that the order form already
   // surfaces). These are warn/info severity, complement the trigger DSL. ---
   await appendLegacyStubRules(input, violations);
 
   return violations.sort((a, b) => sevRank(a.severity) - sevRank(b.severity));
+}
+
+/**
+ * Built-in nudge: warn when a SHORT put is being sold too close to the money.
+ * Fires for a bare cash-secured put (STO put) or the short leg of a put credit
+ * spread. Returns null when it doesn't apply (other asset/side, missing strike
+ * or underlying price, or the strike is already comfortably OTM).
+ *
+ * "Too close" = the short strike is less than SHORT_PUT_MIN_OTM_PCT below the
+ * current underlying price. Pure function (no IO) so it's trivially testable.
+ */
+export function shortPutOtmViolation(input: RuleCheckInput): RuleWarning | null {
+  const isBareShortPut =
+    input.asset_class === 'option' &&
+    input.option_type === 'put' &&
+    input.side === 'STO';
+  const isPutCreditSpread =
+    input.asset_class === 'spread' && input.spread_type === 'put_credit';
+  if (!isBareShortPut && !isPutCreditSpread) return null;
+
+  const strike = input.strike;
+  const spot = input.underlying_price;
+  if (strike == null || !Number.isFinite(strike) || strike <= 0) return null;
+  if (spot == null || !Number.isFinite(spot) || spot <= 0) return null;
+
+  // Positive = OTM for a put (strike below spot). Negative/zero = ATM-or-ITM.
+  const otmPct = (spot - strike) / spot;
+  if (otmPct >= SHORT_PUT_MIN_OTM_PCT) return null;
+
+  const minPctLabel = `${(SHORT_PUT_MIN_OTM_PCT * 100).toFixed(0)}%`;
+  const spotLabel = `$${spot.toFixed(2)}`;
+  const strikeLabel = `$${strike.toFixed(2)}`;
+  const message = otmPct <= 0
+    ? `short put ${strikeLabel} is at/in the money (spot ${spotLabel}). `
+      + `Go further OTM (≥${minPctLabel} below spot) to bank premium with far less assignment risk.`
+    : `short put ${strikeLabel} is only ${(otmPct * 100).toFixed(1)}% OTM (spot ${spotLabel}). `
+      + `Rule of thumb: keep the short strike ≥${minPctLabel} below spot — going further out trades a little premium for a much higher win rate.`;
+
+  return { rule: 'short_put_too_close_otm', severity: 'warn', message };
 }
 
 // Backward-compat alias for existing callers (api/trades/[action].ts:115, :144)

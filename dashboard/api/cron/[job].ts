@@ -36,6 +36,16 @@ const MAX_GRADE_PER_TICK = 5;
 // handful of ticks. A ~300-trade backlog fully sweeps in ~10 ticks (~50 min).
 const SWEEP_BUDGET = 30;
 
+// Default soft wall-clock budget for a single run. Vercel kills the function at
+// maxDuration=60s (→ a 504 with no result persisted past the kill point). Capping
+// our own work at 45s guarantees the run RETURNS cleanly — fill-sync + close
+// detection that completed are saved, grading drains what time allows, and the
+// rest carries to the next tick. Before this, the cron had NO time cap: a backlog
+// of slow AI grades could run the whole 60s and get killed before fill-sync ran,
+// leaving freshly-filled trades stuck "submitted" for hours (the ARM-spread bug).
+// Callers that want different behavior (drain mode) pass timeBudgetMs explicitly.
+const DEFAULT_TIME_BUDGET_MS = 45_000;
+
 // How long to wait for Alpaca to post the OPEXP/OPASN settlement activity
 // before assuming a past-expiry STO simply expired worthless. Alpaca normally
 // posts it the evening of / morning after expiry; this is a safety net so a
@@ -114,8 +124,11 @@ export async function runGradeOpenTrades(opts: {
   const startedAt = Date.now();
   const sweepBudget = opts.sweepBudget ?? SWEEP_BUDGET;
   const gradeBudget = opts.gradeBudget ?? MAX_GRADE_PER_TICK;
-  const timeBudgetMs = opts.timeBudgetMs;
-  const outOfTime = () => timeBudgetMs !== undefined && Date.now() - startedAt > timeBudgetMs;
+  // Default to a soft budget so the normal cron tick AND the on-demand refresh
+  // both self-limit and return instead of 504-ing. A caller can still pass a
+  // different value (drain mode) or a sentinel like -1 to force an immediate stop.
+  const timeBudgetMs = opts.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS;
+  const outOfTime = () => Date.now() - startedAt > timeBudgetMs;
 
   const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
 
@@ -138,10 +151,6 @@ export async function runGradeOpenTrades(opts: {
   // stops early on timeBudget, the post-loop write below corrects this to the
   // actual stopping point so a follow-up call resumes where this one left off.)
   if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + sweepCount) % N);
-
-  // Drain previously-queued closed-but-ungraded trades first (older closes get
-  // their hindsight grade before we spend budget on new ones this tick).
-  aiGrades += await drainNeedsGrade(gradeBudget);
 
   let processed = 0;
   for (let k = 0; k < sweepCount; k++) {
@@ -264,7 +273,7 @@ export async function runGradeOpenTrades(opts: {
     // expensive step, so it's budgeted: grade inline while budget remains,
     // otherwise queue for a later tick (the trade still shows closed with P&L
     // immediately — only the hindsight letter is deferred).
-    if (aiGrades < gradeBudget) {
+    if (aiGrades < gradeBudget && !outOfTime()) {
       if (await gradeClosedTrade(closedTrade)) aiGrades += 1;
     } else {
       await enqueueNeedsGrade(closedTrade.id);
@@ -276,14 +285,27 @@ export async function runGradeOpenTrades(opts: {
   // instead of re-walking from the pre-set full-window position).
   if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + processed) % N);
 
-  // Drain assignments-pending — spawn follow-on stock trades for assigned puts
-  const drainResult = await drainAssignmentsAndSpawn();
+  // Grade AFTER the cheap fill-sync + close-detect sweep, never before it — so a
+  // backlog of slow AI grades can't eat the whole budget and starve fill-sync
+  // (the bug that left a just-filled spread stuck "submitted" for hours). Drain
+  // the queue (older closes first) with whatever grade + wall-clock budget is
+  // left this tick; overflow stays queued for the next tick.
+  if (!outOfTime()) {
+    aiGrades += await drainNeedsGrade(Math.max(0, gradeBudget - aiGrades), outOfTime);
+  }
+
+  // Assignment spawns + auto-import are deferrable. If we've already spent the
+  // time budget, skip them this tick (they run on the next one) rather than risk
+  // pushing the function past the serverless limit.
+  const drainResult = outOfTime()
+    ? { spawned: 0, skipped: 0 }
+    : await drainAssignmentsAndSpawn();
 
   // Auto-import bot-opened trades from every bot-touched account so they show
   // up on /trades automatically (was previously a one-shot manual operation
   // in Settings). Failures per account are swallowed so one bad account
   // doesn't block grading or the other imports. See runAutoImport() below.
-  const importResult = await runAutoImport();
+  const importResult = outOfTime() ? {} : await runAutoImport();
 
   return {
     graded,
@@ -334,7 +356,7 @@ async function enqueueNeedsGrade(id: string): Promise<void> {
  * grades were performed (so the caller can subtract from its per-tick budget).
  * Entries whose trade/grade record is gone are dropped from the queue.
  */
-async function drainNeedsGrade(budget: number): Promise<number> {
+async function drainNeedsGrade(budget: number, isOutOfTime?: () => boolean): Promise<number> {
   if (budget <= 0) return 0;
   const q = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
   if (q.length === 0) return 0;
@@ -342,7 +364,9 @@ async function drainNeedsGrade(budget: number): Promise<number> {
   let used = 0;
   const remainingQueue: string[] = [];
   for (const id of q) {
-    if (used >= budget) { remainingQueue.push(id); continue; }
+    // Stop spending on grades once the count budget OR the wall-clock budget is
+    // hit — the rest stays queued and drains on the next tick.
+    if (used >= budget || (isOutOfTime?.() ?? false)) { remainingQueue.push(id); continue; }
     const t = await kv().get<Trade>(tradeKey(id));
     if (!t || !t.closed_at) continue; // gone or no longer closed — drop silently
     // Already graded (e.g. the user hit "grade now")? Drop without re-grading.
@@ -1021,6 +1045,19 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   // (spread external-close is handled in Path 2b-pre above — moved ahead of the
   // Path 2b expiry fabrication so a real close always wins over a spot guess.)
 
+  // Path 4: external stock close. A dashboard/imported stock trade that the user
+  // later sold (on Alpaca's web UI, or that the bot sold) never had a close order
+  // linked, and Path 1/2/3 don't cover stocks — so the record sat "open" forever,
+  // bloating the open index and dragging the sweep. Handle the UNAMBIGUOUS case:
+  // the position is fully gone and a single closing fill of the exact same qty
+  // exists. Partial sells / multiple lots of the same symbol are left for manual
+  // review (FIFO matching is out of scope — booking the wrong fill would corrupt
+  // realized P&L).
+  if (trade.asset_class === 'stock') {
+    const closeInfo = await detectExternalStockClose(mode, trade);
+    if (closeInfo) return closeInfo;
+  }
+
   return null;
 }
 
@@ -1197,6 +1234,64 @@ function closingSideFor(openSide: string): 'buy' | 'sell' | null {
   if (openSide === 'STO') return 'buy';
   if (openSide === 'BTO') return 'sell';
   return null;
+}
+
+/**
+ * Stock-side variant of closingSideFor. A long (buy) closes with a sell; a short
+ * (sell / sell_short) closes with a buy.
+ */
+function stockClosingSideFor(openSide: string): 'buy' | 'sell' | null {
+  if (openSide === 'buy') return 'sell';
+  if (openSide === 'sell' || openSide === 'sell_short') return 'buy';
+  return null;
+}
+
+/**
+ * Detect a stock trade that was closed outside the dashboard (sold on Alpaca's
+ * web UI, or by the bot). Conservative by design — only fires when:
+ *   1. the entry actually filled,
+ *   2. the position for the symbol is fully GONE on Alpaca, and
+ *   3. a single matching closing fill exists with qty EXACTLY equal to the
+ *      trade's qty.
+ *
+ * Condition 3 is the FIFO guard: if the symbol had multiple open lots, or the
+ * sale was partial, the qty won't match this record cleanly and we leave it open
+ * for manual review rather than risk attributing the wrong fill's price/P&L.
+ * That's strictly better than today (where every sold-stock record sat open
+ * forever) without inventing a P&L number that could be wrong.
+ */
+async function detectExternalStockClose(mode: Mode, trade: Trade): Promise<CloseInfo | null> {
+  if (trade.asset_class !== 'stock' || !trade.filled_at) return null;
+
+  // Still holding (any qty) → can't be sure this specific lot is closed. Leave open.
+  if (await positionExists(mode, trade.symbol)) return null;
+
+  const side = stockClosingSideFor(trade.side);
+  if (!side) return null;
+
+  const fill = await findClosingFill(mode, trade, trade.symbol, side);
+  if (!fill) return null;
+
+  // FIFO guard — only auto-close on an exact-qty match.
+  const fillQty = Math.abs(Number(fill.qty ?? NaN));
+  if (!Number.isFinite(fillQty) || fillQty !== trade.qty) {
+    console.log(
+      'detectExternalStockClose qty mismatch — leaving open for manual review',
+      trade.id, trade.symbol, `fill_qty=${fillQty}`, `trade_qty=${trade.qty}`,
+    );
+    return null;
+  }
+
+  const fillPx = Number(fill.price);
+  if (!Number.isFinite(fillPx)) return null;
+
+  return {
+    closed_at: fill.transaction_time ?? new Date().toISOString(),
+    closed_avg_price: fillPx,
+    realized_pnl: realizedPnl(trade, fillPx),
+    closed_by: 'bot_external',
+    alpaca_close_order_id: fill.order_id ?? null,
+  };
 }
 
 interface ActivityFill {
