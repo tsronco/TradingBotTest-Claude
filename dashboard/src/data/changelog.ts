@@ -31,6 +31,19 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-23',
     category: 'feature',
+    title: 'Refresh / drain on /trades now scope to the account you\'re viewing',
+    details:
+      'The [↻ refresh] and [drain backlog] buttons used to sync every open trade across all seven '
+      + 'accounts and report a global "N still open" count — confusing when you\'re focused on one '
+      + 'account. They now respect the page\'s account filter: clicking refresh while viewing manual '
+      + 'syncs only manual\'s open trades and reports manual\'s open count (e.g. "12 still open · manual"). '
+      + 'Select [any] for the old global behavior. The scheduled 5-min background cron is unchanged and '
+      + 'still sweeps every account, so nothing falls through the cracks — the buttons are just an '
+      + 'on-demand "catch this account up now."',
+  },
+  {
+    date: '2026-06-23',
+    category: 'feature',
     title: 'Trade detail now shows the break-even — readout + a line on the chart',
     details:
       'Break-even used to be visible only while placing an order. The trade detail screen '
