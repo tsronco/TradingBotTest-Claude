@@ -113,6 +113,10 @@ export async function runGradeOpenTrades(opts: {
   sweepBudget?: number;
   gradeBudget?: number;
   timeBudgetMs?: number;
+  // When set, scope the sweep + the remaining_open count to this one account
+  // (a manual /trades refresh of a single account). Skips the global rotating
+  // cursor entirely so the scheduled cron sweep is unaffected.
+  account?: string;
 } = {}): Promise<{
   graded: number;
   synced: number;
@@ -129,8 +133,22 @@ export async function runGradeOpenTrades(opts: {
   // different value (drain mode) or a sentinel like -1 to force an immediate stop.
   const timeBudgetMs = opts.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS;
   const outOfTime = () => Date.now() - startedAt > timeBudgetMs;
+  const accountFilter = opts.account;
 
-  const openIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
+  const allOpenIds = (await kv().lrange<string>(KV_KEYS.tradesIndexOpen, 0, -1)) ?? [];
+  // Account-scoped manual refresh: keep only this account's open trades and
+  // process that list directly. The open index stores ids only, so we load each
+  // record to read its `.account` — one extra read per open trade on a manual
+  // click (no per-account index; YAGNI).
+  let openIds = allOpenIds;
+  if (accountFilter) {
+    const scoped: string[] = [];
+    for (const id of allOpenIds) {
+      const t = await kv().get<Trade>(tradeKey(id));
+      if (t && t.account === accountFilter) scoped.push(id);
+    }
+    openIds = scoped;
+  }
 
   let graded = 0;        // trades CLOSED this tick (what /trades surfaces as "closed")
   let synced = 0;
@@ -143,14 +161,20 @@ export async function runGradeOpenTrades(opts: {
   // N is large — the old "always start at index 0, break after 3 closes" path
   // never reached the tail of a big index.
   const N = openIds.length;
-  const startRaw = (await kv().get<number>(KV_KEYS.tradesSweepCursor)) ?? 0;
-  const start = N > 0 ? (((startRaw % N) + N) % N) : 0;
+  // Scoped runs process from the head of the filtered list and never read or
+  // write the global rotating cursor — that cursor belongs to the unscoped cron
+  // sweep, and a manual single-account refresh must not perturb its fairness.
+  let start = 0;
+  if (!accountFilter && N > 0) {
+    const startRaw = (await kv().get<number>(KV_KEYS.tradesSweepCursor)) ?? 0;
+    start = (((startRaw % N) + N) % N);
+  }
   const sweepCount = Math.min(sweepBudget, N);
   // Advance the cursor for next tick before doing the work, so a mid-sweep
   // crash still makes forward progress on the following tick. (When the loop
   // stops early on timeBudget, the post-loop write below corrects this to the
   // actual stopping point so a follow-up call resumes where this one left off.)
-  if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + sweepCount) % N);
+  if (!accountFilter && N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + sweepCount) % N);
 
   let processed = 0;
   for (let k = 0; k < sweepCount; k++) {
@@ -283,7 +307,7 @@ export async function runGradeOpenTrades(opts: {
   // Correct the sweep cursor to where we actually stopped (matters when the
   // loop broke early on timeBudget — a follow-up call then resumes from here
   // instead of re-walking from the pre-set full-window position).
-  if (N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + processed) % N);
+  if (!accountFilter && N > 0) await kv().set(KV_KEYS.tradesSweepCursor, (start + processed) % N);
 
   // Grade AFTER the cheap fill-sync + close-detect sweep, never before it — so a
   // backlog of slow AI grades can't eat the whole budget and starve fill-sync
