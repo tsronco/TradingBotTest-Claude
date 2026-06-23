@@ -28,7 +28,9 @@ function mockRes() {
 
 describe('POST /api/trades/regrade', () => {
   it('snapshots current hindsight to history before writing fresh', async () => {
-    const trade = { id: 'T-2026-05-04-001', symbol: 'TSLA', account: 'conservative_paper', filled_at: '2026-05-04T13:30Z', closed_at: '2026-05-04T20:00Z' } as any;
+    // Using manual_paper — regrade is only allowed on gradeable accounts (manual + live).
+    // conservative_paper now returns 403 per the isGradeable gate.
+    const trade = { id: 'T-2026-05-04-001', symbol: 'TSLA', account: 'manual_paper', filled_at: '2026-05-04T13:30Z', closed_at: '2026-05-04T20:00Z' } as any;
     const oldGrade = {
       trade_id: 'T-2026-05-04-001',
       entry: { letter: 'A', reasoning: 'r', ts: 'now' },

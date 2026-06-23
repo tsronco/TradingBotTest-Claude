@@ -7,6 +7,7 @@ import { runStubRuleChecks, runRuleChecks } from '../_lib/rule-check.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import {
   GRADE_LETTERS,
+  isGradeable,
   type GradeLetter,
   type SpreadType,
   type Trade,
@@ -1120,6 +1121,12 @@ async function regrade(req: VercelRequest, res: VercelResponse) {
   const grade = await kv().get<any>(gradeKey(id));
   if (!trade) return res.status(404).json({ error: 'trade_not_found' });
   if (!grade) return res.status(404).json({ error: 'grade_not_found' });
+
+  // AI grading is restricted to manual + live. The UI hides the regrade button
+  // on other accounts; this is the server-side guard for a hand-crafted request.
+  if (!isGradeable(trade.account)) {
+    return res.status(403).json({ error: 'grading_disabled_for_account', account: trade.account });
+  }
 
   // Pull bars across position lifetime
   const start = trade.filled_at ?? trade.submitted_at;
