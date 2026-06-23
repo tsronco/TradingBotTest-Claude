@@ -90,8 +90,9 @@ describe('POST /api/cron/grade-open-trades', () => {
   });
 
   it('grades a trade whose Alpaca close order has filled', async () => {
+    // Uses manual_paper — isGradeable gate now blocks conservative/aggressive/SM.
     const trade = {
-      id: 'T-2026-05-04-001', account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+      id: 'T-2026-05-04-001', account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
       side: 'buy', qty: 10, filled_avg_price: 319.85, exposure_at_submit: 3198.50,
       alpaca_order_id: 'a1', alpaca_close_order_id: 'a2',
       filled_at: '2026-05-04T13:30Z', closed_at: null, realized_pnl: null, closed_avg_price: null, closed_by: null,
@@ -475,9 +476,10 @@ describe('POST /api/cron/grade-open-trades', () => {
 
   // A stock trade whose Alpaca close order has filled → detectClose Path 1
   // closes it. fill_confirmed:true so syncFillData makes no entry-order fetch.
+  // Uses manual_paper — isGradeable gate blocks conservative/aggressive/SM from grading.
   function closeableStockTrade(n: number) {
     return {
-      id: `T-2026-05-04-${String(n).padStart(3, '0')}`, account: 'conservative_paper', symbol: 'TSLA',
+      id: `T-2026-05-04-${String(n).padStart(3, '0')}`, account: 'manual_paper', symbol: 'TSLA',
       asset_class: 'stock', side: 'buy', qty: 10, filled_avg_price: 319.85, exposure_at_submit: 3198.5,
       alpaca_order_id: `entry-${n}`, alpaca_close_order_id: `close-${n}`,
       filled_at: '2026-05-04T13:30Z', closed_at: null, realized_pnl: null, closed_avg_price: null, closed_by: null,
@@ -549,8 +551,9 @@ describe('POST /api/cron/grade-open-trades', () => {
   });
 
   it('drains the needs-grade queue on a later tick (no open trades)', async () => {
+    // Uses manual_paper — isGradeable gate blocks conservative/aggressive/SM from queue drain.
     const closed = {
-      id: 'T-2026-05-04-090', account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+      id: 'T-2026-05-04-090', account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
       side: 'buy', qty: 10, filled_avg_price: 319.85, closed_at: '2026-05-04T20:09Z',
       closed_avg_price: 362.20, realized_pnl: 423.5, closed_by: 'manual',
       filled_at: '2026-05-04T13:30Z', entry_grade: 'A', entry_reasoning: 'r', tags: [],

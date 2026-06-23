@@ -45,6 +45,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-23',
     category: 'feature',
+    title: 'AI grading now manual + live only, plus a "grade backlog" button',
+    details:
+      'AI hindsight grading is restricted to the accounts where you hand-pick entry grades — manual and '
+      + 'live. Conservative, aggressive, and the SM accounts close normally with full P&L but no longer get '
+      + 'an AI grade (it was noise and Sonnet spend, since those are bot-opened). Your calibration stats are '
+      + 'now manual+live only, which is the population where your grades are real. Existing grades are left '
+      + 'as-is. The re-grade button is hidden on the bot accounts.\n\n'
+      + 'New on /trades: a [grade backlog] button (manual/live only) that runs the AI grading on the '
+      + 'closed-but-ungraded queue on demand instead of waiting for the cron, scoped to the account you\'re '
+      + 'viewing — reports "graded N · M queued" and works in ~45s batches. The button row is now '
+      + 'context-aware: Refresh everywhere, Grade backlog on manual/live, Drain backlog only on [any] '
+      + '(its global-pile job is moot per-account now that Refresh is scoped).',
+  },
+  {
+    date: '2026-06-23',
+    category: 'feature',
     title: 'Refresh / drain on /trades now scope to the account you\'re viewing',
     details:
       'The [↻ refresh] and [drain backlog] buttons used to sync every open trade across all seven '
