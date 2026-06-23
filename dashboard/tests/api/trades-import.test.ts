@@ -35,7 +35,6 @@ vi.mock('../../api/_lib/data-api', () => ({
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: vi.fn(() => true) }));
 vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ createOrder: vi.fn() }),
   modeFromQuery: () => 'conservative',
 }));
 vi.mock('../../api/_lib/grading', () => ({ gradeTrade: vi.fn() }));

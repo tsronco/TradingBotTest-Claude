@@ -1,5 +1,3 @@
-import { createClient } from '@alpacahq/typescript-sdk';
-
 export type Mode =
   | 'conservative' | 'aggressive' | 'manual' | 'live'
   | 'sm500' | 'sm1000' | 'sm2000';
@@ -52,13 +50,6 @@ function credsFor(mode: Mode): { key: string; secret: string } {
  *  switch the base URL from paper-api.alpaca.markets to api.alpaca.markets. */
 export function isLiveMode(mode: Mode): boolean {
   return mode === 'live';
-}
-
-export function alpacaFor(mode: Mode) {
-  const { key, secret } = credsFor(mode);
-  // The SDK defaults to paper. For live, opt out of paper so the SDK's
-  // baked-in trading hostname flips to api.alpaca.markets.
-  return createClient({ key, secret, paper: !isLiveMode(mode) });
 }
 
 // Exported for data-api.ts so we share the cred-resolution logic in one place.

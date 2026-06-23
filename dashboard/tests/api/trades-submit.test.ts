@@ -10,7 +10,6 @@ const kvRpush = vi.fn();
 const ruleCheckMock = vi.fn();
 const dataMock = vi.fn();
 const verifyTotpMock = vi.fn();
-const alpacaCreateOrder = vi.fn();
 const alpacaTradeMutationMock = vi.fn();
 vi.mock('../../api/_lib/kv', () => ({
   kv: () => ({ get: kvGet, set: kvSet, incr: kvIncr, lpush: kvLpush, rpush: kvRpush, sadd: vi.fn(), lrange: vi.fn(), lrem: vi.fn() }),
@@ -29,13 +28,12 @@ vi.mock('../../api/_lib/data-api', () => ({
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...a: any[]) => verifyTotpMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ createOrder: (...a: any[]) => alpacaCreateOrder(...a) }),
   modeFromQuery: () => 'conservative',
 }));
 
 beforeEach(() => {
   kvGet.mockReset(); kvSet.mockReset(); kvIncr.mockReset(); kvLpush.mockReset(); kvRpush.mockReset();
-  ruleCheckMock.mockReset(); dataMock.mockReset(); verifyTotpMock.mockReset(); alpacaCreateOrder.mockReset();
+  ruleCheckMock.mockReset(); dataMock.mockReset(); verifyTotpMock.mockReset();
   alpacaTradeMutationMock.mockReset();
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
   delete process.env.LIVE_ENABLED;
@@ -226,8 +224,6 @@ describe('POST /api/trades/submit', () => {
         body: expect.objectContaining({ symbol: 'F', side: 'buy', type: 'limit' }),
       }),
     );
-    // The buggy SDK path must NOT be used.
-    expect(alpacaCreateOrder).not.toHaveBeenCalled();
     const json = (res.json as any).mock.calls[0][0];
     expect(json.alpaca_order_id).toBe('alp-live-1');
   });

@@ -16,9 +16,7 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ orders: { get: vi.fn() } }),
-}));
+vi.mock('../../api/_lib/alpaca', () => ({}));
 
 vi.mock('../../api/_lib/grading', () => ({
   gradeTrade: vi.fn(),

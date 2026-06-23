@@ -35,7 +35,6 @@ vi.mock('../../api/_lib/auth-guard', () => ({
 }));
 
 vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: vi.fn(() => ({})),
   modeFromQuery: (...a: unknown[]) => modeFromQueryMock(...a),
   // liveGuard is the real implementation inlined here so the handler's
   // import resolves correctly without pulling in @alpacahq/typescript-sdk.

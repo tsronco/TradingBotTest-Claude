@@ -24,14 +24,7 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaTrade, alpacaTradeMutation, alpacaData,
 }));
 
-const alpacaOrders = vi.fn().mockResolvedValue({ id: 'order-1' });
-vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({
-    orders: { create: alpacaOrders },
-    market_data: {},
-    createOrder: alpacaOrders,
-  }),
-}));
+vi.mock('../../api/_lib/alpaca', () => ({}));
 
 const kvGet = vi.fn();
 const kvSet = vi.fn().mockResolvedValue('OK');
@@ -84,10 +77,6 @@ describe('trades/submit — rule_violations handling', () => {
     runRuleChecks.mockReset(); runRuleChecks.mockResolvedValue([]);
     kvGet.mockReset();
     kvSet.mockClear();
-    alpacaOrders.mockReset(); alpacaOrders.mockResolvedValue({
-      id: 'order-1', status: 'accepted', submitted_at: '2026-05-09T12:00:00Z',
-      filled_at: null, filled_avg_price: null,
-    });
   });
 
   it('persists server-computed warn-only violations to rule_warnings_at_entry', async () => {
@@ -118,9 +107,7 @@ describe('trades/submit — rule_violations handling', () => {
     };
     const res = mkRes();
     await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(alpacaOrders).not.toHaveBeenCalled();
-  });
+    expect(res.status).toHaveBeenCalledWith(400);  });
 
   it('rejects with 400 when override_reason is shorter than 20 chars', async () => {
     runRuleChecks.mockResolvedValueOnce([
@@ -138,9 +125,7 @@ describe('trades/submit — rule_violations handling', () => {
     };
     const res = mkRes();
     await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(alpacaOrders).not.toHaveBeenCalled();
-  });
+    expect(res.status).toHaveBeenCalledWith(400);  });
 
   it('accepts block-severity with valid override_reason and persists it on trade record', async () => {
     runRuleChecks.mockResolvedValueOnce([

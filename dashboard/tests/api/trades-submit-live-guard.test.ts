@@ -14,9 +14,7 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: vi.fn(),
 }));
 
-vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ orders: { create: vi.fn() } }),
-}));
+vi.mock('../../api/_lib/alpaca', () => ({}));
 
 vi.mock('../../api/_lib/rule-check', () => ({
   runRuleChecks: vi.fn().mockResolvedValue([]),

@@ -30,6 +30,20 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-23',
+    category: 'infra',
+    title: 'Removed the dead @alpacahq/typescript-sdk dependency',
+    details:
+      'With the single-leg order path migrated off it earlier today, nothing in the dashboard '
+      + 'still used @alpacahq/typescript-sdk — every Alpaca call now goes through the direct-fetch '
+      + 'helpers in data-api.ts (alpacaData / alpacaTrade / alpacaTradeMutation). The SDK was a known '
+      + 'footgun: it ignores `paper: false` and silently routes live-mode requests to '
+      + 'paper-api.alpaca.markets (the cause of the 40110000 "request is not authorized" live-order '
+      + 'failures). Deleted the unused alpacaFor() factory and its import from api/_lib/alpaca.ts, '
+      + 'dropped the package from package.json, and cleaned the inert SDK stubs out of the test mocks. '
+      + 'Pure dead-code removal — no behavior change on any account. 796 vitest green; tsc clean.',
+  },
+  {
+    date: '2026-06-23',
     category: 'feature',
     title: 'Refresh / drain on /trades now scope to the account you\'re viewing',
     details:

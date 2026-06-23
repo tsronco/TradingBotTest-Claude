@@ -23,7 +23,6 @@ const kvRpush = vi.fn();
 const ruleCheckMock = vi.fn();
 const dataMock = vi.fn();
 const verifyTotpMock = vi.fn();
-const alpacaCreateOrder = vi.fn();
 const alpacaTradeMutationMock = vi.fn();
 const alpacaTradeMock = vi.fn();
 
@@ -53,7 +52,6 @@ vi.mock('../../api/_lib/data-api', () => ({
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...a: any[]) => verifyTotpMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ createOrder: (...a: any[]) => alpacaCreateOrder(...a) }),
   modeFromQuery: () => 'conservative',
 }));
 vi.mock('../../api/_lib/grading', () => ({ gradeTrade: vi.fn() }));
@@ -68,7 +66,6 @@ beforeEach(() => {
   ruleCheckMock.mockReset();
   dataMock.mockReset();
   verifyTotpMock.mockReset();
-  alpacaCreateOrder.mockReset();
   alpacaTradeMutationMock.mockReset();
   alpacaTradeMock.mockReset();
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';

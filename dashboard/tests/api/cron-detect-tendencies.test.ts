@@ -34,9 +34,7 @@ vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: vi.fn(),
 }));
 
-vi.mock('../../api/_lib/alpaca', () => ({
-  alpacaFor: () => ({ orders: { get: vi.fn(), cancel: vi.fn() } }),
-}));
+vi.mock('../../api/_lib/alpaca', () => ({}));
 
 function mkRes() {
   return {
