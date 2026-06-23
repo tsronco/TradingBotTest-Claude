@@ -30,6 +30,19 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-23',
+    category: 'feature',
+    title: 'Trade detail now shows the break-even — readout + a line on the chart',
+    details:
+      'Break-even used to be visible only while placing an order. The trade detail screen '
+      + '(/trade/:id) now shows it after the fact too: a "break-even" readout in the header '
+      + 'and a dashed cyan line on the price chart, so you can see at a glance whether price '
+      + 'is above or below it. It is the fill-based break-even of the position you actually '
+      + 'entered, recomputed from the stored trade with the same payoff engine the order form '
+      + 'uses — so it works retroactively on every trade already in the system, with no data '
+      + 'migration. Shown for stocks, options, and spreads.',
+  },
+  {
+    date: '2026-06-23',
     category: 'fix',
     title: 'Live single-leg orders now actually place (were rejected with 40110000 "request is not authorized")',
     details:
