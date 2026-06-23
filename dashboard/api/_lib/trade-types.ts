@@ -1,6 +1,20 @@
 export type AccountId =
   | 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live'
   | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
+
+// AI hindsight grading is restricted to the accounts where the user hand-picks
+// entry grades — manual + live. The bot accounts (conservative, aggressive, SM)
+// auto-open trades with no meaningful self-grade, so grading them is noise and
+// Sonnet spend. Single source of truth for every grading gate (cron close-loop,
+// needs-grade drain, regrade endpoint) and the client button visibility.
+export const GRADEABLE_ACCOUNTS: ReadonlySet<AccountId> = new Set<AccountId>([
+  'manual_paper', 'live',
+]);
+
+export function isGradeable(account: AccountId): boolean {
+  return GRADEABLE_ACCOUNTS.has(account);
+}
+
 export type AssetClass = 'stock' | 'option' | 'spread';
 export type StockSide = 'buy' | 'sell' | 'sell_short';
 export type OptionSide = 'BTO' | 'STO' | 'BTC' | 'STC';

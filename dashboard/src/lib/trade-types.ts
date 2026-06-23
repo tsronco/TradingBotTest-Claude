@@ -5,4 +5,4 @@ export type {
   SpreadLeg, SpreadDetails, SpreadType,
   Trade, GradeEntry, GradeHindsight, GradeRecord,
 } from '../../api/_lib/trade-types';
-export { GRADE_LETTERS, gradeIndex, calibrationFor } from '../../api/_lib/trade-types';
+export { GRADE_LETTERS, gradeIndex, calibrationFor, GRADEABLE_ACCOUNTS, isGradeable } from '../../api/_lib/trade-types';
