@@ -6,6 +6,7 @@ import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Mode } from '../_lib/alpaca.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
+import { isGradeable } from '../_lib/trade-types.js';
 import {
   enqueueAssignmentPending,
   drainAssignments,
@@ -121,6 +122,8 @@ export async function runGradeOpenTrades(opts: {
   graded: number;
   synced: number;
   remaining_open: number;
+  ai_graded: number;
+  grade_queue_remaining: number;
   assignments_spawned: number;
   assignments_skipped: number;
   auto_imported: Record<string, number | string>;
@@ -293,14 +296,15 @@ export async function runGradeOpenTrades(opts: {
     // Skip AI grading for canceled trades — entry never filled, nothing to grade.
     if (closeInfo.closed_by === 'canceled') continue;
 
-    // The close itself is already persisted above. AI grading is the only
-    // expensive step, so it's budgeted: grade inline while budget remains,
-    // otherwise queue for a later tick (the trade still shows closed with P&L
-    // immediately — only the hindsight letter is deferred).
-    if (aiGrades < gradeBudget && !outOfTime()) {
-      if (await gradeClosedTrade(closedTrade)) aiGrades += 1;
-    } else {
-      await enqueueNeedsGrade(closedTrade.id);
+    // AI grading is restricted to gradeable accounts (manual + live). A bot-account
+    // trade closes normally with full P&L recorded above, but never gets an AI
+    // hindsight grade and never enters the needs-grade queue.
+    if (isGradeable(closedTrade.account)) {
+      if (aiGrades < gradeBudget && !outOfTime()) {
+        if (await gradeClosedTrade(closedTrade)) aiGrades += 1;
+      } else {
+        await enqueueNeedsGrade(closedTrade.id);
+      }
     }
   }
 
@@ -315,7 +319,7 @@ export async function runGradeOpenTrades(opts: {
   // the queue (older closes first) with whatever grade + wall-clock budget is
   // left this tick; overflow stays queued for the next tick.
   if (!outOfTime()) {
-    aiGrades += await drainNeedsGrade(Math.max(0, gradeBudget - aiGrades), outOfTime);
+    aiGrades += await drainNeedsGrade(Math.max(0, gradeBudget - aiGrades), outOfTime, accountFilter);
   }
 
   // Assignment spawns + auto-import are deferrable. If we've already spent the
@@ -331,10 +335,15 @@ export async function runGradeOpenTrades(opts: {
   // doesn't block grading or the other imports. See runAutoImport() below.
   const importResult = outOfTime() ? {} : await runAutoImport();
 
+  const grade_queue_remaining =
+    ((await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? []).length;
+
   return {
     graded,
     synced,
     remaining_open: remaining,
+    ai_graded: aiGrades,
+    grade_queue_remaining,
     assignments_spawned: drainResult.spawned,
     assignments_skipped: drainResult.skipped,
     auto_imported: importResult,
@@ -379,8 +388,16 @@ async function enqueueNeedsGrade(id: string): Promise<void> {
  * Grade up to `budget` queued closed-but-ungraded trades. Returns how many AI
  * grades were performed (so the caller can subtract from its per-tick budget).
  * Entries whose trade/grade record is gone are dropped from the queue.
+ *
+ * When `account` is set (the "grade backlog" button), only grades trades for
+ * that account; other gradeable accounts' trades stay queued for their own run.
+ * Non-gradeable accounts (conservative, aggressive, SM) are always dropped.
  */
-async function drainNeedsGrade(budget: number, isOutOfTime?: () => boolean): Promise<number> {
+async function drainNeedsGrade(
+  budget: number,
+  isOutOfTime?: () => boolean,
+  account?: string,
+): Promise<number> {
   if (budget <= 0) return 0;
   const q = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
   if (q.length === 0) return 0;
@@ -393,6 +410,12 @@ async function drainNeedsGrade(budget: number, isOutOfTime?: () => boolean): Pro
     if (used >= budget || (isOutOfTime?.() ?? false)) { remainingQueue.push(id); continue; }
     const t = await kv().get<Trade>(tradeKey(id));
     if (!t || !t.closed_at) continue; // gone or no longer closed — drop silently
+    // Grading is restricted to manual + live. Anything else in the queue (a bot
+    // account queued before this policy) is dropped, never graded.
+    if (!isGradeable(t.account)) continue;
+    // Scoped drain (the "grade backlog" button): grade only the selected account
+    // this pass; keep other gradeable accounts queued for their own run.
+    if (account && t.account !== account) { remainingQueue.push(id); continue; }
     // Already graded (e.g. the user hit "grade now")? Drop without re-grading.
     const g = await kv().get<GradeRecord>(gradeKey(id));
     if (g?.hindsight) continue;
