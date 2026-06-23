@@ -5,6 +5,7 @@ import type { UTCTimestamp } from 'lightweight-charts';
 import { api } from '../../lib/api';
 import type { Trade } from '../../lib/trade-types';
 import { accountToMode, type Mode } from '../../lib/account-utils';
+import { tradeBreakevens } from '../../lib/trade-breakeven';
 
 interface Bar { t: string; o: number; h: number; l: number; c: number; }
 
@@ -114,6 +115,20 @@ export function TradeChart({ trade }: { trade: Trade }) {
         lineStyle: 2,
         axisLabelVisible: true,
         title: `long $${trade.spread.long_leg.strike.toFixed(2)}`,
+      });
+    }
+
+    // Break-even — recomputed from the trade's entry data (same engine the
+    // order form uses). Drawn for every asset class as a dashed cyan line so
+    // it's obvious whether price sits above or below it.
+    for (const be of tradeBreakevens(trade)) {
+      series.createPriceLine({
+        price: be,
+        color: '#5ad1e6',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: `BE $${be.toFixed(2)}`,
       });
     }
 
