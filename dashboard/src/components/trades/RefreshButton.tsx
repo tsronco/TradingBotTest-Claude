@@ -13,7 +13,7 @@ interface RefreshResult {
 
 const COOLDOWN_SECONDS = 15;
 
-export default function RefreshButton() {
+export default function RefreshButton({ account }: { account?: string }) {
   const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState(0);
@@ -33,7 +33,11 @@ export default function RefreshButton() {
     setLoading(true);
     setError(null);
     try {
-      const path = drain ? '/api/trades/refresh?mode=drain' : '/api/trades/refresh';
+      const params = new URLSearchParams();
+      if (drain) params.set('mode', 'drain');
+      if (account) params.set('account', account);
+      const qs = params.toString();
+      const path = `/api/trades/refresh${qs ? `?${qs}` : ''}`;
       const data = await api<RefreshResult>(path, { method: 'POST' });
       setLastResult(data);
       setCooldownLeft(COOLDOWN_SECONDS);
@@ -45,7 +49,7 @@ export default function RefreshButton() {
     } finally {
       setLoading(false);
     }
-  }, [loading, cooldownLeft, qc]);
+  }, [loading, cooldownLeft, qc, account]);
 
   const disabled = loading || cooldownLeft > 0;
   const btnClass = (d: boolean) =>
@@ -94,13 +98,19 @@ export default function RefreshButton() {
         <span className="text-red text-[10px]">error: {error}</span>
       )}
       {!error && lastResult && (
-        <ResultSummary result={lastResult} />
+        <ResultSummary result={lastResult} account={account} />
       )}
     </div>
   );
 }
 
-function ResultSummary({ result }: { result: RefreshResult }) {
+// 'manual_paper' → 'manual', 'sm500_paper' → 'sm500', 'live' → 'live'.
+function accountLabel(account: string): string {
+  return account === 'live' ? 'live' : account.replace(/_paper$/, '');
+}
+
+function ResultSummary({ result, account }: { result: RefreshResult; account?: string }) {
+  const scope = account ? ` · ${accountLabel(account)}` : '';
   const parts: string[] = [];
   if (result.synced > 0) parts.push(`${result.synced} synced`);
   if (result.graded > 0) parts.push(`${result.graded} closed`);
@@ -109,14 +119,14 @@ function ResultSummary({ result }: { result: RefreshResult }) {
   if (parts.length === 0) {
     return (
       <span className="text-dim text-[10px]">
-        nothing to update · {result.remaining_open} open
+        nothing to update · {result.remaining_open} open{scope}
       </span>
     );
   }
 
   return (
     <span className="text-mid text-[10px]">
-      {parts.join(' · ')} · {result.remaining_open} still open
+      {parts.join(' · ')} · {result.remaining_open} still open{scope}
     </span>
   );
 }

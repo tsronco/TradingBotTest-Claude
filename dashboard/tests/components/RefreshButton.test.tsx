@@ -21,6 +21,15 @@ function renderWith() {
   );
 }
 
+function renderBtn(account?: string) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <RefreshButton account={account} />
+    </QueryClientProvider>,
+  );
+}
+
 describe('RefreshButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -123,5 +132,37 @@ describe('RefreshButton', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /refresh/i })); // ignored
     expect(api).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('RefreshButton account scope', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (api as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true, graded: 0, synced: 0, remaining_open: 2,
+      assignments_spawned: 0, assignments_skipped: 0,
+    });
+  });
+
+  it('sends ?account when an account is selected and labels the count', async () => {
+    renderBtn('manual_paper');
+    fireEvent.click(screen.getByText('[↻ refresh]'));
+    await waitFor(() => expect(api).toHaveBeenCalled());
+    expect(api).toHaveBeenCalledWith('/api/trades/refresh?account=manual_paper', { method: 'POST' });
+    await waitFor(() => expect(screen.getByText(/· manual/)).toBeTruthy());
+  });
+
+  it('omits ?account when no account is selected (global)', async () => {
+    renderBtn(undefined);
+    fireEvent.click(screen.getByText('[↻ refresh]'));
+    await waitFor(() => expect(api).toHaveBeenCalled());
+    expect(api).toHaveBeenCalledWith('/api/trades/refresh', { method: 'POST' });
+  });
+
+  it('scopes the drain button too', async () => {
+    renderBtn('sm500_paper');
+    fireEvent.click(screen.getByText('[drain backlog]'));
+    await waitFor(() => expect(api).toHaveBeenCalled());
+    expect(api).toHaveBeenCalledWith('/api/trades/refresh?mode=drain&account=sm500_paper', { method: 'POST' });
   });
 });

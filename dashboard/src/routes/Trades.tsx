@@ -70,7 +70,7 @@ export default function Trades() {
       </div>
       <div className="mt-2 flex items-end justify-between flex-wrap gap-3">
         <h1 className="text-[28px] md:text-[44px] font-bold tracking-tight text-hi">Trades</h1>
-        <RefreshButton />
+        <RefreshButton account={filters.account} />
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3">
