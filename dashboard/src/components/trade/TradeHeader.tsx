@@ -1,5 +1,6 @@
 import { fmtUsd, fmtPct } from '../../lib/format';
 import type { Trade } from '../../lib/trade-types';
+import { tradeBreakevens } from '../../lib/trade-breakeven';
 
 export function TradeHeader({ trade }: { trade: Trade }) {
   const closed = !!trade.closed_at;
@@ -14,12 +15,18 @@ export function TradeHeader({ trade }: { trade: Trade }) {
     : canceled ? `canceled ${trade.closed_at?.slice(0, 10)}`
     : `closed ${trade.closed_at?.slice(0, 10)}`;
 
+  const bes = tradeBreakevens(trade);
+  const beText = bes.length ? bes.map((b) => fmtUsd(b)).join(' / ') : '—';
+
   return (
     <div className="flex justify-between items-end pb-3 border-b border-dashed border-border">
       <div>
         <h1 className="text-[18px] font-bold text-hi">Trade {trade.id}</h1>
         <div className="text-mid text-[10px]">
           // {trade.side.toUpperCase()} {trade.qty} {trade.symbol} · {trade.account} · {statusText}
+        </div>
+        <div className="text-mid text-[10px]">
+          break-even <span className="text-fg">{beText}</span>
         </div>
       </div>
       {closed && (
