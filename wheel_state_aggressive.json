@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "last_checked": "2026-06-23T14:49:40.372366Z",
+    "last_checked": "2026-06-23T15:00:13.390001Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
     "stage": 2,
-    "current_contract": "COIN260626C00205000",
+    "current_contract": null,
     "contract_order_id": "fe508f0c-4c86-4a8e-902f-befed0acfba8",
-    "contract_entry_price": 0.17,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-18T18:09:46.988139Z",
     "contract_expiration": "2026-06-26",
     "contract_type": "call",
@@ -15,8 +15,8 @@
     "cost_basis_per_share": 194.3,
     "shares_qty": 100,
     "total_cost": 19430.0,
-    "total_premium_collected": 645.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 656.0,
+    "total_premium_today": 11.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring COIN260626C00205000: $0.08 vs entry $0.17",
+    "last_action": "Closed early: +$11.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "MARA": {
