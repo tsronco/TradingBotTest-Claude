@@ -18,7 +18,6 @@ import {
   idemKey, IDEM_INDEX_TTL_SECONDS,
   readMonthIndex, appendMonthIndex,
 } from '../_lib/kv-keys.js';
-import { alpacaFor } from '../_lib/alpaca.js';
 import { resolveCostBasisForCc } from '../_lib/cost-basis.js';
 import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
@@ -860,8 +859,12 @@ async function submit(req: VercelRequest, res: VercelResponse) {
   // for cross-request dedup via the KV index above.
   const clientOrderId = (draft.idempotency_key?.trim() ?? '') || `dash-${id}`;
 
-  // Alpaca submit (paper for now)
-  const client = alpacaFor(modeFromAccount(draft.account) as any);
+  // Place the order via the direct trading-API helper, NOT the SDK. The
+  // @alpacahq/typescript-sdk@0.0.32-preview ignores `paper: false` and routes
+  // every trading request to paper-api.alpaca.markets — so a live order sent
+  // through it carries live keys to the paper host, and Alpaca rejects it with
+  // 40110000 "request is not authorized". alpacaTradeMutation honors
+  // tradingBase(mode) → api.alpaca.markets for live. Mirrors submitSpread().
   // Map our STO/STC/BTO/BTC option side semantics to Alpaca's required
   // position_intent field. Without this, Alpaca rejects short-option opens
   // because it can't tell if `side: sell` means "open a short" or "close a
@@ -897,7 +900,11 @@ async function submit(req: VercelRequest, res: VercelResponse) {
       };
   let alpacaOrder: any;
   try {
-    alpacaOrder = await client.createOrder(orderPayload);
+    alpacaOrder = await alpacaTradeMutation<any>(
+      modeFromAccount(draft.account) as any,
+      '/v2/orders',
+      { method: 'POST', body: orderPayload },
+    );
   } catch (err) {
     // D2 — duplicate client_order_id: a prior attempt already created this
     // order (the HTTP response was lost before the client received it). Look

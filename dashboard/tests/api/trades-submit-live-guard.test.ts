@@ -63,7 +63,10 @@ describe('trades/submit — live account guard', () => {
 
   beforeEach(() => {
     delete process.env.LIVE_ENABLED;
-    alpacaTradeMutation.mockClear();
+    alpacaTradeMutation.mockReset();
+    // Placement (POST /v2/orders) goes through alpacaTradeMutation now — give it
+    // a resolved order so the paper-account path can complete past placement.
+    alpacaTradeMutation.mockResolvedValue({ id: 'order-paper-1', submitted_at: '2026-06-23T13:00:00Z' });
   });
 
   afterEach(() => {

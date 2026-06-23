@@ -38,6 +38,7 @@ beforeEach(() => {
   ruleCheckMock.mockReset(); dataMock.mockReset(); verifyTotpMock.mockReset(); alpacaCreateOrder.mockReset();
   alpacaTradeMutationMock.mockReset();
   process.env.TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+  delete process.env.LIVE_ENABLED;
 });
 
 function mockReq(body?: any): VercelRequest {
@@ -91,7 +92,7 @@ describe('POST /api/trades/submit', () => {
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 }, greeks: { delta: -0.30, gamma: 0.04, theta: -0.05, vega: 0.10, implied_volatility: 0.65 } } } });
     kvIncr.mockResolvedValue(1);
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-opt-1', submitted_at: '2026-05-06T14:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-opt-1', submitted_at: '2026-05-06T14:00:00Z' });
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
@@ -101,8 +102,13 @@ describe('POST /api/trades/submit', () => {
       side: 'STO', qty: 1, order_type: 'limit', limit_price: 1.50,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'wheel csp 10% otm', tags: [],
     }), res);
-    expect(alpacaCreateOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ side: 'sell', position_intent: 'sell_to_open' }),
+    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      '/v2/orders',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ side: 'sell', position_intent: 'sell_to_open' }),
+      }),
     );
   });
 
@@ -114,7 +120,7 @@ describe('POST /api/trades/submit', () => {
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'TSLA260605C00400000': { latestQuote: { ap: 2.05, bp: 2.00 } } } });
     kvIncr.mockResolvedValue(2);
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-opt-2', submitted_at: '2026-05-06T14:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-opt-2', submitted_at: '2026-05-06T14:00:00Z' });
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
@@ -124,8 +130,13 @@ describe('POST /api/trades/submit', () => {
       side: 'BTO', qty: 1, order_type: 'limit', limit_price: 2.00,
       tif: 'day', entry_grade: 'B', entry_reasoning: 'long call directional', tags: [],
     }), res);
-    expect(alpacaCreateOrder).toHaveBeenCalledWith(
-      expect.objectContaining({ side: 'buy', position_intent: 'buy_to_open' }),
+    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      '/v2/orders',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ side: 'buy', position_intent: 'buy_to_open' }),
+      }),
     );
   });
 
@@ -136,7 +147,7 @@ describe('POST /api/trades/submit', () => {
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 } } } });
-    alpacaCreateOrder.mockRejectedValue(new Error('alpaca trade 422: insufficient_buying_power'));
+    alpacaTradeMutationMock.mockRejectedValue(new Error('alpaca trade 422: insufficient_buying_power'));
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
@@ -159,7 +170,7 @@ describe('POST /api/trades/submit', () => {
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
     kvIncr.mockResolvedValue(1);
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-abc-123', submitted_at: '2026-05-04T13:30:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-abc-123', submitted_at: '2026-05-04T13:30:00Z' });
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
@@ -168,13 +179,57 @@ describe('POST /api/trades/submit', () => {
       side: 'buy', qty: 10, order_type: 'limit', limit_price: 321.40,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'breakout', tags: ['breakout'],
     }), res);
-    expect(alpacaCreateOrder).toHaveBeenCalled();
+    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
+      'conservative',
+      '/v2/orders',
+      expect.objectContaining({ method: 'POST' }),
+    );
     const json = (res.json as any).mock.calls[0][0];
     expect(json.id).toMatch(/^T-\d{4}-\d{2}-\d{2}-\d{3}$/);
     expect(json.alpaca_order_id).toBe('alp-abc-123');
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^trade:T-/), expect.any(Object));
     expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^grade:T-/), expect.any(Object));
     expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
+  });
+
+  // --- LIVE single-leg placement must NOT use the SDK ---
+  // The @alpacahq/typescript-sdk preview ignores paper:false and routes every
+  // trading request to paper-api.alpaca.markets. A live order sent through it
+  // carries live keys to the paper host → 40110000 "request is not authorized".
+  // Single-leg placement must go through alpacaTradeMutation (POST /v2/orders),
+  // which honors tradingBase(mode) → api.alpaca.markets for live. Mirrors the
+  // spread path. Reproduces the real failed "BUY 1 F @ 13.30 on live" order.
+  it('places a LIVE single-leg order via alpacaTradeMutation, never the SDK', async () => {
+    process.env.LIVE_ENABLED = 'true';
+    kvGet.mockImplementation((k: string) =>
+      k === 'config:totp_thresholds'
+        ? Promise.resolve({ live: 100000 })
+        : Promise.resolve(null));
+    ruleCheckMock.mockResolvedValue([]);
+    dataMock.mockResolvedValue({ F: { latestQuote: { ap: 14.62, bp: 14.60 } } });
+    kvIncr.mockResolvedValue(1);
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-live-1', submitted_at: '2026-06-23T14:00:00Z' });
+    kvSet.mockResolvedValue('OK');
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({
+      account: 'live', asset_class: 'stock', symbol: 'F',
+      side: 'buy', qty: 1, order_type: 'limit', limit_price: 13.30,
+      tif: 'day', entry_grade: 'B', entry_reasoning: 'live account smoke test — 1 share', tags: [],
+    }), res);
+    // Placement goes through the direct trading-API helper, routed to live.
+    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
+      'live',
+      '/v2/orders',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ symbol: 'F', side: 'buy', type: 'limit' }),
+      }),
+    );
+    // The buggy SDK path must NOT be used.
+    expect(alpacaCreateOrder).not.toHaveBeenCalled();
+    const json = (res.json as any).mock.calls[0][0];
+    expect(json.alpaca_order_id).toBe('alp-live-1');
   });
 
   it('submits a spread payload, builds mleg order, writes trade record', async () => {
@@ -301,7 +356,7 @@ describe('POST /api/trades/submit', () => {
     dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
     verifyTotpMock.mockReturnValue(true);
     kvIncr.mockResolvedValue(1);
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-sm-stk-1', submitted_at: '2026-05-16T14:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-sm-stk-1', submitted_at: '2026-05-16T14:00:00Z' });
     kvSet.mockResolvedValue('OK');
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
@@ -315,5 +370,11 @@ describe('POST /api/trades/submit', () => {
     const quoteModes = dataMock.mock.calls.map((c: any[]) => c[0]);
     expect(quoteModes).toContain(expectedMode);
     expect(quoteModes).not.toContain('conservative');
+    // Placement routes to the SM mode too — never conservative.
+    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
+      expectedMode,
+      '/v2/orders',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 });

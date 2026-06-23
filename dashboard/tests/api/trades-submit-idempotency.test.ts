@@ -153,7 +153,7 @@ describe('D2 — KV idempotency index (cross-request dedup)', () => {
     const IDEM_KEY = 'cross-request-stock-key-abc';
 
     // --- First request: kv set with nx wins ('OK'), Alpaca succeeds ----------
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-first-order', submitted_at: '2026-06-17T13:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-first-order', submitted_at: '2026-06-17T13:00:00Z' });
 
     // Override kvSet: the nx claim for the idem key succeeds on first request ('OK'),
     // all other sets return 'OK' normally.
@@ -173,8 +173,8 @@ describe('D2 — KV idempotency index (cross-request dedup)', () => {
     const firstTradeId = firstJson.id ?? firstJson.trade_id;
     expect(firstTradeId).toMatch(/^T-\d{4}-\d{2}-\d{2}-\d{3}$/);
 
-    // Capture how many times createOrder was called after the first request
-    const callsAfterFirst = alpacaCreateOrder.mock.calls.length;
+    // Capture how many times order placement was called after the first request
+    const callsAfterFirst = alpacaTradeMutationMock.mock.calls.length;
     expect(callsAfterFirst).toBe(1);
 
     // --- Second request: kv get returns the stored trade id (index hit) ------
@@ -222,8 +222,8 @@ describe('D2 — KV idempotency index (cross-request dedup)', () => {
     expect(res2.status).not.toHaveBeenCalledWith(502);
     expect(res2.status).not.toHaveBeenCalledWith(500);
 
-    // Alpaca createOrder must NOT have been called again
-    expect(alpacaCreateOrder.mock.calls.length).toBe(callsAfterFirst);
+    // Alpaca order placement must NOT have been called again
+    expect(alpacaTradeMutationMock.mock.calls.length).toBe(callsAfterFirst);
 
     // Must return the SAME trade id
     const secondJson = (res2.json as any).mock.calls[0][0];
@@ -302,7 +302,7 @@ describe('D2 — KV idempotency index (cross-request dedup)', () => {
 
 describe('D2 — idempotency key on order submit', () => {
   it('stamps the provided idempotency_key as Alpaca client_order_id on stock submit', async () => {
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-abc-1', submitted_at: '2026-06-17T13:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-abc-1', submitted_at: '2026-06-17T13:00:00Z' });
 
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
@@ -313,9 +313,10 @@ describe('D2 — idempotency key on order submit', () => {
 
     expect(res.status).not.toHaveBeenCalledWith(400);
     expect(res.status).not.toHaveBeenCalledWith(502);
-    expect(alpacaCreateOrder).toHaveBeenCalledOnce();
-    const payload = alpacaCreateOrder.mock.calls[0][0];
-    expect(payload.client_order_id).toBe('dash-idem-key-abc123');
+    expect(alpacaTradeMutationMock).toHaveBeenCalledOnce();
+    const [, path, opts] = alpacaTradeMutationMock.mock.calls[0];
+    expect(path).toBe('/v2/orders');
+    expect(opts.body.client_order_id).toBe('dash-idem-key-abc123');
   });
 
   it('stamps the idempotency_key as client_order_id on the mleg body for spread submit', async () => {
@@ -336,18 +337,18 @@ describe('D2 — idempotency key on order submit', () => {
   });
 
   it('generates a deterministic fallback client_order_id when none is provided (stock)', async () => {
-    alpacaCreateOrder.mockResolvedValue({ id: 'alp-fallback-1', submitted_at: '2026-06-17T13:00:00Z' });
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-fallback-1', submitted_at: '2026-06-17T13:00:00Z' });
 
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     // Send draft WITHOUT idempotency_key
     await handler(mockReq({ ...STOCK_DRAFT }), res);
 
-    expect(alpacaCreateOrder).toHaveBeenCalledOnce();
-    const payload = alpacaCreateOrder.mock.calls[0][0];
+    expect(alpacaTradeMutationMock).toHaveBeenCalledOnce();
+    const [, , opts] = alpacaTradeMutationMock.mock.calls[0];
     // Must be present and non-empty even without a client-supplied key
-    expect(typeof payload.client_order_id).toBe('string');
-    expect(payload.client_order_id.length).toBeGreaterThan(0);
+    expect(typeof opts.body.client_order_id).toBe('string');
+    expect(opts.body.client_order_id.length).toBeGreaterThan(0);
   });
 
   it('generates a deterministic fallback client_order_id when none is provided (spread)', async () => {
@@ -370,7 +371,7 @@ describe('D2 — idempotency key on order submit', () => {
     const duplicateError = new Error(
       'alpaca trade 422 on /v2/orders: {"code":40010001,"message":"client_order_id must be unique"}',
     );
-    alpacaCreateOrder.mockRejectedValueOnce(duplicateError);
+    alpacaTradeMutationMock.mockRejectedValueOnce(duplicateError);
 
     // The handler should then call alpacaTrade (GET /v2/orders:by_client_order_id)
     // to resolve the existing order. Return a plausible existing order.

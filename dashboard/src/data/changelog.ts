@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-23',
+    category: 'fix',
+    title: 'Live single-leg orders now actually place (were rejected with 40110000 "request is not authorized")',
+    details:
+      'Placing a stock or option order on the live (real-money) account from the dashboard failed every '
+      + 'time with Alpaca error 40110000 "request is not authorized" — nothing was ever placed on live or '
+      + 'paper. Root cause: the single-leg submit path was the one order route still going through '
+      + '@alpacahq/typescript-sdk, which ignores `paper: false` and sends every trading request to '
+      + 'paper-api.alpaca.markets. So a live order carried the live API keys to the PAPER host, and the '
+      + 'paper host rejected them. (Spreads, modify, and cancel were migrated off the SDK on 2026-05-13; '
+      + 'single-leg placement was missed — it still had the old "paper for now" SDK call.)\n\n'
+      + 'Fix: single-leg placement now goes through alpacaTradeMutation(POST /v2/orders), the same '
+      + 'direct-fetch helper the spread path already uses, which honors the live host (api.alpaca.markets). '
+      + 'Paper accounts are byte-unchanged. Verified the live keys authenticate and the account is ACTIVE '
+      + 'before shipping. 762 vitest green; tsc clean.',
+  },
+  {
     date: '2026-06-22',
     category: 'fix',
     title: 'Grade-open cron no longer 504s — fills/closes sync before grading, on a time budget',
