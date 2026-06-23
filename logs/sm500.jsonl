@@ -5926,3 +5926,9 @@
 {"timestamp": "2026-06-23T15:46:52.733439+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 12, "equity": 500.0}}
 {"timestamp": "2026-06-23T15:46:52.734734+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-06-23T15:46:53.464649+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-23T15:55:53.237204+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-23T15:56:32.074173+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PINS", "details": {"price": 19.87}}
+{"timestamp": "2026-06-23T15:56:37.311637+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PBR", "details": {"price": 16.995}}
+{"timestamp": "2026-06-23T15:56:37.311819+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 12, "equity": 500.0}}
+{"timestamp": "2026-06-23T15:56:37.313397+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-23T15:56:38.009389+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
