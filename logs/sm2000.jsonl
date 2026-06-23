@@ -7095,3 +7095,12 @@
 {"timestamp": "2026-06-23T15:17:10.931479+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 52, "equity": 2000.0}}
 {"timestamp": "2026-06-23T15:17:10.932873+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-23T15:17:11.365050+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-23T15:26:44.207638+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-23T15:26:58.304756+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "SOFI", "details": {"net_credit": -0.17, "min_net_credit": 0.05, "short_mid": 0.34, "long_mid": 0.51}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-23T15:26:58.891177+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "QCOM", "details": {"price": 199.85}}
+{"timestamp": "2026-06-23T15:27:02.326491+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 118.38}}
+{"timestamp": "2026-06-23T15:27:04.782701+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 200.785}}
+{"timestamp": "2026-06-23T15:27:05.672042+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "F", "details": {"price": 13.965}}
+{"timestamp": "2026-06-23T15:27:05.672233+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 52, "equity": 2000.0}}
+{"timestamp": "2026-06-23T15:27:05.673509+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-23T15:27:06.136242+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
