@@ -105,4 +105,51 @@ describe('tradeBreakevens', () => {
     }));
     expect(be).toEqual([]);
   });
+
+  it('put-debit spread → long strike − net debit', () => {
+    const be = tradeBreakevens(mkTrade({
+      asset_class: 'spread', qty: 1,
+      spread: {
+        spread_type: 'put_debit',
+        short_leg: { occ: 'A', strike: 95, entry_premium: 0.5, fill_price: 0.5, qty: 1 },
+        long_leg: { occ: 'B', strike: 100, entry_premium: 2.0, fill_price: 2.0, qty: 1 },
+        expiration: '2026-07-17', width: 5, net_credit: 0, net_debit: 1.5, max_loss: 1.5, max_profit: 3.5,
+      },
+    }));
+    expect(be[0]).toBeCloseTo(98.5, 2);
+  });
+
+  it('call-debit spread → long strike + net debit', () => {
+    const be = tradeBreakevens(mkTrade({
+      asset_class: 'spread', qty: 1,
+      spread: {
+        spread_type: 'call_debit',
+        short_leg: { occ: 'A', strike: 105, entry_premium: 1.5, fill_price: 1.5, qty: 1 },
+        long_leg: { occ: 'B', strike: 100, entry_premium: 3.0, fill_price: 3.0, qty: 1 },
+        expiration: '2026-07-17', width: 5, net_credit: 0, net_debit: 1.5, max_loss: 1.5, max_profit: 3.5,
+      },
+    }));
+    expect(be[0]).toBeCloseTo(101.5, 2);
+  });
+
+  it('spread with no leg prices at all falls back to the stored net credit', () => {
+    const be = tradeBreakevens(mkTrade({
+      asset_class: 'spread', qty: 1,
+      spread: {
+        spread_type: 'put_credit',
+        short_leg: { occ: 'A', strike: 12.5, entry_premium: null, fill_price: null, qty: 1 },
+        long_leg: { occ: 'B', strike: 11.5, entry_premium: null, fill_price: null, qty: 1 },
+        expiration: '2026-07-17', width: 1, net_credit: 0.25, max_loss: 0.75, max_profit: 0.25,
+      },
+    }));
+    expect(be[0]).toBeCloseTo(12.25, 2);
+  });
+
+  it('short call (covered call) → strike + premium', () => {
+    const be = tradeBreakevens(mkTrade({
+      asset_class: 'option', side: 'STO', contract_type: 'call', strike: 100,
+      qty: 1, filled_avg_price: 2.0,
+    }));
+    expect(be[0]).toBeCloseTo(102, 2);
+  });
 });
