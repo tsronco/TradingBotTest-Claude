@@ -103,6 +103,32 @@ describe('POST /api/trades/refresh', () => {
     }));
   });
 
+  it('forwards ?account to runGradeOpenTrades (non-drain scoped refresh)', async () => {
+    runGradeOpenTradesMock.mockResolvedValueOnce({
+      graded: 0, synced: 1, remaining_open: 2, assignments_spawned: 0, assignments_skipped: 0,
+    });
+    const mod = await import('../../api/trades/[action]');
+    const res = mockRes() as VercelResponse;
+    await mod.default(mockReq({ account: 'manual_paper' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(runGradeOpenTradesMock).toHaveBeenCalledWith({ account: 'manual_paper' });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, remaining_open: 2 }));
+  });
+
+  it('combines mode=drain with ?account', async () => {
+    runGradeOpenTradesMock.mockResolvedValueOnce({
+      graded: 3, synced: 0, remaining_open: 0, assignments_spawned: 0, assignments_skipped: 0,
+    });
+    const mod = await import('../../api/trades/[action]');
+    const res = mockRes() as VercelResponse;
+    await mod.default(mockReq({ mode: 'drain', account: 'sm500_paper' }), res);
+
+    expect(runGradeOpenTradesMock).toHaveBeenCalledWith(expect.objectContaining({
+      sweepBudget: Number.MAX_SAFE_INTEGER, gradeBudget: 0, timeBudgetMs: 45_000, account: 'sm500_paper',
+    }));
+  });
+
   it('returns 500 with refresh_failed when runGradeOpenTrades throws', async () => {
     runGradeOpenTradesMock.mockRejectedValueOnce(new Error('alpaca down'));
     const mod = await import('../../api/trades/[action]');

@@ -204,13 +204,18 @@ async function refresh(req: VercelRequest, res: VercelResponse) {
   // (gradeBudget 0) so closes land fast; the cron fills in hindsight grades
   // on later ticks. A follow-up drain click resumes from the rotating cursor.
   const drain = String((req.query?.mode ?? '')) === 'drain';
+  // Optional account scope: a /trades refresh of a single account passes the
+  // page's selected account so the sweep + the "N still open" count cover only
+  // that account. Absent (the [any] filter, or the scheduled cron) → global.
+  const account = req.query?.account ? String(req.query.account) : undefined;
+  const opts: { sweepBudget?: number; gradeBudget?: number; timeBudgetMs?: number; account?: string } = {};
+  if (drain) { opts.sweepBudget = Number.MAX_SAFE_INTEGER; opts.gradeBudget = 0; opts.timeBudgetMs = 45_000; }
+  if (account) opts.account = account;
   try {
-    const result = drain
-      ? await runGradeOpenTrades({
-          sweepBudget: Number.MAX_SAFE_INTEGER,
-          gradeBudget: 0,
-          timeBudgetMs: 45_000,
-        })
+    // Preserve the no-arg call when neither drain nor account is set so the
+    // scheduled-cron call path stays byte-identical.
+    const result = Object.keys(opts).length
+      ? await runGradeOpenTrades(opts)
       : await runGradeOpenTrades();
     return res.status(200).json({ ok: true, drain, ...result });
   } catch (e) {
