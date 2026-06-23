@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { isGradeable } from '../../lib/trade-types';
 import type { Trade, GradeRecord, Calibration } from '../../lib/trade-types';
 
 const CAL_COLORS: Record<Calibration, string> = {
@@ -34,6 +35,7 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
   const h = grade.hindsight;
   const calLabel = h?.calibration ? CAL_LABELS[h.calibration] : null;
   const calColor = h?.calibration ? CAL_COLORS[h.calibration] : 'text-mid';
+  const canGrade = isGradeable(trade.account as any);
 
   return (
     <article className="relative border border-border bg-panel/60 rounded-sm" style={{ overflow: 'visible' }}>
@@ -62,7 +64,7 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
                 </div>
               )}
             </>
-          ) : (
+          ) : canGrade ? (
             <div className="mt-2">
               <div className="text-mid text-[10px] pulse">// ungraded — cron picks up closed trades within 5 min</div>
               <button
@@ -72,16 +74,22 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
                 disabled={regrading}
               >[{regrading ? 'grading…' : 'grade now*'}]</button>
             </div>
+          ) : (
+            <div className="mt-2">
+              <div className="text-dim text-[10px]">// grading is off for bot accounts</div>
+            </div>
           )}
         </div>
       </div>
       <div className="px-4 py-2 border-t border-dashed border-border flex justify-between items-center">
         <span className={`text-[10px] ${calColor}`}>calibration: {calLabel ?? '—'}</span>
-        <button
-          type="button" className="pbtn active"
-          onClick={() => regrade.mutate()}
-          disabled={regrading}
-        >[{regrading ? 'regrading…' : 're-grade*'}]</button>
+        {canGrade && (
+          <button
+            type="button" className="pbtn active"
+            onClick={() => regrade.mutate()}
+            disabled={regrading}
+          >[{regrading ? 'regrading…' : 're-grade*'}]</button>
+        )}
       </div>
       {error && <div className="px-4 pb-2 text-red text-[10px]">{error}</div>}
     </article>

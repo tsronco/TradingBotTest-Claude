@@ -159,10 +159,41 @@ describe('RefreshButton account scope', () => {
     expect(api).toHaveBeenCalledWith('/api/trades/refresh', { method: 'POST' });
   });
 
-  it('scopes the drain button too', async () => {
-    renderBtn('sm500_paper');
-    fireEvent.click(screen.getByText('[drain backlog]'));
-    await waitFor(() => expect(api).toHaveBeenCalled());
-    expect(api).toHaveBeenCalledWith('/api/trades/refresh?mode=drain&account=sm500_paper', { method: 'POST' });
+  // Note: drain button is now only visible when no account is selected ([any]).
+  // The old 'scopes the drain button too' test (account=sm500_paper) is
+  // intentionally removed — drain no longer renders on a specific account.
+});
+
+const apiMock = api as ReturnType<typeof vi.fn>;
+
+describe('RefreshButton visibility + grade backlog', () => {
+  it('shows grade backlog on manual; clicking it posts ?mode=grade', async () => {
+    apiMock.mockResolvedValue({ ok: true, synced: 0, graded: 0, remaining_open: 0, ai_graded: 2, grade_queue_remaining: 1, assignments_spawned: 0, assignments_skipped: 0 });
+    renderBtn('manual_paper');
+    const gradeBtn = screen.getByText('[grade backlog]');
+    fireEvent.click(gradeBtn);
+    await waitFor(() => expect(apiMock).toHaveBeenCalledWith('/api/trades/refresh?mode=grade&account=manual_paper', { method: 'POST' }));
+    await waitFor(() => expect(screen.getByText(/2 graded/)).toBeTruthy());
+  });
+
+  it('hides grade backlog on a bot account, shows only refresh', () => {
+    renderBtn('conservative_paper');
+    expect(screen.getByText('[↻ refresh]')).toBeTruthy();
+    expect(screen.queryByText('[grade backlog]')).toBeNull();
+    expect(screen.queryByText('[drain backlog]')).toBeNull();
+  });
+
+  it('shows drain backlog only on [any] (no account), not grade backlog', () => {
+    renderBtn(undefined);
+    expect(screen.getByText('[↻ refresh]')).toBeTruthy();
+    expect(screen.getByText('[drain backlog]')).toBeTruthy();
+    expect(screen.queryByText('[grade backlog]')).toBeNull();
+  });
+
+  it('shows refresh + grade (not drain) on live', () => {
+    renderBtn('live');
+    expect(screen.getByText('[↻ refresh]')).toBeTruthy();
+    expect(screen.getByText('[grade backlog]')).toBeTruthy();
+    expect(screen.queryByText('[drain backlog]')).toBeNull();
   });
 });

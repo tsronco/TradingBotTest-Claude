@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { isGradeable } from '../../lib/trade-types';
 
 interface RefreshResult {
   ok: true;
@@ -9,6 +10,8 @@ interface RefreshResult {
   remaining_open: number;
   assignments_spawned: number;
   assignments_skipped: number;
+  ai_graded?: number;
+  grade_queue_remaining?: number;
 }
 
 const COOLDOWN_SECONDS = 15;
@@ -18,6 +21,7 @@ export default function RefreshButton({ account }: { account?: string }) {
   const [loading, setLoading] = useState(false);
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const [lastResult, setLastResult] = useState<RefreshResult | null>(null);
+  const [lastMode, setLastMode] = useState<'refresh' | 'drain' | 'grade'>('refresh');
   const [error, setError] = useState<string | null>(null);
 
   // Countdown tick — only runs when cooldown is active. Cleared on unmount
@@ -28,13 +32,15 @@ export default function RefreshButton({ account }: { account?: string }) {
     return () => clearTimeout(id);
   }, [cooldownLeft]);
 
-  const run = useCallback(async (drain: boolean) => {
+  const run = useCallback(async (mode: 'refresh' | 'drain' | 'grade') => {
     if (loading || cooldownLeft > 0) return;
     setLoading(true);
     setError(null);
+    setLastMode(mode);
     try {
       const params = new URLSearchParams();
-      if (drain) params.set('mode', 'drain');
+      if (mode === 'drain') params.set('mode', 'drain');
+      if (mode === 'grade') params.set('mode', 'grade');
       if (account) params.set('account', account);
       const qs = params.toString();
       const path = `/api/trades/refresh${qs ? `?${qs}` : ''}`;
@@ -61,7 +67,7 @@ export default function RefreshButton({ account }: { account?: string }) {
     <div className="flex items-center gap-2 text-[11px]">
       <button
         type="button"
-        onClick={() => run(false)}
+        onClick={() => run('refresh')}
         disabled={disabled}
         className={btnClass(disabled)}
         title={
@@ -70,7 +76,7 @@ export default function RefreshButton({ account }: { account?: string }) {
             : 'force-sync against Alpaca state (detects bot closes, syncs fills, AI grades)'
         }
       >
-        {loading ? (
+        {loading && lastMode === 'refresh' ? (
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 bg-hi rounded-sm animate-pulse" />
             syncing…
@@ -82,23 +88,48 @@ export default function RefreshButton({ account }: { account?: string }) {
         )}
       </button>
 
-      {/* Drain: clears a large backlog in one click (no per-tick cap, ~45s budget). */}
-      <button
-        type="button"
-        onClick={() => run(true)}
-        disabled={disabled}
-        className={btnClass(disabled)}
-        title="drain the whole open backlog in one pass (syncs + close-detects until ~45s budget; grades fill in later)"
-      >
-        [drain backlog]
-      </button>
+      {/* Drain: clears a large backlog in one click (no per-tick cap, ~45s budget).
+          Only shown on the [any] filter (no account selected) — its global-pile job
+          is moot when scoped to a single account. */}
+      {!account && (
+        <button
+          type="button"
+          onClick={() => run('drain')}
+          disabled={disabled}
+          className={btnClass(disabled)}
+          title="drain the whole open backlog in one pass (syncs + close-detects until ~45s budget; grades fill in later)"
+        >
+          [drain backlog]
+        </button>
+      )}
+
+      {/* Grade backlog: runs AI grading on the needs-grade queue for this account.
+          Only shown on gradeable accounts (manual + live). */}
+      {account && isGradeable(account as any) && (
+        <button
+          type="button"
+          onClick={() => run('grade')}
+          disabled={disabled}
+          className={btnClass(disabled)}
+          title="run AI grading on this account's closed-but-ungraded trades now (~45s batches; click again to continue)"
+        >
+          {loading && lastMode === 'grade' ? (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 bg-hi rounded-sm animate-pulse" />
+              grading…
+            </span>
+          ) : (
+            <>[grade backlog]</>
+          )}
+        </button>
+      )}
 
       {/* Inline result strip — collapses when there's nothing to show */}
       {error && (
         <span className="text-red text-[10px]">error: {error}</span>
       )}
       {!error && lastResult && (
-        <ResultSummary result={lastResult} account={account} />
+        <ResultSummary result={lastResult} account={account} mode={lastMode} />
       )}
     </div>
   );
@@ -109,8 +140,17 @@ function accountLabel(account: string): string {
   return account === 'live' ? 'live' : account.replace(/_paper$/, '');
 }
 
-function ResultSummary({ result, account }: { result: RefreshResult; account?: string }) {
+function ResultSummary({ result, account, mode }: { result: RefreshResult; account?: string; mode: 'refresh' | 'drain' | 'grade' }) {
   const scope = account ? ` · ${accountLabel(account)}` : '';
+
+  if (mode === 'grade') {
+    const g = result.ai_graded ?? 0;
+    const q = result.grade_queue_remaining ?? 0;
+    const head = g > 0 ? `${g} graded` : 'nothing to grade';
+    const tail = q > 0 ? `${q} queued` : 'queue empty';
+    return <span className="text-mid text-[10px]">{head} · {tail}{scope}</span>;
+  }
+
   const parts: string[] = [];
   if (result.synced > 0) parts.push(`${result.synced} synced`);
   if (result.graded > 0) parts.push(`${result.graded} closed`);
