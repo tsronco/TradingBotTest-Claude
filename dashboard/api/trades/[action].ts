@@ -204,13 +204,20 @@ async function refresh(req: VercelRequest, res: VercelResponse) {
   // never 504s. AI grading is deferred entirely to the needs-grade queue
   // (gradeBudget 0) so closes land fast; the cron fills in hindsight grades
   // on later ticks. A follow-up drain click resumes from the rotating cursor.
-  const drain = String((req.query?.mode ?? '')) === 'drain';
+  const mode = String(req.query?.mode ?? '');
+  const drain = mode === 'drain';
+  // Grade mode (?mode=grade): the "grade backlog" button. Run AI grading on the
+  // needs-grade queue now — big grade budget, 45s cap — scoped to the account.
+  // Unlike drain it does NOT lift the sweep cap; the point is to grade, not to
+  // re-walk every open trade.
+  const grade = mode === 'grade';
   // Optional account scope: a /trades refresh of a single account passes the
   // page's selected account so the sweep + the "N still open" count cover only
   // that account. Absent (the [any] filter, or the scheduled cron) → global.
   const account = req.query?.account ? String(req.query.account) : undefined;
   const opts: { sweepBudget?: number; gradeBudget?: number; timeBudgetMs?: number; account?: string } = {};
   if (drain) { opts.sweepBudget = Number.MAX_SAFE_INTEGER; opts.gradeBudget = 0; opts.timeBudgetMs = 45_000; }
+  if (grade) { opts.gradeBudget = Number.MAX_SAFE_INTEGER; opts.timeBudgetMs = 45_000; }
   if (account) opts.account = account;
   try {
     // Preserve the no-arg call when neither drain nor account is set so the

@@ -139,4 +139,21 @@ describe('POST /api/trades/refresh', () => {
       expect.objectContaining({ error: 'refresh_failed', message: 'alpaca down' }),
     );
   });
+
+  it('mode=grade runs with a big grade budget, 45s cap, scoped to the account', async () => {
+    runGradeOpenTradesMock.mockResolvedValueOnce({
+      graded: 0, synced: 0, remaining_open: 4, ai_graded: 3, grade_queue_remaining: 2,
+      assignments_spawned: 0, assignments_skipped: 0,
+    });
+    const mod = await import('../../api/trades/[action]');
+    const res = mockRes() as VercelResponse;
+    await mod.default(mockReq({ mode: 'grade', account: 'manual_paper' }), res);
+
+    expect(runGradeOpenTradesMock).toHaveBeenCalledWith(expect.objectContaining({
+      gradeBudget: Number.MAX_SAFE_INTEGER, timeBudgetMs: 45_000, account: 'manual_paper',
+    }));
+    // grade mode must NOT lift the sweep cap (that's drain's job)
+    expect(runGradeOpenTradesMock.mock.calls[0][0]).not.toHaveProperty('sweepBudget');
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, ai_graded: 3, grade_queue_remaining: 2 }));
+  });
 });
