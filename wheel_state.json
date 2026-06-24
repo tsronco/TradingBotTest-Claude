@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-24T17:48:07.533402Z"
+    "last_checked": "2026-06-24T17:58:18.607307Z"
   },
   "TSLA": {
     "stage": 1,
@@ -38,7 +38,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring TSLA260702P00370000: $7.90 vs entry $3.10",
+    "last_action": "Monitoring TSLA260702P00370000: $8.18 vs entry $3.10",
     "contract_qty": 1
   },
   "BAC": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.77 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.82 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -110,7 +110,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Sold-to-open KO260717P00075000 @ $0.17. Awaiting fill.",
+    "last_action": "Awaiting fill on KO260717P00075000.",
     "contract_qty": 1
   },
   "PLTR": {
@@ -138,7 +138,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring PLTR260710C00150000: $0.15 vs entry $0.12",
+    "last_action": "Monitoring PLTR260710C00150000: $0.12 vs entry $0.12",
     "contract_qty": 1
   },
   "SOFI": {
@@ -165,7 +165,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring SOFI260710P00016500: $0.50 vs entry $0.33",
+    "last_action": "Monitoring SOFI260710P00016500: $0.49 vs entry $0.33",
     "contract_qty": 1
   },
   "PFE": {
@@ -273,7 +273,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring INTC260710P00125000: $7.01 vs entry $4.80",
+    "last_action": "Monitoring INTC260710P00125000: $7.36 vs entry $4.80",
     "contract_qty": 1
   }
 }
