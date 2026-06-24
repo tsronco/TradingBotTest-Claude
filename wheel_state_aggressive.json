@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-24T13:39:57.967195Z",
+    "last_checked": "2026-06-24T13:49:33.901572Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Sold-to-open 1\u00d7 COIN260702C00205000 @ $0.21. Awaiting fill.",
+    "last_action": "Awaiting fill on COIN260702C00205000.",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260702P00015000: $0.96 vs entry $0.62",
+    "last_action": "Monitoring MARA260702P00015000: $1.05 vs entry $0.62",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260702P00030000: $2.60 vs entry $2.46",
+    "last_action": "Monitoring RIOT260702P00030000: $3.00 vs entry $2.46",
     "contract_qty": 1
   },
   "SMCI": {
