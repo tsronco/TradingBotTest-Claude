@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-06-24T20:00:02.864089Z",
+    "last_checked": "2026-06-25T13:40:06.147725Z",
     "reconciled_from_alpaca": "2026-04-30T15:49:21.369892+00:00"
   },
   "COIN": {
     "stage": 2,
     "current_contract": "COIN260702C00205000",
-    "contract_order_id": "d907bd6f-382f-475a-8182-c127e0ad1d7b",
+    "contract_order_id": "b7878ea8-1f16-4ebc-8817-8e5a0b6bec35",
     "contract_entry_price": null,
-    "contract_entry_date": "2026-06-24T17:40:08.654930Z",
+    "contract_entry_date": "2026-06-25T13:40:02.196475Z",
     "contract_expiration": "2026-07-02",
     "contract_type": "call",
     "contract_strike": 205.0,
@@ -28,7 +28,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Awaiting fill on COIN260702C00205000.",
+    "last_action": "Sold-to-open 1\u00d7 COIN260702C00205000 @ $0.14. Awaiting fill.",
     "contract_qty": 1
   },
   "MARA": {
@@ -52,7 +52,7 @@
         "message": "qty=-4.0 \u2014 duplicate sells happened before state-save bug fix"
       }
     ],
-    "last_action": "Monitoring MARA260702P00015000: $1.32 vs entry $0.62",
+    "last_action": "Monitoring MARA260702P00015000: $1.41 vs entry $0.62",
     "contract_qty": 1
   },
   "RIOT": {
@@ -71,7 +71,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring RIOT260702P00030000: $3.12 vs entry $2.46",
+    "last_action": "Monitoring RIOT260702P00030000: $3.41 vs entry $2.46",
     "contract_qty": 1
   },
   "SMCI": {
