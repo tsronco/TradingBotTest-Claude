@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
 import { modeFromQuery, liveGuard } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
+import { getOrCreateSummary } from '../_lib/ai-summary.js';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
 import {
@@ -328,6 +329,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timeframe, limit, start, end: endParam, feed: 'iex',
       });
       return res.status(200).json({ symbol, timeframe, bars: resp?.bars ?? [] });
+    }
+    if (endpoint === 'ai-summary') {
+      const symbol = String(req.query.symbol ?? '').toUpperCase();
+      if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
+        return res.status(400).json({ error: 'invalid_symbol' });
+      }
+      const refresh = String(req.query.refresh ?? '') === '1';
+      try {
+        const result = await getOrCreateSummary(mode, symbol, { refresh });
+        return res.status(200).json({ symbol, ...result });
+      } catch (e) {
+        return res.status(502).json({ error: 'ai_summary_failed', detail: String(e) });
+      }
     }
     if (endpoint === 'modify-order' && req.method === 'POST') {
       // D1 — gate live money-moving writes behind LIVE_ENABLED.

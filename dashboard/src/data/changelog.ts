@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-25',
+    category: 'feature',
+    title: 'AI summary blurb at the top of every /lookup/:symbol page',
+    details:
+      'A Robinhood-style "what is this stock doing and why" paragraph now sits at the top of the lookup '
+      + 'page. Claude Sonnet 4.6 — with live web search — reads today\'s move and finds the actual catalyst '
+      + '(earnings, an analyst call, a short squeeze, a CFO appointment), then folds in the options picture '
+      + 'we already fetch: at-the-money implied volatility (rich vs cheap premium), the near-term put/call '
+      + 'open-interest lean, and how close the next earnings report is. Plain English, jargon defined inline, '
+      + '3–5 sentences, no advice — with an "Updated Xm ago · AI-powered, not advice" footer and a refresh '
+      + 'button.\n\n'
+      + 'Cost is kept low by design: each fresh summary is cached per symbol in KV for 15 minutes (Robinhood\'s '
+      + '"Updated Xm ago" cadence), so re-visiting the same symbol is free. For a single-user dashboard this '
+      + 'lands at cents/day. Web search degrades gracefully — if it\'s unavailable the summary still generates '
+      + 'from the quote + options + news data we already have. No new Vercel function (rides the existing '
+      + 'alpaca catchall at /api/alpaca/ai-summary, still 10/12). 821 vitest green (+12); tsc clean.',
+  },
+  {
     date: '2026-06-23',
     category: 'infra',
     title: 'Removed the dead @alpacahq/typescript-sdk dependency',

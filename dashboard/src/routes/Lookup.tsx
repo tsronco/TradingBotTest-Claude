@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
 import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../lib/account-utils';
 import type { AccountMode } from '../hooks/useAccount';
+import AiSummaryPanel from '../components/lookup/AiSummaryPanel';
 import QuotePanel from '../components/lookup/QuotePanel';
 import PositionContextPanel from '../components/lookup/PositionContextPanel';
 import TradingViewChart from '../components/lookup/TradingViewChart';
@@ -101,6 +102,17 @@ export default function Lookup() {
         <span className="flex-1 border-t border-border" />
         <span className="text-dim">$ research --symbol=<span className="text-fg">{sym || '?'}</span></span>
       </div>
+
+      {/* AI summary — full-width, top of page */}
+      {sym && (
+        <div className="mb-6 mt-3">
+          <Cell title="AI_SUMMARY" subtitle={sym}>
+            <ErrorBoundary label="AI summary">
+              <AiSummaryPanel symbol={sym} />
+            </ErrorBoundary>
+          </Cell>
+        </div>
+      )}
 
       {/* main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
