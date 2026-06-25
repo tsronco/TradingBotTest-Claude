@@ -7962,3 +7962,10 @@
 {"timestamp": "2026-06-25T18:18:23.353539+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 50, "equity": 2000.0}}
 {"timestamp": "2026-06-25T18:18:23.355039+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-25T18:18:24.142334+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-25T18:26:39.185572+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-25T18:26:55.529269+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "F", "details": {"price": 14.16}}
+{"timestamp": "2026-06-25T18:26:59.609788+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 195.32}}
+{"timestamp": "2026-06-25T18:27:01.103344+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 107.97}}
+{"timestamp": "2026-06-25T18:27:02.094336+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 50, "equity": 2000.0}}
+{"timestamp": "2026-06-25T18:27:02.095650+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-25T18:27:02.476000+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
