@@ -4446,3 +4446,5 @@
 {"timestamp": "2026-06-26T13:13:30.894126+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-06-26T13:23:28.572460+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-06-26T13:23:28.839666+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-06-26T13:33:32.775124+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-06-26T13:33:33.271282+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
