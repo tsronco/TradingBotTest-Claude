@@ -7062,3 +7062,6 @@
 {"timestamp": "2026-06-29T19:56:36.470407+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 10, "equity": 500.0}}
 {"timestamp": "2026-06-29T19:56:36.471689+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
 {"timestamp": "2026-06-29T19:56:37.224800+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-29T20:05:43.390228+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-29T20:05:43.637120+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "sm500"}}
+{"timestamp": "2026-06-29T20:05:43.886344+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
