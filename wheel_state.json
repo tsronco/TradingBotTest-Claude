@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-29T16:18:08.085547Z"
+    "last_checked": "2026-06-29T16:28:23.174807Z"
   },
   "TSLA": {
     "stage": 1,
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.08 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.03 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
