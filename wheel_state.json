@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-29T15:38:09.126834Z"
+    "last_checked": "2026-06-29T16:08:07.044898Z"
   },
   "TSLA": {
     "stage": 1,
@@ -57,7 +57,7 @@
     "total_premium_today": 0.0,
     "cycle_count": 0,
     "cycle_history": [],
-    "last_action": "Monitoring BAC260717P00054000: $0.27 vs entry $0.34",
+    "last_action": "Monitoring BAC260717P00054000: $0.29 vs entry $0.34",
     "contract_qty": 1
   },
   "XOM": {
@@ -91,7 +91,7 @@
         "premium": 0
       }
     ],
-    "last_action": "Monitoring XOM260702P00135000: $1.18 vs entry $0.71",
+    "last_action": "Monitoring XOM260702P00135000: $1.17 vs entry $0.71",
     "contract_qty": 1
   },
   "KO": {
@@ -115,9 +115,9 @@
   },
   "PLTR": {
     "stage": 2,
-    "current_contract": "PLTR260710C00150000",
+    "current_contract": null,
     "contract_order_id": "21e12619-c958-4943-9fee-cbddaca477be",
-    "contract_entry_price": 0.11,
+    "contract_entry_price": null,
     "contract_entry_date": "2026-06-26T13:38:05.693124Z",
     "contract_expiration": "2026-07-10",
     "contract_type": "call",
@@ -125,8 +125,8 @@
     "cost_basis_per_share": 138.18,
     "shares_qty": 100,
     "total_cost": 13818.0,
-    "total_premium_collected": 540.0,
-    "total_premium_today": 0.0,
+    "total_premium_collected": 546.0,
+    "total_premium_today": 6.0,
     "cycle_count": 0,
     "cycle_history": [
       {
@@ -138,7 +138,7 @@
         "shares": 100
       }
     ],
-    "last_action": "Monitoring PLTR260710C00150000: $0.10 vs entry $0.11",
+    "last_action": "Closed early: +$6.00 (1\u00d7 contracts). Selling new call.",
     "contract_qty": 1
   },
   "SOFI": {
