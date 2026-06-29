@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-29',
+    category: 'fix',
+    title: 'Wheel: transient Alpaca outage skips the cycle instead of pinging #errors',
+    details:
+      'On 2026-06-29 Alpaca returned a sustained 500 on /v2/account that outlasted the wheel\'s '
+      + 'bounded retry (3 attempts, 2s+8s backoff). The cycle-gating get_account() call then '
+      + 'raised, the aggressive wheel crashed, #aggressive-errors got paged, and the workflow went '
+      + 'red — even though conservative (firing 2 minutes off the same cron) sailed through, '
+      + 'confirming it was a pure upstream blip, not a bot bug.\n\n'
+      + 'run_wheel now classifies a transient upstream failure (Alpaca 429/5xx or a '
+      + 'ConnectionError/Timeout that escapes the retry window) and skips the cycle quietly — a '
+      + 'heartbeat to the actions firehose, nothing in #errors, no re-raise — and lets the next '
+      + '10-minute cron fire retry. This mirrors the existing market-closed skip. Genuine bugs (any '
+      + 'non-transient exception, including 4xx) still ping #errors and go red so we notice. '
+      + 'Applies to all modes. +9 pytest.',
+  },
+  {
     date: '2026-06-25',
     category: 'feature',
     title: 'AI summary blurb at the top of every /lookup/:symbol page',
