@@ -8568,3 +8568,10 @@
 {"timestamp": "2026-06-29T16:17:37.083734+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 2000.0}}
 {"timestamp": "2026-06-29T16:17:37.084848+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-29T16:17:37.547207+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-29T16:27:07.604763+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-29T16:27:46.945554+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "PINS", "details": {"net_credit": -0.255, "min_net_credit": 0.05, "short_mid": 0.13, "long_mid": 0.385}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-29T16:27:47.624884+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "MRVL", "details": {"price": 269.3}}
+{"timestamp": "2026-06-29T16:27:48.271674+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NVDA", "details": {"price": 192.92}}
+{"timestamp": "2026-06-29T16:27:52.061746+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 2000.0}}
+{"timestamp": "2026-06-29T16:27:52.062986+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-29T16:27:52.604688+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
