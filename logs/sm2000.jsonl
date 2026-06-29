@@ -8670,3 +8670,13 @@
 {"timestamp": "2026-06-29T18:17:31.458938+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 2000.0}}
 {"timestamp": "2026-06-29T18:17:31.460218+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
 {"timestamp": "2026-06-29T18:17:32.104075+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-06-29T18:26:41.123647+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-29T18:27:26.462840+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "PINS", "details": {"net_credit": -0.205, "min_net_credit": 0.05, "short_mid": 0.16, "long_mid": 0.365}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-29T18:27:36.330583+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "F", "details": {"price": 14.175}}
+{"timestamp": "2026-06-29T18:27:37.085113+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "MRVL", "details": {"price": 274.27}}
+{"timestamp": "2026-06-29T18:27:45.098013+00:00", "script": "wheel_strategy.py", "action": "auto_spread_skip", "result": "skipped", "symbol": "LYFT", "details": {"net_credit": 0.045, "min_net_credit": 0.05, "short_mid": 0.095, "long_mid": 0.05}, "notes": "below_min_net_credit"}
+{"timestamp": "2026-06-29T18:27:45.913959+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "PLTR", "details": {"price": 116.28}}
+{"timestamp": "2026-06-29T18:27:46.710803+00:00", "script": "wheel_strategy.py", "action": "auto_spread_trend_gate_skip", "result": "skipped", "symbol": "NFLX", "details": {"price": 74.085}}
+{"timestamp": "2026-06-29T18:27:47.130920+00:00", "script": "wheel_strategy.py", "action": "auto_spread_no_trade", "result": "skipped", "details": {"candidates_considered": 49, "equity": 2000.0}}
+{"timestamp": "2026-06-29T18:27:47.132346+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "sm2000"}}
+{"timestamp": "2026-06-29T18:27:48.197821+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
