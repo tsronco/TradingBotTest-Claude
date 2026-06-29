@@ -13,7 +13,7 @@ The user may pass the ticker in various forms:
 - `/lookup TSLA` → ticker `TSLA`
 - `/lookup wmt` → ticker `WMT` (case-insensitive)
 - `/lookup walmart` → resolve to `WMT` if it's an obvious match; otherwise ask the user to clarify
-- `/lookup TSLA aggressive` → ticker `TSLA`, mode `aggressive`
+- `/lookup TSLA live` → ticker `TSLA`, mode `live`
 - `/lookup NVDA --dte-min 7 --dte-max 14` → pass through as-is
 
 If the user passes a company name instead of a ticker and you're confident of the mapping (e.g. "walmart" → WMT, "apple" → AAPL, "nvidia" → NVDA), use the ticker. If unsure, ask before calling.
@@ -21,10 +21,10 @@ If the user passes a company name instead of a ticker and you're confident of th
 ## How to run
 
 ```bash
-python tools/lookup.py <TICKER> [--mode conservative|aggressive] [--strike-pct 0.10] [--dte-min 14] [--dte-max 28]
+python tools/lookup.py <TICKER> [--mode manual|live] [--strike-pct 0.10] [--dte-min 14] [--dte-max 28]
 ```
 
-Defaults come from `config.MODES["conservative"]` (10% OTM, 14–28 DTE puts) unless `--mode aggressive` is passed (5% OTM, 7–14 DTE).
+Defaults come from `config.MODES["manual"]` (10% OTM, 14–28 DTE puts) unless `--mode live` is passed (5% OTM, 7–14 DTE).
 
 ## After running
 

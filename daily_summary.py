@@ -1,31 +1,25 @@
 #!/usr/bin/env python3
 """
-Daily Summary — combined end-of-day report for one or both paper accounts.
+Daily Summary — combined end-of-day report per account.
 
-Three invocation modes:
+  python daily_summary.py --mode manual
+      → posts a daily summary embed to #manual-summary covering the
+        manual account: strategy_state_manual.json + wheel_state_manual.json
+        + long-options positions.
 
-  python daily_summary.py --mode conservative
-      → posts a daily summary embed to #daily-summary covering the
-        conservative account: strategy_state.json + wheel_state.json +
-        congress-copy/data/state.db + long-options positions.
+  python daily_summary.py --mode live
+      → posts a daily summary embed to #live-summary covering the REAL-MONEY
+        live account: strategy_state_live.json + wheel_state_live.json +
+        long-options positions.
 
-  python daily_summary.py --mode aggressive
-      → posts a daily summary embed to #aggressive-summary covering the
-        aggressive account: strategy_state_aggressive.json +
-        wheel_state_aggressive.json + long-options positions.
-        (Congress copy doesn't run on aggressive — same source, would dupe.)
+The GitHub Actions workflow runs both sequentially (manual → live), so each
+fire produces two Discord embeds.
 
-  python daily_summary.py --head-to-head
-      → reads BOTH accounts' Alpaca portfolio + premium totals, posts a
-        side-by-side comparison embed to #daily-summary AND #aggressive-summary
-        so each Discord side sees the race result.
-
-The GitHub Actions workflow runs all three sequentially: conservative →
-aggressive → head-to-head, so each fire produces three Discord embeds.
+(History: the conservative/aggressive head-to-head and the sm500/sm1000/sm2000
+summaries were retired 2026-06-29 with those accounts.)
 """
 import json
 import os
-import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -68,11 +62,8 @@ def _humanize_occ(occ: str | None) -> str:
         return occ
     return f"{ticker} {mm}/{dd}/{yy} ${strike:.2f}{side}"
 
-# Conservative-only: congress-copy lives next to this script
-CONGRESS_STATE = ROOT / "congress-copy" / "data" / "state.db"
 
-
-# ── Alpaca helpers (parameterized so head-to-head can hit both accounts) ──
+# ── Alpaca helpers ──
 
 
 def _headers_for(cfg: dict) -> dict:
@@ -427,35 +418,6 @@ def _reset_wheel_today_counters(cfg: dict) -> None:
         json.dump(state, f, indent=2)
 
 
-def _summarize_congress() -> dict:
-    """Conservative-only: read congress-copy SQLite state."""
-    if not CONGRESS_STATE.exists():
-        return {"available": False}
-    try:
-        conn = sqlite3.connect(str(CONGRESS_STATE), timeout=10.0)
-        conn.row_factory = sqlite3.Row
-        open_positions = conn.execute(
-            "SELECT COUNT(*) AS n FROM positions WHERE closed_at IS NULL"
-        ).fetchone()["n"]
-        closed_today = conn.execute(
-            "SELECT COUNT(*) AS n FROM positions "
-            "WHERE closed_at IS NOT NULL AND DATE(closed_at) = DATE('now')"
-        ).fetchone()["n"]
-        recent_events = conn.execute(
-            "SELECT event_type, COUNT(*) AS n FROM events "
-            "WHERE DATE(created_at) = DATE('now') GROUP BY event_type"
-        ).fetchall()
-        conn.close()
-        return {
-            "available": True,
-            "open_positions": open_positions,
-            "closed_today":   closed_today,
-            "events_today":   {row["event_type"]: row["n"] for row in recent_events},
-        }
-    except Exception as e:
-        return {"available": False, "error": str(e)[:200]}
-
-
 # ── Per-mode daily summary ────────────────────────────────────────────────
 
 
@@ -490,7 +452,10 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         }
         long_opts  = _summarize_long_options(cfg, exclude_occs=_spread_legs)
         held_stocks = _summarize_held_stocks(cfg, _tracked_stock_symbols(strategy, wheel))
-        congress   = _summarize_congress() if mode_name == "conservative" else {"available": False}
+        # Congress-copy was conservative-only and retired with that account
+        # (2026-06-29). Kept as an always-unavailable dict so the embed
+        # section below simply doesn't render.
+        congress   = {"available": False}
 
         cash      = float(account["cash"])
         portfolio = float(account["portfolio_value"])
@@ -722,111 +687,6 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         raise
 
 
-# ── Head-to-head comparison ───────────────────────────────────────────────
-
-
-def _snapshot(cfg: dict) -> dict:
-    """One-line comparable snapshot for a mode."""
-    account = _get_account(cfg)
-    wheel   = _summarize_wheel(cfg)
-    _spread_legs = {
-        sp["long_occ"]
-        for sp in (wheel.get("spreads") or {}).values()
-        if sp.get("long_occ")
-    }
-    longs   = _summarize_long_options(cfg, exclude_occs=_spread_legs)
-    return {
-        "equity":         float(account.get("equity", account.get("portfolio_value", 0))),
-        "cash":           float(account.get("cash", 0)),
-        "portfolio":      float(account.get("portfolio_value", 0)),
-        "premium_today":  wheel.get("total_today", 0) if wheel.get("available") else 0,
-        "premium_total":  wheel.get("total_premium", 0) if wheel.get("available") else 0,
-        "cycles":         wheel.get("total_cycles", 0) if wheel.get("available") else 0,
-        "long_pnl":       longs.get("total_pnl", 0) if longs.get("available") else 0,
-        "long_count":     longs.get("count", 0) if longs.get("available") else 0,
-        "wheel_symbols":  cfg["wheel_symbols"],
-    }
-
-
-def _format_money(n: float) -> str:
-    return f"${n:,.2f}"
-
-
-def run_head_to_head() -> None:
-    """Read both accounts and post a side-by-side comparison embed to BOTH
-    summary channels so each side sees the race."""
-    now          = datetime.now()
-    today        = now.strftime("%Y-%m-%d")        # ISO — used in log_event details
-    today_pretty = now.strftime("%m/%d/%Y")        # American MM/DD/YYYY — shown in Discord
-    try:
-        cons = _snapshot(config.MODES["conservative"])
-        aggr = _snapshot(config.MODES["aggressive"])
-
-        def _row(label, c, a, fmt=lambda v: str(v)):
-            return f"  {label:<22} {fmt(c):>14}  {fmt(a):>14}"
-
-        body_lines = [
-            f"  {'Metric':<22} {'Conservative':>14}  {'Aggressive':>14}",
-            f"  {'-'*22} {'-'*14}  {'-'*14}",
-            _row("Equity",         cons['equity'],        aggr['equity'],        _format_money),
-            _row("Cash",           cons['cash'],          aggr['cash'],          _format_money),
-            _row("Portfolio val",  cons['portfolio'],     aggr['portfolio'],     _format_money),
-            _row("Premium today",  cons['premium_today'], aggr['premium_today'], _format_money),
-            _row("Premium total",  cons['premium_total'], aggr['premium_total'], _format_money),
-            _row("Wheel cycles",   cons['cycles'],        aggr['cycles']),
-            _row("Long opts P&L",  cons['long_pnl'],      aggr['long_pnl'],      _format_money),
-            _row("Long opts open", cons['long_count'],    aggr['long_count']),
-            _row("Wheel symbols",  len(cons['wheel_symbols']), len(aggr['wheel_symbols'])),
-        ]
-
-        # Equity diff highlights who's ahead
-        equity_diff = aggr['equity'] - cons['equity']
-        winner = "Aggressive" if equity_diff > 0 else ("Conservative" if equity_diff < 0 else "Tied")
-        winner_line = (
-            f"**Equity gap:** {_format_money(abs(equity_diff))} " +
-            (f"({winner} ahead)" if equity_diff != 0 else "(tied)")
-        )
-
-        description = winner_line + "\n```\n" + "\n".join(body_lines) + "\n```"
-
-        # Send same embed to both channels so each Discord side sees it
-        for ch_name, ch_value in (
-            ("daily-summary",     "summary"),
-            ("aggressive-summary", "agg_summary"),
-        ):
-            send_embed(
-                ch_value, f"Head-to-Head — {today_pretty}",
-                color=Color.BLUE,
-                description=description,
-                footer="daily_summary.py · head-to-head",
-                actions_channel="actions" if ch_value == "summary" else "agg_actions",
-            )
-
-        log_event("tsla", "daily_summary.py", "head_to_head",
-                  result="success",
-                  details={"date": today, "conservative": cons, "aggressive": aggr,
-                           "equity_diff": equity_diff})
-        log_event("tsla_aggressive", "daily_summary.py", "head_to_head",
-                  result="success",
-                  details={"date": today, "conservative": cons, "aggressive": aggr,
-                           "equity_diff": equity_diff})
-
-        print(json.dumps({"head_to_head": {"conservative": cons, "aggressive": aggr,
-                                            "equity_diff": equity_diff}}, indent=2, default=str))
-    except Exception as e:
-        # Send the failure to BOTH error channels — head-to-head is cross-mode
-        for err_ch, act_ch in (("errors", "actions"), ("agg_errors", "agg_actions")):
-            send_embed(
-                err_ch, "daily_summary.py — head-to-head crashed",
-                color=Color.RED,
-                description=f"`{type(e).__name__}: {str(e)[:500]}`",
-                footer="daily_summary.py · head-to-head",
-                actions_channel=act_ch,
-            )
-        log_event("tsla", "daily_summary.py", "head_to_head_exception",
-                  result="failure", notes=f"{type(e).__name__}: {str(e)[:500]}")
-        raise
-
 
 # ── CLI ───────────────────────────────────────────────────────────────────
 
@@ -835,8 +695,5 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     reset_counters = "--reset-counters" in args
     args = [a for a in args if a != "--reset-counters"]
-    if "--head-to-head" in args:
-        run_head_to_head()
-    else:
-        selected_mode, _remaining = config.parse_mode_arg(args)
-        run_daily_summary(selected_mode, reset_counters=reset_counters)
+    selected_mode, _remaining = config.parse_mode_arg(args)
+    run_daily_summary(selected_mode, reset_counters=reset_counters)

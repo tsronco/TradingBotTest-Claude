@@ -24,23 +24,12 @@ def _silence_discord_and_alpaca(monkeypatch, tmp_path):
     - Alpaca env vars are set to fake values so any code path that reads
       them gets safe placeholders instead of real secrets.
     """
-    # ALL Discord webhook env vars must be cleared — including manual/agg/live —
-    # so that a test that calls `apply_mode("manual")` (or agg/live) doesn't
-    # accidentally fire a real Discord embed via `send_embed(TRADES_CH, ...)`.
-    # Caught on 2026-05-14: test_manual_mode.py was spamming real #manual-trades
-    # because only the conservative-side webhooks were cleared here.
+    # ALL Discord webhook env vars must be cleared — manual + live — so a test
+    # that calls `apply_mode("manual")` (or live) doesn't accidentally fire a
+    # real Discord embed via `send_embed(TRADES_CH, ...)`. Caught on 2026-05-14:
+    # test_manual_mode.py was spamming real #manual-trades because the webhooks
+    # weren't cleared here.
     for var in (
-        # Conservative
-        "DISCORD_TSLA_WEBHOOK",
-        "DISCORD_CONGRESS_WEBHOOK",
-        "DISCORD_SUMMARY_WEBHOOK",
-        "DISCORD_ERRORS_WEBHOOK",
-        "DISCORD_ACTIONS_WEBHOOK",
-        # Aggressive
-        "DISCORD_AGG_TRADES_WEBHOOK",
-        "DISCORD_AGG_SUMMARY_WEBHOOK",
-        "DISCORD_AGG_ERRORS_WEBHOOK",
-        "DISCORD_AGG_ACTIONS_WEBHOOK",
         # Manual
         "DISCORD_MANUAL_TRADES_WEBHOOK",
         "DISCORD_MANUAL_SUMMARY_WEBHOOK",
@@ -55,12 +44,6 @@ def _silence_discord_and_alpaca(monkeypatch, tmp_path):
         monkeypatch.delenv(var, raising=False)
     # All Alpaca creds get fake values so a missed monkeypatch can't reach
     # the real paper or live endpoints.
-    monkeypatch.setenv("ALPACA_API_KEY", "fake-test-key")
-    monkeypatch.setenv("ALPACA_API_SECRET", "fake-test-secret")
-    monkeypatch.setenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets/v2")
-    monkeypatch.setenv("ALPACA_AGG_API_KEY", "fake-agg-key")
-    monkeypatch.setenv("ALPACA_AGG_API_SECRET", "fake-agg-secret")
-    monkeypatch.setenv("ALPACA_AGG_BASE_URL", "https://paper-api.alpaca.markets/v2")
     monkeypatch.setenv("ALPACA_MANUAL_API_KEY", "fake-manual-key")
     monkeypatch.setenv("ALPACA_MANUAL_API_SECRET", "fake-manual-secret")
     monkeypatch.setenv("ALPACA_MANUAL_BASE_URL", "https://paper-api.alpaca.markets/v2")

@@ -1,14 +1,12 @@
-"""Read config.MODES + strategy module + congress-copy config (when conservative)
-and POST a BotRulesPayload to the dashboard's /api/bot-state.
+"""Read config.MODES + strategy module and POST a BotRulesPayload to the
+dashboard's /api/bot-state.
 
-Used by tsla-monitor.yml, tsla-monitor-aggressive.yml, tsla-monitor-manual.yml,
-and tsla-monitor-live.yml after each bot run. Idempotent (modulo `pushed_at`).
-Fail-soft: if the push fails, print to stderr but exit 0 — the bot must not
-be blocked by dashboard plumbing.
+Used by tsla-monitor-manual.yml and tsla-monitor-live.yml after each bot run.
+Idempotent (modulo `pushed_at`). Fail-soft: if the push fails, print to stderr
+but exit 0 — the bot must not be blocked by dashboard plumbing.
 """
 import argparse
 import datetime as dt
-import math
 import os
 import sys
 from typing import Any, Dict
@@ -67,50 +65,7 @@ def build_payload(mode: str) -> Dict[str, Any]:
     if flags:
         payload['flags'] = flags
 
-    # Congress block — conservative only
-    if mode == 'conservative':
-        payload['congress'] = _build_congress_block()
-
     return payload
-
-
-def _build_congress_block() -> Dict[str, Any]:
-    """Import congress-copy/config.py and project SIZING_TIERS + POLITICIANS into wire shape."""
-    # congress-copy/config.py is in a subdirectory with a hyphenated name and
-    # collides with the top-level `config` module already imported above. Load
-    # it by file path under a distinct name to avoid the sys.modules cache hit.
-    import importlib.util
-    cc_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        'congress-copy', 'config.py',
-    )
-    spec = importlib.util.spec_from_file_location('congress_copy_config', cc_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"could not load congress-copy config from {cc_path}")
-    cc_config = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cc_config)
-
-    INF_FLOAT = 1e18  # sentinel for Decimal('Infinity') — JSON has no Infinity
-
-    sizing_tiers = []
-    for max_disc, alloc in cc_config.SIZING_TIERS:
-        try:
-            md = float(max_disc)
-            if math.isinf(md):
-                md = INF_FLOAT
-        except (OverflowError, ValueError):
-            md = INF_FLOAT
-        sizing_tiers.append({
-            'max_disclosure_usd': md,
-            'alloc_usd': float(alloc),
-        })
-
-    politicians = [
-        {'slug': p['slug'], 'name': p['name']}
-        for p in cc_config.POLITICIANS
-    ]
-
-    return {'sizing_tiers': sizing_tiers, 'politicians': politicians}
 
 
 def push(mode: str) -> int:
@@ -146,7 +101,7 @@ def main() -> None:
     parser.add_argument(
         '--mode',
         required=True,
-        choices=['conservative', 'aggressive', 'manual', 'live', 'sm500', 'sm1000', 'sm2000'],
+        choices=['manual', 'live'],
     )
     args = parser.parse_args()
     push(args.mode)

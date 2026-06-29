@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""/compare — ad-hoc head-to-head between conservative and aggressive accounts.
+"""/compare — ad-hoc head-to-head between manual and live accounts.
 
 Same comparison the 4:12 PM ET daily summary posts to Discord, but ad-hoc to
 stdout instead of an embed. Useful for "who's winning right now?" checks
@@ -27,11 +27,11 @@ def _format_money(n: float) -> str:
 
 def render() -> str:
     try:
-        cons = ds._snapshot(config.MODES["conservative"])
+        cons = ds._snapshot(config.MODES["manual"])
     except Exception as e:
         cons = {"error": f"{type(e).__name__}: {e}"}
     try:
-        aggr = ds._snapshot(config.MODES["aggressive"])
+        aggr = ds._snapshot(config.MODES["live"])
     except Exception as e:
         aggr = {"error": f"{type(e).__name__}: {e}"}
 
@@ -39,9 +39,9 @@ def render() -> str:
 
     if "error" in cons or "error" in aggr:
         if "error" in cons:
-            out.append(f"  conservative: {cons['error']}")
+            out.append(f"  manual: {cons['error']}")
         if "error" in aggr:
-            out.append(f"  aggressive:   {aggr['error']}")
+            out.append(f"  live:   {aggr['error']}")
         return "\n".join(out)
 
     rows = [

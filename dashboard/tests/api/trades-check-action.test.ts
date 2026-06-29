@@ -55,7 +55,7 @@ describe('trades/check action', () => {
         symbol: 'TSLA',
         side: 'STO',
         qty: 1,
-        account: 'conservative_paper',
+        account: 'manual_paper',
         option_type: 'put',
         strike: 200,
         expiration: '2026-05-30',
@@ -74,13 +74,13 @@ describe('trades/check action', () => {
     expect(runRuleChecks).toHaveBeenCalledTimes(1);
     const [draft, ctx] = runRuleChecks.mock.calls[0];
     expect(draft.symbol).toBe('TSLA');
-    expect(draft.account).toBe('conservative_paper');
+    expect(draft.account).toBe('manual_paper');
     expect(draft.expiration).toBe('2026-05-30');
     expect(ctx.positions).toHaveLength(2);
     expect(ctx.positions[0]).toEqual({ symbol: 'F', qty: 100, avg_entry_price: 12 });
 
     // Confirm Alpaca was queried for positions on the right account
-    expect(alpacaTrade).toHaveBeenCalledWith(expect.stringMatching(/conservative/), '/v2/positions');
+    expect(alpacaTrade).toHaveBeenCalledWith(expect.stringMatching(/manual/), '/v2/positions');
   });
 
   it('uses the manual mode for manual_paper account', async () => {
@@ -109,7 +109,7 @@ describe('trades/check action', () => {
       query: { action: 'check' },
       body: {
         asset_class: 'stock', symbol: 'F', side: 'buy', qty: 100,
-        account: 'conservative_paper',
+        account: 'manual_paper',
       },
     };
     const res = mkRes();

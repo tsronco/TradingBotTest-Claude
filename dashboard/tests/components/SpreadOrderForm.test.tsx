@@ -77,19 +77,11 @@ describe('SpreadOrderForm', () => {
     expect(screen.getByLabelText(/reasoning/i)).toBeInTheDocument();
   });
 
-  it('renders account chips: conservative_paper, aggressive_paper, manual_paper enabled; live disabled', async () => {
+  it('renders account chips: manual_paper enabled; live disabled', async () => {
     renderForm();
     await waitFor(() => screen.getByLabelText(/expiration/i));
 
-    // conservative_paper, aggressive_paper, manual_paper are all enabled
-    const consBtn = screen.getByRole('button', { name: /conservative_paper/i });
-    expect(consBtn).toBeInTheDocument();
-    expect(consBtn).not.toBeDisabled();
-
-    const aggBtn = screen.getByRole('button', { name: /aggressive_paper/i });
-    expect(aggBtn).toBeInTheDocument();
-    expect(aggBtn).not.toBeDisabled();
-
+    // manual_paper is the only paper account since the 2026-06-29 sunset
     const manualBtn = screen.getByRole('button', { name: /manual_paper/i });
     expect(manualBtn).toBeInTheDocument();
     expect(manualBtn).not.toBeDisabled();
@@ -98,22 +90,6 @@ describe('SpreadOrderForm', () => {
     const liveBtn = screen.getByRole('button', { name: /\[live/i });
     expect(liveBtn).toBeDisabled();
     expect(liveBtn).toHaveAttribute('title', 'Live spreads are bot-managed only — not available for manual entry');
-  });
-
-  it('calls setAccount with conservative_paper when that chip is clicked', async () => {
-    const setAccount = vi.fn();
-    renderForm({ setAccount });
-    await waitFor(() => screen.getByLabelText(/expiration/i));
-    fireEvent.click(screen.getByRole('button', { name: /conservative_paper/i }));
-    expect(setAccount).toHaveBeenCalledWith('conservative_paper');
-  });
-
-  it('calls setAccount with aggressive_paper when that chip is clicked', async () => {
-    const setAccount = vi.fn();
-    renderForm({ setAccount });
-    await waitFor(() => screen.getByLabelText(/expiration/i));
-    fireEvent.click(screen.getByRole('button', { name: /aggressive_paper/i }));
-    expect(setAccount).toHaveBeenCalledWith('aggressive_paper');
   });
 
   it('calls setAccount with manual_paper when the manual_paper chip is clicked', async () => {

@@ -5,7 +5,7 @@ describe('Trade type extensions (Phase 3)', () => {
   it('accepts parent_id, source, ai_grade_inherited as optional fields', () => {
     const t: Trade = {
       id: 'T-2026-05-07-001',
-      account: 'conservative_paper',
+      account: 'manual_paper',
       asset_class: 'stock',
       symbol: 'F',
       side: 'buy',

@@ -2,15 +2,13 @@
 """Wheel candidate screener.
 
 Posts a weekly Discord digest of best-looking wheel candidates for whichever
-mode is selected, helping decide what to add to that mode's wheel SYMBOLS.
+mode is selected (manual / live), surfacing ideas to consider by hand.
 
-  - Conservative: large-cap "happy to own" universe, ~10% OTM puts, 14-28 DTE.
-                   Posts to #daily-summary.
-  - Aggressive:   high-IV / volatile-name universe (crypto-adjacent, EV,
-                   meme, China tech, etc.), ~5% OTM puts, 7-14 DTE.
-                   Posts to #aggressive-summary.
+  - Manual / Live: large-cap "happy to own" universe, ~10% OTM puts, 14-28 DTE.
+                   Ideas only — the bot doesn't auto-execute on these accounts.
+                   Posts to #manual-summary / #live-summary.
 
-Both screeners exclude symbols already in their mode's wheel SYMBOLS so the
+The screener excludes symbols already in the mode's wheel SYMBOLS so the
 digest never recommends ticker the wheel is already cycling on.
 
 Keeps local fetch helpers (``get_latest_stock_price`` / ``find_best_put`` /
@@ -290,9 +288,7 @@ def run_screener():
         results.sort(key=lambda r: r["score"], reverse=True)
         top = results[:TOP_N]
 
-        if MODE == "aggressive":
-            title_prefix = "Aggressive Wheel Screener"
-        elif MODE == "manual":
+        if MODE == "manual":
             title_prefix = "Manual Wheel Screener (ideas only)"
         elif MODE == "live":
             title_prefix = "Live Wheel Screener (ideas only)"

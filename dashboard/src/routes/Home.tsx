@@ -14,16 +14,11 @@ function periodFlag(p: Period): string {
   return p === '1A' ? '1y' : p.toLowerCase();
 }
 
-type HomeAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
+type HomeAcctKey = 'MAN' | 'LIVE';
 
 const HOME_MODE_TO_CARD: Record<Mode, { acctKey: HomeAcctKey; label: string }> = {
-  conservative: { acctKey: 'CONS',  label: 'Conservative' },
-  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
-  manual:       { acctKey: 'MAN',   label: 'Manual' },
-  live:         { acctKey: 'LIVE',  label: 'Live $' },
-  sm500:        { acctKey: 'SM500', label: '$500' },
-  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
-  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
+  manual: { acctKey: 'MAN',  label: 'Manual' },
+  live:   { acctKey: 'LIVE', label: 'Live $' },
 };
 
 export default function Home() {
@@ -32,15 +27,7 @@ export default function Home() {
   const { handle } = useDisplayName();
   const [gran] = useGranularity();
 
-  // Aggregate equity across all accounts (always pull all — filter is presentational only)
-  const consQ = useQuery({
-    queryKey: ['account', 'conservative'],
-    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=conservative'),
-  });
-  const aggQ = useQuery({
-    queryKey: ['account', 'aggressive'],
-    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=aggressive'),
-  });
+  // Aggregate equity across both accounts (always pull all — filter is presentational only)
   const manQ = useQuery({
     queryKey: ['account', 'manual'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=manual'),
@@ -49,36 +36,14 @@ export default function Home() {
     queryKey: ['account', 'live'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=live'),
   });
-  const sm500Q = useQuery({
-    queryKey: ['account', 'sm500'],
-    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm500'),
-  });
-  const sm1000Q = useQuery({
-    queryKey: ['account', 'sm1000'],
-    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm1000'),
-  });
-  const sm2000Q = useQuery({
-    queryKey: ['account', 'sm2000'],
-    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=sm2000'),
-  });
 
   const equityMap: Record<Mode, number> = {
-    conservative: consQ.data ? Number(consQ.data.account.equity) : 0,
-    aggressive:   aggQ.data ? Number(aggQ.data.account.equity) : 0,
-    manual:       manQ.data ? Number(manQ.data.account.equity) : 0,
-    live:         liveQ.data ? Number(liveQ.data.account.equity) : 0,
-    sm500:        sm500Q.data ? Number(sm500Q.data.account.equity) : 0,
-    sm1000:       sm1000Q.data ? Number(sm1000Q.data.account.equity) : 0,
-    sm2000:       sm2000Q.data ? Number(sm2000Q.data.account.equity) : 0,
+    manual: manQ.data ? Number(manQ.data.account.equity) : 0,
+    live:   liveQ.data ? Number(liveQ.data.account.equity) : 0,
   };
   const lastMap: Record<Mode, number> = {
-    conservative: consQ.data ? Number(consQ.data.account.last_equity) : 0,
-    aggressive:   aggQ.data ? Number(aggQ.data.account.last_equity) : 0,
-    manual:       manQ.data ? Number(manQ.data.account.last_equity) : 0,
-    live:         liveQ.data ? Number(liveQ.data.account.last_equity) : 0,
-    sm500:        sm500Q.data ? Number(sm500Q.data.account.last_equity) : 0,
-    sm1000:       sm1000Q.data ? Number(sm1000Q.data.account.last_equity) : 0,
-    sm2000:       sm2000Q.data ? Number(sm2000Q.data.account.last_equity) : 0,
+    manual: manQ.data ? Number(manQ.data.account.last_equity) : 0,
+    live:   liveQ.data ? Number(liveQ.data.account.last_equity) : 0,
   };
 
   const selectedModes = accountsForSelection(mode);

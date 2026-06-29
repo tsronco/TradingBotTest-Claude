@@ -51,9 +51,14 @@ def test_wheel_skip_new_puts_no_ops_in_manual(fresh_symbol_state, monkeypatch):
     assert "manual" in (sym_state.get("last_action") or "").lower()
 
 
-def test_wheel_skip_new_puts_off_in_conservative(fresh_symbol_state, monkeypatch):
-    """Conservative must still attempt to sell new puts."""
-    wheel_strategy.apply_mode("conservative")
+def test_wheel_skip_new_puts_off_attempts_sell(fresh_symbol_state, monkeypatch):
+    """With WHEEL_SKIP_NEW_PUTS off, _sell_new_put must proceed past the gate.
+
+    (Both surviving modes — manual + live — keep WHEEL_SKIP_NEW_PUTS on, so
+    drive the flag off directly to exercise the gate's negative case; this is
+    the path the retired conservative/aggressive accounts used to take.)"""
+    wheel_strategy.apply_mode("manual")
+    monkeypatch.setattr(wheel_strategy, "WHEEL_SKIP_NEW_PUTS", False)
     # Don't fully exercise the path — just verify the gate doesn't fire.
     # We assert the function tries to look at options_buying_power, which
     # only happens once past the manual-mode early return.
@@ -73,7 +78,7 @@ def test_wheel_skip_new_puts_off_in_conservative(fresh_symbol_state, monkeypatch
         wheel_strategy._sell_new_put("TSLA", sym_state, stock_price=200.0, account=account)
     except Exception:
         pass
-    assert bp_reads, "conservative mode short-circuited like manual — gate misfiring"
+    assert bp_reads, "skip-off mode short-circuited like manual — gate misfiring"
 
 
 # ── strategy: ladder scaling ──────────────────────────────────────────────
@@ -298,8 +303,6 @@ def test_excluded_symbols_helper_normalizes_and_defaults():
     # set is already uppercased/normalized
     assert excl == {s.upper() for s in excl}
     # modes that don't opt in get an empty set — unaffected
-    assert config.excluded_symbols("conservative") == set()
-    assert config.excluded_symbols("aggressive") == set()
     assert config.excluded_symbols("live") == set()
 
 
@@ -308,10 +311,10 @@ def test_apply_mode_sets_excluded_symbols_on_both_scripts():
     assert "SNAP" in wheel_strategy.EXCLUDED_SYMBOLS
     strategy.apply_mode("manual")
     assert "SNAP" in strategy.EXCLUDED_SYMBOLS
-    # Conservative carries none.
-    wheel_strategy.apply_mode("conservative")
+    # Live carries none.
+    wheel_strategy.apply_mode("live")
     assert wheel_strategy.EXCLUDED_SYMBOLS == set()
-    strategy.apply_mode("conservative")
+    strategy.apply_mode("live")
     assert strategy.EXCLUDED_SYMBOLS == set()
 
 

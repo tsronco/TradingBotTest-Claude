@@ -6,7 +6,26 @@ Discord webhooks) and verify the transitions:
   Stage 1: pending → just_filled → tracking → 50%-close → expired_worthless → assigned
   Stage 2: pending → just_filled → tracking → 50%-close → expired_worthless → call_assigned
 """
+import pytest
+
+import config
 import wheel_strategy as ws
+
+
+@pytest.fixture(autouse=True)
+def _selling_wheel_baseline():
+    """These tests exercise the engine's Stage-1 *sell-new-puts* path and a
+    static-symbol wheel — the behaviour the retired conservative/aggressive
+    accounts drove. The surviving modes (manual/live) skip new puts and
+    auto-discover from positions, so the default ambient globals would gate the
+    sell path off. Pin a static-symbol, sells-new-puts baseline (manual's wheel
+    params match the old conservative wheel: 10% OTM, 14–28 DTE, 50% close).
+    """
+    ws.apply_mode("manual")
+    ws.WHEEL_SKIP_NEW_PUTS = False
+    ws.AUTO_DISCOVER_SYMBOLS = False
+    yield
+    ws.apply_mode(config.DEFAULT_MODE)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -788,12 +807,12 @@ def test_apply_mode_sets_stale_after_hours_from_config():
     """STALE_AFTER_HOURS reads from config.MODES[mode]["stale_after_hours"]
     so each mode can tune the threshold independently without code edits."""
     import config
-    # Conservative
-    ws.apply_mode("conservative")
-    assert ws.STALE_AFTER_HOURS == config.MODES["conservative"]["stale_after_hours"]
-    # Aggressive
-    ws.apply_mode("aggressive")
-    assert ws.STALE_AFTER_HOURS == config.MODES["aggressive"]["stale_after_hours"]
+    # Manual
+    ws.apply_mode("manual")
+    assert ws.STALE_AFTER_HOURS == config.MODES["manual"]["stale_after_hours"]
+    # Live
+    ws.apply_mode("live")
+    assert ws.STALE_AFTER_HOURS == config.MODES["live"]["stale_after_hours"]
     # Reset to default so subsequent tests aren't surprised
     ws.apply_mode(config.DEFAULT_MODE)
 

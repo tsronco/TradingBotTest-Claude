@@ -7,8 +7,8 @@ close it is to the mode's early-close trigger. Read-only.
 
 Usage:
     python tools/wheel_status.py
-    python tools/wheel_status.py --mode aggressive
-    python tools/wheel_status.py --mode conservative TSLA  # one symbol
+    python tools/wheel_status.py --mode live
+    python tools/wheel_status.py --mode manual TSLA  # one symbol
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ def _fmt_contract_line(symbol: str, sym_state: dict, early_close_pct: float) -> 
     # Live current premium
     quote = None
     try:
-        quote = ad.get_option_quote(contract, mode=_state_mode_cache.get("mode", "conservative"))
+        quote = ad.get_option_quote(contract, mode=_state_mode_cache.get("mode", "manual"))
     except Exception:
         pass
 
@@ -111,7 +111,7 @@ def _fmt_contract_line(symbol: str, sym_state: dict, early_close_pct: float) -> 
 
 # Tiny module-level cache so _fmt_contract_line knows which mode it's rendering
 # (avoids threading mode through every call).
-_state_mode_cache: dict = {"mode": "conservative"}
+_state_mode_cache: dict = {"mode": "manual"}
 
 
 def render_mode(mode: str, only_symbol: str | None) -> str:
@@ -145,13 +145,13 @@ def render_mode(mode: str, only_symbol: str | None) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Per-symbol wheel state.")
-    p.add_argument("--mode", choices=["conservative", "aggressive", "both"], default="both")
+    p.add_argument("--mode", choices=["manual", "live", "both"], default="both")
     p.add_argument("symbol", nargs="?", default=None,
                    help="Show only this symbol (case-insensitive).")
     args = p.parse_args(argv)
 
     only = args.symbol.upper() if args.symbol else None
-    modes = ["conservative", "aggressive"] if args.mode == "both" else [args.mode]
+    modes = ["manual", "live"] if args.mode == "both" else [args.mode]
     print("\n\n".join(render_mode(m, only) for m in modes))
     return 0
 

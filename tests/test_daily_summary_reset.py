@@ -174,8 +174,6 @@ def _stub_summary_dependencies(monkeypatch):
                         lambda cfg, exclude_occs=None: {"available": False, "count": 0})
     monkeypatch.setattr(daily_summary, "_summarize_held_stocks",
                         lambda cfg, tracked: {"available": False, "count": 0})
-    monkeypatch.setattr(daily_summary, "_summarize_congress",
-                        lambda: {"available": False})
     monkeypatch.setattr(daily_summary, "send_embed",
                         lambda *a, **kw: None)
     monkeypatch.setattr(daily_summary, "log_event",
@@ -189,7 +187,7 @@ def test_run_daily_summary_invokes_reset_when_flag_set(state_in_tmp, monkeypatch
                         lambda cfg: calls.append(cfg))
     _stub_summary_dependencies(monkeypatch)
 
-    daily_summary.run_daily_summary("conservative", reset_counters=True)
+    daily_summary.run_daily_summary("manual", reset_counters=True)
     assert len(calls) == 1, "reset must fire exactly once when flag is True"
 
 
@@ -204,8 +202,8 @@ def test_run_daily_summary_skips_reset_by_default(state_in_tmp, monkeypatch):
                         lambda cfg: calls.append(cfg))
     _stub_summary_dependencies(monkeypatch)
 
-    daily_summary.run_daily_summary("conservative")
+    daily_summary.run_daily_summary("manual")
     assert calls == [], "reset must NOT fire when flag is omitted"
 
-    daily_summary.run_daily_summary("conservative", reset_counters=False)
+    daily_summary.run_daily_summary("manual", reset_counters=False)
     assert calls == [], "reset must NOT fire when flag is False"

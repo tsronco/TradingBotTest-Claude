@@ -199,7 +199,6 @@ def test_embed_renders_spread_section(monkeypatch, tmp_path):
     monkeypatch.setattr(ds, "_summarize_strategy", lambda cfg: {"available": False})
     monkeypatch.setattr(ds, "_summarize_long_options", lambda cfg, exclude_occs=None: {"available": False, "count": 0})
     monkeypatch.setattr(ds, "_summarize_held_stocks", lambda cfg, tracked: {"available": False})
-    monkeypatch.setattr(ds, "_summarize_congress", lambda: {"available": False})
     import wheel_strategy
     monkeypatch.setattr(wheel_strategy, "get_option_quote", lambda occ: {
         "PLTR260619P00008000": {"bid": 0.17, "ask": 0.19},

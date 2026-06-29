@@ -140,7 +140,27 @@ import earnings as earnings_mod
 import config
 
 
-SM_CFG = config.get_mode("sm1000")
+# The autonomous spread engine is config-driven and stays in the codebase.
+# It used to be exercised through the sm1000 account's "Balanced" opener
+# posture; that account was retired 2026-06-29. `manual` now carries the same
+# opener params, so derive the engine-test cfg from manual and pin the few
+# scalars that differed on sm1000 (lower account_floor / concurrency / opens
+# per cycle, auto-open ON, the SM 2× credit stop) while dropping the
+# manual-only management keys (delta targeting, ETF bypass, the manual
+# tripwire) the opener/selection tests don't expect.
+SM_CFG = dict(config.get_mode("manual"))
+SM_CFG.update({
+    "auto_open_spreads":       True,
+    "account_floor":           300,
+    "max_concurrent_spreads":  2,
+    "max_opens_per_cycle":     1,
+    "bp_switch_threshold":     5000,
+    "spread_stop_credit_mult": 2.0,
+})
+for _k in ("short_put_target_delta", "wheelability_bypass_symbols",
+           "spread_underlying_tripwire", "spread_tripwire_dte",
+           "spread_tripwire_confirm_minutes"):
+    SM_CFG.pop(_k, None)
 
 
 def _contract(occ, strike, expiration="2026-06-12"):
@@ -652,10 +672,12 @@ def test_run_wheel_calls_auto_open_on_cold_start_empty_discover(monkeypatch, tmp
     the opener can never place its first trade (chicken-and-egg: nothing
     to discover until the opener opens something)."""
     import json
-    ws.apply_mode("sm1000")
-    assert ws.AUTO_OPEN_SPREADS is True   # apply_mode set it
+    # manual carries the auto-open engine; its config flag is PDT-disabled, so
+    # drive AUTO_OPEN_SPREADS on directly to exercise the run_wheel wiring.
+    ws.apply_mode("manual")
+    monkeypatch.setattr(ws, "AUTO_OPEN_SPREADS", True)
 
-    state_file = tmp_path / "wheel_state_sm1000.json"
+    state_file = tmp_path / "wheel_state_manual.json"
     state_file.write_text(json.dumps({"_meta": {}}))
     monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
     monkeypatch.setattr(ws, "is_market_open", lambda: True)
@@ -671,7 +693,7 @@ def test_run_wheel_calls_auto_open_on_cold_start_empty_discover(monkeypatch, tmp
     monkeypatch.setattr(ws, "save_state", lambda state: saved.append(True))
 
     ws.run_wheel()
-    assert called == ["sm1000"], (
+    assert called == ["manual"], (
         "run_wheel must call _auto_open_spread exactly once even when "
         "_discover_wheel_state returns an empty set (cold start)"
     )
@@ -691,10 +713,10 @@ def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
     discovered. Guards against double-invocation across the two hook
     sites (cold-start branch vs. end-of-cycle hook)."""
     import json
-    ws.apply_mode("sm1000")
-    assert ws.AUTO_OPEN_SPREADS is True   # apply_mode set it
+    ws.apply_mode("manual")
+    monkeypatch.setattr(ws, "AUTO_OPEN_SPREADS", True)
 
-    state_file = tmp_path / "wheel_state_sm1000.json"
+    state_file = tmp_path / "wheel_state_manual.json"
     state_file.write_text(json.dumps({"_meta": {}}))
     monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
     monkeypatch.setattr(ws, "is_market_open", lambda: True)
@@ -711,27 +733,28 @@ def test_run_wheel_calls_auto_open_when_flag_on(monkeypatch, tmp_path):
     monkeypatch.setattr(ws, "handle_stage1", lambda *a, **kw: None)
 
     ws.run_wheel()
-    assert called == ["sm1000"], (
+    assert called == ["manual"], (
         "run_wheel must call _auto_open_spread exactly once on the "
         "non-empty path (no double-run across hook sites)"
     )
 
-    # restore default mode so later tests/imports see conservative
+    # restore default mode so later tests/imports see the default
     ws.apply_mode(config.DEFAULT_MODE)
 
 
 def test_run_wheel_skips_auto_open_when_flag_off(monkeypatch, tmp_path):
-    """conservative/aggressive/manual/live: AUTO_OPEN_SPREADS off -> the
-    auto-open hook is never invoked."""
+    """live (AUTO_OPEN_SPREADS off): the auto-open hook is never invoked."""
     import json
-    ws.apply_mode("conservative")
+    ws.apply_mode("live")
     assert ws.AUTO_OPEN_SPREADS is False
 
-    state_file = tmp_path / "wheel_state.json"
+    state_file = tmp_path / "wheel_state_live.json"
     state_file.write_text(json.dumps({"_meta": {}, "TSLA":
                                       ws._empty_symbol_state()}))
     monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
     monkeypatch.setattr(ws, "is_market_open", lambda: True)
+    # live auto-discovers from positions — mock discovery so no Alpaca call.
+    monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: {"TSLA"})
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": "100000",
                                  "options_buying_power": "100000"})
@@ -743,7 +766,7 @@ def test_run_wheel_skips_auto_open_when_flag_off(monkeypatch, tmp_path):
     monkeypatch.setattr(ws, "_auto_open_spread",
                         lambda *a, **kw: called.append("X"))
     ws.run_wheel()
-    assert called == [], "auto-open must not fire on conservative"
+    assert called == [], "auto-open must not fire when the flag is off"
     ws.apply_mode(config.DEFAULT_MODE)
 
 
@@ -878,10 +901,15 @@ def test_auto_open_submits_marketable_limit_not_full_mid(monkeypatch):
         "CHEAP260612P00016000": {"bid": 0.18, "ask": 0.26},
     }
     ws.AUTO_OPEN_SPREADS = True
-    import config
-    cfg = dict(config.get_mode("sm1000"))
+    cfg = dict(SM_CFG)
     cfg["wheelability_min_pool"] = None  # isolate from the R12 pool gate (tested separately)
     cfg["max_underlying_price"] = None
+    # The opener reads the open-limit concession from module globals (set by
+    # apply_mode), not the cfg dict. Pin them to the legacy full-cross posture
+    # this test asserts (0.55 - 0.30 = 0.25 marketable), independent of which
+    # mode is ambient. (concession 1.0 = full marketable cross.)
+    monkeypatch.setattr(ws, "SPREAD_OPEN_CONCESSION_PCT", 1.0)
+    monkeypatch.setattr(ws, "SPREAD_OPEN_MIN_CREDIT_PCT_OF_MID", 0.0)
     monkeypatch.setattr(ws, "get_account",
                         lambda: {"equity": "1000", "options_buying_power": "2000"})
     import screener_core, earnings as earnings_mod

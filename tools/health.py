@@ -133,7 +133,7 @@ def render() -> str:
     out = [f"═══ HEALTH CHECK — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ".ljust(80, "═")]
 
     overall_ok = True
-    for mode in ("conservative", "aggressive"):
+    for mode in ("manual", "live"):
         out.append("")
         out.append(f"  [{mode}]")
         for label, fn in (

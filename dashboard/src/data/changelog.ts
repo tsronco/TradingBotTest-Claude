@@ -30,6 +30,27 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-29',
+    category: 'infra',
+    title: 'Retired the conservative, aggressive, and sm500/sm1000/sm2000 accounts',
+    details:
+      'The system is now focused on two accounts: manual (paper) and live (real money). '
+      + 'Removed the five retired accounts end-to-end — config.MODES rows, their GitHub Actions '
+      + 'workflows (tsla-monitor + wheel-screener), cron-job.org jobs, Discord channels, the '
+      + 'conservative-only congress-copy bot, the daily-summary head-to-head, and all state/log '
+      + 'files. On the dashboard, the account enumerations (useAccount / account-utils / '
+      + 'trade-types / alpaca / kv-keys / rule-check) collapse to manual + live, the sidebar drops '
+      + 'the small/core/hands-on group chips, and the bot-rules / thresholds / equity panels show '
+      + 'two accounts.\n\n'
+      + 'The shared strategy engine is unchanged — strategy.py (trail/ladder/stop), '
+      + 'wheel_strategy.py (including the whole auto-spread engine, still flag-gated), '
+      + 'long_options_strategy.py, and screener_core.py all stay intact; only the dead account '
+      + 'rows and their wiring were removed. Manual + live keep every behavior they had.\n\n'
+      + 'Heads-up for the cutover: the retired cron-job.org jobs must be deleted by hand (the '
+      + 'setup script only patches/creates, never deletes), and the now-unused GitHub Actions / '
+      + 'Vercel secrets for those accounts can be removed.',
+  },
+  {
+    date: '2026-06-29',
     category: 'fix',
     title: 'Wheel: transient Alpaca outage skips the cycle instead of pinging #errors',
     details:

@@ -67,14 +67,18 @@ def test_transient_rejects_non_http_exceptions(exc):
 # ── run_wheel integration ───────────────────────────────────────────────────
 
 
-def _setup_aggressive(monkeypatch, tmp_path):
-    """Put run_wheel on the aggressive path with a writable state file and a
-    captured send_embed. Returns the (channel, title) capture list."""
-    ws.apply_mode("aggressive")
-    state_file = tmp_path / "wheel_state_aggressive.json"
+def _setup_run_wheel(monkeypatch, tmp_path):
+    """Put run_wheel on a normal cycle with a writable state file and a
+    captured send_embed. manual auto-discovers, so stub discovery to a
+    non-empty set — that lets the cycle reach the gating get_account() (where
+    each test injects the transient/non-transient failure). Returns the
+    (channel, title) capture list."""
+    ws.apply_mode("manual")
+    state_file = tmp_path / "wheel_state_manual.json"
     state_file.write_text(json.dumps({"_meta": {}}))
     monkeypatch.setattr(ws, "STATE_FILE", str(state_file))
     monkeypatch.setattr(ws, "is_market_open", lambda: True)
+    monkeypatch.setattr(ws, "_discover_wheel_state", lambda s: {"TSLA"})
 
     embeds: list[tuple] = []
     monkeypatch.setattr(ws, "send_embed",
@@ -85,7 +89,7 @@ def _setup_aggressive(monkeypatch, tmp_path):
 def test_run_wheel_skips_on_transient_account_500(monkeypatch, tmp_path):
     """A sustained 500 on the cycle-gating get_account() → quiet skip:
     no raise, an actions-channel heartbeat, and NOTHING in #errors."""
-    embeds = _setup_aggressive(monkeypatch, tmp_path)
+    embeds = _setup_run_wheel(monkeypatch, tmp_path)
     monkeypatch.setattr(ws, "get_account",
                         lambda: (_ for _ in ()).throw(_http_error(500)))
 
@@ -101,7 +105,7 @@ def test_run_wheel_skips_on_transient_account_500(monkeypatch, tmp_path):
 
 def test_run_wheel_skips_on_connection_error(monkeypatch, tmp_path):
     """ConnectionError that exhausts retries is also a quiet skip."""
-    embeds = _setup_aggressive(monkeypatch, tmp_path)
+    embeds = _setup_run_wheel(monkeypatch, tmp_path)
     monkeypatch.setattr(ws, "get_account",
                         lambda: (_ for _ in ()).throw(
                             requests.exceptions.ConnectionError("reset")))
@@ -118,7 +122,7 @@ def test_run_wheel_skips_on_connection_error(monkeypatch, tmp_path):
 def test_run_wheel_still_raises_on_non_transient_error(monkeypatch, tmp_path):
     """A real bug (non-transient exception) keeps the old behaviour: ping
     #errors and re-raise so the workflow goes red and we notice."""
-    embeds = _setup_aggressive(monkeypatch, tmp_path)
+    embeds = _setup_run_wheel(monkeypatch, tmp_path)
     monkeypatch.setattr(ws, "get_account",
                         lambda: (_ for _ in ()).throw(ValueError("logic bug")))
 
@@ -132,7 +136,7 @@ def test_run_wheel_still_raises_on_non_transient_error(monkeypatch, tmp_path):
 
 def test_run_wheel_still_raises_on_404(monkeypatch, tmp_path):
     """A 404 is not a transient outage — still surfaces as an error."""
-    embeds = _setup_aggressive(monkeypatch, tmp_path)
+    embeds = _setup_run_wheel(monkeypatch, tmp_path)
     monkeypatch.setattr(ws, "get_account",
                         lambda: (_ for _ in ()).throw(_http_error(404)))
 

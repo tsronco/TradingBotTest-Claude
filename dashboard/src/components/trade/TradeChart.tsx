@@ -16,7 +16,7 @@ function toTs(iso: string): UTCTimestamp {
 export function TradeChart({ trade }: { trade: Trade }) {
   const ref = useRef<HTMLDivElement | null>(null);
   // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
-  // An SM trade's chart must pull bars from the SM account, not conservative.
+  // A live trade's chart must pull bars from the live account, not manual.
   const mode: Mode = accountToMode(trade.account);
 
   // Pad an hour of pre-trade context so the chart is meaningful even for

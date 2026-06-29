@@ -16,7 +16,7 @@ const PERIODS: Record<string, { period: string; timeframe: string }> = {
 export default function DrawdownPanel({ dateRange, account }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const cfg = PERIODS[dateRange] ?? PERIODS.ALL;
-  const accountForApi = account ? account.replace('_paper', '') : 'conservative';
+  const accountForApi = account ? account.replace('_paper', '') : 'manual';
 
   const q = useQuery({
     queryKey: ['equity-history', accountForApi, cfg.period, cfg.timeframe],

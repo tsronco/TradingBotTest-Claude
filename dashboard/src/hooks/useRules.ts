@@ -50,7 +50,7 @@ export function useProposals() {
 export function useBotRules() {
   return useQuery({
     queryKey: ['rules', 'bot'],
-    queryFn: () => api<{ conservative: BotRulesPayload | null; aggressive: BotRulesPayload | null; manual: BotRulesPayload | null }>('/api/rules/bot'),
+    queryFn: () => api<{ manual: BotRulesPayload | null; live: BotRulesPayload | null }>('/api/rules/bot'),
   });
 }
 

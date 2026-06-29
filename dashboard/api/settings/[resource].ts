@@ -27,16 +27,11 @@ const SEED_TAGS = [
   'high_iv', 'low_iv',
 ];
 
-// SM accounts behave like manual (hand-traded small accounts) — mirror manual's
-// TOTP threshold ($2,500). Keep in sync with trades/[action].ts DEFAULT_THRESHOLDS.
+// Per-account TOTP re-prompt thresholds. Keep in sync with
+// trades/[action].ts DEFAULT_THRESHOLDS.
 const DEFAULT_THRESHOLDS = {
-  conservative_paper: 5000,
-  aggressive_paper: 10000,
   manual_paper: 2500,
   live: 1500,
-  sm500_paper: 2500,
-  sm1000_paper: 2500,
-  sm2000_paper: 2500,
 };
 
 const DEFAULT_DISPLAY_NAME = 'trader';
@@ -81,24 +76,14 @@ async function handleThresholds(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method === 'POST') {
     const body = (req.body ?? {}) as Partial<typeof DEFAULT_THRESHOLDS>;
-    const cons = Number(body.conservative_paper);
-    const agg = Number(body.aggressive_paper);
     const manual = Number(body.manual_paper);
     const live = Number(body.live);
-    const sm500 = Number(body.sm500_paper);
-    const sm1000 = Number(body.sm1000_paper);
-    const sm2000 = Number(body.sm2000_paper);
-    if (![cons, agg, manual, live, sm500, sm1000, sm2000].every((n) => Number.isFinite(n) && n >= 0)) {
+    if (![manual, live].every((n) => Number.isFinite(n) && n >= 0)) {
       return res.status(400).json({ error: 'invalid_threshold_values' });
     }
     const thresholds = {
-      conservative_paper: cons,
-      aggressive_paper: agg,
       manual_paper: manual,
       live,
-      sm500_paper: sm500,
-      sm1000_paper: sm1000,
-      sm2000_paper: sm2000,
     };
     await kv().set(KV_KEYS.totpThresholds, thresholds);
     return res.status(200).json({ ok: true, thresholds });

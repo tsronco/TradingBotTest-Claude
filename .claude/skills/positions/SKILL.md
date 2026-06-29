@@ -1,6 +1,6 @@
 ---
 name: positions
-description: Current holdings across both paper accounts (conservative + aggressive). Shows stocks and short/long options with quantity, avg cost, current price, market value, and unrealized P&L. Read-only.
+description: Current holdings across both paper accounts (manual + live). Shows stocks and short/long options with quantity, avg cost, current price, market value, and unrealized P&L. Read-only.
 ---
 
 # /positions
@@ -10,13 +10,13 @@ Run `tools/positions.py` and show the user the output verbatim.
 ## Argument parsing
 
 - `/positions` → both accounts, all positions
-- `/positions conservative` or `/positions cons` → only conservative
-- `/positions aggressive` or `/positions agg` → only aggressive
+- `/positions manual` or `/positions cons` → only manual
+- `/positions live` or `/positions agg` → only live
 - `/positions options` → only options across both
 - `/positions stocks` → only stocks across both
-- `/positions agg options` → aggressive, options only
+- `/positions agg options` → live, options only
 
-Map to flags: `--mode {conservative|aggressive|both}` and `--filter {stocks|options}`.
+Map to flags: `--mode {manual|live|both}` and `--filter {stocks|options}`.
 
 ## How to run
 

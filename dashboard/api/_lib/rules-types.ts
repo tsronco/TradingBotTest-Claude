@@ -158,15 +158,19 @@ export interface Proposal {
 }
 
 /**
- * One per mode (cons/agg/manual). Pushed by the bot side from config.MODES
- * after each monitor run. Stored at KV key `bot:rules:${mode}` (3 keys total).
+ * One per mode (manual/live). Pushed by the bot side from config.MODES after
+ * each monitor run. Stored at KV key `bot:rules:${mode}` (2 keys total).
+ *
+ * (Optional `priority_tier`/`fallback_tier`/`congress` fields are retained for
+ * backward-compat with older pushed payloads; the manual/live accounts don't
+ * populate them.)
  */
 export interface BotRulesPayload {
-  mode: 'conservative' | 'aggressive' | 'manual';
+  mode: 'manual' | 'live';
   wheel: {
     symbols: string[];
-    priority_tier?: string[];         // aggressive only
-    fallback_tier?: string[];         // aggressive only
+    priority_tier?: string[];         // legacy (retired aggressive account)
+    fallback_tier?: string[];         // legacy (retired aggressive account)
     otm_pct: number;
     dte_min: number;
     dte_max: number;
@@ -180,7 +184,7 @@ export interface BotRulesPayload {
     trail_floor_pct: number;
     ladders: { trigger_pct: number; qty: number }[];
   };
-  congress?: {                        // conservative only
+  congress?: {                        // legacy (retired conservative account)
     /**
      * One entry per disclosure-amount sizing tier, matching congress-copy/config.py SIZING_TIERS.
      * The largest tier's `max_disclosure_usd` is the sentinel `1e18` to represent "unbounded"
@@ -190,7 +194,7 @@ export interface BotRulesPayload {
     sizing_tiers: { max_disclosure_usd: number; alloc_usd: number }[];
     politicians: { slug: string; name: string }[];
   };
-  /** Optional flags surfaced by manual mode (e.g., wheel_skip_new_puts, auto_discover_symbols). */
+  /** Optional flags surfaced by manual/live modes (e.g., wheel_skip_new_puts, auto_discover_symbols). */
   flags?: Record<string, boolean>;
   pushed_at: string;
 }
@@ -199,22 +203,14 @@ export interface BotRulesPayload {
  * Inbox entry for STO put assignments awaiting follow-on stock trade spawn.
  * `account` is the full AccountId union — assignments on the live account
  * stay on live so the bot manages the resulting shares with the same Stage 2
- * covered-call flow as paper. SM accounts (sm500/sm1000/sm2000) flow through
- * the same assignment path for any bare STO put that gets assigned.
+ * covered-call flow as the manual paper account.
  */
 export interface AssignmentEntry {
   parent_trade_id: string;
   underlying: string;
   strike: number;
   qty: number;
-  account:
-    | 'conservative_paper'
-    | 'aggressive_paper'
-    | 'manual_paper'
-    | 'live'
-    | 'sm500_paper'
-    | 'sm1000_paper'
-    | 'sm2000_paper';
+  account: 'manual_paper' | 'live';
   detected_at: string;
 }
 

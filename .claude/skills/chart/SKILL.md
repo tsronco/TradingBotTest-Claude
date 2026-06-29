@@ -12,9 +12,9 @@ Run `tools/chart.py` with the ticker. After it prints the `Chart: /tmp/chart_<TI
 - `/chart TSLA` → 90 days
 - `/chart NVDA 30` → 30 days
 - `/chart WMT 180 days` → 180 days
-- `/chart NVDA aggressive` → use aggressive account creds (data is the same; only matters for which account's positions show as overlays)
+- `/chart NVDA live` → use live account creds (data is the same; only matters for which account's positions show as overlays)
 
-Map the day count to `--days N`. If the user includes "conservative" or "aggressive" (or "cons" / "agg"), pass `--mode`.
+Map the day count to `--days N`. If the user includes "manual" or "live" (or "cons" / "agg"), pass `--mode`.
 
 ## How to run
 

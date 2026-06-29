@@ -149,13 +149,13 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     period = normalize_period(args.period)
-    snap_cons = summarize(period, "conservative")
-    snap_agg = summarize(period, "aggressive")
+    snap_cons = summarize(period, "manual")
+    snap_agg = summarize(period, "live")
 
     out = [f"═══ P&L OVER {period} ".ljust(60, "═")]
-    out.extend(format_summary(snap_cons, "conservative"))
+    out.extend(format_summary(snap_cons, "manual"))
     out.append("")
-    out.extend(format_summary(snap_agg, "aggressive"))
+    out.extend(format_summary(snap_agg, "live"))
 
     if not args.no_chart and "error" not in snap_cons or "error" not in snap_agg:
         try:

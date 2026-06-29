@@ -10,13 +10,12 @@ interface Pos {
   unrealized_plpc: string;
 }
 
-type Mode = 'conservative' | 'aggressive' | 'manual';
-const MODES: readonly Mode[] = ['conservative', 'aggressive', 'manual'] as const;
+type Mode = 'manual' | 'live';
+const MODES: readonly Mode[] = ['manual', 'live'] as const;
 
 const MODE_ACCENT: Record<Mode, { dot: string; text: string }> = {
-  conservative: { dot: 'bg-hi',    text: 'text-hi' },
-  aggressive:   { dot: 'bg-amber', text: 'text-amber' },
-  manual:       { dot: 'bg-cyan',  text: 'text-cyan' },
+  manual: { dot: 'bg-cyan', text: 'text-cyan' },
+  live:   { dot: 'bg-red',  text: 'text-red' },
 };
 
 export default function PositionContextPanel({ symbol }: { symbol: string }) {

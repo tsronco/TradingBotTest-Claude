@@ -1,20 +1,7 @@
 """Discord webhook notifications.
 
-Routes messages to one of several per-domain channels by name. Each paper
-account uses its own parallel set so the modes never cross-pollinate.
-
-Conservative:
-  - "tsla"     → DISCORD_TSLA_WEBHOOK     (#tsla-trades)
-  - "congress" → DISCORD_CONGRESS_WEBHOOK (#congress-trades)
-  - "summary"  → DISCORD_SUMMARY_WEBHOOK  (#daily-summary)
-  - "errors"   → DISCORD_ERRORS_WEBHOOK   (#errors)
-  - "actions"  → DISCORD_ACTIONS_WEBHOOK  (#all-actions, firehose)
-
-Aggressive:
-  - "agg_trades"  → DISCORD_AGG_TRADES_WEBHOOK   (#aggressive-trades)
-  - "agg_summary" → DISCORD_AGG_SUMMARY_WEBHOOK  (#aggressive-summary)
-  - "agg_errors"  → DISCORD_AGG_ERRORS_WEBHOOK   (#aggressive-errors)
-  - "agg_actions" → DISCORD_AGG_ACTIONS_WEBHOOK  (#aggressive-actions, firehose)
+Routes messages to one of several per-domain channels by name. Each account
+uses its own parallel set so the modes never cross-pollinate.
 
 Manual:
   - "manual_trades"  → DISCORD_MANUAL_TRADES_WEBHOOK   (#manual-trades)
@@ -28,13 +15,16 @@ Live (REAL MONEY):
   - "live_errors"  → DISCORD_LIVE_ERRORS_WEBHOOK   (#live-errors)
   - "live_actions" → DISCORD_LIVE_ACTIONS_WEBHOOK  (#live-actions, firehose)
 
+(The conservative, aggressive, and sm500/sm1000/sm2000 channel sets were
+retired 2026-06-29 along with those accounts.)
+
 If the webhook env var for a channel is unset, the call becomes a no-op so
 local dev runs don't fail. Errors talking to Discord are swallowed (logged
 to stderr) so a flaky webhook never breaks a trading bot.
 
 The send_embed/send_text functions accept `actions_channel` to specify which
-firehose channel to mirror to (defaults to "actions"). Non-conservative scripts
-pass their own actions channel name (e.g. "agg_actions", "manual_actions").
+firehose channel to mirror to. Each mode passes its own actions channel name
+(e.g. "manual_actions", "live_actions"); an unmapped channel is a safe no-op.
 """
 import json
 import os
@@ -63,15 +53,6 @@ _RETRY_BACKOFFS = (2, 8)
 _MAX_ATTEMPTS = 3
 
 CHANNEL_ENV_MAP = {
-    "tsla":         "DISCORD_TSLA_WEBHOOK",
-    "congress":     "DISCORD_CONGRESS_WEBHOOK",
-    "summary":      "DISCORD_SUMMARY_WEBHOOK",
-    "errors":       "DISCORD_ERRORS_WEBHOOK",
-    "actions":      "DISCORD_ACTIONS_WEBHOOK",
-    "agg_trades":   "DISCORD_AGG_TRADES_WEBHOOK",
-    "agg_summary":  "DISCORD_AGG_SUMMARY_WEBHOOK",
-    "agg_errors":   "DISCORD_AGG_ERRORS_WEBHOOK",
-    "agg_actions":  "DISCORD_AGG_ACTIONS_WEBHOOK",
     "manual_trades":  "DISCORD_MANUAL_TRADES_WEBHOOK",
     "manual_summary": "DISCORD_MANUAL_SUMMARY_WEBHOOK",
     "manual_errors":  "DISCORD_MANUAL_ERRORS_WEBHOOK",
@@ -80,19 +61,6 @@ CHANNEL_ENV_MAP = {
     "live_summary":   "DISCORD_LIVE_SUMMARY_WEBHOOK",
     "live_errors":    "DISCORD_LIVE_ERRORS_WEBHOOK",
     "live_actions":   "DISCORD_LIVE_ACTIONS_WEBHOOK",
-    # Small-account paper accounts (sm500 / sm1000 / sm2000)
-    "sm500_trades":   "DISCORD_SM500_TRADES_WEBHOOK",
-    "sm500_summary":  "DISCORD_SM500_SUMMARY_WEBHOOK",
-    "sm500_errors":   "DISCORD_SM500_ERRORS_WEBHOOK",
-    "sm500_actions":  "DISCORD_SM500_ACTIONS_WEBHOOK",
-    "sm1000_trades":  "DISCORD_SM1000_TRADES_WEBHOOK",
-    "sm1000_summary": "DISCORD_SM1000_SUMMARY_WEBHOOK",
-    "sm1000_errors":  "DISCORD_SM1000_ERRORS_WEBHOOK",
-    "sm1000_actions": "DISCORD_SM1000_ACTIONS_WEBHOOK",
-    "sm2000_trades":  "DISCORD_SM2000_TRADES_WEBHOOK",
-    "sm2000_summary": "DISCORD_SM2000_SUMMARY_WEBHOOK",
-    "sm2000_errors":  "DISCORD_SM2000_ERRORS_WEBHOOK",
-    "sm2000_actions": "DISCORD_SM2000_ACTIONS_WEBHOOK",
 }
 
 
@@ -191,8 +159,7 @@ def send_text(
     """Send a plain text message to a channel.
 
     If also_to_actions is True (default), also mirror to the firehose
-    actions_channel ("actions" by default; aggressive scripts pass
-    "agg_actions").
+    actions_channel (each mode passes its own, e.g. "manual_actions").
     """
     url = _webhook_url(channel)
     if url:
@@ -219,7 +186,7 @@ def send_embed(
     fields: list of {"name": str, "value": str, "inline": bool}
 
     If also_to_actions is True (default), mirrors to actions_channel
-    ("actions" by default; aggressive scripts pass "agg_actions").
+    (each mode passes its own, e.g. "manual_actions").
     """
     embed = {
         "title": title,

@@ -83,7 +83,7 @@ describe('OrderNew route', () => {
     // Use an option contract route. The chain-probe fetch returns the contract symbol,
     // OptionOrderForm reads the URL params we passed via OrderNew and seeds state.
     renderOrderNew('/order/new?contract=AAL260529P00012500&action=open&side=STO&price=1.23');
-    await waitFor(() => screen.getByText(/option · opening · conservative_paper/i));
+    await waitFor(() => screen.getByText(/option · opening · manual_paper/i));
 
     // The STO side chip should be active
     const stoBtn = screen.getByRole('button', { name: /STO/i });
@@ -102,7 +102,7 @@ describe('OrderNew route', () => {
 
   it('prefills BTO when arriving with ?side=BTO (chain ask click)', async () => {
     renderOrderNew('/order/new?contract=AAL260529P00012500&action=open&side=BTO&price=0.42');
-    await waitFor(() => screen.getByText(/option · opening · conservative_paper/i));
+    await waitFor(() => screen.getByText(/option · opening · manual_paper/i));
     const btoBtn = screen.getByRole('button', { name: /BTO/i });
     expect(btoBtn.className).toMatch(/active/);
   });

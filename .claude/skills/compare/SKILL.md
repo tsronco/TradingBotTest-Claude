@@ -1,6 +1,6 @@
 ---
 name: compare
-description: Ad-hoc head-to-head comparison between the conservative and aggressive paper accounts. Same numbers as the 4:12 PM ET daily summary's head-to-head embed, but on demand to stdout. Read-only.
+description: Ad-hoc head-to-head comparison between the manual and live paper accounts. Same numbers as the 4:12 PM ET daily summary's head-to-head embed, but on demand to stdout. Read-only.
 ---
 
 # /compare

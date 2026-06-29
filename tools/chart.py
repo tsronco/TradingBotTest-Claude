@@ -10,7 +10,7 @@ Output is a PNG at <tempdir>/chart_<TICKER>_<TS>.png plus a brief stdout summary
 Usage:
     python tools/chart.py TSLA
     python tools/chart.py NVDA --days 180
-    python tools/chart.py WMT --days 30 --mode aggressive
+    python tools/chart.py WMT --days 30 --mode live
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def _wheel_strikes_for(symbol: str) -> dict[str, float]:
     Returns {mode: strike} for whichever modes have an open contract.
     """
     out: dict[str, float] = {}
-    for mode in ("conservative", "aggressive"):
+    for mode in ("manual", "live"):
         cfg = config.get_mode(mode)
         path = ROOT / cfg["wheel_state_file"]
         if not path.exists():
@@ -90,8 +90,8 @@ def render(symbol: str, days: int, mode: str) -> str:
     fig, ax = plt.subplots(figsize=(11, 5))
     ax.plot(dates, closes, color="#1f77b4", linewidth=1.7, label=f"{symbol} close")
 
-    avg_cons = _avg_cost_for(symbol, "conservative")
-    avg_agg = _avg_cost_for(symbol, "aggressive")
+    avg_cons = _avg_cost_for(symbol, "manual")
+    avg_agg = _avg_cost_for(symbol, "live")
     if avg_cons:
         ax.axhline(avg_cons, color="#2ca02c", linestyle="--", alpha=0.7,
                    label=f"Avg cost (cons) ${avg_cons:.2f}")
@@ -101,7 +101,7 @@ def render(symbol: str, days: int, mode: str) -> str:
 
     strikes = _wheel_strikes_for(symbol)
     for m, strike in strikes.items():
-        color = "#d62728" if m == "conservative" else "#ff7f0e"
+        color = "#d62728" if m == "manual" else "#ff7f0e"
         ax.axhline(strike, color=color, linestyle=":", alpha=0.6,
                    label=f"Wheel strike ({m}) ${strike:.0f}")
 
@@ -125,9 +125,9 @@ def render(symbol: str, days: int, mode: str) -> str:
         f"  High: ${high:.2f}    Low: ${low:.2f}",
     ]
     if avg_cons:
-        summary.append(f"  Avg cost (conservative): ${avg_cons:.2f}")
+        summary.append(f"  Avg cost (manual): ${avg_cons:.2f}")
     if avg_agg and avg_agg != avg_cons:
-        summary.append(f"  Avg cost (aggressive):   ${avg_agg:.2f}")
+        summary.append(f"  Avg cost (live):   ${avg_agg:.2f}")
     if strikes:
         for m, strike in strikes.items():
             summary.append(f"  Open wheel strike ({m}): ${strike:.2f}")
@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Historical price chart with entry markers.")
     p.add_argument("ticker")
     p.add_argument("--days", type=int, default=90)
-    p.add_argument("--mode", default="conservative", choices=["conservative", "aggressive"],
+    p.add_argument("--mode", default="manual", choices=["manual", "live"],
                    help="Account whose data feed authenticates the request (data is identical).")
     args = p.parse_args(argv)
     print(render(args.ticker.upper(), args.days, args.mode))

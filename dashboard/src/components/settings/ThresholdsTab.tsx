@@ -3,23 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
 interface Thresholds {
-  conservative_paper: number;
-  aggressive_paper: number;
   manual_paper: number;
   live: number;
-  sm500_paper: number;
-  sm1000_paper: number;
-  sm2000_paper: number;
 }
 
 const DEFAULT_FORM: Thresholds = {
-  conservative_paper: 5000,
-  aggressive_paper: 10000,
   manual_paper: 2500,
   live: 1500,
-  sm500_paper: 2500,
-  sm1000_paper: 2500,
-  sm2000_paper: 2500,
 };
 
 export function ThresholdsTab() {
@@ -46,10 +36,7 @@ export function ThresholdsTab() {
       <div className="p-5 text-[12px] tnum">
         <div className="text-mid text-[10px] mb-3">orders at or above this $ exposure require a fresh totp code.</div>
         {(
-          [
-            'conservative_paper', 'aggressive_paper', 'manual_paper', 'live',
-            'sm500_paper', 'sm1000_paper', 'sm2000_paper',
-          ] as const
+          ['manual_paper', 'live'] as const
         ).map((k) => (
           <div key={k} className="flex justify-between py-1 border-b border-dashed border-border">
             <span className="text-mid">

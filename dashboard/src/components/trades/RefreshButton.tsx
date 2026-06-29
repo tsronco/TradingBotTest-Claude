@@ -135,7 +135,7 @@ export default function RefreshButton({ account }: { account?: string }) {
   );
 }
 
-// 'manual_paper' → 'manual', 'sm500_paper' → 'sm500', 'live' → 'live'.
+// 'manual_paper' → 'manual', 'live' → 'live'.
 function accountLabel(account: string): string {
   return account === 'live' ? 'live' : account.replace(/_paper$/, '');
 }

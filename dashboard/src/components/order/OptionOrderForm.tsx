@@ -15,7 +15,7 @@ import CashSummary from './CashSummary';
 import type { Leg } from '../../lib/payoff';
 import { accountToMode, type Mode } from '../../lib/account-utils';
 
-type OptionAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
+type OptionAccount = 'manual_paper' | 'live';
 
 interface Props {
   contractSymbol: string;
@@ -49,7 +49,7 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
   const [error, setError] = useState<string | null>(null);
 
   // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
-  // Quotes/BP/positions must hit the SELECTED account (incl. SM), not conservative.
+  // Quotes/BP/positions must hit the SELECTED account (incl. live), not the wrong account.
   const mode: Mode = accountToMode(account);
   const { data: quote } = useQuery({
     queryKey: ['option-quote', contractSymbol, mode],
@@ -137,12 +137,6 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
       <div>
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
-          <button type="button" className={`pbtn ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
-            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
-          </button>
-          <button type="button" className={`pbtn ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
-            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
-          </button>
           <button type="button" className={`pbtn ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
             [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
@@ -154,20 +148,6 @@ export function OptionOrderForm({ contractSymbol, action, account, setAccount, o
           >
             [live ${account === 'live' ? '*' : ''}]
           </button>
-          {([
-            ['sm500_paper', '$500'],
-            ['sm1000_paper', '$1,000'],
-            ['sm2000_paper', '$2,000'],
-          ] as [OptionAccount, string][]).map(([acct, label]) => (
-            <button
-              key={acct}
-              type="button"
-              className={`pbtn ${account === acct ? 'active' : ''}`}
-              onClick={() => setAccount(acct)}
-            >
-              [{label}{account === acct ? '*' : ''}]
-            </button>
-          ))}
         </div>
         <AccountBpIndicator mode={mode} assetClass="option" exposure={liveExposure} />
       </div>

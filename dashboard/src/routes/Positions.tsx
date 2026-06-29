@@ -21,36 +21,25 @@ interface Position {
 }
 
 const EARLY_CLOSE_THRESHOLD: Record<string, number> = {
-  conservative: 50,
-  aggressive: 60,
-  manual: 50, // mirrors conservative — manual wheel uses the same 50% close
+  manual: 50,
+  live: 50,
 };
 
 interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
 }
 
-type PosMode = 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
-type PosAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
+type PosMode = 'manual' | 'live';
+type PosAcctKey = 'MAN' | 'LIVE';
 
 const POS_ACCENT: Record<PosAcctKey, { text: string; bg: string; tag: string }> = {
-  CONS:  { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
-  AGG:   { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
   MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
   LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
-  SM500: { text: 'text-mid',   bg: 'bg-mid',   tag: '$500' },
-  SM1K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$1K ' },
-  SM2K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$2K ' },
 };
 
 const MODE_TO_CARD: Record<PosMode, { acctKey: PosAcctKey; label: string }> = {
-  conservative: { acctKey: 'CONS',  label: 'Conservative' },
-  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
-  manual:       { acctKey: 'MAN',   label: 'Manual' },
-  live:         { acctKey: 'LIVE',  label: 'Live $' },
-  sm500:        { acctKey: 'SM500', label: '$500' },
-  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
-  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
+  manual: { acctKey: 'MAN',  label: 'Manual' },
+  live:   { acctKey: 'LIVE', label: 'Live $' },
 };
 
 function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {

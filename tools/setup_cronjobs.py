@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Configure cron-job.org jobs that trigger our 6 GitHub Actions workflows
+Configure cron-job.org jobs that trigger our GitHub Actions workflows
+(manual + live monitors, daily summary, manual + live wheel screeners)
 plus the dashboard auto-grading webhook.
 
 Reads from .env at the project root:
@@ -48,55 +49,36 @@ CRONJOB_HEADERS = {
     "Content-Type": "application/json",
 }
 
-# Job definitions. Conservative + aggressive + manual paper accounts plus a
-# live (real-money) account run side-by-side. Mon–Fri jobs: TSLA Monitor × 4,
-# Congress Copy, Daily Summary. Sunday-only jobs: Wheel Screener × 4.
+# Job definitions. Two accounts run side-by-side: manual paper + live (real
+# money). Mon–Fri jobs: TSLA Monitor × 2, Daily Summary. Sunday-only jobs:
+# Wheel Screener × 2. Plus the dashboard webhook crons.
+#
+# NOTE: this script PATCHes existing jobs and PUTs new ones — it never deletes
+# jobs that were removed from this list. After the 2026-06-29 account sunset,
+# the retired cron-job.org jobs (conservative/aggressive/sm* monitors, both
+# old screeners, congress copy, the head-to-head daily summary) must be
+# deleted by hand in the cron-job.org dashboard. Their GitHub workflows are
+# gone, so until then they'll just dispatch to a 404 and no-op.
 JOBS = [
-    # Conservative paper account — original setup.
-    {
-        "title": "TSLA Monitor",
-        "workflow": "tsla-monitor.yml",
-        "hours": list(range(13, 21)),  # 13–20 UTC inclusive
-        "minutes": [7, 17, 27, 37, 47, 57],  # every 10 min, :7 offset
-        "wdays": [1, 2, 3, 4, 5],
-    },
-    # Aggressive paper account — same cadence, offset by :2 minutes so the
-    # two monitors don't fire simultaneously. The 'bot-commits' concurrency
-    # group serializes their commits anyway, but staggering reduces queueing.
-    {
-        "title": "TSLA Monitor (Aggressive)",
-        "workflow": "tsla-monitor-aggressive.yml",
-        "hours": list(range(13, 21)),
-        "minutes": [9, 19, 29, 39, 49, 59],  # every 10 min, :9 offset (+2 from cons)
-        "wdays": [1, 2, 3, 4, 5],
-    },
-    # Manual paper account — same cadence, offset by another :2 minutes
-    # so all three monitors stagger evenly inside the 10-min window.
+    # Manual paper account.
     {
         "title": "TSLA Monitor (Manual)",
         "workflow": "tsla-monitor-manual.yml",
         "hours": list(range(13, 21)),
-        "minutes": [1, 11, 21, 31, 41, 51],  # every 10 min, :11 offset (+2 from agg)
+        "minutes": [1, 11, 21, 31, 41, 51],  # every 10 min, :01 offset
         "wdays": [1, 2, 3, 4, 5],
     },
-    # Live (REAL MONEY) account — same cadence, offset by another :2 minutes
-    # so all four monitors stagger evenly inside the 10-min window.
+    # Live (REAL MONEY) account — offset :02 from manual so the two monitors
+    # stagger inside the 10-min window.
     {
         "title": "TSLA Monitor (Live)",
         "workflow": "tsla-monitor-live.yml",
         "hours": list(range(13, 21)),
-        "minutes": [3, 13, 23, 33, 43, 53],  # every 10 min, :13 offset (+2 from manual)
+        "minutes": [3, 13, 23, 33, 43, 53],  # every 10 min, :03 offset
         "wdays": [1, 2, 3, 4, 5],
     },
     {
-        "title": "Congress Copy",
-        "workflow": "congress-copy.yml",
-        "hours": [13, 15, 17, 19],
-        "minutes": [7],
-        "wdays": [1, 2, 3, 4, 5],
-    },
-    {
-        # Combined daily summary: posts conservative + aggressive + head-to-head.
+        # Combined daily summary: posts manual + live summaries.
         "title": "Daily Summary",
         "workflow": "daily-summary.yml",
         "hours": [20],
@@ -104,38 +86,18 @@ JOBS = [
         "wdays": [1, 2, 3, 4, 5],
     },
     {
-        # Sundays at 22:00 UTC (5pm CT / 6pm ET). Conservative wheel candidate
-        # digest goes to #daily-summary.
-        "title": "Wheel Screener",
-        "workflow": "wheel-screener.yml",
-        "hours": [22],
-        "minutes": [0],
-        "wdays": [0],  # Sunday only
-    },
-    {
-        # Aggressive wheel candidate digest (high-IV universe) goes to
-        # #aggressive-summary, offset by 2 min so it doesn't race the
-        # conservative screener for a Sunday-evening fire.
-        "title": "Wheel Screener (Aggressive)",
-        "workflow": "wheel-screener-aggressive.yml",
-        "hours": [22],
-        "minutes": [2],
-        "wdays": [0],
-    },
-    {
-        # Manual wheel candidate digest (default conservative universe) goes
-        # to #manual-summary as IDEAS only — manual mode never auto-executes.
-        # Offset another 2 min from aggressive so screeners stagger evenly.
+        # Sundays at 22:00 UTC (5pm CT / 6pm ET). Manual wheel candidate
+        # digest goes to #manual-summary as IDEAS only — manual never
+        # auto-executes the wheel.
         "title": "Wheel Screener (Manual)",
         "workflow": "wheel-screener-manual.yml",
         "hours": [22],
         "minutes": [4],
-        "wdays": [0],
+        "wdays": [0],  # Sunday only
     },
     {
-        # Live wheel candidate digest (default conservative universe) goes to
-        # #live-summary as IDEAS only — live mode never auto-executes either.
-        # Offset another 2 min from manual so all four screeners stagger.
+        # Live wheel candidate digest goes to #live-summary as IDEAS only —
+        # live never auto-executes either. Offset :02 from manual.
         "title": "Wheel Screener (Live)",
         "workflow": "wheel-screener-live.yml",
         "hours": [22],
@@ -169,33 +131,6 @@ JOBS = [
         "hours": [22],
         "minutes": [0],
         "wdays": [0],   # Sunday only
-    },
-    # SM500 small-account paper — auto-spread mode. Offset :05 (no collision
-    # with cons :07, agg :09, manual :01, live :03, sm2000 :06, sm1000 :08).
-    {
-        "title": "TSLA Monitor (SM500)",
-        "workflow": "tsla-monitor-sm500.yml",
-        "hours": list(range(13, 21)),
-        "minutes": [5, 15, 25, 35, 45, 55],  # every 10 min, :05 offset
-        "wdays": [1, 2, 3, 4, 5],
-    },
-    # SM1000 small-account paper — auto-spread mode. Offset :08 (no collision
-    # with cons :07, agg :09, manual :01, live :03, sm500 :05, sm2000 :06).
-    {
-        "title": "TSLA Monitor (SM1000)",
-        "workflow": "tsla-monitor-sm1000.yml",
-        "hours": list(range(13, 21)),
-        "minutes": [8, 18, 28, 38, 48, 58],  # every 10 min, :08 offset
-        "wdays": [1, 2, 3, 4, 5],
-    },
-    # SM2000 small-account paper — auto-spread mode. Offset :06 (no collision
-    # with cons :07, agg :09, manual :01, live :03, sm500 :05, sm1000 :08).
-    {
-        "title": "TSLA Monitor (SM2000)",
-        "workflow": "tsla-monitor-sm2000.yml",
-        "hours": list(range(13, 21)),
-        "minutes": [6, 16, 26, 36, 46, 56],  # every 10 min, :06 offset
-        "wdays": [1, 2, 3, 4, 5],
     },
 ]
 

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 
-export type AccountMode =
-  | 'conservative' | 'aggressive' | 'manual' | 'live'
-  | 'sm500' | 'sm1000' | 'sm2000'
-  | 'both'
-  | 'small' | 'core' | 'hands-on';
+// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money),
+// plus 'both' for the side-by-side view.
+export type AccountMode = 'manual' | 'live' | 'both';
 const KEY = 'dash:selectedAccount';
 const CHANGE_EVENT = 'dash:account-mode-change';
 

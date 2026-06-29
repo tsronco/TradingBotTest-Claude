@@ -1,23 +1,12 @@
 name: Daily Summary
 
-# Eight-step daily summary: 7 per-mode summaries then a head-to-head
-# comparison. Each step posts an embed to its corresponding Discord channel:
-#   1. Daily summary (conservative) → #daily-summary
-#   2. Daily summary (aggressive)   → #aggressive-summary
-#   3. Daily summary (manual)       → #manual-summary  (no head-to-head)
-#   4. Daily summary (live)         → #live-summary    (no head-to-head — real
-#                                     money, separate capital base, separate
-#                                     operating model from paper accounts)
-#   5. Daily summary (sm500)        → #sm500-summary   (no head-to-head —
-#                                     different capital base and operating model)
-#   6. Daily summary (sm1000)       → #sm1000-summary  (no head-to-head —
-#                                     different capital base and operating model)
-#   7. Daily summary (sm2000)       → #sm2000-summary  (no head-to-head —
-#                                     different capital base and operating model)
-#   8. Head-to-head comparison      → #daily-summary AND #aggressive-summary
-#                                     (manual, live, and sm* all excluded —
-#                                      different starting capital and operating
-#                                      model)
+# Two-step daily summary: one per-mode summary per account. Each step posts an
+# embed to its corresponding Discord channel:
+#   1. Daily summary (manual) → #manual-summary
+#   2. Daily summary (live)   → #live-summary (REAL MONEY)
+#
+# (The conservative/aggressive head-to-head and the sm500/sm1000/sm2000
+# summaries were retired 2026-06-29 with those accounts.)
 #
 # Triggered exclusively by cron-job.org via workflow_dispatch.
 
@@ -45,26 +34,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Daily summary (conservative)
-        env:
-          ALPACA_API_KEY:           ${{ secrets.ALPACA_API_KEY }}
-          ALPACA_API_SECRET:        ${{ secrets.ALPACA_API_SECRET }}
-          ALPACA_BASE_URL:          ${{ secrets.ALPACA_BASE_URL }}
-          DISCORD_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
-          DISCORD_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
-          DISCORD_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode conservative --reset-counters
-
-      - name: Daily summary (aggressive)
-        env:
-          ALPACA_AGG_API_KEY:           ${{ secrets.ALPACA_AGG_API_KEY }}
-          ALPACA_AGG_API_SECRET:        ${{ secrets.ALPACA_AGG_API_SECRET }}
-          ALPACA_AGG_BASE_URL:          ${{ secrets.ALPACA_AGG_BASE_URL }}
-          DISCORD_AGG_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_AGG_SUMMARY_WEBHOOK }}
-          DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
-          DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode aggressive --reset-counters
-
       - name: Daily summary (manual)
         env:
           ALPACA_MANUAL_API_KEY:           ${{ secrets.ALPACA_MANUAL_API_KEY }}
@@ -84,55 +53,6 @@ jobs:
           DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
           DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
         run: python daily_summary.py --mode live --reset-counters
-
-      - name: Daily summary (sm500)
-        env:
-          ALPACA_SM500_API_KEY:           ${{ secrets.ALPACA_SM500_API_KEY }}
-          ALPACA_SM500_API_SECRET:        ${{ secrets.ALPACA_SM500_API_SECRET }}
-          ALPACA_SM500_BASE_URL:          ${{ secrets.ALPACA_SM500_BASE_URL }}
-          DISCORD_SM500_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM500_SUMMARY_WEBHOOK }}
-          DISCORD_SM500_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM500_ERRORS_WEBHOOK }}
-          DISCORD_SM500_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM500_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode sm500 --reset-counters
-
-      - name: Daily summary (sm1000)
-        env:
-          ALPACA_SM1000_API_KEY:           ${{ secrets.ALPACA_SM1000_API_KEY }}
-          ALPACA_SM1000_API_SECRET:        ${{ secrets.ALPACA_SM1000_API_SECRET }}
-          ALPACA_SM1000_BASE_URL:          ${{ secrets.ALPACA_SM1000_BASE_URL }}
-          DISCORD_SM1000_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM1000_SUMMARY_WEBHOOK }}
-          DISCORD_SM1000_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM1000_ERRORS_WEBHOOK }}
-          DISCORD_SM1000_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM1000_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode sm1000 --reset-counters
-
-      - name: Daily summary (sm2000)
-        env:
-          ALPACA_SM2000_API_KEY:           ${{ secrets.ALPACA_SM2000_API_KEY }}
-          ALPACA_SM2000_API_SECRET:        ${{ secrets.ALPACA_SM2000_API_SECRET }}
-          ALPACA_SM2000_BASE_URL:          ${{ secrets.ALPACA_SM2000_BASE_URL }}
-          DISCORD_SM2000_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_SM2000_SUMMARY_WEBHOOK }}
-          DISCORD_SM2000_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_SM2000_ERRORS_WEBHOOK }}
-          DISCORD_SM2000_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_SM2000_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --mode sm2000 --reset-counters
-
-      - name: Head-to-head comparison
-        if: always()
-        # Pulls both accounts' equity, premiums, etc. and posts a
-        # side-by-side embed to BOTH summary channels.
-        env:
-          ALPACA_API_KEY:               ${{ secrets.ALPACA_API_KEY }}
-          ALPACA_API_SECRET:            ${{ secrets.ALPACA_API_SECRET }}
-          ALPACA_BASE_URL:              ${{ secrets.ALPACA_BASE_URL }}
-          ALPACA_AGG_API_KEY:           ${{ secrets.ALPACA_AGG_API_KEY }}
-          ALPACA_AGG_API_SECRET:        ${{ secrets.ALPACA_AGG_API_SECRET }}
-          ALPACA_AGG_BASE_URL:          ${{ secrets.ALPACA_AGG_BASE_URL }}
-          DISCORD_SUMMARY_WEBHOOK:      ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
-          DISCORD_AGG_SUMMARY_WEBHOOK:  ${{ secrets.DISCORD_AGG_SUMMARY_WEBHOOK }}
-          DISCORD_ERRORS_WEBHOOK:       ${{ secrets.DISCORD_ERRORS_WEBHOOK }}
-          DISCORD_AGG_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_AGG_ERRORS_WEBHOOK }}
-          DISCORD_ACTIONS_WEBHOOK:      ${{ secrets.DISCORD_ACTIONS_WEBHOOK }}
-          DISCORD_AGG_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_AGG_ACTIONS_WEBHOOK }}
-        run: python daily_summary.py --head-to-head
 
       - name: Commit logs
         run: |

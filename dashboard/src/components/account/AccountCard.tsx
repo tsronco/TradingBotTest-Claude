@@ -31,7 +31,7 @@ interface HistoryResp {
 }
 
 interface CardProps {
-  mode: 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
+  mode: 'manual' | 'live';
   label: string;
   /** acctKey — used for the data-acct-key attribute that drives the filter CSS. */
   acctKey: 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';

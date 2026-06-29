@@ -1,25 +1,11 @@
-"""Mode configuration for the multi paper-account architecture.
+"""Mode configuration for the paper + live account architecture.
 
-Seven accounts run side-by-side, fully isolated. Six are paper; one is live.
-
-  conservative — original wheel, 10% OTM, 14-28 DTE puts, 50% early close
-                 Symbols: large-caps + a few cheap names for small-account practice.
-                 Discord: #tsla-trades, #daily-summary, #errors, #all-actions
-                 Alpaca:  ALPACA_API_KEY / ALPACA_API_SECRET (paper)
-
-  aggressive   — wheel cycling faster on higher-IV names. 5% OTM, 7-14 DTE puts,
-                 60% early close. Mirrors the conservative architecture (also
-                 runs strategy.py + long_options_strategy.py) — only the wheel
-                 parameters and symbol mix differ.
-                 Discord: #aggressive-trades, #aggressive-summary, #aggressive-errors,
-                          #aggressive-actions
-                 Alpaca:  ALPACA_AGG_API_KEY / ALPACA_AGG_API_SECRET (paper)
+Two accounts run side-by-side, fully isolated. One is paper; one is live.
 
   manual       — bot manages whatever you buy by hand: trail/ladder/stop on every
                  stock you hold (auto-discovered from positions), and the wheel
                  manages existing puts (50% close) + sells covered calls on
-                 assignments — but never opens new puts itself. Wheel parameters
-                 mirror conservative for managing positions.
+                 assignments — but never opens new puts itself.
                  Discord: #manual-trades, #manual-summary, #manual-errors,
                           #manual-actions
                  Alpaca:  ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET (paper)
@@ -27,193 +13,25 @@ Seven accounts run side-by-side, fully isolated. Six are paper; one is live.
   live         — REAL MONEY. Identical behaviour to manual mode (auto-discover
                  from positions, never open new puts, manage what the user opens
                  by hand). Separate Alpaca live credentials, separate Discord
-                 channels, separate state files. Congress-copy never runs here.
+                 channels, separate state files.
                  Discord: #live-trades, #live-summary, #live-errors, #live-actions
                  Alpaca:  ALPACA_LIVE_API_KEY / ALPACA_LIVE_API_SECRET (live)
 
-  sm500        — Small-account paper ($500 seed). Behaves like manual (auto-discover,
-                 spread management, no static-list CSP wheel) PLUS an autonomous
-                 screener-driven put-credit-spread opener. Universe filtered to
-                 cheap underlyings (≤$25) so risk-capped spreads can actually fit.
-                 Discord: #sm500-trades, #sm500-summary, #sm500-errors, #sm500-actions
-                 Alpaca:  ALPACA_SM500_API_KEY / ALPACA_SM500_API_SECRET (paper)
+Each script reads --mode {manual|live} on its CLI; the mode picks the
+credentials, state files, log stream, Discord channels, and parameters.
 
-  sm1000       — Small-account paper ($1,000 seed). Same as sm500 but screens the
-                 full conservative universe (no price cap on underlying).
-                 Discord: #sm1000-trades, #sm1000-summary, #sm1000-errors, #sm1000-actions
-                 Alpaca:  ALPACA_SM1000_API_KEY / ALPACA_SM1000_API_SECRET (paper)
+Both modes auto-discover symbols from held positions, so there is no static
+symbol list to maintain.
 
-  sm2000       — Small-account paper ($2,000 seed). Same as sm1000.
-                 Discord: #sm2000-trades, #sm2000-summary, #sm2000-errors, #sm2000-actions
-                 Alpaca:  ALPACA_SM2000_API_KEY / ALPACA_SM2000_API_SECRET (paper)
-
-Each script reads --mode {conservative|aggressive|manual|live|sm500|sm1000|sm2000}
-on its CLI; the mode picks the credentials, state files, log stream, Discord
-channels, and parameters.
-
-To add/remove a wheel symbol, edit CONSERVATIVE_SYMBOLS or AGGRESSIVE_SYMBOLS
-and that's the entire config change. Manual/live/sm* modes auto-discover symbols
-from held positions, so they have no static symbol list.
+(History: conservative, aggressive, and three small-account paper accounts —
+sm500/sm1000/sm2000 — were retired 2026-06-29. The shared strategy/wheel/
+auto-spread engine they exercised is unchanged; only the account rows, their
+workflows, credentials, and Discord channels were removed.)
 """
-
-# ── Wheel symbol lists ────────────────────────────────────────────────────
-#
-# IMPORTANT: list order = fill priority.
-#
-# The wheel (wheel_strategy.run_wheel) iterates SYMBOLS sequentially and
-# consumes buying power as it places put orders. Symbols earlier in the
-# list get first claim on cash; symbols later in the list only fill if BP
-# remains. When adding/removing symbols, place them where you want them in
-# the fill order.
-#
-# Symbols that hit insufficient cash (i.e., the wheel tried but BP was
-# exhausted by earlier symbols) silently skip and route the event to the
-# muted #all-actions / #aggressive-actions firehose — NOT the errors
-# channel. That's intentional: running out of cash on the fallback tier
-# is expected behavior, not a bug.
-
-# Conservative: large-caps + cheap names. $100k account easily fits all 10
-# puts so order doesn't really matter here — just keep them in a sensible
-# arrangement. Adjust freely.
-CONSERVATIVE_SYMBOLS = [
-    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
-    "F", "T", "INTC",
-]
-
-# Aggressive: 7 high-IV names (priority tier) + 7 baseline symbols (fallback).
-#
-# Order matters — the wheel iterates SYMBOLS sequentially and consumes BP as
-# it places put orders. Listing aggressive names first ensures the high-IV
-# tier gets first claim on the account's buying power; the baseline tier
-# only fills if BP remains afterward. Symbols that hit insufficient cash
-# log to #aggressive-actions (firehose, not errors) since this is expected
-# behavior, not a bug.
-AGGRESSIVE_SYMBOLS = [
-    # Priority tier — aggressive high-IV names get first claim on BP
-    "COIN", "MARA", "RIOT", "SMCI", "NVDA", "AMD", "MU",
-    # Fallback tier — only fill if BP remains after priority tier
-    "TSLA", "BAC", "XOM", "KO", "PLTR", "SOFI", "PFE",
-]
-
-# ── Wheel screener universes ─────────────────────────────────────────────
-
-# Conservative screener falls through to the default UNIVERSE in
-# wheel_screener.py (curated large-caps). Aggressive uses a separate
-# higher-IV universe so the weekly digest highlights ticker we'd
-# actually consider for the aggressive wheel.
-AGGRESSIVE_SCREENER_UNIVERSE = [
-    # Crypto-adjacent (extra volatile)
-    "MSTR", "HOOD",
-    # Volatile semis / AI
-    "ARM", "ON", "AVGO",
-    # EV / speculative auto
-    "RIVN", "LCID", "NIO",
-    # High-vol fintech / consumer
-    "AFRM", "SHOP", "U", "SNAP", "ROKU", "PINS",
-    # Cybersec / cloud (high IV)
-    "NET", "DDOG", "CRWD", "ZS", "SNOW",
-    # China tech volatility
-    "BABA", "JD", "PDD",
-    # Meme / social
-    "GME", "AMC",
-    # Volatile biopharma
-    "MRNA",
-]
-
 
 # ── Mode definitions ──────────────────────────────────────────────────────
 
 MODES = {
-    "conservative": {
-        # Alpaca env-var names (the script reads os.getenv on these)
-        "alpaca_key_env":    "ALPACA_API_KEY",
-        "alpaca_secret_env": "ALPACA_API_SECRET",
-        "alpaca_url_env":    "ALPACA_BASE_URL",
-
-        # Discord channel names (resolved by notifications/discord.py
-        # CHANNEL_ENV_MAP into the matching webhook env var)
-        "trades_channel":    "tsla",
-        "summary_channel":   "summary",
-        "errors_channel":    "errors",
-        "actions_channel":   "actions",
-
-        # JSONL log stream name (writes to logs/<stream>.jsonl)
-        "log_stream":        "tsla",
-
-        # State files
-        "wheel_state_file":     "wheel_state.json",
-        "strategy_state_file":  "strategy_state.json",
-
-        # Spread management — gated off here; see manual mode (the only
-        # account where this is True). Threshold keys preserved so apply_mode
-        # reads succeed and so flipping to True is a one-line change.
-        "spread_management":      False,
-        "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
-        "spread_dte_floor":       2,
-
-        # Wheel parameters
-        "wheel_symbols":       CONSERVATIVE_SYMBOLS,
-        "put_strike_pct":      0.10,
-        "call_strike_pct":     0.10,
-        "put_dte_min":         14,
-        "put_dte_max":         28,
-        "call_dte_min":         7,
-        "call_dte_max":        21,
-        "early_close_pct":     0.50,
-
-        # Cancel any wheel sell-to-open order pending longer than this and
-        # immediately re-quote at the fresh mid. Default: 4hr. Frees BP that
-        # would otherwise stay tied up by limit orders that won't fill (e.g.,
-        # mid-of-spread on illiquid options).
-        "stale_after_hours":   4,
-
-        # Screener parameters
-        "screener_universe":      None,   # falls through to default
-        "screener_strike_pct":    0.10,
-        "screener_dte_min":       14,
-        "screener_dte_max":       28,
-
-        # Long-options parameters (TP/SL/time-exit thresholds same for both modes for now)
-    },
-
-    "aggressive": {
-        "alpaca_key_env":    "ALPACA_AGG_API_KEY",
-        "alpaca_secret_env": "ALPACA_AGG_API_SECRET",
-        "alpaca_url_env":    "ALPACA_AGG_BASE_URL",
-
-        "trades_channel":    "agg_trades",
-        "summary_channel":   "agg_summary",
-        "errors_channel":    "agg_errors",
-        "actions_channel":   "agg_actions",
-
-        "log_stream":        "tsla_aggressive",
-
-        "wheel_state_file":     "wheel_state_aggressive.json",
-        "strategy_state_file":  "strategy_state_aggressive.json",
-
-        # Spread management — gated off here; see manual mode.
-        "spread_management":      False,
-        "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
-        "spread_dte_floor":       2,
-
-        "wheel_symbols":       AGGRESSIVE_SYMBOLS,
-        "put_strike_pct":      0.05,
-        "call_strike_pct":     0.05,
-        "put_dte_min":          7,
-        "put_dte_max":         14,
-        "call_dte_min":         5,
-        "call_dte_max":        10,
-        "early_close_pct":     0.40,
-        "stale_after_hours":   4,
-
-        "screener_universe":      AGGRESSIVE_SCREENER_UNIVERSE,
-        "screener_strike_pct":    0.05,
-        "screener_dte_min":        7,
-        "screener_dte_max":       14,
-    },
-
     "manual": {
         "alpaca_key_env":    "ALPACA_MANUAL_API_KEY",
         "alpaca_secret_env": "ALPACA_MANUAL_API_SECRET",
@@ -446,222 +264,9 @@ MODES = {
         "screener_dte_min":       14,
         "screener_dte_max":       28,
     },
-
-    # ── SM mode shared base (sm500 / sm1000 / sm2000) ─────────────────────
-    # Each SM mode is a verbatim copy of manual (all management flags +
-    # wheel params), with per-mode credential / channel / state-file
-    # overrides and a new auto_open_* param block that enables the
-    # screener-driven autonomous put-credit-spread opener.
-    #
-    # wheel_skip_new_puts stays True — the static-list CSP wheel is OFF.
-    # The new auto_open_spreads engine is a separate code path.
-
-    "sm500": {
-        "alpaca_key_env":    "ALPACA_SM500_API_KEY",
-        "alpaca_secret_env": "ALPACA_SM500_API_SECRET",
-        "alpaca_url_env":    "ALPACA_SM500_BASE_URL",
-
-        "trades_channel":    "sm500_trades",
-        "summary_channel":   "sm500_summary",
-        "errors_channel":    "sm500_errors",
-        "actions_channel":   "sm500_actions",
-
-        "log_stream":        "sm500",
-
-        "wheel_state_file":     "wheel_state_sm500.json",
-        "strategy_state_file":  "strategy_state_sm500.json",
-
-        # Inherit manual's auto-discover + skip-new-puts flags
-        "wheel_symbols":       [],
-        "auto_discover_symbols": True,
-        "wheel_skip_new_puts": True,
-
-        # Spread management enabled (same as manual)
-        "spread_management":      True,
-        "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
-        "spread_dte_floor":       2,
-
-        # Wheel parameters mirror manual / conservative
-        "put_strike_pct":      0.10,
-        "call_strike_pct":     0.10,
-        "put_dte_min":         14,
-        "put_dte_max":         28,
-        "call_dte_min":         7,
-        "call_dte_max":        21,
-        "early_close_pct":     0.50,
-        "stale_after_hours":   4,
-
-        # Screener: None → falls through to the expanded conservative default
-        "screener_universe":      None,
-        "screener_strike_pct":    0.10,
-        "screener_dte_min":       14,
-        "screener_dte_max":       28,
-
-        # ── Auto-open param block (new — SM modes only) ───────────────────
-        # Enable the screener-driven autonomous put-credit-spread opener.
-        "auto_open_spreads":         True,
-        "bp_switch_threshold":       5000,    # below this BP → use spread not CSP
-        "wheelability_min":          75,      # 2026-05-21: 85 → 75 (52-name pool makes percentile-90 unreachable; 77.8 was the recurring ceiling post-expansion)
-        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
-        "max_risk_pct_equity":       0.20,    # 2026-05-21: 0.10 → 0.20 (sm500-only; $50 cap left no $1-wide spread that could fit)
-        "min_net_credit":            0.05,    # reject sub-5¢/share credit spreads
-        "max_concurrent_spreads":    1,       # Conservative: at most 1 open
-        "account_floor":             300,     # skip if equity < $300
-        "earnings_exclusion_days":   7,       # skip symbols with earnings ≤7 days
-        "max_opens_per_cycle":       1,       # at most 1 new spread per cycle
-        "short_put_otm_pct":         0.10,    # short leg ~10% OTM
-        "spread_dte_min":            14,
-        "spread_dte_max":            28,
-        # sm500-only cheap-underlying filter: screen only symbols priced ≤$25
-        # so minimum-width spreads can fit the 12% risk cap on a $500 account.
-        "max_underlying_price": 25,
-
-        # ── Hardened-engine additions (2026-05-19, Conservative posture) ─
-        "min_credit_to_width_pct":   0.40,    # stricter than sm1000/sm2000
-        "spread_stop_credit_mult":   2.0,
-        "trend_filter":              True,
-        # Opening-price posture + settling guard (2026-05-30). Rest near the
-        # mid instead of crossing the full bid/ask on entry; suppress the
-        # loss-stop for 20 min post-open so a wide chain can't insta-trip.
-        "spread_open_concession_pct":        0.40,
-        "spread_open_min_credit_pct_of_mid": 0.60,
-        "spread_settle_minutes":      20,
-        "screener_universe":         None,    # set in the late-binding block
-    },
-
-    "sm1000": {
-        "alpaca_key_env":    "ALPACA_SM1000_API_KEY",
-        "alpaca_secret_env": "ALPACA_SM1000_API_SECRET",
-        "alpaca_url_env":    "ALPACA_SM1000_BASE_URL",
-
-        "trades_channel":    "sm1000_trades",
-        "summary_channel":   "sm1000_summary",
-        "errors_channel":    "sm1000_errors",
-        "actions_channel":   "sm1000_actions",
-
-        "log_stream":        "sm1000",
-
-        "wheel_state_file":     "wheel_state_sm1000.json",
-        "strategy_state_file":  "strategy_state_sm1000.json",
-
-        "wheel_symbols":       [],
-        "auto_discover_symbols": True,
-        "wheel_skip_new_puts": True,
-
-        "spread_management":      True,
-        "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
-        "spread_dte_floor":       2,
-
-        "put_strike_pct":      0.10,
-        "call_strike_pct":     0.10,
-        "put_dte_min":         14,
-        "put_dte_max":         28,
-        "call_dte_min":         7,
-        "call_dte_max":        21,
-        "early_close_pct":     0.50,
-        "stale_after_hours":   4,
-
-        "screener_universe":      None,
-        "screener_strike_pct":    0.10,
-        "screener_dte_min":       14,
-        "screener_dte_max":       28,
-
-        # ── Auto-open param block ─────────────────────────────────────────
-        "auto_open_spreads":         True,
-        "bp_switch_threshold":       5000,
-        "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
-        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
-        "max_risk_pct_equity":       0.10,
-        "min_net_credit":            0.05,
-        "max_concurrent_spreads":    2,
-        "account_floor":             300,
-        "earnings_exclusion_days":   7,
-        "max_opens_per_cycle":       1,
-        "short_put_otm_pct":         0.10,
-        "spread_dte_min":            14,
-        "spread_dte_max":            28,
-        # sm1000 screens the full conservative universe — no price cap
-        "max_underlying_price": None,
-
-        # ── Hardened-engine additions (2026-05-19) ───────────────────────
-        "min_credit_to_width_pct":   0.33,    # net_credit >= width * this
-        "spread_stop_credit_mult":   2.0,     # close at 2x credit (vs 50% max loss)
-        "trend_filter":              True,    # require price >= 20-day SMA
-        # Opening-price posture + settling guard (2026-05-30) — rest near mid.
-        "spread_open_concession_pct":        0.40,
-        "spread_open_min_credit_pct_of_mid": 0.60,
-        "spread_settle_minutes":      20,
-    },
-
-    "sm2000": {
-        "alpaca_key_env":    "ALPACA_SM2000_API_KEY",
-        "alpaca_secret_env": "ALPACA_SM2000_API_SECRET",
-        "alpaca_url_env":    "ALPACA_SM2000_BASE_URL",
-
-        "trades_channel":    "sm2000_trades",
-        "summary_channel":   "sm2000_summary",
-        "errors_channel":    "sm2000_errors",
-        "actions_channel":   "sm2000_actions",
-
-        "log_stream":        "sm2000",
-
-        "wheel_state_file":     "wheel_state_sm2000.json",
-        "strategy_state_file":  "strategy_state_sm2000.json",
-
-        "wheel_symbols":       [],
-        "auto_discover_symbols": True,
-        "wheel_skip_new_puts": True,
-
-        "spread_management":      True,
-        "spread_early_close_pct": 0.50,
-        "spread_stop_loss_pct":   0.50,
-        "spread_dte_floor":       2,
-
-        "put_strike_pct":      0.10,
-        "call_strike_pct":     0.10,
-        "put_dte_min":         14,
-        "put_dte_max":         28,
-        "call_dte_min":         7,
-        "call_dte_max":        21,
-        "early_close_pct":     0.50,
-        "stale_after_hours":   4,
-
-        "screener_universe":      None,
-        "screener_strike_pct":    0.10,
-        "screener_dte_min":       14,
-        "screener_dte_max":       28,
-
-        # ── Auto-open param block ─────────────────────────────────────────
-        "auto_open_spreads":         True,
-        "bp_switch_threshold":       5000,
-        "wheelability_min":          80,      # 2026-05-21: 85 → 80 (percentile-90 too tight on small eligible pool; 81.8 was the recurring ceiling)
-        "wheelability_min_pool":     5,       # R12: hold single-stock opens when the eligible pool is too small to rank
-        "max_risk_pct_equity":       0.10,
-        "min_net_credit":            0.05,
-        "max_concurrent_spreads":    3,
-        "account_floor":             300,
-        "earnings_exclusion_days":   7,
-        "max_opens_per_cycle":       1,
-        "short_put_otm_pct":         0.10,
-        "spread_dte_min":            14,
-        "spread_dte_max":            28,
-        # sm2000 screens the full conservative universe — no price cap
-        "max_underlying_price": None,
-
-        # ── Hardened-engine additions (2026-05-19) ───────────────────────
-        "min_credit_to_width_pct":   0.33,
-        "spread_stop_credit_mult":   2.0,
-        "trend_filter":              True,
-        # Opening-price posture + settling guard (2026-05-30) — rest near mid.
-        "spread_open_concession_pct":        0.40,
-        "spread_open_min_credit_pct_of_mid": 0.60,
-        "spread_settle_minutes":      20,
-    },
 }
 
-DEFAULT_MODE = "conservative"
+DEFAULT_MODE = "manual"
 
 
 def get_mode(mode_name: str) -> dict:
@@ -676,7 +281,7 @@ def excluded_symbols(mode_name: str) -> set:
     """Uppercased set of symbols the bot must leave alone in `mode_name`.
 
     Defaults to an empty set for any mode that doesn't define the key, so
-    conservative/aggressive/live/SM are unaffected unless explicitly opted in.
+    live is unaffected unless explicitly opted in.
     """
     raw = get_mode(mode_name).get("excluded_symbols", []) or []
     return {str(s).strip().upper() for s in raw if str(s).strip()}
@@ -711,10 +316,9 @@ def parse_mode_arg(argv: list[str]) -> tuple[str, list[str]]:
 # ── Late binding for SM_CURATED_UNIVERSE ─────────────────────────────────
 # screener_core imports config in some paths; we set the universe pointer
 # after MODES is built to keep the import graph one-directional.
+# Manual auto-spread shortcut (2026-05-22) shares the curated universe so the
+# $10k validation runs against the same scoring distribution. (The SM accounts
+# this universe was first built for were retired 2026-06-29; the universe and
+# the auto-spread engine stay — manual still references them.)
 from screener_core import SM_CURATED_UNIVERSE as _SM_CURATED_UNIVERSE
-MODES["sm500"]["screener_universe"] = _SM_CURATED_UNIVERSE
-MODES["sm1000"]["screener_universe"] = _SM_CURATED_UNIVERSE
-MODES["sm2000"]["screener_universe"] = _SM_CURATED_UNIVERSE
-# Manual auto-spread shortcut (2026-05-22) shares the SM curated universe
-# so the $10k validation runs against the same scoring distribution.
 MODES["manual"]["screener_universe"] = _SM_CURATED_UNIVERSE

@@ -71,22 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 // Account → bot mode. MUST match api/_lib/rule-check.ts accountToMode() and the
 // duplicate copy in trades/[action].ts modeFromAccount() exactly — the grade/sync
-// cron routes SM trades to their own SM Alpaca credentials, NOT conservative's.
+// cron routes live trades to the live Alpaca credentials, NOT manual's.
 // (DRY follow-up: three copies across the api/ vs src/ build-root boundary;
 // keep in sync.)
 //
-// Returns the full Mode union (not bare string) so every Alpaca call site below
-// is type-checked against the real per-trade account. Narrowing this to
-// 'conservative' | 'aggressive' | 'manual' anywhere would silently mis-route
-// SM/live trades' settlement + fill + bars fetches to conservative's creds.
+// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
 function modeFromAccount(account: string): Mode {
-  if (account === 'aggressive_paper') return 'aggressive';
-  if (account === 'manual_paper') return 'manual';
-  if (account === 'sm500_paper') return 'sm500';
-  if (account === 'sm1000_paper') return 'sm1000';
-  if (account === 'sm2000_paper') return 'sm2000';
   if (account === 'live') return 'live';
-  return 'conservative';
+  return 'manual';
 }
 
 async function gradeOpenTrades(res: VercelResponse) {
@@ -391,7 +383,7 @@ async function enqueueNeedsGrade(id: string): Promise<void> {
  *
  * When `account` is set (the "grade backlog" button), only grades trades for
  * that account; other gradeable accounts' trades stay queued for their own run.
- * Non-gradeable accounts (conservative, aggressive, SM) are always dropped.
+ * Non-gradeable accounts are always dropped (only manual + live are gradeable).
  */
 async function drainNeedsGrade(
   budget: number,
@@ -431,20 +423,14 @@ async function drainNeedsGrade(
 }
 
 // Per-account auto-import tag policy:
-//   - cons/agg/sm* accounts are 100% bot-driven, so any fill found in the
-//     activity log that isn't already in our trades index must have been
-//     opened by the bot → tag 'bot_opened' in addition to 'imported'.
-//   - manual/live accounts mix bot-opens (auto-spread on manual since
-//     2026-05-22; live = real money) with hand-opens via Alpaca's web UI,
-//     so we can't reliably attribute either way → tag 'imported' only.
+//   - manual/live accounts mix bot-opens (auto-spread on manual; live = real
+//     money) with hand-opens via Alpaca's web UI, so we can't reliably
+//     attribute either way → tag 'imported' only.
+// (The conservative/aggressive/sm* fully-bot-driven accounts were retired
+// 2026-06-29.)
 const AUTO_IMPORT_ACCOUNTS: Array<{ account: string; extraTags: string[] }> = [
-  { account: 'conservative_paper', extraTags: ['bot_opened'] },
-  { account: 'aggressive_paper',   extraTags: ['bot_opened'] },
   { account: 'manual_paper',       extraTags: [] },
   { account: 'live',               extraTags: [] },
-  { account: 'sm500_paper',        extraTags: ['bot_opened'] },
-  { account: 'sm1000_paper',       extraTags: ['bot_opened'] },
-  { account: 'sm2000_paper',       extraTags: ['bot_opened'] },
 ];
 
 // First-run cursor — start 7 days back so we don't sweep the entire account

@@ -42,14 +42,14 @@ describe('POST /api/bot-state', () => {
   });
 
   it('returns 401 with no bearer token', async () => {
-    const { req, res } = makeReqRes({ body: { key: 'bot:state:conservative', payload: {} } });
+    const { req, res } = makeReqRes({ body: { key: 'bot:state:manual', payload: {} } });
     await handler(req, res);
     expect(res.statusCode).toBe(401);
     expect(kvSet).not.toHaveBeenCalled();
   });
 
   it('returns 401 with the wrong bearer token', async () => {
-    const { req, res } = makeReqRes({ auth: 'Bearer wrong', body: { key: 'bot:state:conservative', payload: {} } });
+    const { req, res } = makeReqRes({ auth: 'Bearer wrong', body: { key: 'bot:state:manual', payload: {} } });
     await handler(req, res);
     expect(res.statusCode).toBe(401);
     expect(kvSet).not.toHaveBeenCalled();
@@ -68,7 +68,7 @@ describe('POST /api/bot-state', () => {
   it('returns 400 on missing payload', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer test-token-123',
-      body: { key: 'bot:state:conservative' },
+      body: { key: 'bot:state:manual' },
     });
     await handler(req, res);
     expect(res.statusCode).toBe(400);
@@ -77,13 +77,13 @@ describe('POST /api/bot-state', () => {
   it('writes payload + last-update timestamp on a valid request', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer test-token-123',
-      body: { key: 'bot:state:conservative', payload: { hello: 'world' } },
+      body: { key: 'bot:state:manual', payload: { hello: 'world' } },
     });
     await handler(req, res);
     expect(res.statusCode).toBe(200);
-    expect(kvSet).toHaveBeenCalledWith('bot:state:conservative', { hello: 'world' });
+    expect(kvSet).toHaveBeenCalledWith('bot:state:manual', { hello: 'world' });
     expect(kvSet).toHaveBeenCalledWith(
-      'bot:last-update:bot:state:conservative',
+      'bot:last-update:bot:state:manual',
       expect.any(String)
     );
   });

@@ -51,7 +51,7 @@ describe('POST /api/cron/grade-open-trades', () => {
 
   it('marks unfilled-then-canceled entry orders as closed_by: canceled (skips AI grading)', async () => {
     const trade = {
-      id: 'T-2026-05-04-002', account: 'conservative_paper', symbol: 'SNAP', asset_class: 'stock',
+      id: 'T-2026-05-04-002', account: 'manual_paper', symbol: 'SNAP', asset_class: 'stock',
       side: 'buy', qty: 10, filled_avg_price: null, exposure_at_submit: 22.90,
       alpaca_order_id: 'a-canceled-1', alpaca_close_order_id: null,
       submitted_at: '2026-05-04T13:30Z', filled_at: null, closed_at: null,
@@ -592,7 +592,7 @@ describe('POST /api/cron/grade-open-trades', () => {
       if (k === 'trades:cursor:sweep') return Promise.resolve(0);
       const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
       if (tid) return Promise.resolve({
-        id: tid, account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+        id: tid, account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
         side: 'buy', qty: 1, filled_avg_price: 1, alpaca_order_id: `e-${tid}`, alpaca_close_order_id: `c-${tid}`,
         filled_at: '2026-05-04T13:30Z', closed_at: null, closed_by: null, entry_grade: 'A', entry_reasoning: 'r',
         tags: [], rule_warnings_at_entry: [], schema: 1, fill_confirmed: true,
@@ -1293,36 +1293,4 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 
-  // --- SM cross-account routing (Phase 6.x critical fix) ---
-  // modeFromAccount() in cron/[job].ts MUST route SM accounts to their own
-  // Alpaca creds via syncFillData's alpacaTrade(mode, ...) call — NOT silently
-  // fall through to 'conservative'. A wrong mode here reads/writes the
-  // conservative paper account's real order state for an SM trade.
-  it.each([
-    ['sm500_paper', 'sm500'],
-    ['sm1000_paper', 'sm1000'],
-    ['sm2000_paper', 'sm2000'],
-  ])('routes %s trade fill-sync to mode %s, not conservative', async (account, expectedMode) => {
-    const trade = {
-      id: 'T-2026-05-16-001', account, symbol: 'F', asset_class: 'stock',
-      side: 'buy', qty: 5, filled_avg_price: null, exposure_at_submit: 55,
-      alpaca_order_id: 'a-sm-pending', alpaca_close_order_id: null,
-      submitted_at: '2026-05-16T17:44Z', filled_at: null, closed_at: null,
-      realized_pnl: null, closed_avg_price: null, closed_by: null,
-      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
-      modify_history: [], schema: 1,
-    } as any;
-    kvLrange.mockResolvedValueOnce([trade.id]);
-    kvGet.mockImplementation((k: string) =>
-      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
-    alpacaTradeMock.mockResolvedValue({ id: 'a-sm-pending', status: 'new', filled_at: null, filled_avg_price: null });
-    kvSet.mockResolvedValue('OK');
-    const handler = (await import('../../api/cron/[job]')).default;
-    await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
-    // syncFillData fetched the entry order with the SM mode as first arg.
-    expect(alpacaTradeMock).toHaveBeenCalled();
-    const modesUsed = alpacaTradeMock.mock.calls.map((c: any[]) => c[0]);
-    expect(modesUsed).toContain(expectedMode);
-    expect(modesUsed).not.toContain('conservative');
-  });
 });

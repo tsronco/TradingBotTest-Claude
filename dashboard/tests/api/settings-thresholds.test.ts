@@ -1,4 +1,6 @@
 // dashboard/tests/api/settings-thresholds.test.ts
+//
+// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -24,19 +26,13 @@ function mockRes() {
 
 describe('GET /api/settings/thresholds', () => {
   it('returns thresholds from KV', async () => {
-    kvGet.mockResolvedValueOnce({
-      conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
-      sm500_paper: 2500, sm1000_paper: 2500, sm2000_paper: 2500,
-    });
+    kvGet.mockResolvedValueOnce({ manual_paper: 2500, live: 1500 });
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('GET', { resource: 'thresholds' });
     const res = mockRes();
     await handler(req, res);
     expect(res.json).toHaveBeenCalledWith({
-      thresholds: {
-        conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
-        sm500_paper: 2500, sm1000_paper: 2500, sm2000_paper: 2500,
-      },
+      thresholds: { manual_paper: 2500, live: 1500 },
     });
   });
 
@@ -46,49 +42,34 @@ describe('GET /api/settings/thresholds', () => {
     const req = mockReq('GET', { resource: 'thresholds' });
     const res = mockRes();
     await handler(req, res);
-    // All 7 accounts present at their defaults; SM accounts default to 2500 (= manual)
     expect(res.json).toHaveBeenCalledWith({
-      thresholds: {
-        conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
-        sm500_paper: 2500, sm1000_paper: 2500, sm2000_paper: 2500,
-      },
+      thresholds: { manual_paper: 2500, live: 1500 },
     });
   });
 });
 
 describe('POST /api/settings/thresholds', () => {
-  it('writes new thresholds to KV — all 7 keys persisted', async () => {
+  it('writes new thresholds to KV — both keys persisted', async () => {
     kvSet.mockResolvedValueOnce('OK');
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: 7500, aggressive_paper: 12000, manual_paper: 3000, live: 2000,
-      sm500_paper: 1500, sm1000_paper: 1800, sm2000_paper: 2100,
+      manual_paper: 3000, live: 2000,
     });
     const res = mockRes();
     await handler(req, res);
     expect(kvSet).toHaveBeenCalledWith('config:totp_thresholds', {
-      conservative_paper: 7500, aggressive_paper: 12000, manual_paper: 3000, live: 2000,
-      sm500_paper: 1500, sm1000_paper: 1800, sm2000_paper: 2100,
+      manual_paper: 3000, live: 2000,
     });
     expect(res.status).toHaveBeenCalledWith(200);
-    // Response echoes all 7 keys — no SM key gets silently dropped
     const responseBody = res.json.mock.calls[0][0];
-    expect(responseBody.thresholds).toMatchObject({
-      sm500_paper: 1500,
-      sm1000_paper: 1800,
-      sm2000_paper: 2100,
-    });
+    expect(responseBody.thresholds).toMatchObject({ manual_paper: 3000, live: 2000 });
   });
 
-  it('SM keys are present in response after round-trip with only original 4 in body (defaults apply)', async () => {
-    // Simulates a legacy client that only sends the original 4 keys — the
-    // validation rejects because SM values are NaN (Number(undefined) = NaN).
-    // This is intentional: after this fix, a save must always include all 7.
+  it('rejects when a key is omitted (Number(undefined) = NaN)', async () => {
     kvSet.mockResolvedValueOnce('OK');
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: 7500, aggressive_paper: 12000, manual_paper: 3000, live: 2000,
-      // sm keys omitted — should produce 400 because Number(undefined) = NaN fails isFinite
+      manual_paper: 3000, // live omitted
     });
     const res = mockRes();
     await handler(req, res);
@@ -98,19 +79,7 @@ describe('POST /api/settings/thresholds', () => {
   it('rejects negative numbers', async () => {
     const handler = (await import('../../api/settings/[resource]')).default;
     const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: -1, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
-      sm500_paper: 2500, sm1000_paper: 2500, sm2000_paper: 2500,
-    });
-    const res = mockRes();
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-
-  it('rejects negative SM threshold', async () => {
-    const handler = (await import('../../api/settings/[resource]')).default;
-    const req = mockReq('POST', { resource: 'thresholds' }, {
-      conservative_paper: 5000, aggressive_paper: 10000, manual_paper: 2500, live: 1500,
-      sm500_paper: -1, sm1000_paper: 2500, sm2000_paper: 2500,
+      manual_paper: -1, live: 1500,
     });
     const res = mockRes();
     await handler(req, res);
@@ -118,13 +87,11 @@ describe('POST /api/settings/thresholds', () => {
   });
 });
 
-describe('SM threshold TOTP integration invariant', () => {
-  // Asserts that an SM account with NO custom threshold stored in KV resolves
-  // to the SM DEFAULT (2500), NOT Infinity. This directly tests the security
-  // property: TOTP gate must NEVER be silently disabled for SM accounts.
-  it('trades/[action].ts DEFAULT_THRESHOLDS includes SM at 2500 (not Infinity)', async () => {
-    // We import the internal DEFAULT_THRESHOLDS indirectly by checking the
-    // preview route's requires_totp response for an SM account with no KV value.
+describe('manual threshold TOTP integration invariant', () => {
+  // A manual account with NO custom threshold stored in KV must resolve to the
+  // manual DEFAULT (2500), NOT Infinity — the TOTP gate must never be silently
+  // disabled.
+  it('trades/[action].ts DEFAULT_THRESHOLDS includes manual at 2500 (not Infinity)', async () => {
     const kvGetLocal = vi.fn().mockResolvedValue(null); // KV returns null → use defaults
     vi.doMock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGetLocal, set: vi.fn() }) }));
     vi.doMock('../../api/_lib/auth-guard', () => ({
@@ -149,7 +116,7 @@ describe('SM threshold TOTP integration invariant', () => {
       method: 'POST',
       query: { action: 'preview' },
       body: {
-        account: 'sm500_paper',
+        account: 'manual_paper',
         asset_class: 'stock',
         symbol: 'AAPL',
         side: 'buy',
@@ -170,8 +137,7 @@ describe('SM threshold TOTP integration invariant', () => {
 
     await tradesHandler(req, res);
 
-    // exposure (3000) >= SM default threshold (2500) → requires_totp must be true
-    // If SM fell through to Infinity, requires_totp would be false — that's the bug.
+    // exposure (3000) >= manual default threshold (2500) → requires_totp must be true
     const body = res.json.mock.calls[0]?.[0];
     expect(body).toBeDefined();
     expect(body.requires_totp).toBe(true);

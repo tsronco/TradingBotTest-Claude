@@ -363,10 +363,9 @@ async function botHandler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
-  const [conservative, aggressive, manual] = await Promise.all([
-    kv().get(botRulesKey('conservative')),
-    kv().get(botRulesKey('aggressive')),
+  const [manual, live] = await Promise.all([
     kv().get(botRulesKey('manual')),
+    kv().get(botRulesKey('live')),
   ]);
-  return res.status(200).json({ conservative, aggressive, manual });
+  return res.status(200).json({ manual, live });
 }
