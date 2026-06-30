@@ -198,6 +198,31 @@ def get_orders(
     )
 
 
+def get_account_activities(
+    mode: str,
+    activity_types: list[str] | None = None,
+    after: str | None = None,
+    until: str | None = None,
+    page_size: int = 100,
+) -> list[dict]:
+    """Account activity log (CSD = cash deposit, CSW = cash withdrawal, etc.).
+
+    Used by funding detection to spot real cash transfers — the only reliable
+    signal, since equity/cash both move from ordinary trading. Returns the raw
+    list (the endpoint returns a JSON array, not a wrapped object). Single page
+    (default 100) — sufficient for recent-transfer detection; deep pagination
+    intentionally omitted.
+    """
+    params: dict = {"page_size": page_size, "direction": "desc"}
+    if activity_types:
+        params["activity_types"] = ",".join(activity_types)
+    if after:
+        params["after"] = after
+    if until:
+        params["until"] = until
+    return _get(f"{_trading_base(mode)}/account/activities", mode, params=params)
+
+
 # ── Options ─────────────────────────────────────────────────────────────────
 
 def find_option_contracts(
