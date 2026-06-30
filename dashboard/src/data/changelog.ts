@@ -30,6 +30,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
+    category: 'ui',
+    title: 'AI lookup summary: tighter, with two accuracy guardrails',
+    details:
+      'Three prompt tweaks to the /lookup/:symbol AI summary. (1) Length capped at ≤5 sentences '
+      + 'AND ≤100 words (was producing dense run-on walls of text). (2) Put/call open-interest is '
+      + 'now reported as a plain fact only — the prompt forbids inferring bullish/bearish '
+      + '"positioning" from it, since open interest counts contracts, not which side is long vs '
+      + 'short. (3) Earnings dates are presented as estimated/unconfirmed, and an unknown date is '
+      + 'no longer dramatized as a missing catalyst.',
+  },
+  {
+    date: '2026-06-30',
     category: 'config',
     title: 'Manual: removed SNAP from excluded_symbols (position closed)',
     details:
