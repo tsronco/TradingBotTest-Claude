@@ -45,7 +45,7 @@ export default function Rules() {
 
   function renderSection(key: string) {
     switch (key) {
-      case 'bot':         return <BotRulesSection conservative={bot?.conservative ?? null} aggressive={bot?.aggressive ?? null} manual={bot?.manual ?? null} />;
+      case 'bot':         return <BotRulesSection manual={bot?.manual ?? null} live={bot?.live ?? null} />;
       case 'manual':      return <ManualRulesSection />;
       case 'patterns':    return <PatternsSection />;
       case 'tendencies':  return <TendenciesSection />;

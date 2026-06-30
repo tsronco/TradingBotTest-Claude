@@ -15,7 +15,7 @@ describe('runStubRuleChecks', () => {
     fundamentalsMock.mockResolvedValue(null);
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'stock', symbol: 'TSLA', qty: 25, account: 'conservative_paper',
+      asset_class: 'stock', symbol: 'TSLA', qty: 25, account: 'manual_paper',
     });
     expect(out.find((w) => w.rule === 'sizing_1x')?.severity).toBe('info');
   });
@@ -25,7 +25,7 @@ describe('runStubRuleChecks', () => {
     fundamentalsMock.mockResolvedValue(null);
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'option', symbol: 'TSLA', qty: 2, account: 'conservative_paper',
+      asset_class: 'option', symbol: 'TSLA', qty: 2, account: 'manual_paper',
     });
     expect(out.find((w) => w.rule === 'sizing_1x')?.severity).toBe('info');
   });
@@ -37,7 +37,7 @@ describe('runStubRuleChecks', () => {
     fundamentalsMock.mockResolvedValue(future.toISOString().slice(0, 10));
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'conservative_paper',
+      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'manual_paper',
     });
     expect(out.find((w) => w.rule === 'earnings_within_7d')?.severity).toBe('warn');
   });
@@ -47,21 +47,21 @@ describe('runStubRuleChecks', () => {
     fundamentalsMock.mockResolvedValue(null);
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'conservative_paper',
+      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'manual_paper',
     });
     expect(out.find((w) => w.rule === 'earnings_within_7d')).toBeUndefined();
   });
 
-  it('flags bot wheel overlap when symbol in stage 1 of conservative', async () => {
+  it('flags bot wheel overlap when symbol in stage 1 of the manual bot', async () => {
     kvGet.mockImplementation((key: string) => {
-      if (key === 'bot:state:conservative') return Promise.resolve({ TSLA: { stage: 1 } });
-      if (key === 'bot:state:aggressive') return Promise.resolve({});
+      if (key === 'bot:state:manual') return Promise.resolve({ TSLA: { stage: 1 } });
+      if (key === 'bot:state:live') return Promise.resolve({});
       return Promise.resolve(null);
     });
     fundamentalsMock.mockResolvedValue(null);
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'aggressive_paper',
+      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'manual_paper',
     });
     expect(out.find((w) => w.rule === 'bot_wheel_overlap')?.severity).toBe('warn');
   });
@@ -71,7 +71,7 @@ describe('runStubRuleChecks', () => {
     fundamentalsMock.mockResolvedValue(null);
     const { runStubRuleChecks } = await import('../../api/_lib/rule-check');
     const out = await runStubRuleChecks({
-      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'conservative_paper',
+      asset_class: 'stock', symbol: 'TSLA', qty: 10, account: 'manual_paper',
     });
     expect(out).toEqual([]);
   });

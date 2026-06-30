@@ -6,8 +6,8 @@ prints to stdout instead of posting a Discord embed. Use this when you don't
 want to wait for the next cron fire.
 
 Usage:
-    python tools/screen.py                  # conservative universe
-    python tools/screen.py aggressive       # aggressive (high-IV) universe
+    python tools/screen.py                  # manual universe (curated)
+    python tools/screen.py live             # live universe (default large-caps)
     python tools/screen.py --top 5          # show only top 5
 """
 
@@ -75,8 +75,8 @@ def render(mode: str, top_n: int) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="On-demand wheel-candidate screener.")
-    p.add_argument("mode", nargs="?", default="conservative",
-                   choices=["conservative", "aggressive"])
+    p.add_argument("mode", nargs="?", default="manual",
+                   choices=["manual", "live"])
     p.add_argument("--top", type=int, default=10)
     args = p.parse_args(argv)
 

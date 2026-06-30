@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """/positions — current holdings across both paper accounts.
 
-Read-only. Groups positions by mode (conservative / aggressive), then by
+Read-only. Groups positions by mode (manual / live), then by
 asset class (stock / option), and prints a single tabular report with
 quantity, average cost, current price, market value, and unrealized P&L.
 
 Usage:
     python tools/positions.py                  # both accounts
-    python tools/positions.py --mode aggressive
+    python tools/positions.py --mode live
     python tools/positions.py --filter options  # only options
 """
 
@@ -59,7 +59,7 @@ def _row(p: dict) -> dict:
 def _close_progress(r: dict, early_close_pct: float | None) -> str:
     """For short options: % progress toward buy-to-close trigger.
 
-    Trigger price = entry × early_close_pct (e.g. 0.50 conservative = close at half entry).
+    Trigger price = entry × early_close_pct (e.g. 0.50 manual = close at half entry).
     0% = at entry, 100% = trigger hit (ready to close), >100% = past trigger.
     Returns "—" for non-applicable rows (longs, stocks, missing data).
     """
@@ -152,7 +152,7 @@ def render_mode(mode: str, kind_filter: str | None) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Show holdings across both paper accounts.")
-    p.add_argument("--mode", choices=["conservative", "aggressive", "both"], default="both")
+    p.add_argument("--mode", choices=["manual", "live", "both"], default="both")
     p.add_argument("--filter", choices=["stocks", "options"], default=None,
                    help="Show only stocks or only options.")
     args = p.parse_args(argv)
@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.filter == "options":
         kind_filter = "option"
 
-    modes = ["conservative", "aggressive"] if args.mode == "both" else [args.mode]
+    modes = ["manual", "live"] if args.mode == "both" else [args.mode]
     sections = [render_mode(m, kind_filter) for m in modes]
     print("\n\n".join(sections))
     return 0

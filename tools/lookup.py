@@ -7,11 +7,11 @@ of the best candidate, and saves an inline-renderable chart to /tmp.
 
 Usage:
     python tools/lookup.py TSLA
-    python tools/lookup.py WMT --mode aggressive
+    python tools/lookup.py WMT --mode live
     python tools/lookup.py NVDA --dte-min 7 --dte-max 14 --strike-pct 0.05
 
 If --mode / --dte-* / --strike-pct are omitted, defaults come from
-config.MODES["conservative"].
+config.MODES["manual"].
 """
 
 from __future__ import annotations
@@ -171,7 +171,7 @@ def pick_put_candidates(
     dte_min: int,
     dte_max: int,
     n: int = 3,
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> list[dict]:
     """Return up to `n` near-target put contracts, enriched with quote+Greeks.
 
@@ -246,13 +246,13 @@ def pick_put_candidates(
 def existing_positions(symbol: str) -> dict:
     """Look up current positions in this name across both paper accounts.
 
-    Returns {"conservative": pos_or_None, "aggressive": pos_or_None}. Either
-    side may raise on auth errors (e.g., aggressive creds not set) — we swallow
+    Returns {"manual": pos_or_None, "live": pos_or_None}. Either
+    side may raise on auth errors (e.g., live creds not set) — we swallow
     those and return None for that side so /lookup still works for users with
     only one account configured.
     """
     out = {}
-    for mode in ("conservative", "aggressive"):
+    for mode in ("manual", "live"):
         try:
             out[mode] = ad.get_position(symbol, mode=mode)
         except Exception:
@@ -468,7 +468,7 @@ def run_lookup(symbol: str, mode: str, strike_pct: float, dte_min: int, dte_max:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("ticker", help="Stock ticker (e.g. TSLA, WMT)")
-    p.add_argument("--mode", default="conservative", choices=["conservative", "aggressive"],
+    p.add_argument("--mode", default="manual", choices=["manual", "live"],
                    help="Which paper account to query for BP/positions context (data is identical)")
     p.add_argument("--strike-pct", type=float, default=None,
                    help="OTM percentage for the target put strike (default: mode's put_strike_pct)")

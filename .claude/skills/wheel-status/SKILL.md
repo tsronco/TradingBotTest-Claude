@@ -11,10 +11,10 @@ Run `tools/wheel_status.py` and show the user the output verbatim.
 
 - `/wheel-status` → both modes, all symbols
 - `/wheel-status TSLA` → both modes, only TSLA
-- `/wheel-status conservative` → conservative only, all symbols
-- `/wheel-status aggressive TSLA` → aggressive only, TSLA only
+- `/wheel-status manual` → manual only, all symbols
+- `/wheel-status live TSLA` → live only, TSLA only
 
-Map mode words (conservative/aggressive/cons/agg) to `--mode`. Pass any remaining ticker as the positional `symbol` arg.
+Map mode words (manual/live) to `--mode`. Pass any remaining ticker as the positional `symbol` arg.
 
 ## How to run
 

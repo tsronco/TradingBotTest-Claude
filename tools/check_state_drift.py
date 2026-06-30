@@ -1,6 +1,6 @@
 """Cross-check: Alpaca open orders/positions vs. wheel state files.
 
-For each account (conservative + aggressive), reports any:
+For each account (manual + live), reports any:
   - Open orders the wheel ISN'T tracking (orphan orders)
   - Open short positions the wheel ISN'T tracking (orphan positions)
   - State entries that point to contracts that don't exist on Alpaca (stale)
@@ -38,23 +38,23 @@ for _ in range(6):
 
 # Walk up to repo root for state files
 REPO = Path(__file__).resolve().parent
-while not (REPO / "wheel_state.json").exists() and REPO.parent != REPO:
+while not (REPO / "wheel_state_manual.json").exists() and REPO.parent != REPO:
     REPO = REPO.parent
 
 ACCOUNTS = [
     {
-        "label":         "CONSERVATIVE",
-        "key_env":       "ALPACA_API_KEY",
-        "secret_env":    "ALPACA_API_SECRET",
-        "url_env":       "ALPACA_BASE_URL",
-        "state_file":    REPO / "wheel_state.json",
+        "label":         "MANUAL",
+        "key_env":       "ALPACA_MANUAL_API_KEY",
+        "secret_env":    "ALPACA_MANUAL_API_SECRET",
+        "url_env":       "ALPACA_MANUAL_BASE_URL",
+        "state_file":    REPO / "wheel_state_manual.json",
     },
     {
-        "label":         "AGGRESSIVE",
-        "key_env":       "ALPACA_AGG_API_KEY",
-        "secret_env":    "ALPACA_AGG_API_SECRET",
-        "url_env":       "ALPACA_AGG_BASE_URL",
-        "state_file":    REPO / "wheel_state_aggressive.json",
+        "label":         "LIVE",
+        "key_env":       "ALPACA_LIVE_API_KEY",
+        "secret_env":    "ALPACA_LIVE_API_SECRET",
+        "url_env":       "ALPACA_LIVE_BASE_URL",
+        "state_file":    REPO / "wheel_state_live.json",
     },
 ]
 

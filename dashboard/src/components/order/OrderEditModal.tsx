@@ -9,7 +9,7 @@ interface Props {
     limit_price: string | null;
     stop_price: string | null;
   };
-  mode: 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
+  mode: 'manual' | 'live';
   onClose: () => void;
 }
 

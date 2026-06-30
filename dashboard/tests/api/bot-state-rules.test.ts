@@ -31,7 +31,7 @@ function makeReqRes(opts: { method?: string; auth?: string; body?: any }) {
   return { req, res };
 }
 
-function mkRulesPayload(mode: 'conservative' | 'aggressive' | 'manual') {
+function mkRulesPayload(mode: 'manual' | 'live') {
   return {
     mode,
     wheel: {
@@ -54,7 +54,7 @@ function mkRulesPayload(mode: 'conservative' | 'aggressive' | 'manual') {
 }
 
 describe('POST /api/bot-state — bot:rules:* push', () => {
-  it.each(['conservative', 'aggressive', 'manual'] as const)(
+  it.each(['manual', 'live'] as const)(
     'accepts bot:rules:%s push and writes to KV',
     async (mode) => {
       const { req, res } = makeReqRes({
@@ -74,8 +74,8 @@ describe('POST /api/bot-state — bot:rules:* push', () => {
     },
   );
 
-  it.each(['sm500', 'sm1000', 'sm2000'] as const)(
-    'accepts SM bot-state/strategy/rules push for %s and writes to KV',
+  it.each(['manual', 'live'] as const)(
+    'accepts bot-state/strategy/rules push for %s and writes to KV',
     async (acct) => {
       for (const kind of ['state', 'strategy', 'rules'] as const) {
         kvSet.mockClear();
@@ -95,6 +95,19 @@ describe('POST /api/bot-state — bot:rules:* push', () => {
     },
   );
 
+  it.each(['conservative', 'aggressive', 'sm500', 'sm1000', 'sm2000'] as const)(
+    'rejects retired-account key bot:rules:%s with 400',
+    async (acct) => {
+      const { req, res } = makeReqRes({
+        auth: 'Bearer test-token',
+        body: { key: `bot:rules:${acct}`, payload: {} },
+      });
+      await handler(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(kvSet).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects bot:rules:nonsense (key not in whitelist) with 400', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer test-token',
@@ -108,7 +121,7 @@ describe('POST /api/bot-state — bot:rules:* push', () => {
   it('rejects unauthorized push with 401', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer wrong-token',
-      body: { key: 'bot:rules:conservative', payload: mkRulesPayload('conservative') },
+      body: { key: 'bot:rules:manual', payload: mkRulesPayload('manual') },
     });
     await handler(req, res);
     expect(res.statusCode).toBe(401);
@@ -118,7 +131,7 @@ describe('POST /api/bot-state — bot:rules:* push', () => {
   it('rejects missing payload with 400', async () => {
     const { req, res } = makeReqRes({
       auth: 'Bearer test-token',
-      body: { key: 'bot:rules:conservative' },
+      body: { key: 'bot:rules:manual' },
     });
     await handler(req, res);
     expect(res.statusCode).toBe(400);

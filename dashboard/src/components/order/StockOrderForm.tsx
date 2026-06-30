@@ -13,7 +13,7 @@ import CashSummary from './CashSummary';
 import type { Leg } from '../../lib/payoff';
 import { accountToMode, type Mode } from '../../lib/account-utils';
 
-type StockAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
+type StockAccount = 'manual_paper' | 'live';
 
 interface Props {
   symbol: string;
@@ -37,7 +37,7 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   const [error, setError] = useState<string | null>(null);
 
   // Single source of truth — mirrors api/_lib/rule-check.ts accountToMode().
-  // Quotes/BP/positions must hit the SELECTED account (incl. SM), not conservative.
+  // Quotes/BP/positions must hit the SELECTED account (incl. live), not the wrong account.
   const mode: Mode = accountToMode(account);
   const { data: quote } = useQuery({
     queryKey: ['quote', symbol, mode],
@@ -117,12 +117,6 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
       {/* account selector */}
       <Section label="━━━ account ─────────">
         <div className="flex gap-1 flex-wrap">
-          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'conservative_paper' ? 'active' : ''}`} onClick={() => setAccount('conservative_paper')}>
-            [conservative_paper{account === 'conservative_paper' ? '*' : ''}]
-          </button>
-          <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'aggressive_paper' ? 'active' : ''}`} onClick={() => setAccount('aggressive_paper')}>
-            [aggressive_paper{account === 'aggressive_paper' ? '*' : ''}]
-          </button>
           <button type="button" className={`pbtn max-md:min-h-[44px] ${account === 'manual_paper' ? 'active' : ''}`} onClick={() => setAccount('manual_paper')}>
             [manual_paper{account === 'manual_paper' ? '*' : ''}]
           </button>
@@ -134,20 +128,6 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
           >
             [live ${account === 'live' ? '*' : ''}]
           </button>
-          {([
-            ['sm500_paper', '$500'],
-            ['sm1000_paper', '$1,000'],
-            ['sm2000_paper', '$2,000'],
-          ] as [StockAccount, string][]).map(([acct, label]) => (
-            <button
-              key={acct}
-              type="button"
-              className={`pbtn max-md:min-h-[44px] ${account === acct ? 'active' : ''}`}
-              onClick={() => setAccount(acct)}
-            >
-              [{label}{account === acct ? '*' : ''}]
-            </button>
-          ))}
         </div>
         <AccountBpIndicator mode={mode} assetClass="stock" exposure={liveExposure} />
       </Section>

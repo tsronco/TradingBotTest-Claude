@@ -234,7 +234,7 @@ def test_alpaca_data_get_position_404_returns_None_without_retry(monkeypatch, st
         return _fake_resp(404)
     monkeypatch.setattr(alpaca_data.requests, "request", fake_request)
 
-    result = alpaca_data.get_position("DOES_NOT_EXIST", mode="conservative")
+    result = alpaca_data.get_position("DOES_NOT_EXIST", mode="manual")
 
     assert result is None
     assert calls[0] == 1  # no retry on 404
@@ -248,7 +248,7 @@ def test_alpaca_data_get_position_retries_on_503_then_404(monkeypatch, stub_slee
     monkeypatch.setattr(alpaca_data.requests, "request",
                         lambda method, url, **kw: responses.pop(0))
 
-    result = alpaca_data.get_position("BAC", mode="conservative")
+    result = alpaca_data.get_position("BAC", mode="manual")
 
     assert result is None
     assert stub_sleep == [alpaca_data._RETRY_BACKOFFS[0]]

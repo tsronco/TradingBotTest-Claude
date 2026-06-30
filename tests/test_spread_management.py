@@ -15,19 +15,71 @@ import wheel_strategy
 
 @pytest.fixture
 def apply_sm_mode():
-    """Apply a wheel_strategy mode for the test, auto-revert to conservative after.
+    """Apply a spread-management posture for the test, auto-revert after.
 
-    Centralizes the apply_mode lifecycle so SM-mode tests don't leak SPREAD_*
-    constants into subsequent tests.
+    The conservative/aggressive and sm500/sm1000/sm2000 accounts were retired
+    2026-06-29, but their `handle_spread` posture branches still exist in the
+    engine (2× credit stop + immediate underlying tripwire for the old SM
+    posture; spread-management-off for the old cons/agg posture). This fixture
+    keeps that engine coverage alive by translating the retired mode names onto
+    a surviving base mode and arming the corresponding module globals directly:
+
+      * "sm500"/"sm1000"/"sm2000" → manual base + SM management posture
+        (SPREAD_STOP_CREDIT_MULT=2.0, tripwire armed at all DTEs, no confirm
+        window) — exercises the SM branch of handle_spread.
+      * "conservative"/"aggressive" → live base (spread management off, no
+        tripwire) — exercises the management-disabled branch.
+      * "manual"/"live" → applied directly.
     """
     import config
     applied = []
+
     def _apply(mode_name: str):
-        wheel_strategy.apply_mode(mode_name)
+        if mode_name in ("sm500", "sm1000", "sm2000"):
+            wheel_strategy.apply_mode("manual")
+            # Recreate the retired SM management posture on the engine globals.
+            wheel_strategy.SPREAD_MANAGEMENT = True
+            wheel_strategy.SPREAD_STOP_CREDIT_MULT = 2.0
+            wheel_strategy.SPREAD_UNDERLYING_TRIPWIRE = True
+            wheel_strategy.SPREAD_TRIPWIRE_DTE = None          # arm at all DTEs
+            wheel_strategy.SPREAD_TRIPWIRE_CONFIRM_MINUTES = 0  # close on first touch
+        elif mode_name in ("conservative", "aggressive"):
+            # Old auto-execute posture: spread management off, no tripwire.
+            wheel_strategy.apply_mode("live")
+            wheel_strategy.SPREAD_MANAGEMENT = False
+            wheel_strategy.SPREAD_STOP_CREDIT_MULT = None
+            wheel_strategy.SPREAD_UNDERLYING_TRIPWIRE = False
+        else:
+            wheel_strategy.apply_mode(mode_name)
         applied.append(mode_name)
+
     yield _apply
     if applied:
         wheel_strategy.apply_mode(config.DEFAULT_MODE)
+
+
+@pytest.fixture(autouse=True)
+def _legacy_spread_baseline():
+    """Pin the legacy spread-management posture the generic handle_spread tests
+    were written against — 50% profit / 50%-of-max-loss stop, no credit-multiple
+    stop, no underlying tripwire, no settle window. This used to be the ambient
+    default (conservative); it shifted when DEFAULT_MODE became manual (0.75 stop
+    + tripwire + 20-min settle) after the 2026-06-29 account sunset. Tests that
+    need a specific posture (manual/live via apply_mode, SM via apply_sm_mode)
+    re-set these in their body, which runs after this fixture.
+    """
+    import config
+    wheel_strategy.apply_mode("manual")
+    wheel_strategy.SPREAD_EARLY_CLOSE_PCT = 0.50
+    wheel_strategy.SPREAD_STOP_LOSS_PCT = 0.50
+    wheel_strategy.SPREAD_DTE_FLOOR = 2
+    wheel_strategy.SPREAD_STOP_CREDIT_MULT = None
+    wheel_strategy.SPREAD_UNDERLYING_TRIPWIRE = False
+    wheel_strategy.SPREAD_SETTLE_MINUTES = 0
+    wheel_strategy.SPREAD_TRIPWIRE_DTE = None
+    wheel_strategy.SPREAD_TRIPWIRE_CONFIRM_MINUTES = 0
+    yield
+    wheel_strategy.apply_mode(config.DEFAULT_MODE)
 
 
 def _spread_state(short_strike=8.0, long_strike=7.0, net_credit=0.22, max_loss=0.78):
@@ -830,8 +882,8 @@ def test_apply_mode_manual_enables_spread_management():
     assert wheel_strategy.SPREAD_DTE_FLOOR == 2
 
 
-def test_apply_mode_conservative_keeps_spread_management_off():
-    wheel_strategy.apply_mode("conservative")
+def test_apply_mode_live_keeps_spread_management_off():
+    wheel_strategy.apply_mode("live")
     assert wheel_strategy.SPREAD_MANAGEMENT is False
 
 
@@ -871,14 +923,14 @@ def test_run_wheel_routes_spread_to_handle_spread(monkeypatch, tmp_path):
 
 
 def test_run_wheel_with_spread_management_off_skips_spread(monkeypatch, tmp_path):
-    """If SPREAD_MANAGEMENT is False (e.g. on conservative mode), a
-    spread_active entry is left alone — log heartbeat only, no handler call."""
+    """If SPREAD_MANAGEMENT is False (e.g. on live mode), a spread_active
+    entry is left alone — log heartbeat only, no handler call."""
     import json
-    wheel_strategy.apply_mode("conservative")
+    wheel_strategy.apply_mode("live")
     assert wheel_strategy.SPREAD_MANAGEMENT is False
 
     state = {"_meta": {}, "PLTR": _spread_state()}
-    state_file = tmp_path / "wheel_state.json"
+    state_file = tmp_path / "wheel_state_live.json"
     state_file.write_text(json.dumps(state))
     monkeypatch.setattr(wheel_strategy, "STATE_FILE", str(state_file))
     monkeypatch.setattr(wheel_strategy, "is_market_open", lambda: True)

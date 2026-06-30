@@ -28,12 +28,14 @@ describe('dashboard kv-key whitelist', () => {
     expect(isAllowedDashboardKey('grade:')).toBe(false);
   });
 
-  it('still allows the original five bot-state keys', () => {
-    expect(isAllowedBotStateKey('bot:state:conservative')).toBe(true);
-    expect(isAllowedBotStateKey('bot:state:aggressive')).toBe(true);
-    expect(isAllowedBotStateKey('bot:strategy:conservative')).toBe(true);
-    expect(isAllowedBotStateKey('bot:strategy:aggressive')).toBe(true);
-    expect(isAllowedBotStateKey('bot:congress')).toBe(true);
+  it('allows the surviving bot-state keys (manual + live)', () => {
+    expect(isAllowedBotStateKey('bot:state:manual')).toBe(true);
+    expect(isAllowedBotStateKey('bot:state:live')).toBe(true);
+    expect(isAllowedBotStateKey('bot:strategy:manual')).toBe(true);
+    expect(isAllowedBotStateKey('bot:strategy:live')).toBe(true);
+    // retired accounts are no longer whitelisted
+    expect(isAllowedBotStateKey('bot:state:conservative')).toBe(false);
+    expect(isAllowedBotStateKey('bot:congress')).toBe(false);
   });
 
   it('exposes phase 2 keys on KV_KEYS', () => {

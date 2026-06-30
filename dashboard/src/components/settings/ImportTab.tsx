@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../../lib/api';
 
-type Account =
-  | 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live'
-  | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
+type Account = 'manual_paper' | 'live';
 
 interface ImportSummary {
   imported: number;
@@ -65,13 +63,8 @@ export function ImportTab() {
               onChange={(e) => setAccount(e.target.value as Account)}
               className="bg-panel-2 border border-border px-2 py-1 text-fg text-[12px]"
             >
-              <option value="conservative_paper">conservative (paper)</option>
-              <option value="aggressive_paper">aggressive (paper)</option>
               <option value="manual_paper">manual (paper)</option>
               <option value="live">live (real money)</option>
-              <option value="sm500_paper">sm500 (paper)</option>
-              <option value="sm1000_paper">sm1000 (paper)</option>
-              <option value="sm2000_paper">sm2000 (paper)</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">

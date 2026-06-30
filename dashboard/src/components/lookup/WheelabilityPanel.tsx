@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 import { api } from '../../lib/api';
 import { scoreWheelability } from '../../lib/wheelability';
 import { fmtUsd, fmtPct } from '../../lib/format';
-import { useAccount } from '../../hooks/useAccount';
 
 interface ChainContract { symbol: string; underlying_symbol: string; expiration_date: string; strike_price: string; type: 'call' | 'put' }
 interface ChainSnapshot { latestQuote?: { ap: number; bp: number }; impliedVolatility?: number }
@@ -21,8 +20,8 @@ function scoreColor(score: number): string {
 }
 
 export default function WheelabilityPanel({ symbol }: { symbol: string }) {
-  const [accountMode] = useAccount();
-  const mode = accountMode === 'aggressive' ? 'aggressive' : 'conservative';
+  // Both surviving accounts (manual + live) use the same ~10% OTM wheel band.
+  const mode = 'manual' as const;
 
   // Same two-query pattern as OptionsChain. The expirations query (no snapshots,
   // shared cache key) populates the dropdown elsewhere; we use it here to pick

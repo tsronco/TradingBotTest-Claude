@@ -23,8 +23,8 @@ export default function OrderNew() {
   const contract = params.get('contract');
   const type = params.get('type');
   const action = params.get('action') as 'open' | 'close' | null;
-  type OrderAccount = 'conservative_paper' | 'aggressive_paper' | 'manual_paper' | 'live' | 'sm500_paper' | 'sm1000_paper' | 'sm2000_paper';
-  const initialAccount = (params.get('account') as OrderAccount) ?? 'conservative_paper';
+  type OrderAccount = 'manual_paper' | 'live';
+  const initialAccount = (params.get('account') as OrderAccount) ?? 'manual_paper';
   const [account, setAccount] = useState<OrderAccount>(initialAccount);
 
   if (!symbol && !contract) {

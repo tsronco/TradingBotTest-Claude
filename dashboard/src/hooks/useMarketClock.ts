@@ -10,7 +10,7 @@ interface ClockResponse {
 /**
  * Fetches Alpaca's authoritative NYSE clock for the header market-status pill.
  * Account-agnostic (clock is the same for every account), so it omits `mode`
- * and lets the API default to conservative paper creds. Refreshes every 60s so
+ * and lets the API default to manual paper creds. Refreshes every 60s so
  * the open→closed (and closed→open) transition flips without a page reload;
  * the local calendar in `computeMarketStatus` covers the gap if this fails.
  */

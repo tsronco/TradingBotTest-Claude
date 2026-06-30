@@ -19,21 +19,11 @@ const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
   { to: '/performance', label: 'performance', key: '9' },
 ];
 
+// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
 const acctOpts: { value: AccountMode; label: string; key: string }[] = [
-  { value: 'both',      label: 'all',         key: 'a' },
-  // groups
-  { value: 'small',    label: 'small',       key: 's' },
-  { value: 'core',     label: 'core',        key: 'o' },
-  { value: 'hands-on', label: 'hands-on',    key: 'h' },
-  // single accounts — original 4
-  { value: 'conservative', label: 'conservative', key: 'c' },
-  { value: 'aggressive',   label: 'aggressive',   key: 'g' },
-  { value: 'manual',       label: 'manual',       key: 'm' },
-  { value: 'live',         label: 'live $',       key: 'l' },
-  // single accounts — small
-  { value: 'sm500',  label: '$500',   key: 'f' },
-  { value: 'sm1000', label: '$1,000', key: 'k' },
-  { value: 'sm2000', label: '$2,000', key: 'd' },
+  { value: 'both',   label: 'all',    key: 'a' },
+  { value: 'manual', label: 'manual', key: 'm' },
+  { value: 'live',   label: 'live $', key: 'l' },
 ];
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -86,12 +76,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mx-3 mt-2 mb-3 border border-border rounded-sm">
         <div className="px-3 py-1.5 text-[10px] tracking-[0.25em] text-dim border-b border-border flex items-center gap-2">
           <span>ACCOUNTS</span>
-          <span className="ml-auto text-hi tnum">{accountsForSelection(mode).length}/7 ●</span>
+          <span className="ml-auto text-hi tnum">{accountsForSelection(mode).length}/2 ●</span>
         </div>
         <div className="py-1 text-[11px]">
           {acctOpts.map((o) => {
             const isActive = mode === o.value;
-            const isManual = o.value === 'manual';
             return (
               <button
                 key={o.value}
@@ -101,24 +90,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               >
                 <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
                 <span>{o.label}</span>
-                {isManual && (
-                  <span
-                    className="text-hi text-[9px]"
-                    title="auto-open spreads enabled 2026-05-22 (shortcut $10k validation of SM auto-spread engine)"
-                  >
-                    ⚙
-                  </span>
-                )}
                 <span className="ml-auto text-dim text-[10px]">[{o.key}]</span>
               </button>
             );
           })}
         </div>
-        {accountsForSelection(mode).includes('manual') && (
-          <div className="px-3 py-1.5 border-t border-border text-[9px] tracking-wide text-dim leading-snug">
-            <span className="text-hi">⚙ manual</span> · auto-open spreads on since 2026-05-22 (shortcut $10k validation)
-          </div>
-        )}
       </div>
 
       {/* ascii art block */}

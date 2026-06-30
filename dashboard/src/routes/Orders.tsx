@@ -82,27 +82,17 @@ function sideColor(side: string): string {
   return 'text-fg';
 }
 
-type OrderMode = 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000';
-type OrderAcctKey = 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
+type OrderMode = 'manual' | 'live';
+type OrderAcctKey = 'MAN' | 'LIVE';
 
 const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string }> = {
-  CONS:  { text: 'text-hi',    bg: 'bg-hi',    tag: 'CONS' },
-  AGG:   { text: 'text-amber', bg: 'bg-amber', tag: 'AGG ' },
   MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
   LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
-  SM500: { text: 'text-mid',   bg: 'bg-mid',   tag: '$500' },
-  SM1K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$1K ' },
-  SM2K:  { text: 'text-mid',   bg: 'bg-mid',   tag: '$2K ' },
 };
 
 const ORDER_MODE_TO_CARD: Record<OrderMode, { acctKey: OrderAcctKey; label: string }> = {
-  conservative: { acctKey: 'CONS',  label: 'Conservative' },
-  aggressive:   { acctKey: 'AGG',   label: 'Aggressive' },
-  manual:       { acctKey: 'MAN',   label: 'Manual' },
-  live:         { acctKey: 'LIVE',  label: 'Live $' },
-  sm500:        { acctKey: 'SM500', label: '$500' },
-  sm1000:       { acctKey: 'SM1K',  label: '$1,000' },
-  sm2000:       { acctKey: 'SM2K',  label: '$2,000' },
+  manual: { acctKey: 'MAN',  label: 'Manual' },
+  live:   { acctKey: 'LIVE', label: 'Live $' },
 };
 
 interface OrdersTableProps {

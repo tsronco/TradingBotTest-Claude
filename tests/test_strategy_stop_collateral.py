@@ -23,7 +23,7 @@ def _stop_state(qty=10, avg=100.0, stop=95.0):
 
 @pytest.fixture
 def cons_mode():
-    strat.apply_mode("conservative")
+    strat.apply_mode("manual")
     yield
     strat.apply_mode(config.DEFAULT_MODE)
 

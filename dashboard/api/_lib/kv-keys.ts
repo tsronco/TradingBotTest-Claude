@@ -1,26 +1,11 @@
+// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
 export const BOT_STATE_KEYS = [
-  'bot:state:conservative',
-  'bot:state:aggressive',
   'bot:state:manual',
   'bot:state:live',
-  'bot:state:sm500',
-  'bot:state:sm1000',
-  'bot:state:sm2000',
-  'bot:strategy:conservative',
-  'bot:strategy:aggressive',
   'bot:strategy:manual',
   'bot:strategy:live',
-  'bot:strategy:sm500',
-  'bot:strategy:sm1000',
-  'bot:strategy:sm2000',
-  'bot:congress',
-  'bot:rules:conservative',
-  'bot:rules:aggressive',
   'bot:rules:manual',
   'bot:rules:live',
-  'bot:rules:sm500',
-  'bot:rules:sm1000',
-  'bot:rules:sm2000',
 ] as const;
 
 export type BotStateKey = (typeof BOT_STATE_KEYS)[number];
@@ -49,7 +34,7 @@ const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^watchlist$/,
   /^rules:(manual|patterns|cheatsheets|goals|tendencies|proposals)$/,
   /^config:display_name$/,
-  /^import:cursor:(conservative_paper|aggressive_paper|manual_paper|live|sm500_paper|sm1000_paper|sm2000_paper)$/,
+  /^import:cursor:(manual_paper|live)$/,
 ];
 
 export function isAllowedDashboardKey(key: string): boolean {
@@ -90,14 +75,7 @@ export function tradesCounterKey(yyyymmdd: string): string {
   return `trades:counter:${yyyymmdd}`;
 }
 
-export type Mode =
-  | 'conservative'
-  | 'aggressive'
-  | 'manual'
-  | 'live'
-  | 'sm500'
-  | 'sm1000'
-  | 'sm2000';
+export type Mode = 'manual' | 'live';
 
 export function botRulesKey(mode: Mode): BotStateKey {
   return `bot:rules:${mode}` as BotStateKey;

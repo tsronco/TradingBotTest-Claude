@@ -1185,6 +1185,28 @@ def api_get(path, params=None):
     return resp.json()
 
 
+def _is_transient_upstream(exc: Exception) -> bool:
+    """True if exc is a transient Alpaca-side / network failure that should
+    skip the cycle rather than ping #errors.
+
+    These already get bounded retries inside `_alpaca_request` (3 attempts,
+    2s+8s backoff on 429/5xx + ConnectionError/Timeout). This catches the case
+    where the outage *outlasts* that ~10s retry window — e.g. the sustained
+    Alpaca 500 on `/v2/account` that crashed the aggressive wheel cycle on
+    2026-06-29 (conservative, firing 2 min off, was unaffected — pure upstream
+    timing). A server-side 5xx is not a bot bug, and the cron re-fires in 10
+    minutes, so the right response is a quiet skip (mirroring the market-closed
+    heartbeat), not an #errors ping + red workflow run."""
+    if isinstance(exc, (requests.exceptions.ConnectionError,
+                        requests.exceptions.Timeout)):
+        return True
+    if isinstance(exc, requests.exceptions.HTTPError):
+        resp = getattr(exc, "response", None)
+        if resp is not None and resp.status_code in _ALPACA_RETRY_STATUS:
+            return True
+    return False
+
+
 def _gen_client_order_id() -> str:
     """A unique client_order_id for an order POST (R1 — idempotent retries).
 
@@ -3944,6 +3966,24 @@ def run_wheel():
                   result="success",
                   details={"symbols": SYMBOLS})
     except Exception as e:
+        # Transient Alpaca 5xx/429 or network blip that outlasted the bounded
+        # retry in _alpaca_request (e.g. the /v2/account 500 outage that gated
+        # the whole cycle, 2026-06-29). Not a bot bug — skip quietly to the
+        # actions firehose, NOT #errors, and let the next 10-min cron fire
+        # retry. No state mutation reaches the persistent store before the
+        # cycle's first un-isolated upstream call, so returning loses nothing.
+        if _is_transient_upstream(e):
+            detail = f"{type(e).__name__}: {str(e)[:300]}"
+            log(f"Transient upstream failure — skipping wheel cycle: {detail}")
+            send_embed(
+                ACTIONS_CH, "wheel_strategy.py — cycle skipped (transient upstream)",
+                color=Color.YELLOW,
+                description=f"`{detail}` — retries next cron fire.",
+                footer=f"wheel_strategy.py · {MODE}",
+            )
+            log_event(LOG_STREAM, "wheel_strategy.py", "cycle_skipped_upstream",
+                      result="skipped", notes=detail)
+            return
         send_embed(
             ERRORS_CH, "wheel_strategy.py — run_wheel crashed",
             color=Color.RED,

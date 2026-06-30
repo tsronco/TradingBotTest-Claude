@@ -45,7 +45,7 @@ def test_none_when_no_price_at_all(monkeypatch):
 def test_quote_mid_triggers_close_a_stale_last_would_miss(monkeypatch):
     # entry 0.30, conservative closes at <= 50% (0.15). Live mid is 0.15
     # (trigger), but the stale last trade is 0.25 (would NOT trigger).
-    ws.apply_mode("conservative")
+    ws.apply_mode("manual")
     try:
         monkeypatch.setattr(ws, "get_option_quote", lambda c: {"bid": 0.10, "ask": 0.20})
         monkeypatch.setattr(ws, "get_option_last_price", lambda c: 0.25)

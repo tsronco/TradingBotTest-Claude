@@ -12,7 +12,7 @@ function put(symbol: string, strike: number, stockPrice: number, extrinsic: numb
   };
 }
 
-describe('scoreWheelability — band filter (conservative)', () => {
+describe('scoreWheelability — band filter (manual)', () => {
   it('rejects strikes too close to market (<7% OTM) even with great yield', () => {
     const stockPrice = 109;
     // Near-ATM put has fat extrinsic and great yield, but it's NOT a wheel
@@ -25,7 +25,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
       optionsBuyingPower: 100_000,
       contracts: [tooClose.contract, inBand.contract],
       snapshots: { 'TOO-CLOSE-108': tooClose.snapshot, 'IN-BAND-98': inBand.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.bestStrike).toBe(98);
   });
@@ -39,7 +39,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
       optionsBuyingPower: 100_000,
       contracts: [tooFar.contract, inBand.contract],
       snapshots: { 'TOO-FAR-80': tooFar.snapshot, 'IN-BAND-90': inBand.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.bestStrike).toBe(90);
   });
@@ -53,7 +53,7 @@ describe('scoreWheelability — band filter (conservative)', () => {
       optionsBuyingPower: 100_000,
       contracts: [otm.contract, itm.contract],
       snapshots: { 'OTM-98': otm.snapshot, 'ITM-150': itm.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.bestStrike).toBe(98);
   });
@@ -67,26 +67,9 @@ describe('scoreWheelability — band filter (conservative)', () => {
       optionsBuyingPower: 100_000,
       contracts: [itm.contract, tooClose.contract],
       snapshots: { 'ITM-150': itm.snapshot, 'TOO-CLOSE-108': tooClose.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.reason).toBe('no_puts_in_range');
-  });
-});
-
-describe('scoreWheelability — band filter (aggressive)', () => {
-  it('aggressive mode targets ~5% OTM (band 2-8% OTM)', () => {
-    const stockPrice = 100;
-    // $95 (5% OTM) is the aggressive target, $90 (10%) is too far for aggressive
-    const at5 = put('AT-5-95', 95, stockPrice, 1.5);
-    const at10 = put('AT-10-90', 90, stockPrice, 0.5);
-    const result = scoreWheelability({
-      stockPrice,
-      optionsBuyingPower: 100_000,
-      contracts: [at5.contract, at10.contract],
-      snapshots: { 'AT-5-95': at5.snapshot, 'AT-10-90': at10.snapshot },
-      mode: 'aggressive',
-    });
-    expect(result.bestStrike).toBe(95);
   });
 });
 
@@ -101,7 +84,7 @@ describe('scoreWheelability — BP fit uses options BP only', () => {
       optionsBuyingPower: 6_500, // not enough — $9k required
       contracts: [target.contract],
       snapshots: { 'TARGET-90': target.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.reason).toBe('computed');
     expect(result.bestStrike).toBe(90);
@@ -120,7 +103,7 @@ describe('scoreWheelability — within-band yield tiebreaker', () => {
       optionsBuyingPower: 100_000,
       contracts: [richer.contract, thinner.contract],
       snapshots: { 'RICHER-92': richer.snapshot, 'THINNER-88': thinner.snapshot },
-      mode: 'conservative',
+      mode: 'manual',
     });
     expect(result.bestStrike).toBe(92);
   });

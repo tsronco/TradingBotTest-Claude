@@ -51,7 +51,7 @@ describe('POST /api/cron/grade-open-trades', () => {
 
   it('marks unfilled-then-canceled entry orders as closed_by: canceled (skips AI grading)', async () => {
     const trade = {
-      id: 'T-2026-05-04-002', account: 'conservative_paper', symbol: 'SNAP', asset_class: 'stock',
+      id: 'T-2026-05-04-002', account: 'manual_paper', symbol: 'SNAP', asset_class: 'stock',
       side: 'buy', qty: 10, filled_avg_price: null, exposure_at_submit: 22.90,
       alpaca_order_id: 'a-canceled-1', alpaca_close_order_id: null,
       submitted_at: '2026-05-04T13:30Z', filled_at: null, closed_at: null,
@@ -592,7 +592,7 @@ describe('POST /api/cron/grade-open-trades', () => {
       if (k === 'trades:cursor:sweep') return Promise.resolve(0);
       const tid = k.startsWith('trade:') ? k.slice('trade:'.length) : null;
       if (tid) return Promise.resolve({
-        id: tid, account: 'conservative_paper', symbol: 'TSLA', asset_class: 'stock',
+        id: tid, account: 'manual_paper', symbol: 'TSLA', asset_class: 'stock',
         side: 'buy', qty: 1, filled_avg_price: 1, alpaca_order_id: `e-${tid}`, alpaca_close_order_id: `c-${tid}`,
         filled_at: '2026-05-04T13:30Z', closed_at: null, closed_by: null, entry_grade: 'A', entry_reasoning: 'r',
         tags: [], rule_warnings_at_entry: [], schema: 1, fill_confirmed: true,
@@ -1293,36 +1293,97 @@ describe('POST /api/cron/grade-open-trades', () => {
     expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
   });
 
-  // --- SM cross-account routing (Phase 6.x critical fix) ---
-  // modeFromAccount() in cron/[job].ts MUST route SM accounts to their own
-  // Alpaca creds via syncFillData's alpacaTrade(mode, ...) call — NOT silently
-  // fall through to 'conservative'. A wrong mode here reads/writes the
-  // conservative paper account's real order state for an SM trade.
-  it.each([
-    ['sm500_paper', 'sm500'],
-    ['sm1000_paper', 'sm1000'],
-    ['sm2000_paper', 'sm2000'],
-  ])('routes %s trade fill-sync to mode %s, not conservative', async (account, expectedMode) => {
-    const trade = {
-      id: 'T-2026-05-16-001', account, symbol: 'F', asset_class: 'stock',
-      side: 'buy', qty: 5, filled_avg_price: null, exposure_at_submit: 55,
-      alpaca_order_id: 'a-sm-pending', alpaca_close_order_id: null,
-      submitted_at: '2026-05-16T17:44Z', filled_at: null, closed_at: null,
-      realized_pnl: null, closed_avg_price: null, closed_by: null,
-      entry_grade: 'B', entry_reasoning: 'r', tags: [], rule_warnings_at_entry: [],
-      modify_history: [], schema: 1,
+  // ---- Retired-account guard -----------------------------------------------
+  //
+  // Trades from accounts that were sunset (e.g. conservative_paper, sm500_paper)
+  // must be skipped entirely rather than routed through modeFromAccount → 'manual'
+  // and synced against the wrong Alpaca credentials.
+
+  it('skips fill-sync and close-detect for a trade on a retired account', async () => {
+    const retiredTrade = {
+      id: 'T-2026-04-10-001', account: 'conservative_paper', symbol: 'TSLA',
+      asset_class: 'stock', side: 'buy', qty: 10, filled_avg_price: 319.85,
+      alpaca_order_id: 'old-order', alpaca_close_order_id: null,
+      submitted_at: '2026-04-10T13:30Z', filled_at: '2026-04-10T13:31Z',
+      closed_at: null, realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'B', entry_reasoning: 'old trade', tags: [], rule_warnings_at_entry: [],
+      fill_confirmed: true, schema: 1,
     } as any;
-    kvLrange.mockResolvedValueOnce([trade.id]);
-    kvGet.mockImplementation((k: string) =>
-      k === `trade:${trade.id}` ? Promise.resolve(trade) : Promise.resolve(null));
-    alpacaTradeMock.mockResolvedValue({ id: 'a-sm-pending', status: 'new', filled_at: null, filled_avg_price: null });
+    // Also provide a valid manual_paper trade so we know the loop itself still works
+    const activeTrade = {
+      id: 'T-2026-06-20-001', account: 'manual_paper', symbol: 'AAPL',
+      asset_class: 'stock', side: 'buy', qty: 5, filled_avg_price: 200.00,
+      alpaca_order_id: 'active-entry', alpaca_close_order_id: 'active-close',
+      submitted_at: '2026-06-20T14:00Z', filled_at: '2026-06-20T14:01Z',
+      closed_at: null, realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'A', entry_reasoning: 'active trade', tags: [], rule_warnings_at_entry: [],
+      fill_confirmed: true, schema: 1,
+    } as any;
+
+    kvLrange.mockResolvedValueOnce([retiredTrade.id, activeTrade.id]);
+    kvLrem.mockResolvedValue(1);
+    kvGet.mockImplementation((k: string) => {
+      if (k === `trade:${retiredTrade.id}`) return Promise.resolve(retiredTrade);
+      if (k === `trade:${activeTrade.id}`) return Promise.resolve(activeTrade);
+      if (k === `grade:${activeTrade.id}`) return Promise.resolve({ trade_id: activeTrade.id, entry: { letter: 'A', reasoning: 'r', ts: 'now' }, hindsight: null, history: [] });
+      return Promise.resolve(null);
+    });
+    // Close order for the active trade is filled
+    alpacaTradeMock.mockImplementation((_mode: any, path: string) => {
+      if (path.endsWith('/active-close')) {
+        return Promise.resolve({ id: 'active-close', status: 'filled', filled_avg_price: '210.00', filled_at: '2026-06-20T20:00Z' });
+      }
+      return Promise.resolve(null);
+    });
+    dataMock.mockResolvedValue({ bars: { AAPL: [] } });
+    gradeMock.mockResolvedValue({ letter: 'A', review: 'r', calibration: 'matched', tendencies_hit: [], model: 's', usage: { input_tokens: 0, output_tokens: 0, cached_tokens: 0 }, ts: 'now' });
     kvSet.mockResolvedValue('OK');
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq({ authorization: 'Bearer cron-token' }), res);
+
+    // The retired account trade must NOT have triggered any Alpaca fetch for its order.
+    const calledPaths = alpacaTradeMock.mock.calls.map((c: any[]) => c[1] as string);
+    expect(calledPaths.some((p) => p.includes('old-order'))).toBe(false);
+
+    // The retired trade must NOT have been written or removed from the open index.
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${retiredTrade.id}`, expect.anything());
+    expect(kvLrem).not.toHaveBeenCalledWith('trades:index:open', 0, retiredTrade.id);
+
+    // The active manual_paper trade IS still processed and closed.
+    expect(kvSet).toHaveBeenCalledWith(`trade:${activeTrade.id}`, expect.objectContaining({
+      closed_by: 'manual',
+      closed_avg_price: 210.00,
+    }));
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, activeTrade.id);
+  });
+
+  it('skips an sm500_paper trade the same way (any non-surviving account is blocked)', async () => {
+    const sm5Trade = {
+      id: 'T-2026-05-20-001', account: 'sm500_paper', symbol: 'F',
+      asset_class: 'option', side: 'STO', qty: 1, contract_symbol: 'F260620P00011000',
+      strike: 11.0, expiration: '2026-06-20', contract_type: 'put',
+      filled_avg_price: 0.08, filled_at: '2026-05-20T14:00Z',
+      alpaca_order_id: 'sm5-order', alpaca_close_order_id: null,
+      submitted_at: '2026-05-20T13:58Z', closed_at: null,
+      realized_pnl: null, closed_avg_price: null, closed_by: null,
+      entry_grade: 'C', entry_reasoning: 'sm test', tags: [], rule_warnings_at_entry: [],
+      fill_confirmed: true, schema: 1,
+    } as any;
+
+    kvLrange.mockResolvedValueOnce([sm5Trade.id]);
+    kvGet.mockImplementation((k: string) =>
+      k === `trade:${sm5Trade.id}` ? Promise.resolve(sm5Trade) : Promise.resolve(null));
+    kvSet.mockResolvedValue('OK');
+
     const handler = (await import('../../api/cron/[job]')).default;
     await handler(mockReq({ authorization: 'Bearer cron-token' }), mockRes());
-    // syncFillData fetched the entry order with the SM mode as first arg.
-    expect(alpacaTradeMock).toHaveBeenCalled();
-    const modesUsed = alpacaTradeMock.mock.calls.map((c: any[]) => c[0]);
-    expect(modesUsed).toContain(expectedMode);
-    expect(modesUsed).not.toContain('conservative');
+
+    // No Alpaca read for this trade
+    expect(alpacaTradeMock).not.toHaveBeenCalled();
+    // Trade record untouched
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${sm5Trade.id}`, expect.anything());
   });
+
 });

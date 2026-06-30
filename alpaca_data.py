@@ -4,14 +4,17 @@ Single home for new data-fetching code shared across Claude Code skills
 (tools/lookup.py, etc.) and any future read-only consumers (e.g. a Discord
 bot). Strictly fetch-only — no order placement, no state mutation.
 
-Auth: by default reads ALPACA_API_KEY / ALPACA_API_SECRET from the env. Pass
-mode="aggressive" to use the aggressive paper account's keys instead. Market
-data (stock quotes, options chains, Greeks) is identical across paper
-accounts, so most lookup queries don't care about mode — but account / position
-queries do.
+Auth: by default reads ALPACA_MANUAL_API_KEY / ALPACA_MANUAL_API_SECRET from
+the env (the manual paper account). Pass mode="live" to use the real-money
+live account's keys (and the live trading endpoint). Market data (stock quotes,
+options chains, Greeks) is identical across accounts, so most lookup queries
+don't care about mode — but account / position queries do.
+
+(The conservative/aggressive and sm* accounts were retired 2026-06-29.)
 
 Endpoints used:
-  Trading API   https://paper-api.alpaca.markets/v2  (account, positions, contracts)
+  Trading API   https://paper-api.alpaca.markets/v2  (manual: account/positions)
+                https://api.alpaca.markets/v2        (live: account/positions)
   Stock data    https://data.alpaca.markets/v2       (stock trades + bars)
   Options data  https://data.alpaca.markets/v1beta1  (option quotes/trades/snapshots)
 """
@@ -27,10 +30,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TRADING_API_URL = "https://paper-api.alpaca.markets/v2"
+LIVE_TRADING_API_URL = "https://api.alpaca.markets/v2"
 STOCK_DATA_URL = "https://data.alpaca.markets/v2"
 OPT_DATA_URL = "https://data.alpaca.markets/v1beta1"
 
 DEFAULT_TIMEOUT = 15
+
+
+def _trading_base(mode: str) -> str:
+    """Trading API base URL for the mode. Live hits the real-money endpoint;
+    manual (and anything else) hits the paper endpoint."""
+    return LIVE_TRADING_API_URL if mode == "live" else TRADING_API_URL
 
 # Retry policy — mirrors wheel_strategy._alpaca_request and
 # notifications/discord._post. Transient network failures shouldn't crash
@@ -41,18 +51,19 @@ _MAX_ATTEMPTS = 3
 
 
 def _credentials(mode: str) -> tuple[str, str]:
-    if mode == "aggressive":
+    if mode == "live":
         return (
-            os.getenv("ALPACA_AGG_API_KEY", ""),
-            os.getenv("ALPACA_AGG_API_SECRET", ""),
+            os.getenv("ALPACA_LIVE_API_KEY", ""),
+            os.getenv("ALPACA_LIVE_API_SECRET", ""),
         )
+    # Default: manual paper account.
     return (
-        os.getenv("ALPACA_API_KEY", ""),
-        os.getenv("ALPACA_API_SECRET", ""),
+        os.getenv("ALPACA_MANUAL_API_KEY", ""),
+        os.getenv("ALPACA_MANUAL_API_SECRET", ""),
     )
 
 
-def _headers(mode: str = "conservative") -> dict:
+def _headers(mode: str = "manual") -> dict:
     key, secret = _credentials(mode)
     return {
         "APCA-API-KEY-ID": key,
@@ -101,7 +112,7 @@ def _get(url: str, mode: str, params: dict | None = None) -> dict:
 
 # ── Stock data ──────────────────────────────────────────────────────────────
 
-def get_stock_quote(symbol: str, mode: str = "conservative") -> dict:
+def get_stock_quote(symbol: str, mode: str = "manual") -> dict:
     """Latest trade for a stock. Returns the inner trade dict (price `p`, etc.)."""
     data = _get(
         f"{STOCK_DATA_URL}/stocks/{symbol}/trades/latest",
@@ -115,7 +126,7 @@ def get_stock_bars(
     symbol: str,
     days: int = 90,
     timeframe: str = "1Day",
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> list[dict]:
     """Historical OHLCV bars going back `days` calendar days from today."""
     end = date.today()
@@ -137,19 +148,19 @@ def get_stock_bars(
 
 # ── Account / positions ────────────────────────────────────────────────────
 
-def get_account(mode: str = "conservative") -> dict:
-    return _get(f"{TRADING_API_URL}/account", mode)
+def get_account(mode: str = "manual") -> dict:
+    return _get(f"{_trading_base(mode)}/account", mode)
 
 
-def get_positions(mode: str = "conservative") -> list[dict]:
-    return _get(f"{TRADING_API_URL}/positions", mode)
+def get_positions(mode: str = "manual") -> list[dict]:
+    return _get(f"{_trading_base(mode)}/positions", mode)
 
 
-def get_position(symbol: str, mode: str = "conservative") -> dict | None:
+def get_position(symbol: str, mode: str = "manual") -> dict | None:
     """Return the position for `symbol`, or None if not held."""
     resp = _request_with_retry(
         "GET",
-        f"{TRADING_API_URL}/positions/{symbol}",
+        f"{_trading_base(mode)}/positions/{symbol}",
         headers=_headers(mode),
         timeout=DEFAULT_TIMEOUT,
     )
@@ -162,7 +173,7 @@ def get_position(symbol: str, mode: str = "conservative") -> dict | None:
 def get_portfolio_history(
     period: str = "1M",
     timeframe: str = "1D",
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> dict:
     """Equity history for the account.
 
@@ -171,17 +182,17 @@ def get_portfolio_history(
     Returns {timestamp: [...], equity: [...], profit_loss: [...], profit_loss_pct: [...]}.
     """
     params = {"period": period, "timeframe": timeframe}
-    return _get(f"{TRADING_API_URL}/account/portfolio/history", mode, params=params)
+    return _get(f"{_trading_base(mode)}/account/portfolio/history", mode, params=params)
 
 
 def get_orders(
     status: str = "open",
     limit: int = 100,
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> list[dict]:
     """List orders. status: open | closed | all."""
     return _get(
-        f"{TRADING_API_URL}/orders",
+        f"{_trading_base(mode)}/orders",
         mode,
         params={"status": status, "limit": limit, "direction": "desc"},
     )
@@ -196,7 +207,7 @@ def find_option_contracts(
     exp_max_days: int,
     strike_low: float | None = None,
     strike_high: float | None = None,
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> list[dict]:
     """List active option contracts matching the filters."""
     today = date.today()
@@ -212,11 +223,11 @@ def find_option_contracts(
         params["strike_price_gte"] = strike_low
     if strike_high is not None:
         params["strike_price_lte"] = strike_high
-    data = _get(f"{TRADING_API_URL}/options/contracts", mode, params=params)
+    data = _get(f"{_trading_base(mode)}/options/contracts", mode, params=params)
     return data.get("option_contracts", [])
 
 
-def get_option_quote(contract_symbol: str, mode: str = "conservative") -> dict | None:
+def get_option_quote(contract_symbol: str, mode: str = "manual") -> dict | None:
     """Latest bid/ask for an option contract.
 
     Returns {"bid", "ask", "bid_size", "ask_size"} or None if no quote.
@@ -238,7 +249,7 @@ def get_option_quote(contract_symbol: str, mode: str = "conservative") -> dict |
     }
 
 
-def get_option_snapshot(contract_symbol: str, mode: str = "conservative") -> dict | None:
+def get_option_snapshot(contract_symbol: str, mode: str = "manual") -> dict | None:
     """Snapshot for one contract: latest quote, last trade, Greeks, IV.
 
     Greeks dict keys: delta, gamma, theta, vega, rho.
@@ -257,7 +268,7 @@ def get_option_chain_snapshots(
     option_type: str | None = None,
     exp_min_days: int | None = None,
     exp_max_days: int | None = None,
-    mode: str = "conservative",
+    mode: str = "manual",
 ) -> dict[str, dict]:
     """One-shot fetch of full chain snapshots for `underlying`.
 

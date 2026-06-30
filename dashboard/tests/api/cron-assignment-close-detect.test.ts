@@ -251,9 +251,9 @@ describe('grade-open-trades — STO put close: assigned vs expired', () => {
 // coerce to conservative. This asserts the mode threaded through
 // detectClose → resolveOptionSettlement → alpacaTrade('/v2/account/activities')
 // is the real per-trade SM mode.
-describe('grade-open-trades — STO settlement routes to the correct SM account creds', () => {
-  // Same STO put, but on the sm500 paper account.
-  const smStoPut = { ...stoPut, id: 'T-2026-05-12-099', account: 'sm500_paper' };
+describe('grade-open-trades — STO settlement routes to the correct live account creds', () => {
+  // Same STO put, but on the live account.
+  const smStoPut = { ...stoPut, id: 'T-2026-05-12-099', account: 'live' };
 
   beforeEach(() => {
     kvGet.mockReset();
@@ -290,7 +290,7 @@ describe('grade-open-trades — STO settlement routes to the correct SM account 
     vi.useRealTimers();
   });
 
-  it('passes mode "sm500" (not "conservative") to the settlement-activity fetch', async () => {
+  it('passes mode "live" (not "manual") to the settlement-activity fetch', async () => {
     const activityModes: string[] = [];
     alpacaTrade.mockImplementation(async (mode: string, path: string) => {
       if (path.includes('/v2/account/activities')) {
@@ -309,10 +309,10 @@ describe('grade-open-trades — STO settlement routes to the correct SM account 
     const res = await runHandler();
     expect(res.status).toHaveBeenCalledWith(200);
 
-    // The settlement fetch ran, and it ran against the sm500 account's creds.
+    // The settlement fetch ran, and it ran against the live account's creds.
     expect(activityModes.length).toBeGreaterThan(0);
-    expect(activityModes).toContain('sm500');
-    expect(activityModes).not.toContain('conservative');
+    expect(activityModes).toContain('live');
+    expect(activityModes).not.toContain('manual');
 
     // And the trade still closes correctly (settlement logic unchanged for SM).
     // Use the write that carries closed_by (the actual close, not the

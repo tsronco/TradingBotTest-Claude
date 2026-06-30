@@ -105,8 +105,8 @@ def render_chart(snap_cons: dict, snap_agg: dict, period: str) -> str:
     fig, ax = plt.subplots(figsize=(11, 5))
 
     for snap, color, label in (
-        (snap_cons, "#1f77b4", "Conservative"),
-        (snap_agg, "#d62728", "Aggressive"),
+        (snap_cons, "#1f77b4", "Manual"),
+        (snap_agg, "#d62728", "Live"),
     ):
         if "error" in snap:
             continue
@@ -149,13 +149,13 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     period = normalize_period(args.period)
-    snap_cons = summarize(period, "conservative")
-    snap_agg = summarize(period, "aggressive")
+    snap_cons = summarize(period, "manual")
+    snap_agg = summarize(period, "live")
 
     out = [f"═══ P&L OVER {period} ".ljust(60, "═")]
-    out.extend(format_summary(snap_cons, "conservative"))
+    out.extend(format_summary(snap_cons, "manual"))
     out.append("")
-    out.extend(format_summary(snap_agg, "aggressive"))
+    out.extend(format_summary(snap_agg, "live"))
 
     if not args.no_chart and "error" not in snap_cons or "error" not in snap_agg:
         try:

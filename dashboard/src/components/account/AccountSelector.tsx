@@ -2,8 +2,6 @@ import { useAccount, type AccountMode } from '../../hooks/useAccount';
 
 const opts: { value: AccountMode; label: string }[] = [
   { value: 'both', label: 'All' },
-  { value: 'conservative', label: 'Cons' },
-  { value: 'aggressive', label: 'Agg' },
   { value: 'manual', label: 'Manual' },
   { value: 'live', label: 'Live' },
 ];

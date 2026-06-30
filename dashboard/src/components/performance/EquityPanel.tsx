@@ -21,15 +21,11 @@ export default function EquityPanel({ dateRange, account }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const cfg = PERIODS[dateRange] ?? PERIODS.ALL;
 
-  const showCons = !account || account === 'conservative_paper';
-  const showAgg  = !account || account === 'aggressive_paper';
   const showMan  = !account || account === 'manual_paper';
   const showLive = !account || account === 'live';
 
-  const cons = useEquityHistory('conservative', cfg, showCons);
-  const agg  = useEquityHistory('aggressive',  cfg, showAgg);
-  const man  = useEquityHistory('manual',      cfg, showMan);
-  const live = useEquityHistory('live',        cfg, showLive);
+  const man  = useEquityHistory('manual', cfg, showMan);
+  const live = useEquityHistory('live',   cfg, showLive);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -41,14 +37,6 @@ export default function EquityPanel({ dateRange, account }: Props) {
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
     });
 
-    if (showCons && cons.data?.history?.equity?.length) {
-      const s = chart.addSeries(LineSeries, { color: '#22d3ee', lineWidth: 2 });
-      s.setData(toData(cons.data.history));
-    }
-    if (showAgg && agg.data?.history?.equity?.length) {
-      const s = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2 });
-      s.setData(toData(agg.data.history));
-    }
     if (showMan && man.data?.history?.equity?.length) {
       const s = chart.addSeries(LineSeries, { color: '#a78bfa', lineWidth: 2 });
       s.setData(toData(man.data.history));
@@ -59,14 +47,12 @@ export default function EquityPanel({ dateRange, account }: Props) {
     }
     chart.timeScale().fitContent();
     return () => chart.remove();
-  }, [showCons, showAgg, showMan, showLive, cons.data, agg.data, man.data, live.data]);
+  }, [showMan, showLive, man.data, live.data]);
 
   return (
     <div>
       <div ref={ref} />
       <div className="text-[10px] text-dim mt-2 flex gap-3">
-        {showCons && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#22d3ee' }} />conservative</span>}
-        {showAgg && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#f59e0b' }} />aggressive</span>}
         {showMan && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#a78bfa' }} />manual</span>}
         {showLive && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#ef4444' }} />live $</span>}
       </div>

@@ -29,6 +29,60 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-29',
+    category: 'fix',
+    title: 'Pre-merge polish for the account sunset (PR #28)',
+    details:
+      'Review fixes folded into the sunset PR before merge. '
+      + '/compare was crashing — it called daily_summary._snapshot, which was removed with the '
+      + 'head-to-head — so it is rebuilt from the surviving summary helpers and reframed as a '
+      + 'neutral manual-vs-live glance (no "winner": $10k paper and real money are different footings). '
+      + 'The AI lookup summary now has a 60-second per-symbol refresh cooldown so the paid '
+      + "Claude + web-search call can't be spammed, and the refresh buttons disable while a request is "
+      + 'in flight. The grade cron now skips open trades tagged to a retired account instead of '
+      + 'mis-syncing them against the manual account. Added config guards so spread_stop_credit_mult '
+      + 'and auto_open_spreads can never silently appear on manual/live. Stale "Conservative/Aggressive" '
+      + 'labels scrubbed from the /pnl and /chart legends and the read-only skill docs.',
+  },
+  {
+    date: '2026-06-29',
+    category: 'infra',
+    title: 'Retired the conservative, aggressive, and sm500/sm1000/sm2000 accounts',
+    details:
+      'The system is now focused on two accounts: manual (paper) and live (real money). '
+      + 'Removed the five retired accounts end-to-end — config.MODES rows, their GitHub Actions '
+      + 'workflows (tsla-monitor + wheel-screener), cron-job.org jobs, Discord channels, the '
+      + 'conservative-only congress-copy bot, the daily-summary head-to-head, and all state/log '
+      + 'files. On the dashboard, the account enumerations (useAccount / account-utils / '
+      + 'trade-types / alpaca / kv-keys / rule-check) collapse to manual + live, the sidebar drops '
+      + 'the small/core/hands-on group chips, and the bot-rules / thresholds / equity panels show '
+      + 'two accounts.\n\n'
+      + 'The shared strategy engine is unchanged — strategy.py (trail/ladder/stop), '
+      + 'wheel_strategy.py (including the whole auto-spread engine, still flag-gated), '
+      + 'long_options_strategy.py, and screener_core.py all stay intact; only the dead account '
+      + 'rows and their wiring were removed. Manual + live keep every behavior they had.\n\n'
+      + 'Heads-up for the cutover: the retired cron-job.org jobs must be deleted by hand (the '
+      + 'setup script only patches/creates, never deletes), and the now-unused GitHub Actions / '
+      + 'Vercel secrets for those accounts can be removed.',
+  },
+  {
+    date: '2026-06-29',
+    category: 'fix',
+    title: 'Wheel: transient Alpaca outage skips the cycle instead of pinging #errors',
+    details:
+      'On 2026-06-29 Alpaca returned a sustained 500 on /v2/account that outlasted the wheel\'s '
+      + 'bounded retry (3 attempts, 2s+8s backoff). The cycle-gating get_account() call then '
+      + 'raised, the aggressive wheel crashed, #aggressive-errors got paged, and the workflow went '
+      + 'red — even though conservative (firing 2 minutes off the same cron) sailed through, '
+      + 'confirming it was a pure upstream blip, not a bot bug.\n\n'
+      + 'run_wheel now classifies a transient upstream failure (Alpaca 429/5xx or a '
+      + 'ConnectionError/Timeout that escapes the retry window) and skips the cycle quietly — a '
+      + 'heartbeat to the actions firehose, nothing in #errors, no re-raise — and lets the next '
+      + '10-minute cron fire retry. This mirrors the existing market-closed skip. Genuine bugs (any '
+      + 'non-transient exception, including 4xx) still ping #errors and go red so we notice. '
+      + 'Applies to all modes. +9 pytest.',
+  },
+  {
     date: '2026-06-25',
     category: 'feature',
     title: 'AI summary blurb at the top of every /lookup/:symbol page',

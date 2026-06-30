@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (endpoint === 'clock') {
       // NYSE clock — account-agnostic, so we just use whatever creds `mode`
-      // resolves to (defaults to conservative paper). Alpaca's /clock natively
+      // resolves to (defaults to manual paper). Alpaca's /clock natively
       // accounts for weekends, holidays, half-days, and ad-hoc closures, so the
       // dashboard header uses it as the authoritative open/closed source.
       const clock = await alpacaTrade<unknown>(mode, '/v2/clock');

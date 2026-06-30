@@ -193,7 +193,7 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
   it('emits warn-severity bot rule violation for symbol outside wheel', async () => {
     kvGet.mockImplementation(async (k: string) => {
       if (k === 'rules:manual') return [];
-      if (k === 'bot:rules:conservative') return {
+      if (k === 'bot:rules:live') return {
         wheel: { symbols: ['TSLA', 'F'], otm_pct: 0.10, dte_min: 14, dte_max: 28 },
       };
       return null;
@@ -201,7 +201,7 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
     const { runRuleChecks } = await import('../api/_lib/rule-check');
     const violations = await runRuleChecks({
       asset_class: 'option', symbol: 'NFLX', side: 'STO', qty: 1,
-      account: 'conservative_paper', option_type: 'put',
+      account: 'live', option_type: 'put',
     });
     const v = violations.find((x) => x.rule === 'bot_outside_wheel_symbols');
     expect(v).toBeDefined();
@@ -211,7 +211,7 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
   it('emits warn-severity bot rule violation for DTE outside wheel range', async () => {
     kvGet.mockImplementation(async (k: string) => {
       if (k === 'rules:manual') return [];
-      if (k === 'bot:rules:conservative') return {
+      if (k === 'bot:rules:live') return {
         wheel: { symbols: ['TSLA'], otm_pct: 0.10, dte_min: 14, dte_max: 28 },
       };
       return null;
@@ -221,7 +221,7 @@ describe('runRuleChecks — trigger DSL evaluator', () => {
     const exp = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
     const violations = await runRuleChecks({
       asset_class: 'option', symbol: 'TSLA', side: 'STO', qty: 1,
-      account: 'conservative_paper', option_type: 'put', expiration: exp,
+      account: 'live', option_type: 'put', expiration: exp,
     });
     const v = violations.find((x) => x.rule === 'bot_dte_outside_wheel');
     expect(v).toBeDefined();

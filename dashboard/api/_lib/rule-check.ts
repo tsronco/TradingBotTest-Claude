@@ -73,9 +73,9 @@ export async function runRuleChecks(
   }
 
   // --- Bot rules (warn-only) ---
-  // accountToMode returns a kv-keys Mode; all modes (incl. sm500/sm1000/sm2000)
-  // have their bot:rules:<mode> key whitelisted and pushed by the monitor
-  // workflows, so the lookup is valid for every account.
+  // accountToMode returns a kv-keys Mode (manual or live); both have their
+  // bot:rules:<mode> key whitelisted and pushed by the monitor workflows, so
+  // the lookup is valid for every account.
   const mode = accountToMode(input.account);
   const bot = (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null;
   if (bot && input.asset_class === 'option') {
@@ -156,14 +156,9 @@ function sevRank(s: RuleSeverity): number {
   return s === 'block' ? 0 : s === 'warn' ? 1 : 2;
 }
 
-function accountToMode(account: AccountId): 'conservative' | 'aggressive' | 'manual' | 'live' | 'sm500' | 'sm1000' | 'sm2000' {
-  if (account === 'aggressive_paper') return 'aggressive';
-  if (account === 'manual_paper') return 'manual';
-  if (account === 'sm500_paper') return 'sm500';
-  if (account === 'sm1000_paper') return 'sm1000';
-  if (account === 'sm2000_paper') return 'sm2000';
+function accountToMode(account: AccountId): 'manual' | 'live' {
   if (account === 'live') return 'live';
-  return 'conservative';
+  return 'manual';
 }
 
 function calcDTE(expiration: string): number {
@@ -305,13 +300,13 @@ async function appendLegacyStubRules(
     }
   }
 
-  // bot_wheel_overlap — warn when bot has an open wheel on the same symbol
-  const cons = (await kv().get<Record<string, { stage?: number }>>('bot:state:conservative')) ?? {};
-  const agg = (await kv().get<Record<string, { stage?: number }>>('bot:state:aggressive')) ?? {};
-  const consHas = cons[input.symbol]?.stage === 1 || cons[input.symbol]?.stage === 2;
-  const aggHas = agg[input.symbol]?.stage === 1 || agg[input.symbol]?.stage === 2;
-  if (consHas || aggHas) {
-    const accounts = [consHas && 'conservative', aggHas && 'aggressive'].filter(Boolean).join(' & ');
+  // bot_wheel_overlap — warn when the bot has an open wheel on the same symbol
+  const manualState = (await kv().get<Record<string, { stage?: number }>>('bot:state:manual')) ?? {};
+  const liveState = (await kv().get<Record<string, { stage?: number }>>('bot:state:live')) ?? {};
+  const manualHas = manualState[input.symbol]?.stage === 1 || manualState[input.symbol]?.stage === 2;
+  const liveHas = liveState[input.symbol]?.stage === 1 || liveState[input.symbol]?.stage === 2;
+  if (manualHas || liveHas) {
+    const accounts = [manualHas && 'manual', liveHas && 'live'].filter(Boolean).join(' & ');
     out.push({
       rule: 'bot_wheel_overlap',
       severity: 'warn',

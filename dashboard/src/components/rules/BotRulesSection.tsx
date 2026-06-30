@@ -1,9 +1,8 @@
 import type { BotRulesPayload } from '../../lib/rules-types';
 
 interface Props {
-  conservative: BotRulesPayload | null;
-  aggressive: BotRulesPayload | null;
   manual: BotRulesPayload | null;
+  live: BotRulesPayload | null;
 }
 
 function ModeColumn({ payload, label }: { payload: BotRulesPayload | null; label: string }) {
@@ -71,13 +70,12 @@ function ModeColumn({ payload, label }: { payload: BotRulesPayload | null; label
   );
 }
 
-export default function BotRulesSection({ conservative, aggressive, manual }: Props) {
+export default function BotRulesSection({ manual, live }: Props) {
   return (
     <div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <ModeColumn payload={conservative} label="Conservative" />
-        <ModeColumn payload={aggressive} label="Aggressive" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ModeColumn payload={manual} label="Manual" />
+        <ModeColumn payload={live} label="Live $" />
       </div>
       <div className="mt-3 text-[9px] text-dim">edit in <code className="text-fg">config.py</code> on the bot repo</div>
     </div>

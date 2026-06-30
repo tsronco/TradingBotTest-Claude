@@ -167,21 +167,10 @@ body {
    In single-mode views the grid collapses to 1 col, where 1/-1 == 1/2 → no-op. */
 #cards article[data-acct-key='LIVE'] { grid-column: 1 / -1; }
 
-/* card visibility driven by data-mode attribute */
-#cards[data-mode='conservative'] article[data-acct-key='AGG'],
-#cards[data-mode='conservative'] article[data-acct-key='MAN'],
-#cards[data-mode='conservative'] article[data-acct-key='LIVE'] { display: none; }
-#cards[data-mode='aggressive'] article[data-acct-key='CONS'],
-#cards[data-mode='aggressive'] article[data-acct-key='MAN'],
-#cards[data-mode='aggressive'] article[data-acct-key='LIVE'] { display: none; }
-#cards[data-mode='manual'] article[data-acct-key='CONS'],
-#cards[data-mode='manual'] article[data-acct-key='AGG'],
+/* card visibility driven by data-mode attribute.
+   Two accounts since the 2026-06-29 sunset: manual + live. */
 #cards[data-mode='manual'] article[data-acct-key='LIVE'] { display: none; }
-#cards[data-mode='live'] article[data-acct-key='CONS'],
-#cards[data-mode='live'] article[data-acct-key='AGG'],
 #cards[data-mode='live'] article[data-acct-key='MAN'] { display: none; }
-#cards[data-mode='conservative'],
-#cards[data-mode='aggressive'],
 #cards[data-mode='manual'],
 #cards[data-mode='live'] {
   grid-template-columns: minmax(0, 1fr) !important;

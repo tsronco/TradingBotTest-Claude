@@ -28,7 +28,7 @@ vi.mock('../../api/_lib/data-api', () => ({
 }));
 vi.mock('../../api/_lib/totp', () => ({ verifyTotp: (...a: any[]) => verifyTotpMock(...a) }));
 vi.mock('../../api/_lib/alpaca', () => ({
-  modeFromQuery: () => 'conservative',
+  modeFromQuery: () => 'manual',
 }));
 
 beforeEach(() => {
@@ -56,7 +56,7 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'stock', symbol: 'TSLA',
+      account: 'manual_paper', asset_class: 'stock', symbol: 'TSLA',
       side: 'buy', qty: 10, order_type: 'limit', limit_price: 321.40,
       tif: 'day', entry_grade: 'A', entry_reasoning: '', tags: [],
     }), res);
@@ -66,7 +66,7 @@ describe('POST /api/trades/submit', () => {
   it('rejects when TOTP required but missing/invalid', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 1000, aggressive_paper: 1000, live: 1500 })
+        ? Promise.resolve({ manual_paper: 1000, live: 1500 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
@@ -74,7 +74,7 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'stock', symbol: 'TSLA',
+      account: 'manual_paper', asset_class: 'stock', symbol: 'TSLA',
       side: 'buy', qty: 10, order_type: 'limit', limit_price: 321.40,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'breakout', tags: [],
       totp_code: 'wrong',
@@ -85,7 +85,7 @@ describe('POST /api/trades/submit', () => {
   it('sets position_intent=sell_to_open for STO option orders', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        ? Promise.resolve({ manual_paper: 100000, live: 100000 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 }, greeks: { delta: -0.30, gamma: 0.04, theta: -0.05, vega: 0.10, implied_volatility: 0.65 } } } });
@@ -95,7 +95,7 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'option', symbol: 'PLTR',
+      account: 'manual_paper', asset_class: 'option', symbol: 'PLTR',
       contract_symbol: 'PLTR260605P00100000', strike: 100, expiration: '2026-06-05', contract_type: 'put',
       side: 'STO', qty: 1, order_type: 'limit', limit_price: 1.50,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'wheel csp 10% otm', tags: [],
@@ -113,7 +113,7 @@ describe('POST /api/trades/submit', () => {
   it('sets position_intent=buy_to_open for BTO option orders', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        ? Promise.resolve({ manual_paper: 100000, live: 100000 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'TSLA260605C00400000': { latestQuote: { ap: 2.05, bp: 2.00 } } } });
@@ -123,7 +123,7 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'option', symbol: 'TSLA',
+      account: 'manual_paper', asset_class: 'option', symbol: 'TSLA',
       contract_symbol: 'TSLA260605C00400000', strike: 400, expiration: '2026-06-05', contract_type: 'call',
       side: 'BTO', qty: 1, order_type: 'limit', limit_price: 2.00,
       tif: 'day', entry_grade: 'B', entry_reasoning: 'long call directional', tags: [],
@@ -141,7 +141,7 @@ describe('POST /api/trades/submit', () => {
   it('returns 502 with Alpaca error message when createOrder fails', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        ? Promise.resolve({ manual_paper: 100000, live: 100000 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ snapshots: { 'PLTR260605P00100000': { latestQuote: { ap: 1.55, bp: 1.50 } } } });
@@ -149,7 +149,7 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'option', symbol: 'PLTR',
+      account: 'manual_paper', asset_class: 'option', symbol: 'PLTR',
       contract_symbol: 'PLTR260605P00100000', strike: 100, expiration: '2026-06-05', contract_type: 'put',
       side: 'STO', qty: 1, order_type: 'limit', limit_price: 1.50,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'wheel csp', tags: [],
@@ -163,7 +163,7 @@ describe('POST /api/trades/submit', () => {
   it('places Alpaca order, writes trade+grade records, indexes', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, live: 100000 })
+        ? Promise.resolve({ manual_paper: 100000, live: 100000 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
@@ -173,12 +173,12 @@ describe('POST /api/trades/submit', () => {
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({
-      account: 'conservative_paper', asset_class: 'stock', symbol: 'TSLA',
+      account: 'manual_paper', asset_class: 'stock', symbol: 'TSLA',
       side: 'buy', qty: 10, order_type: 'limit', limit_price: 321.40,
       tif: 'day', entry_grade: 'A', entry_reasoning: 'breakout', tags: ['breakout'],
     }), res);
     expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
-      'conservative',
+      'manual',
       '/v2/orders',
       expect.objectContaining({ method: 'POST' }),
     );
@@ -231,7 +231,7 @@ describe('POST /api/trades/submit', () => {
   it('submits a spread payload, builds mleg order, writes trade record', async () => {
     kvGet.mockImplementation((k: string) =>
       k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
+        ? Promise.resolve({ manual_paper: 100000, manual_paper: 100000, live: 100000 })
         : Promise.resolve(null));
     ruleCheckMock.mockResolvedValue([]);
     kvIncr.mockResolvedValue(99);
@@ -295,82 +295,4 @@ describe('POST /api/trades/submit', () => {
     expect(kvRpush).toHaveBeenCalledWith('trades:index:open', expect.stringMatching(/^T-/));
   });
 
-  // --- SM cross-account routing (Phase 6.x critical fix) ---
-  // modeFromAccount() in trades/[action].ts MUST route SM accounts to their
-  // own Alpaca creds — the spread submit path calls
-  // alpacaTradeMutation(modeFromAccount(p.account), ...). A regression here
-  // would silently place an SM spread on the conservative paper account.
-  it.each([
-    ['sm500_paper', 'sm500'],
-    ['sm1000_paper', 'sm1000'],
-    ['sm2000_paper', 'sm2000'],
-  ])('routes %s spread submit to mode %s, not conservative', async (account, expectedMode) => {
-    kvGet.mockImplementation((k: string) =>
-      k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
-        : Promise.resolve(null));
-    ruleCheckMock.mockResolvedValue([]);
-    kvIncr.mockResolvedValue(1);
-    alpacaTradeMutationMock.mockResolvedValue({ id: 'alpaca-sm-1', status: 'new', submitted_at: '2026-05-16T14:00:00Z' });
-    kvSet.mockResolvedValue('OK');
-
-    const handler = (await import('../../api/trades/[action]')).default;
-    const res = mockRes();
-    await handler(mockReq({
-      kind: 'spread',
-      account,
-      symbol: 'AAL',
-      spread_type: 'put_credit',
-      short_leg: { occ: 'AAL260529P00012500', strike: 12.5, entry_premium: 0.37 },
-      long_leg:  { occ: 'AAL260529P00011500', strike: 11.5, entry_premium: 0.12 },
-      expiration: '2026-05-29',
-      qty: 1,
-      limit_price: -0.25,
-      entry_grade: 'B+',
-      entry_reasoning: 'SM small-account spread routing test',
-    }), res);
-
-    // The mleg order + the server-side positions re-check both go through the
-    // SM mode, never conservative.
-    expect(alpacaTradeMutationMock).toHaveBeenCalledTimes(1);
-    expect(alpacaTradeMutationMock.mock.calls[0][0]).toBe(expectedMode);
-    expect(alpacaTradeMutationMock.mock.calls[0][0]).not.toBe('conservative');
-  });
-
-  // Stock submit path: modeFromAccount feeds getQuote (alpacaData) + the
-  // positions re-check (alpacaTrade). Assert the quote call gets the SM mode.
-  it.each([
-    ['sm500_paper', 'sm500'],
-    ['sm1000_paper', 'sm1000'],
-    ['sm2000_paper', 'sm2000'],
-  ])('routes %s stock submit quote to mode %s, not conservative', async (account, expectedMode) => {
-    kvGet.mockImplementation((k: string) =>
-      k === 'config:totp_thresholds'
-        ? Promise.resolve({ conservative_paper: 100000, aggressive_paper: 100000, manual_paper: 100000, live: 100000 })
-        : Promise.resolve(null));
-    ruleCheckMock.mockResolvedValue([]);
-    dataMock.mockResolvedValue({ TSLA: { latestQuote: { ap: 321.45, bp: 321.35 } } });
-    verifyTotpMock.mockReturnValue(true);
-    kvIncr.mockResolvedValue(1);
-    alpacaTradeMutationMock.mockResolvedValue({ id: 'alp-sm-stk-1', submitted_at: '2026-05-16T14:00:00Z' });
-    kvSet.mockResolvedValue('OK');
-    const handler = (await import('../../api/trades/[action]')).default;
-    const res = mockRes();
-    await handler(mockReq({
-      account, asset_class: 'stock', symbol: 'TSLA',
-      side: 'buy', qty: 5, order_type: 'limit', limit_price: 321.40,
-      tif: 'day', entry_grade: 'A', entry_reasoning: 'SM routing', tags: [],
-    }), res);
-    // getQuote(symbol, asset_class, modeFromAccount(account)) → alpacaData(mode, ...)
-    expect(dataMock).toHaveBeenCalled();
-    const quoteModes = dataMock.mock.calls.map((c: any[]) => c[0]);
-    expect(quoteModes).toContain(expectedMode);
-    expect(quoteModes).not.toContain('conservative');
-    // Placement routes to the SM mode too — never conservative.
-    expect(alpacaTradeMutationMock).toHaveBeenCalledWith(
-      expectedMode,
-      '/v2/orders',
-      expect.objectContaining({ method: 'POST' }),
-    );
-  });
 });

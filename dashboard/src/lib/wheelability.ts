@@ -9,9 +9,9 @@ interface Snapshot {
   impliedVolatility?: number;
 }
 
-// Manual mirrors conservative for OTM band — the bot uses conservative wheel
-// params for managing existing manual positions (50% close, 14-28 DTE puts).
-export type WheelMode = 'conservative' | 'aggressive' | 'manual';
+// Both surviving accounts (manual + live) use the same ~10% OTM wheel band
+// for managing existing positions (50% close, 14-28 DTE puts).
+export type WheelMode = 'manual' | 'live';
 
 interface WheelInputs {
   stockPrice: number;
@@ -21,15 +21,15 @@ interface WheelInputs {
   optionsBuyingPower: number;
   contracts: ChainContract[];
   snapshots: Record<string, Snapshot>;
-  // Wheel mode controls the target OTM band — conservative aims ~10% OTM,
-  // aggressive aims ~5% OTM (matches the bot config in /config.py MODES).
+  // Wheel mode controls the target OTM band — both manual and live aim ~10%
+  // OTM (matches the bot config in /config.py MODES).
   mode?: WheelMode;
 }
 
 // Per-mode target band: bot only sells puts within this OTM range, so the
 // wheelability "best" recommendation should match. ±3 percentage points around
-// the target (conservative: 7-13% OTM; aggressive: 2-8% OTM).
-const TARGET_OTM_PCT = { conservative: 0.10, aggressive: 0.05, manual: 0.10 } as const;
+// the target (manual/live: 7-13% OTM).
+const TARGET_OTM_PCT = { manual: 0.10, live: 0.10 } as const;
 const BAND_HALF_WIDTH_PCT = 0.03;
 
 export type WheelabilityReason =
@@ -52,9 +52,8 @@ export function scoreWheelability(input: WheelInputs): WheelabilityResult {
   // Filter to puts that fall in the wheel's actual operating band — anything
   // outside this range isn't a candidate the bot would ever sell, so it's not
   // a useful "best" recommendation either. The bot only sells:
-  //   conservative: ~10% OTM puts (we accept 7-13% OTM)
-  //   aggressive:   ~5% OTM puts (we accept 2-8% OTM)
-  const target = TARGET_OTM_PCT[input.mode ?? 'conservative'];
+  //   manual/live: ~10% OTM puts (we accept 7-13% OTM)
+  const target = TARGET_OTM_PCT[input.mode ?? 'manual'];
   const lowStrike = input.stockPrice * (1 - target - BAND_HALF_WIDTH_PCT);
   const highStrike = input.stockPrice * (1 - target + BAND_HALF_WIDTH_PCT);
   const targetStrike = input.stockPrice * (1 - target);

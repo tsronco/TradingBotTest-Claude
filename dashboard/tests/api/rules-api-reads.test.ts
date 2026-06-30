@@ -113,14 +113,12 @@ describe('rules proposals handler (GET)', () => {
 describe('rules bot handler', () => {
   beforeEach(() => { kvGet.mockReset(); });
 
-  it('GET returns all 3 modes from bot:rules:* keys', async () => {
-    const consPayload = { mode: 'conservative', wheel: { otm_pct: 0.10 }, pushed_at: '...' };
-    const aggPayload  = { mode: 'aggressive',   wheel: { otm_pct: 0.05 }, pushed_at: '...' };
-    const manPayload  = { mode: 'manual',       wheel: { otm_pct: 0.10 }, pushed_at: '...' };
+  it('GET returns both modes from bot:rules:* keys', async () => {
+    const manPayload  = { mode: 'manual', wheel: { otm_pct: 0.10 }, pushed_at: '...' };
+    const livePayload = { mode: 'live',   wheel: { otm_pct: 0.10 }, pushed_at: '...' };
     kvGet.mockImplementation(async (k: string) => {
-      if (k === 'bot:rules:conservative') return consPayload;
-      if (k === 'bot:rules:aggressive')   return aggPayload;
-      if (k === 'bot:rules:manual')       return manPayload;
+      if (k === 'bot:rules:manual') return manPayload;
+      if (k === 'bot:rules:live')   return livePayload;
       return null;
     });
     const handler = (await import('../../api/rules/[resource]')).default;
@@ -128,9 +126,8 @@ describe('rules bot handler', () => {
     const res = mkRes();
     await handler(req, res);
     const body = (res.json as any).mock.calls[0][0];
-    expect(body.conservative.wheel.otm_pct).toBe(0.10);
-    expect(body.aggressive.wheel.otm_pct).toBe(0.05);
     expect(body.manual.wheel.otm_pct).toBe(0.10);
+    expect(body.live.wheel.otm_pct).toBe(0.10);
   });
 
   it('GET returns nulls when no modes have pushed', async () => {
@@ -140,7 +137,7 @@ describe('rules bot handler', () => {
     const res = mkRes();
     await handler(req, res);
     const body = (res.json as any).mock.calls[0][0];
-    expect(body).toEqual({ conservative: null, aggressive: null, manual: null });
+    expect(body).toEqual({ manual: null, live: null });
   });
 
   it('returns 405 for non-GET', async () => {
