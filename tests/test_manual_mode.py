@@ -293,20 +293,26 @@ def test_manual_stop_sells_only_free_qty_not_full_liquidation(monkeypatch):
 # A symbol in config.MODES[mode]["excluded_symbols"] must be skipped by BOTH
 # wheel_strategy (no covered-call sale on assignment, no put mgmt) and
 # strategy.py (no trail/ladder/stop). Used to let the user exit a position by
-# hand without the bot re-covering or laddering into it. SNAP added 2026-06-19:
-# assigned 100 shares underwater, a pending CC is being cancelled, and the bot
-# must not sell another one.
+# hand without the bot re-covering or laddering into it. Manual currently ships
+# with NO exclusions (SNAP was excluded 2026-06-19 after an underwater
+# assignment and removed 2026-06-30 once that position closed), so these tests
+# inject the exclusion themselves to exercise the mechanism.
 
-def test_excluded_symbols_helper_normalizes_and_defaults():
-    excl = config.excluded_symbols("manual")
-    assert "SNAP" in excl
-    # set is already uppercased/normalized
-    assert excl == {s.upper() for s in excl}
-    # modes that don't opt in get an empty set — unaffected
+def test_excluded_symbols_helper_normalizes(monkeypatch):
+    # The helper uppercases + trims whatever the mode declares.
+    monkeypatch.setitem(config.MODES["manual"], "excluded_symbols", ["snap", "  tsla "])
+    assert config.excluded_symbols("manual") == {"SNAP", "TSLA"}
+    # modes that don't opt in get an empty set
     assert config.excluded_symbols("live") == set()
 
 
-def test_apply_mode_sets_excluded_symbols_on_both_scripts():
+def test_manual_excludes_nothing_by_default():
+    # No symbols are currently hand-held back from the bot on manual.
+    assert config.excluded_symbols("manual") == set()
+
+
+def test_apply_mode_sets_excluded_symbols_on_both_scripts(monkeypatch):
+    monkeypatch.setitem(config.MODES["manual"], "excluded_symbols", ["SNAP"])
     wheel_strategy.apply_mode("manual")
     assert "SNAP" in wheel_strategy.EXCLUDED_SYMBOLS
     strategy.apply_mode("manual")
@@ -323,7 +329,7 @@ def test_wheel_skips_excluded_symbol_no_covered_call(monkeypatch, tmp_path):
     it as a held Stage 2 position (which would otherwise sell a covered call)."""
     import json
     wheel_strategy.apply_mode("manual")
-    assert "SNAP" in wheel_strategy.EXCLUDED_SYMBOLS
+    monkeypatch.setattr(wheel_strategy, "EXCLUDED_SYMBOLS", {"SNAP"})
 
     def _stage2():
         s = wheel_strategy._empty_symbol_state()
@@ -365,7 +371,7 @@ def test_strategy_skips_excluded_symbol(monkeypatch, tmp_path):
     still manage other held stocks."""
     import json
     strategy.apply_mode("manual")
-    assert "SNAP" in strategy.EXCLUDED_SYMBOLS
+    monkeypatch.setattr(strategy, "EXCLUDED_SYMBOLS", {"SNAP"})
 
     state_file = tmp_path / "strategy_state_manual.json"
     state_file.write_text(json.dumps({}))
