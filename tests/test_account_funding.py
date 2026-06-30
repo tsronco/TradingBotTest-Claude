@@ -132,3 +132,26 @@ def test_get_account_activities_builds_request(monkeypatch):
     assert captured["params"]["activity_types"] == "CSD,CSW"
     assert captured["params"]["after"] == "2026-01-01T00:00:00Z"
     assert captured["params"]["page_size"] == 100
+
+
+def test_unknown_mode_is_failsoft(monkeypatch):
+    # config.get_mode raises ValueError for an unknown mode — check_funding must
+    # swallow it (route to the mode's errors channel) and never raise.
+    calls = _capture(monkeypatch)
+    account_funding.check_funding("bogus")  # must not raise
+    assert calls and all(c[0][0] == "bogus_errors" for c in calls)
+
+
+def test_multiple_new_transfers_announced_in_date_order(monkeypatch, tmp_path):
+    (tmp_path / "account_state_live.json").write_text(json.dumps({"seen_activity_ids": ["old"]}))
+    acts = [
+        _activity("dep2", "CSD", 2000, date="2026-06-30"),
+        _activity("dep1", "CSD", 1000, date="2026-06-28"),
+    ]
+    _wire(monkeypatch, tmp_path, acts)
+    calls = _capture(monkeypatch)
+    account_funding.check_funding("live")
+    assert len(calls) == 2
+    # Oldest first (sorted by date ascending), regardless of fetch order.
+    assert "1,000.00" in calls[0][0][1]
+    assert "2,000.00" in calls[1][0][1]

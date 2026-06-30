@@ -32,7 +32,7 @@ export default function FundingPanel({ mode }: { mode: 'manual' | 'live' }) {
           {transfers.slice(0, 5).map((a) => {
             const isDep = a.activity_type === 'CSD';
             const amt = Math.abs(Number(a.net_amount ?? 0));
-            const dollars = fmtUsd(amt, { sign: false }).replace('-$', '$');
+            const dollars = fmtUsd(amt, { sign: false });
             return (
               <li key={a.id} className="flex items-center justify-between text-[11px] tnum">
                 <span className="text-dim">{a.date ?? '—'}</span>

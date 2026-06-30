@@ -32,3 +32,19 @@ def test_funding_today_failsoft(monkeypatch):
     monkeypatch.setattr(daily_summary.requests, "get", boom)
     dep, wd = daily_summary._funding_today(config.get_mode("live"), "2026-06-30")
     assert (dep, wd) == (0.0, 0.0)
+
+
+def test_funding_field_both():
+    f = daily_summary._funding_field(1000.0, 250.0)
+    assert f["name"] == "💵 Funding Today"
+    assert "Deposits +$1,000.00" in f["value"]
+    assert "Withdrawals −$250.00" in f["value"]
+
+
+def test_funding_field_none_when_zero():
+    assert daily_summary._funding_field(0.0, 0.0) is None
+
+
+def test_funding_field_deposit_only():
+    f = daily_summary._funding_field(500.0, 0.0)
+    assert f["value"] == "Deposits +$500.00"

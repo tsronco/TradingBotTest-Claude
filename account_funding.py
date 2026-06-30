@@ -124,13 +124,19 @@ def _announce(kind, amount, act, account, trades_ch, actions_ch, mode):
 
 def check_funding(mode: str) -> None:
     """Detect and announce new deposits/withdrawals for `mode`. Fail-soft."""
-    cfg = config.get_mode(mode)
-    trades_ch = cfg["trades_channel"]
-    actions_ch = cfg["actions_channel"]
-    errors_ch = cfg["errors_channel"]
-    path = _state_path(mode)
-
+    # Safe channel defaults so the except can always report — even if the config
+    # lookup itself is what failed (e.g. an unknown mode). The Discord channel
+    # convention is "<mode>_<domain>", and send_embed no-ops on an unmapped
+    # channel, so a bogus mode degrades to a harmless log instead of a raise.
+    errors_ch = f"{mode}_errors"
+    actions_ch = f"{mode}_actions"
     try:
+        cfg = config.get_mode(mode)
+        trades_ch = cfg["trades_channel"]
+        actions_ch = cfg["actions_channel"]
+        errors_ch = cfg["errors_channel"]
+        path = _state_path(mode)
+
         after = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).isoformat()
         activities = get_account_activities(mode, ["CSD", "CSW"], after=after) or []
 

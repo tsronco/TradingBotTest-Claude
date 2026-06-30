@@ -103,7 +103,9 @@ def _funding_today(cfg: dict, today: str) -> tuple[float, float]:
     Returns (deposits, withdrawals) as positive dollar amounts. Fail-soft —
     returns (0.0, 0.0) on any error so a funding-fetch hiccup never breaks the
     summary embed. `today` is the "%Y-%m-%d" date string already computed by
-    run_daily_summary.
+    run_daily_summary, compared against Alpaca's settlement `date` (a calendar
+    date, no timezone) — correct at the fixed 20:12 UTC summary fire time, when
+    the UTC and ET dates coincide.
     """
     try:
         resp = requests.get(
@@ -128,6 +130,20 @@ def _funding_today(cfg: dict, today: str) -> tuple[float, float]:
         return deposits, withdrawals
     except Exception:
         return 0.0, 0.0
+
+
+def _funding_field(deposits: float, withdrawals: float) -> dict | None:
+    """Build the '💵 Funding Today' embed field from today's transfer totals,
+    or None when there was no funding activity — so the field is omitted
+    entirely on a normal day."""
+    if not (deposits or withdrawals):
+        return None
+    parts = []
+    if deposits:
+        parts.append(f"Deposits +${deposits:,.2f}")
+    if withdrawals:
+        parts.append(f"Withdrawals −${withdrawals:,.2f}")
+    return {"name": "💵 Funding Today", "value": " · ".join(parts), "inline": False}
 
 
 # ── State summarizers (per mode) ──────────────────────────────────────────
@@ -504,18 +520,9 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
         # Funding Today (live only — real-money deposits/withdrawals). Paper
         # accounts don't move real cash, so this is gated to live mode.
         if mode_name == "live":
-            _deposits, _withdrawals = _funding_today(cfg, today)
-            if _deposits or _withdrawals:
-                _parts = []
-                if _deposits:
-                    _parts.append(f"Deposits +${_deposits:,.2f}")
-                if _withdrawals:
-                    _parts.append(f"Withdrawals −${_withdrawals:,.2f}")
-                fields.append({
-                    "name": "💵 Funding Today",
-                    "value": " · ".join(_parts),
-                    "inline": False,
-                })
+            _field = _funding_field(*_funding_today(cfg, today))
+            if _field:
+                fields.append(_field)
 
         if strategy.get("available"):
             if strategy.get("format") == "multi_stock":
