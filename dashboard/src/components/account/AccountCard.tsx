@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { fmtUsd, fmtPct } from '../../lib/format';
 import EquityChart, { formatHoverDate } from '../EquityChart';
 import { usePeriod, useGranularity, alpacaPeriod, alpacaTimeframe, type Period, type Granularity } from '../../hooks/usePeriod';
+import FundingPanel from './FundingPanel';
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '1D', label: '1D' },
@@ -293,6 +294,8 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
         <Metric label="Long mkt value" value={Number(a.long_market_value)} />
         <Metric label="Short mkt value" value={Number(a.short_market_value)} />
       </div>
+
+      {acctKey === 'LIVE' && <FundingPanel mode={mode} />}
 
       {/* footer status */}
       <footer className="px-5 py-2 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-dim min-w-0">
