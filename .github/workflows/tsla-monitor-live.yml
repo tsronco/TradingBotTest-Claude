@@ -73,6 +73,17 @@ jobs:
           DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
         run: python long_options_strategy.py --mode live once
 
+      - name: Detect funding (live — deposit/withdrawal notices)
+        continue-on-error: true
+        env:
+          ALPACA_LIVE_API_KEY:           ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:        ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:          ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          DISCORD_LIVE_TRADES_WEBHOOK:   ${{ secrets.DISCORD_LIVE_TRADES_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:   ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python account_funding.py --mode live
+
       - name: Push wheel state (live) to dashboard
         if: always()
         env:
@@ -126,6 +137,7 @@ jobs:
           # any positions are held in the live account.
           git add strategy_state_live.json 2>/dev/null || true
           git add wheel_state_live.json 2>/dev/null || true
+          git add account_state_live.json 2>/dev/null || true
           git add logs/ 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "No state or log changes to commit."
