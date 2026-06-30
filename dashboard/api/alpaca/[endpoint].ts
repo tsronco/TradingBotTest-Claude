@@ -3,6 +3,7 @@ import { requireAuth } from '../_lib/auth-guard.js';
 import { modeFromQuery, liveGuard } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { getOrCreateSummary } from '../_lib/ai-summary.js';
+import { getOrCreateCoach } from '../_lib/position-coach.js';
 import { kv } from '../_lib/kv.js';
 import { KV_KEYS, tradeKey } from '../_lib/kv-keys.js';
 import {
@@ -341,6 +342,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ symbol, ...result });
       } catch (e) {
         return res.status(502).json({ error: 'ai_summary_failed', detail: String(e) });
+      }
+    }
+    if (endpoint === 'position-coach') {
+      const symbol = String(req.query.symbol ?? '').toUpperCase();
+      if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) {
+        return res.status(400).json({ error: 'invalid_symbol' });
+      }
+      const refresh = String(req.query.refresh ?? '') === '1';
+      try {
+        const result = await getOrCreateCoach(mode, symbol, { refresh });
+        return res.status(200).json(result);
+      } catch (e) {
+        return res.status(502).json({ error: 'position_coach_failed', detail: String(e) });
       }
     }
     if (endpoint === 'modify-order' && req.method === 'POST') {

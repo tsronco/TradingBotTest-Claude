@@ -31,6 +31,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
     category: 'feature',
+    title: 'Position coach on /lookup — plain-English explainer of what you hold',
+    details:
+      'When you look up a symbol you actually hold (manual or live), a new "POSITION COACH" panel '
+      + 'appears under the AI summary and explains, in beginner-friendly language, what your position '
+      + 'is and what the bot is currently doing with it — your average cost, unrealized paper P/L, the '
+      + "bot's stop price, whether the trailing stop is on, ladder rungs remaining, and wheel stage. "
+      + 'Hybrid by design: every number is computed in code from your real Alpaca position plus the '
+      + "bot's own state (so the AI can't fabricate a figure); Claude only phrases it. It is strictly "
+      + 'EDUCATIONAL — never buy/sell/hold advice, no price targets, no predictions — with a visible '
+      + '"not financial advice" disclaimer. If the AI is down, the panel still renders the facts as a '
+      + 'deterministic readout. One panel per account that holds the symbol; live positions are tagged '
+      + 'REAL MONEY. Renders nothing on symbols you don\'t hold.',
+  },
+  {
+    date: '2026-06-30',
+    category: 'feature',
     title: 'AI lookup summary now shows its sources',
     details:
       'The /lookup/:symbol AI summary already used live web search to find the real catalyst behind '

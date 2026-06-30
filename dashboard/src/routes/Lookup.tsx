@@ -7,6 +7,7 @@ import { useAccount } from '../hooks/useAccount';
 import { selectModeFromAccountMode, modeToAccount, type AnyAccountId } from '../lib/account-utils';
 import type { AccountMode } from '../hooks/useAccount';
 import AiSummaryPanel from '../components/lookup/AiSummaryPanel';
+import PositionCoachPanel from '../components/lookup/PositionCoachPanel';
 import QuotePanel from '../components/lookup/QuotePanel';
 import PositionContextPanel from '../components/lookup/PositionContextPanel';
 import TradingViewChart from '../components/lookup/TradingViewChart';
@@ -111,6 +112,10 @@ export default function Lookup() {
               <AiSummaryPanel symbol={sym} />
             </ErrorBoundary>
           </Cell>
+          {/* Position coach — renders itself only when the symbol is held. */}
+          <ErrorBoundary label="Position coach">
+            <PositionCoachPanel symbol={sym} />
+          </ErrorBoundary>
         </div>
       )}
 
