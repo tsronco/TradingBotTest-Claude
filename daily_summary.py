@@ -97,6 +97,39 @@ def _get_positions(cfg: dict) -> list[dict]:
     return resp.json()
 
 
+def _funding_today(cfg: dict, today: str) -> tuple[float, float]:
+    """Sum today's real-money cash deposits/withdrawals (live only).
+
+    Returns (deposits, withdrawals) as positive dollar amounts. Fail-soft —
+    returns (0.0, 0.0) on any error so a funding-fetch hiccup never breaks the
+    summary embed. `today` is the "%Y-%m-%d" date string already computed by
+    run_daily_summary.
+    """
+    try:
+        resp = requests.get(
+            f"{_base_url_for(cfg)}/account/activities",
+            headers=_headers_for(cfg),
+            params={"activity_types": "CSD,CSW", "page_size": 100, "direction": "desc"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        deposits = withdrawals = 0.0
+        for a in resp.json():
+            if a.get("date") != today:
+                continue
+            try:
+                amt = abs(float(a.get("net_amount", 0) or 0))
+            except (TypeError, ValueError):
+                continue
+            if a.get("activity_type") == "CSD":
+                deposits += amt
+            elif a.get("activity_type") == "CSW":
+                withdrawals += amt
+        return deposits, withdrawals
+    except Exception:
+        return 0.0, 0.0
+
+
 # ── State summarizers (per mode) ──────────────────────────────────────────
 
 
@@ -467,6 +500,22 @@ def run_daily_summary(mode_name: str, reset_counters: bool = False) -> None:
             {"name": "Equity", "value": f"${equity:,.2f}",   "inline": True},
             {"name": "Cash",   "value": f"${cash:,.2f}",     "inline": True},
         ]
+
+        # Funding Today (live only — real-money deposits/withdrawals). Paper
+        # accounts don't move real cash, so this is gated to live mode.
+        if mode_name == "live":
+            _deposits, _withdrawals = _funding_today(cfg, today)
+            if _deposits or _withdrawals:
+                _parts = []
+                if _deposits:
+                    _parts.append(f"Deposits +${_deposits:,.2f}")
+                if _withdrawals:
+                    _parts.append(f"Withdrawals −${_withdrawals:,.2f}")
+                fields.append({
+                    "name": "💵 Funding Today",
+                    "value": " · ".join(_parts),
+                    "inline": False,
+                })
 
         if strategy.get("available"):
             if strategy.get("format") == "multi_stock":
