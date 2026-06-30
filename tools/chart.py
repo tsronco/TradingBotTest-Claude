@@ -94,10 +94,10 @@ def render(symbol: str, days: int, mode: str) -> str:
     avg_agg = _avg_cost_for(symbol, "live")
     if avg_cons:
         ax.axhline(avg_cons, color="#2ca02c", linestyle="--", alpha=0.7,
-                   label=f"Avg cost (cons) ${avg_cons:.2f}")
+                   label=f"Avg cost (manual) ${avg_cons:.2f}")
     if avg_agg and avg_agg != avg_cons:
         ax.axhline(avg_agg, color="#9467bd", linestyle="--", alpha=0.7,
-                   label=f"Avg cost (agg) ${avg_agg:.2f}")
+                   label=f"Avg cost (live) ${avg_agg:.2f}")
 
     strikes = _wheel_strikes_for(symbol)
     for m, strike in strikes.items():

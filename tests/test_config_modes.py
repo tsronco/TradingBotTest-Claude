@@ -319,3 +319,39 @@ def test_only_manual_has_spread_management_enabled():
     a future plan flips it deliberately."""
     assert config.MODES["manual"]["spread_management"] is True
     assert config.MODES["live"]["spread_management"] is False
+
+
+def test_sm_management_keys_absent_from_surviving_modes():
+    """The SM-only 2×-credit stop (spread_stop_credit_mult) must never silently
+    appear on manual/live — if added it would retighten the stop on real/
+    hand-opened spreads mid-trade.
+
+    (Restores a guard deleted with tests/test_modes_sm.py when the SM accounts
+    were retired 2026-06-29.)
+    """
+    assert "spread_stop_credit_mult" not in config.MODES["manual"], (
+        "spread_stop_credit_mult must not be set on manual — it would silently "
+        "tighten the stop on hand-opened spreads mid-trade"
+    )
+    assert "spread_stop_credit_mult" not in config.MODES["live"], (
+        "spread_stop_credit_mult must not be set on live — real-money spreads "
+        "should not have their stop tightened by an SM-era parameter"
+    )
+
+
+def test_auto_open_spreads_disabled_on_surviving_modes():
+    """The autonomous spread opener must not be enabled on real money (live) or
+    re-enabled on manual without a deliberate, test-visible change.
+
+    Manual has auto_open_spreads explicitly False since 2026-06-03 PDT (PDT
+    trader flagging shut it down after a PDT violation). Live omits the key
+    entirely; both must resolve to False.
+    """
+    assert config.MODES["manual"].get("auto_open_spreads", False) is False, (
+        "auto_open_spreads must remain False on manual (PDT-protection: "
+        "same-day churn trips pattern-day-trader rules on a sub-$25k account)"
+    )
+    assert config.MODES["live"].get("auto_open_spreads", False) is False, (
+        "auto_open_spreads must never be enabled on the live real-money account "
+        "without an explicit, reviewed plan"
+    )

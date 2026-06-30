@@ -30,6 +30,22 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-29',
+    category: 'fix',
+    title: 'Pre-merge polish for the account sunset (PR #28)',
+    details:
+      'Review fixes folded into the sunset PR before merge. '
+      + '/compare was crashing — it called daily_summary._snapshot, which was removed with the '
+      + 'head-to-head — so it is rebuilt from the surviving summary helpers and reframed as a '
+      + 'neutral manual-vs-live glance (no "winner": $10k paper and real money are different footings). '
+      + 'The AI lookup summary now has a 60-second per-symbol refresh cooldown so the paid '
+      + "Claude + web-search call can't be spammed, and the refresh buttons disable while a request is "
+      + 'in flight. The grade cron now skips open trades tagged to a retired account instead of '
+      + 'mis-syncing them against the manual account. Added config guards so spread_stop_credit_mult '
+      + 'and auto_open_spreads can never silently appear on manual/live. Stale "Conservative/Aggressive" '
+      + 'labels scrubbed from the /pnl and /chart legends and the read-only skill docs.',
+  },
+  {
+    date: '2026-06-29',
     category: 'infra',
     title: 'Retired the conservative, aggressive, and sm500/sm1000/sm2000 accounts',
     details:

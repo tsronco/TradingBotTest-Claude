@@ -10,11 +10,11 @@ Run `tools/positions.py` and show the user the output verbatim.
 ## Argument parsing
 
 - `/positions` → both accounts, all positions
-- `/positions manual` or `/positions cons` → only manual
-- `/positions live` or `/positions agg` → only live
+- `/positions manual` → only manual
+- `/positions live` → only live
 - `/positions options` → only options across both
 - `/positions stocks` → only stocks across both
-- `/positions agg options` → live, options only
+- `/positions live options` → live, options only
 
 Map to flags: `--mode {manual|live|both}` and `--filter {stocks|options}`.
 

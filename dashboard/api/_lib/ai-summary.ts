@@ -21,6 +21,7 @@ import type { Mode } from './alpaca.js';
 const MODEL = 'claude-sonnet-4-6';
 const CACHE_TTL_SECONDS = 15 * 60; // 15 min — Robinhood's "Updated Xm ago" cadence
 const MAX_PAUSE_TURNS = 4; // server web-search loop safety cap
+const REFRESH_COOLDOWN_SECONDS = 60; // per-symbol cooldown to prevent paid-call spam
 
 export interface StoredSummary {
   summary: string;
@@ -353,6 +354,10 @@ function cacheKey(symbol: string): string {
   return `ai-summary:${symbol}`;
 }
 
+function cooldownKey(symbol: string): string {
+  return `ai-summary:cooldown:${symbol}`;
+}
+
 export async function getOrCreateSummary(
   mode: Mode,
   symbol: string,
@@ -364,6 +369,18 @@ export async function getOrCreateSummary(
     if (cached && cached.summary) return { ...cached, cached: true };
   }
 
+  // On a refresh request, check the per-symbol cooldown to prevent paid-call spam.
+  // If the cooldown key is set, serve the existing cache instead of calling Claude.
+  // If no cache exists yet (first load after a cold KV flush), fall through to generate.
+  if (opts.refresh) {
+    const onCooldown = await kv().get<1>(cooldownKey(symbol));
+    if (onCooldown) {
+      const cached = await kv().get<StoredSummary>(key);
+      if (cached && cached.summary) return { ...cached, cached: true };
+      // No cache at all — fall through to one generation below (do NOT set cooldown again here)
+    }
+  }
+
   const { quote, digest, headlines } = await gatherContext(mode, symbol);
   const userPrompt = buildUserPrompt(symbol, quote, digest, headlines);
   const summary = await callClaude(userPrompt);
@@ -371,5 +388,9 @@ export async function getOrCreateSummary(
 
   const stored: StoredSummary = { summary, generated_at: new Date().toISOString(), model: MODEL };
   await kv().set(key, stored, { ex: CACHE_TTL_SECONDS });
+  // Set the per-symbol cooldown so the next refresh within 60 s serves cache.
+  if (opts.refresh) {
+    await kv().set(cooldownKey(symbol), 1, { ex: REFRESH_COOLDOWN_SECONDS });
+  }
   return { ...stored, cached: false };
 }

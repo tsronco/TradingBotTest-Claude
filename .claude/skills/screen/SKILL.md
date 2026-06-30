@@ -10,7 +10,7 @@ Run `tools/screen.py` and show the user the output verbatim.
 ## Argument parsing
 
 - `/screen` → manual universe
-- `/screen live` / `/screen agg` → live (high-IV) universe
+- `/screen live` → live universe
 - `/screen 5` → manual, top 5
 
 Map mode words to positional `mode` arg (manual | live). Map a number to `--top N`.

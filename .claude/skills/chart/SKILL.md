@@ -14,7 +14,7 @@ Run `tools/chart.py` with the ticker. After it prints the `Chart: /tmp/chart_<TI
 - `/chart WMT 180 days` → 180 days
 - `/chart NVDA live` → use live account creds (data is the same; only matters for which account's positions show as overlays)
 
-Map the day count to `--days N`. If the user includes "manual" or "live" (or "cons" / "agg"), pass `--mode`.
+Map the day count to `--days N`. If the user includes "manual" or "live", pass `--mode`.
 
 ## How to run
 

@@ -14,7 +14,7 @@ Run `tools/wheel_status.py` and show the user the output verbatim.
 - `/wheel-status manual` → manual only, all symbols
 - `/wheel-status live TSLA` → live only, TSLA only
 
-Map mode words (manual/live/cons/agg) to `--mode`. Pass any remaining ticker as the positional `symbol` arg.
+Map mode words (manual/live) to `--mode`. Pass any remaining ticker as the positional `symbol` arg.
 
 ## How to run
 

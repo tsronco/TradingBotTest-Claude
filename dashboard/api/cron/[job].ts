@@ -184,6 +184,16 @@ export async function runGradeOpenTrades(opts: {
       continue;
     }
 
+    // Guard: only sync/close-detect against the two surviving accounts.
+    // A stale open trade from a retired account (e.g. conservative_paper, sm500_paper)
+    // would otherwise be routed through modeFromAccount → 'manual' and silently
+    // sync against the wrong Alpaca credentials. Skip it rather than corrupt data.
+    const ACTIVE_ACCOUNTS = new Set(['manual_paper', 'live']);
+    if (!ACTIVE_ACCOUNTS.has(trade.account)) {
+      console.warn('[gradeOpenTrades] skipping trade for retired account', trade.id, trade.account);
+      continue;
+    }
+
     // Sync delayed fills back to the trade record. Limit orders may submit
     // with filled_at=null and fill seconds-to-hours later. Without this,
     // the trade is permanently stuck showing "submitted · limit $X" with

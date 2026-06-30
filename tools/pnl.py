@@ -105,8 +105,8 @@ def render_chart(snap_cons: dict, snap_agg: dict, period: str) -> str:
     fig, ax = plt.subplots(figsize=(11, 5))
 
     for snap, color, label in (
-        (snap_cons, "#1f77b4", "Conservative"),
-        (snap_agg, "#d62728", "Aggressive"),
+        (snap_cons, "#1f77b4", "Manual"),
+        (snap_agg, "#d62728", "Live"),
     ):
         if "error" in snap:
             continue

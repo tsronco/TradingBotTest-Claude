@@ -57,7 +57,8 @@ export default function AiSummaryPanel({ symbol }: { symbol: string }) {
         <button
           type="button"
           onClick={() => refresh.mutate()}
-          className="text-cyan hover:text-hi flex items-center gap-1 text-[11px]"
+          disabled={refresh.isPending}
+          className="text-cyan hover:text-hi flex items-center gap-1 text-[11px] disabled:opacity-50"
         >
           <RefreshCw size={11} /> retry
         </button>
