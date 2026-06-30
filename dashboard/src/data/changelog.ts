@@ -30,6 +30,23 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
+    category: 'feature',
+    title: 'Live-account funding detection — deposit/withdrawal notices',
+    details:
+      'The bot now notices when real money moves on the live account. It reads '
+      + "Alpaca's account-activity log (CSD deposits / CSW withdrawals — the "
+      + 'authoritative transfer record, not a guess from equity swings) each '
+      + 'live cycle and posts a 🟢 deposit / 🔴 withdrawal embed to #live-trades '
+      + 'with the exact amount and resulting balance. The 4:12 PM live summary '
+      + 'gains a "Funding Today" line, and the live account card gains a funding '
+      + 'panel plus a "Deposit funds ↗" shortcut straight to Alpaca\'s ACH deposit '
+      + 'page. First run seeds silently so historical funding never pings. '
+      + 'Read-only + notification — no trading behavior changed. (You still '
+      + "deposit on Alpaca's site — the Trading API can't move money — but the "
+      + 'system is now aware of it.)',
+  },
+  {
+    date: '2026-06-30',
     category: 'fix',
     title: 'Clear TS2367 type error in the AI-summary pause-turn loop',
     details:
