@@ -133,9 +133,10 @@ per-cycle          4:12 PM rollup       web card             static link
 **7. Live account card — Funding panel + deep-link**
 - A "Funding" panel listing recent deposits/withdrawals (date, type, amount,
   signed/colored) for the live account, fed by the new endpoint.
-- A "Deposit funds ↗" button linking to Alpaca's banking page in a new tab.
-  Exact URL verified at implementation (candidate: the Alpaca web app banking /
-  transfers page); this is a URL lookup, not a design unknown.
+- A "Deposit funds ↗" button linking to
+  `https://app.alpaca.markets/brokerage/funding/deposit/ach` (Tim-confirmed — the
+  ACH deposit page that lands directly on the amount entry) opened in a new tab
+  with `target="_blank" rel="noopener noreferrer"`.
 
 ## Data flow
 
@@ -184,6 +185,6 @@ per-cycle          4:12 PM rollup       web card             static link
 
 ## Open items
 
-- Exact Alpaca banking/transfers URL for the deep-link — verified at build
-  (implementation detail, not a design ambiguity).
+- None. Deposit deep-link URL confirmed by Tim:
+  `https://app.alpaca.markets/brokerage/funding/deposit/ach`.
 ```
