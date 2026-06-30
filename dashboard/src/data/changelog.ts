@@ -30,6 +30,46 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
+    category: 'feature',
+    title: 'Position coach on /lookup — plain-English explainer of what you hold',
+    details:
+      'When you look up a symbol you actually hold (manual or live), a new "POSITION COACH" panel '
+      + 'appears under the AI summary and explains, in beginner-friendly language, what your position '
+      + 'is and what the bot is currently doing with it — your average cost, unrealized paper P/L, the '
+      + "bot's stop price, whether the trailing stop is on, ladder rungs remaining, and wheel stage. "
+      + 'Hybrid by design: every number is computed in code from your real Alpaca position plus the '
+      + "bot's own state (so the AI can't fabricate a figure); Claude only phrases it. It is strictly "
+      + 'EDUCATIONAL — never buy/sell/hold advice, no price targets, no predictions — with a visible '
+      + '"not financial advice" disclaimer. If the AI is down, the panel still renders the facts as a '
+      + 'deterministic readout. One panel per account that holds the symbol; live positions are tagged '
+      + 'REAL MONEY. Renders nothing on symbols you don\'t hold.',
+  },
+  {
+    date: '2026-06-30',
+    category: 'feature',
+    title: 'AI lookup summary now shows its sources',
+    details:
+      'The /lookup/:symbol AI summary already used live web search to find the real catalyst behind '
+      + "a stock's move — but it threw the source links away. It now keeps them: a compact \"SOURCES\" "
+      + 'row of clickable site links sits under the blurb so you can verify the facts yourself (the '
+      + 'specific prices, lawsuits, analyst calls it cites). Prefers the pages the model actually '
+      + 'cited; falls back to the pages it searched; shows nothing when a summary was generated '
+      + 'without live search.',
+  },
+  {
+    date: '2026-06-30',
+    category: 'ui',
+    title: 'AI lookup summary: tighter, with two accuracy guardrails',
+    details:
+      'Three prompt tweaks to the /lookup/:symbol AI summary. (1) Length capped at ≤5 sentences '
+      + 'AND ≤100 words (was producing dense run-on walls of text). (2) Put/call open-interest is '
+      + 'now reported as a plain fact only — the prompt forbids inferring bullish/bearish '
+      + '"positioning" from it, since open interest counts contracts, not which side is long vs '
+      + 'short. (3) Earnings dates are presented as estimated/unconfirmed, and an unknown date is '
+      + 'no longer dramatized as a missing catalyst.',
+  },
+  {
+    date: '2026-06-30',
     category: 'config',
     title: 'Manual: removed SNAP from excluded_symbols (position closed)',
     details:

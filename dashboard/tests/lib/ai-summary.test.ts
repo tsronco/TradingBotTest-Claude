@@ -3,6 +3,7 @@ import {
   daysUntil,
   buildOptionsDigest,
   extractText,
+  extractCitations,
   buildUserPrompt,
   type QuoteInfo,
 } from '../../api/_lib/ai-summary';
@@ -118,5 +119,52 @@ describe('buildUserPrompt', () => {
     expect(p).toContain('Stock: WEN');
     expect(p).toContain('implied volatility: unavailable');
     expect(p).toContain('Next earnings: unknown');
+  });
+});
+
+describe('extractCitations', () => {
+  it('prefers citations attached to the model text blocks', () => {
+    const content = [
+      { type: 'web_search_tool_result', content: [
+        { type: 'web_search_result', url: 'https://searched-only.com/a', title: 'Searched A' },
+      ] },
+      { type: 'text', text: 'Snap fell on the Specs launch.', citations: [
+        { type: 'web_search_result_location', url: 'https://reuters.com/snap', title: 'Reuters — Snap' },
+        { type: 'web_search_result_location', url: 'https://bloomberg.com/snap', title: 'Bloomberg — Snap' },
+      ] },
+    ];
+    const out = extractCitations(content);
+    expect(out).toEqual([
+      { url: 'https://reuters.com/snap', title: 'Reuters — Snap' },
+      { url: 'https://bloomberg.com/snap', title: 'Bloomberg — Snap' },
+    ]);
+    // The "searched but not cited" page is NOT included when real citations exist.
+    expect(out.find((s) => s.url.includes('searched-only'))).toBeUndefined();
+  });
+
+  it('falls back to searched pages when there are no inline citations', () => {
+    const content = [
+      { type: 'web_search_tool_result', content: [
+        { type: 'web_search_result', url: 'https://cnbc.com/x', title: 'CNBC' },
+      ] },
+      { type: 'text', text: 'A summary with no citations.' },
+    ];
+    expect(extractCitations(content)).toEqual([{ url: 'https://cnbc.com/x', title: 'CNBC' }]);
+  });
+
+  it('dedupes by URL, caps at 6, and falls back to URL when title is missing', () => {
+    const cites = Array.from({ length: 9 }, (_, i) => ({ url: `https://site.com/${i}`, title: '' }));
+    cites.push({ url: 'https://site.com/0', title: '' }); // duplicate of the first
+    const out = extractCitations([{ type: 'text', text: 't', citations: cites }]);
+    expect(out).toHaveLength(6);
+    expect(out[0]).toEqual({ url: 'https://site.com/0', title: 'https://site.com/0' });
+    expect(new Set(out.map((s) => s.url)).size).toBe(6); // all unique
+  });
+
+  it('returns [] for the no-search / non-array / malformed cases', () => {
+    expect(extractCitations(null)).toEqual([]);
+    expect(extractCitations('nope')).toEqual([]);
+    expect(extractCitations([{ type: 'text', text: 'plain, no tools' }])).toEqual([]);
+    expect(extractCitations([{ type: 'text', citations: [{ title: 'no url' }] }])).toEqual([]);
   });
 });

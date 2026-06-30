@@ -23,10 +23,19 @@ const CACHE_TTL_SECONDS = 15 * 60; // 15 min — Robinhood's "Updated Xm ago" ca
 const MAX_PAUSE_TURNS = 4; // server web-search loop safety cap
 const REFRESH_COOLDOWN_SECONDS = 60; // per-symbol cooldown to prevent paid-call spam
 
+export interface Source {
+  url: string;
+  title: string;
+}
+
 export interface StoredSummary {
   summary: string;
   generated_at: string;
   model: string;
+  // Web pages the model actually cited (or, failing inline citations, the
+  // pages it searched). Empty when the summary was generated without live
+  // web search. Surfaced in the UI so the reader can verify the facts.
+  sources?: Source[];
 }
 
 export interface AiSummaryResult extends StoredSummary {
@@ -151,6 +160,63 @@ export function buildOptionsDigest(
   };
 }
 
+/**
+ * Pull the source web pages out of an Anthropic web-search response so the UI
+ * can show "where this came from." Prefers the citations actually attached to
+ * the model's text blocks (i.e. pages it really referenced); if there are
+ * none, falls back to the full set of pages returned by the web_search tool.
+ * Deduped by URL, capped, and safe on any content shape (returns [] for the
+ * no-tools / non-search path). Pure / testable.
+ */
+export function extractCitations(content: unknown): Source[] {
+  if (!Array.isArray(content)) return [];
+
+  const collect = (push: (url: unknown, title: unknown) => void) => {
+    for (const block of content) {
+      if (!block || typeof block !== 'object') continue;
+      const b = block as { type?: string; citations?: unknown; content?: unknown };
+      if (b.type === 'text' && Array.isArray(b.citations)) {
+        for (const c of b.citations) {
+          if (c && typeof c === 'object') {
+            const cc = c as { url?: unknown; title?: unknown };
+            push(cc.url, cc.title);
+          }
+        }
+      }
+    }
+  };
+
+  const collectSearched = (push: (url: unknown, title: unknown) => void) => {
+    for (const block of content) {
+      if (!block || typeof block !== 'object') continue;
+      const b = block as { type?: string; content?: unknown };
+      if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+        for (const r of b.content) {
+          if (r && typeof r === 'object') {
+            const rr = r as { type?: string; url?: unknown; title?: unknown };
+            if (rr.type === 'web_search_result') push(rr.url, rr.title);
+          }
+        }
+      }
+    }
+  };
+
+  const build = (collector: (push: (url: unknown, title: unknown) => void) => void): Source[] => {
+    const out: Source[] = [];
+    const seen = new Set<string>();
+    collector((url, title) => {
+      if (typeof url !== 'string' || !url || seen.has(url)) return;
+      seen.add(url);
+      out.push({ url, title: typeof title === 'string' && title ? title : url });
+    });
+    return out.slice(0, 6);
+  };
+
+  // Prefer pages the model actually cited; otherwise show what it searched.
+  const cited = build(collect);
+  return cited.length > 0 ? cited : build(collectSearched);
+}
+
 /** Pull all text from an Anthropic response content array, ignoring tool-use / tool-result blocks. */
 export function extractText(content: unknown): string {
   if (!Array.isArray(content)) return '';
@@ -167,9 +233,10 @@ export const SYSTEM_PROMPT = `You are a market-summary writer for one retail inv
 
 Hard rules:
 - Plain English only. If you must use a finance term, define it inline in the same sentence (e.g. "implied volatility — the market's estimate of how much the stock will swing"). Never leave jargon like IV, OI, DTE, ATM, theta, or RSI undefined.
-- 3 to 5 sentences. One tight paragraph. No headers, no bullet points, no markdown, no preamble like "Here is" or "This stock".
+- Length: AT MOST 5 sentences AND AT MOST 100 words. Keep it tight — shorter is better. One paragraph. No headers, no bullet points, no markdown, no preamble like "Here is" or "This stock".
 - Use the web_search tool to find the ACTUAL reason behind today's price move (earnings, news, an analyst call, a sector move, a short squeeze, etc.). If you genuinely can't find a specific catalyst, say the move looks like broader market or sector drift rather than inventing a reason.
-- Weave in the options picture from the data provided: whether implied volatility looks high or low (and what that means for option premiums), any clear lean toward puts or calls, and whether an earnings report is coming up soon (earnings near-term means bigger expected swings).
+- Weave in the options picture from the data provided: whether implied volatility looks high or low (and what that means for option premiums), and whether an earnings report is coming up soon (earnings near-term means bigger expected swings). You MAY state the put/call open-interest lean as a plain fact (e.g. "there are more calls than puts outstanding"), but do NOT infer bullishness or bearishness from it. Open interest counts how many contracts exist, not which side is long versus short, so it does NOT reveal which way traders are positioned — never say traders are "positioning for upside/downside" based on it.
+- Earnings: use the "Next earnings" value provided. If a date is given, present it as estimated/unconfirmed (e.g. "an estimated Aug 4 report"). If it is unknown, simply note the next report date isn't set yet — do not dramatize this as a missing catalyst or imply it is significant.
 - Describe and explain. Do NOT give advice, recommendations, price targets, or predictions ("could go higher", "good entry", "I'd buy"). State what is happening and why, not what the reader should do.
 - Write in present tense, third person. End the paragraph naturally — the UI appends its own "not advice" disclaimer.`;
 
@@ -196,9 +263,9 @@ export function buildUserPrompt(
   lines.push(`- At-the-money implied volatility: ${digest.atm_iv_pct != null ? `${digest.atm_iv_pct}%` : 'unavailable'}`);
   lines.push(`- Put/call open-interest ratio (nearest expiration): ${digest.put_call_oi_ratio != null ? digest.put_call_oi_ratio.toFixed(2) : 'unavailable'} (above 1 = more puts than calls; below 1 = more calls)`);
   if (digest.earnings_date) {
-    lines.push(`- Next earnings: ${digest.earnings_date}${digest.days_to_earnings != null ? ` (in ${digest.days_to_earnings} days)` : ''}`);
+    lines.push(`- Next earnings: ${digest.earnings_date} (estimated, treat as unconfirmed)${digest.days_to_earnings != null ? ` (in ${digest.days_to_earnings} days)` : ''}`);
   } else {
-    lines.push('- Next earnings: unknown');
+    lines.push('- Next earnings: unknown (date not set yet — do not dramatize)');
   }
 
   if (headlines.length > 0) {
@@ -303,7 +370,7 @@ async function gatherContext(mode: Mode, symbol: string): Promise<{ quote: Quote
 
 // --------------------------- Claude call ---------------------------
 
-async function callClaude(userPrompt: string): Promise<string> {
+async function callClaude(userPrompt: string): Promise<{ text: string; sources: Source[] }> {
   const apiKey = process.env.ANTHROPIC_API_KEY ?? '';
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
   const client = new Anthropic({ apiKey });
@@ -313,7 +380,9 @@ async function callClaude(userPrompt: string): Promise<string> {
   // SDK's tool typing doesn't reject the server-tool shape.
   const tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }];
 
-  async function once(useTools: boolean) {
+  // Returns the final response content array so the caller can pull BOTH the
+  // text and the web-search citations out of it.
+  async function once(useTools: boolean): Promise<unknown> {
     let messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [{ role: 'user', content: userPrompt }];
     let resp = await client.messages.create({
       model: MODEL,
@@ -334,17 +403,23 @@ async function callClaude(userPrompt: string): Promise<string> {
       });
       guard++;
     }
-    return extractText(resp.content);
+    return resp.content;
   }
 
   try {
-    const text = await once(true);
-    if (text) return text;
-    // Empty (e.g. tool churn without a final paragraph) — fall back to no tools.
-    return await once(false);
+    let content = await once(true);
+    let text = extractText(content);
+    if (!text) {
+      // Empty (e.g. tool churn without a final paragraph) — fall back to no tools.
+      content = await once(false);
+      text = extractText(content);
+    }
+    return { text, sources: extractCitations(content) };
   } catch {
-    // Web search unavailable / rejected — degrade gracefully to a data-only summary.
-    return await once(false);
+    // Web search unavailable / rejected — degrade gracefully to a data-only
+    // summary (no sources, since no search ran).
+    const content = await once(false);
+    return { text: extractText(content), sources: [] };
   }
 }
 
@@ -383,10 +458,10 @@ export async function getOrCreateSummary(
 
   const { quote, digest, headlines } = await gatherContext(mode, symbol);
   const userPrompt = buildUserPrompt(symbol, quote, digest, headlines);
-  const summary = await callClaude(userPrompt);
+  const { text: summary, sources } = await callClaude(userPrompt);
   if (!summary) throw new Error('empty_summary');
 
-  const stored: StoredSummary = { summary, generated_at: new Date().toISOString(), model: MODEL };
+  const stored: StoredSummary = { summary, generated_at: new Date().toISOString(), model: MODEL, sources };
   await kv().set(key, stored, { ex: CACHE_TTL_SECONDS });
   // Set the per-symbol cooldown so the next refresh within 60 s serves cache.
   if (opts.refresh) {
