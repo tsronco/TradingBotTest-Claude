@@ -2,12 +2,27 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw, Sparkles } from 'lucide-react';
 import { api } from '../../lib/api';
 
+interface Source {
+  url: string;
+  title: string;
+}
+
 interface SummaryResp {
   symbol: string;
   summary: string;
   generated_at: string;
   model: string;
   cached: boolean;
+  sources?: Source[];
+}
+
+/** Short, readable label for a source link — the site's hostname (sans www). */
+function sourceLabel(s: Source): string {
+  try {
+    return new URL(s.url).hostname.replace(/^www\./, '');
+  } catch {
+    return s.title || s.url;
+  }
 }
 
 const STALE_MS = 15 * 60 * 1000; // matches the server-side 15-min KV cache
@@ -69,6 +84,23 @@ export default function AiSummaryPanel({ symbol }: { symbol: string }) {
   return (
     <div>
       <p className="text-fg text-[13px] md:text-[14px] leading-relaxed">{data.summary}</p>
+      {data.sources && data.sources.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-dim">
+          <span className="tracking-[0.1em]">SOURCES</span>
+          {data.sources.map((s) => (
+            <a
+              key={s.url}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={s.title}
+              className="text-mid hover:text-cyan underline decoration-dotted underline-offset-2 transition-colors"
+            >
+              {sourceLabel(s)}
+            </a>
+          ))}
+        </div>
+      )}
       <div className="mt-3 flex items-center justify-between gap-2 text-dim text-[10px] tracking-[0.1em]">
         <span className="flex items-center gap-1.5">
           <Sparkles size={10} className="text-amber" />

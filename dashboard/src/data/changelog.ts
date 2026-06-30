@@ -30,6 +30,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
+    category: 'feature',
+    title: 'AI lookup summary now shows its sources',
+    details:
+      'The /lookup/:symbol AI summary already used live web search to find the real catalyst behind '
+      + "a stock's move — but it threw the source links away. It now keeps them: a compact \"SOURCES\" "
+      + 'row of clickable site links sits under the blurb so you can verify the facts yourself (the '
+      + 'specific prices, lawsuits, analyst calls it cites). Prefers the pages the model actually '
+      + 'cited; falls back to the pages it searched; shows nothing when a summary was generated '
+      + 'without live search.',
+  },
+  {
+    date: '2026-06-30',
     category: 'ui',
     title: 'AI lookup summary: tighter, with two accuracy guardrails',
     details:
