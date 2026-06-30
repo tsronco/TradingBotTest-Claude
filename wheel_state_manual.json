@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-29T19:51:42.213411Z"
+    "last_checked": "2026-06-30T13:31:45.616112Z"
   },
   "F": {
     "stage": 1,
@@ -22,8 +22,8 @@
     "last_action": "Manual mode: not opening new puts (user-driven)."
   },
   "SNAP": {
-    "stage": 2,
-    "current_contract": "SNAP260702C00006000",
+    "stage": 1,
+    "current_contract": null,
     "contract_order_id": "85046857-ba2d-4c6d-baee-5b3eab09f985",
     "contract_entry_price": null,
     "contract_entry_date": "2026-06-18T17:41:39.651553Z",
@@ -31,12 +31,12 @@
     "contract_type": "call",
     "contract_strike": 6.0,
     "contract_qty": 1,
-    "cost_basis_per_share": 5.659091,
-    "shares_qty": 110,
-    "total_cost": 622.50001,
+    "cost_basis_per_share": null,
+    "shares_qty": 0,
+    "total_cost": null,
     "total_premium_collected": 39.0,
     "total_premium_today": 0.0,
-    "cycle_count": 0,
+    "cycle_count": 1,
     "cycle_history": [
       {
         "cycle": 1,
@@ -45,9 +45,17 @@
         "outcome": "assigned",
         "cost_basis": 5.659091,
         "shares": 110
+      },
+      {
+        "cycle": 1,
+        "type": "call",
+        "symbol": "SNAP260702C00006000",
+        "outcome": "assigned",
+        "premium": 0,
+        "contracts": 1
       }
     ],
-    "last_action": "Awaiting fill on SNAP260702C00006000."
+    "last_action": "Manual mode: not opening new puts (user-driven)."
   },
   "NVTS": {
     "stage": 1,

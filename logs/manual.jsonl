@@ -8186,3 +8186,9 @@
 {"timestamp": "2026-06-30T13:21:36.634238+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
 {"timestamp": "2026-06-30T13:21:36.889626+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "manual"}}
 {"timestamp": "2026-06-30T13:21:37.155297+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-06-30T13:31:42.647747+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-06-30T13:31:45.323210+00:00", "script": "wheel_strategy.py", "action": "call_assigned", "result": "success", "symbol": "SNAP260702C00006000", "details": {"underlying": "SNAP", "strike": 6.0, "premium": 0, "contracts": 1}}
+{"timestamp": "2026-06-30T13:31:45.614257+00:00", "script": "wheel_strategy.py", "action": "manual_skip_new_put", "result": "skipped", "details": {"underlying": "SNAP", "stock_price": 4.42}}
+{"timestamp": "2026-06-30T13:31:45.614431+00:00", "script": "wheel_strategy.py", "action": "symbol_cycle_complete", "result": "success", "details": {"underlying": "SNAP", "stage": 1, "contract": null, "stock_price": 4.42}}
+{"timestamp": "2026-06-30T13:31:45.616447+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SNAP"]}}
+{"timestamp": "2026-06-30T13:31:46.334717+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
