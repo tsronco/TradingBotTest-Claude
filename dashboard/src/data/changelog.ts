@@ -30,6 +30,20 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-06-30',
+    category: 'fix',
+    title: 'Clear TS2367 type error in the AI-summary pause-turn loop',
+    details:
+      'The new AI-summary endpoint (api/_lib/ai-summary.ts) checks Claude\'s stop_reason '
+      + 'against "pause_turn" to continue a paused server-side web search. The installed '
+      + '@anthropic-ai/sdk types StopReason too narrowly to include "pause_turn", so '
+      + "Vercel's function builder flagged the comparison as having no overlap (TS2367). "
+      + 'Type-only fix: cast stop_reason to string at the comparison, matching the file\'s '
+      + 'existing pattern of casting around the older SDK types. No runtime behavior change — '
+      + 'the pause-turn continuation logic was already correct; it just wasn\'t caught locally '
+      + 'because api/ falls outside the frontend tsc -b scope.',
+  },
+  {
+    date: '2026-06-30',
     category: 'feature',
     title: 'Position coach on /lookup — plain-English explainer of what you hold',
     details:

@@ -392,7 +392,7 @@ async function callClaude(userPrompt: string): Promise<{ text: string; sources: 
       ...(useTools ? { tools: tools as never } : {}),
     });
     let guard = 0;
-    while (resp.stop_reason === 'pause_turn' && guard < MAX_PAUSE_TURNS) {
+    while ((resp.stop_reason as string) === 'pause_turn' && guard < MAX_PAUSE_TURNS) {
       messages = [{ role: 'user', content: userPrompt }, { role: 'assistant', content: resp.content }];
       resp = await client.messages.create({
         model: MODEL,
