@@ -63,6 +63,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const positions = await alpacaTrade<unknown>(mode, '/v2/positions');
       return res.status(200).json({ mode, positions });
     }
+    if (endpoint === 'activities') {
+      const activities = await alpacaTrade<unknown>(mode, '/v2/account/activities', {
+        activity_types: 'CSD,CSW',
+        page_size: 50,
+      });
+      return res.status(200).json({ mode, activities });
+    }
     if (endpoint === 'orders') {
       const statusRaw = (Array.isArray(req.query.status) ? req.query.status[0] : req.query.status) ?? 'all';
       const status = ['open', 'closed', 'all'].includes(statusRaw as string)
