@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-06-29T13:41:36.890028Z"
+    "last_checked": "2026-06-29T19:51:42.213411Z"
   },
   "F": {
     "stage": 1,
@@ -67,34 +67,5 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "ARM": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "ARM260710P00390000",
-      "strike": 390.0,
-      "entry_premium": 29.45,
-      "qty": 1
-    },
-    "long_leg": {
-      "occ": "ARM260710P00350000",
-      "strike": 350.0,
-      "entry_premium": 15.15,
-      "qty": 1
-    },
-    "expiration": "2026-07-10",
-    "net_credit": 14.3,
-    "max_loss": 25.7,
-    "width": 40.0,
-    "opened_at": "2026-06-22T16:11:46.709697Z",
-    "tripwire_breach_since": null,
-    "open_order_id": null,
-    "open_client_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$390.00 long=$350.00 credit=$14.30"
   }
 }
