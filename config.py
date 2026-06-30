@@ -62,10 +62,10 @@ MODES = {
         # hand a position back to manual control so the user can exit it
         # themselves without the bot re-entering or covering it.
         #
-        # SNAP added 2026-06-19 — assigned 100 shares severely underwater; a
-        # pending covered call is being cancelled and the bot must not sell
-        # another one so the user can close the shares by hand.
-        "excluded_symbols":    ["SNAP"],
+        # (SNAP was excluded 2026-06-19 after an underwater 100-share
+        # assignment; removed 2026-06-30 once that position was closed out, so
+        # nothing is currently hand-held back from the bot on manual.)
+        "excluded_symbols":    [],
 
         # Wheel never opens Stage 1 puts on this account. Existing puts are
         # still managed (50% close) and assignments still trigger Stage 2

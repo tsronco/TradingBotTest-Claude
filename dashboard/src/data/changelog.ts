@@ -29,6 +29,17 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-30',
+    category: 'config',
+    title: 'Manual: removed SNAP from excluded_symbols (position closed)',
+    details:
+      'SNAP was hand-held back from the bot on the manual account since 2026-06-19 (after an '
+      + 'underwater 100-share assignment). That position has been closed, so SNAP is no longer '
+      + 'excluded — manual now ships with an empty excluded_symbols list and the bot will manage '
+      + 'any SNAP it discovers again (trail/ladder/stop on shares, covered-call sale on '
+      + 'assignment). Live is unaffected (it carries no exclusions).',
+  },
+  {
     date: '2026-06-29',
     category: 'fix',
     title: 'Pre-merge polish for the account sunset (PR #28)',
