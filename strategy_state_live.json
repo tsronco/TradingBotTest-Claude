@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-07-02T14:13:29.237338Z"
+    "last_checked": "2026-07-02T14:23:30.706285Z"
   },
   "SNAP": {
     "first_seen": "2026-06-24T18:53:33.856314Z",
@@ -17,7 +17,7 @@
       false,
       false
     ],
-    "last_action": "Monitoring $4.83 vs avg $4.53 (PnL +6.73%). Stop $4.08, Trail OFF."
+    "last_action": "Monitoring $4.80 vs avg $4.53 (PnL +6.07%). Stop $4.08, Trail OFF."
   },
   "GPUS": {
     "first_seen": "2026-07-01T18:23:29.666661Z",
@@ -34,6 +34,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $0.15 vs avg $0.16 (PnL -7.00%). Stop $0.14, Trail OFF."
+    "last_action": "Monitoring $0.15 vs avg $0.16 (PnL -7.94%). Stop $0.14, Trail OFF."
   }
 }
