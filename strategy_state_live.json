@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-07-02T15:43:33.613898Z"
+    "last_checked": "2026-07-02T15:53:28.321551Z"
   },
   "SNAP": {
     "first_seen": "2026-06-24T18:53:33.856314Z",
@@ -34,6 +34,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $0.14 vs avg $0.16 (PnL -11.19%). Stop $0.14, Trail OFF."
+    "last_action": "Monitoring $0.14 vs avg $0.16 (PnL -12.00%). Stop $0.14, Trail OFF."
   }
 }
