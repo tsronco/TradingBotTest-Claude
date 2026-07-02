@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-07-02T16:03:33.272974Z"
+    "last_checked": "2026-07-02T16:13:30.919489Z"
   },
   "SNAP": {
     "first_seen": "2026-06-24T18:53:33.856314Z",
@@ -17,15 +17,15 @@
       false,
       false
     ],
-    "last_action": "Monitoring $4.83 vs avg $4.53 (PnL +6.51%). Stop $4.08, Trail OFF."
+    "last_action": "Monitoring $4.84 vs avg $4.53 (PnL +6.95%). Stop $4.08, Trail OFF."
   },
   "GPUS": {
     "first_seen": "2026-07-01T18:23:29.666661Z",
     "entry_price": 0.16,
     "initial_qty": 1,
     "avg_cost": 0.16,
-    "total_cost": 0.16,
-    "position_qty": 1,
+    "total_cost": 0,
+    "position_qty": 0,
     "stop_price": 0.14,
     "high_water_mark": 0.16,
     "trailing_active": false,
@@ -34,6 +34,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $0.14 vs avg $0.16 (PnL -12.06%). Stop $0.14, Trail OFF."
+    "last_action": "Stop hit at $0.14. Closed 1 shares. Realized $-0.02."
   }
 }
