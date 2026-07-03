@@ -285,13 +285,47 @@ ABSOLUTE rules (a violation is a failure):
 
 What you MAY do:
 - State the position plainly: how many shares/contracts, the average cost, the current price, and the unrealized profit or loss (paper gain/loss not yet realized).
-- Explain what the bot is currently set to do with it: the stop level, whether the trailing stop is on, how many ladder rungs remain, the wheel stage.
+- Explain what the bot is currently set to do with it: the stop level; for the trailing stop, whether it is on, the price it arms at (when off) or its current trigger and the gain it has locked in (when on); how many ladder rungs remain; the wheel stage.
 - Name the general mechanical risk in neutral terms (e.g. "if the price reaches the stop, the bot sells and the loss becomes realized").
 
-Style: at most 4 sentences. Plain language, calm, no hype, no markdown, no preamble. Present tense, second person ("you own…"). The UI appends its own "not advice" disclaimer, so do not add one.`;
+Style: at most 6 sentences. Plain language, calm, no hype, no markdown, no preamble. Present tense, second person ("you own…"). The UI appends its own "not advice" disclaimer, so do not add one.`;
 
 function fmtUsd(n: number | null): string {
   return n == null ? 'unknown' : `$${n.toFixed(2)}`;
+}
+
+function fmtPct(n: number): string {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+}
+
+/**
+ * Plain-English trailing-stop sentences built ONLY from a precomputed
+ * TrailingCoach (no math here). Returned as an array of sentences so callers can
+ * join them. Mirrored verbatim in PositionCoachPanel.tsx — see the parity test.
+ */
+export function trailingReadoutSentences(tc: TrailingCoach, qty: number): string[] {
+  const unit = qty === 1 ? 'share' : 'shares';
+  if (tc.state === 'off') {
+    const out = ['The trailing stop is off — it arms on its own once the price climbs to ' + fmtUsd(tc.activation_price) + ` (${Math.round(tc.activation_pct * 100)}% above entry).`];
+    if (tc.activation_gap_abs != null && tc.activation_gap_pct != null) {
+      out.push(`That's ${fmtUsd(tc.activation_gap_abs)} (${fmtPct(tc.activation_gap_pct)}) above the current price.`);
+    }
+    return out;
+  }
+  if (tc.state === 'triggering') {
+    return [`The trailing stop is on and the price has fallen to its ${fmtUsd(tc.trigger_price)} trigger — the bot sells on its next cycle.`];
+  }
+  // state === 'on'
+  const out = [`The trailing stop is on, with its trigger at ${fmtUsd(tc.trigger_price)} — a stop that ratchets up as the price rises but never moves down.`];
+  if (tc.locked_kind === 'gain') {
+    out.push(`If it triggers, that locks in a gain of at least ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${qty} ${unit}) over your cost.`);
+  } else {
+    out.push(`Its trigger sits below your cost, so if it fires it caps the loss at ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${qty} ${unit}).`);
+  }
+  if (tc.next_raise_above != null) {
+    out.push(`Your floor climbs the moment the price prints above ${fmtUsd(tc.next_raise_above)}; every new high drags the stop up ${Math.round(tc.trail_distance_pct * 100)}% behind it.`);
+  }
+  return out;
 }
 
 /** Build the user-turn prompt from the facts. Pure / testable. */
@@ -316,11 +350,28 @@ export function buildCoachPrompt(facts: PositionFacts): string {
   } else {
     lines.push('- Stop price: none recorded yet (the bot has not set a stop for this symbol)');
   }
-  if (facts.trailing_active != null) {
-    lines.push(`- Trailing stop: ${facts.trailing_active ? 'ON' : 'OFF'}`);
-  }
-  if (facts.high_water_mark != null) {
-    lines.push(`- Highest price seen since entry (high-water mark): ${fmtUsd(facts.high_water_mark)}`);
+  const tc = facts.trailing_coach;
+  if (tc == null) {
+    if (facts.trailing_active != null) lines.push(`- Trailing stop: ${facts.trailing_active ? 'ON' : 'OFF'}`);
+  } else if (tc.state === 'off') {
+    lines.push(`- Trailing stop: OFF (arms automatically at +${Math.round(tc.activation_pct * 100)}% above entry)`);
+    lines.push(`  - Arms at: ${fmtUsd(tc.activation_price)}`);
+    if (tc.activation_gap_abs != null && tc.activation_gap_pct != null) {
+      lines.push(`  - Distance to arm: ${fmtUsd(tc.activation_gap_abs)} (${fmtPct(tc.activation_gap_pct)}) above the current price`);
+    }
+  } else if (tc.state === 'triggering') {
+    lines.push(`- Trailing stop: ON, and the price has fallen to the ${fmtUsd(tc.trigger_price)} trigger — the bot sells on its next cycle.`);
+  } else {
+    lines.push('- Trailing stop: ON (a stop that ratchets up as price rises but never down)');
+    lines.push(`  - Trigger (sells if price falls here): ${fmtUsd(tc.trigger_price)}`);
+    if (tc.locked_kind === 'gain') {
+      lines.push(`  - Locks in at least: ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${facts.qty} share(s)) over cost`);
+    } else {
+      lines.push(`  - Worst-case loss if it fires: ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${facts.qty} share(s)) — trigger is below cost`);
+    }
+    if (tc.next_raise_above != null) {
+      lines.push(`  - Floor next rises when price prints above: ${fmtUsd(tc.next_raise_above)} (stays ${Math.round(tc.trail_distance_pct * 100)}% behind each new high)`);
+    }
   }
   if (facts.ladder_rungs_remaining != null && facts.ladder_rungs_total != null) {
     lines.push(`- Ladder add-on buys remaining: ${facts.ladder_rungs_remaining} of ${facts.ladder_rungs_total}`);
@@ -356,7 +407,8 @@ export function deterministicReadout(facts: PositionFacts): string {
     parts.push(`That's an unrealized (on-paper) ${dir === 'up' ? 'gain' : 'loss'} of ${fmtUsd(Math.abs(facts.unrealized_pl))}${pct}.`);
   }
   if (facts.stop_price != null) {
-    parts.push(`The bot's stop is set at ${fmtUsd(facts.stop_price)} — it sells automatically if the price falls there, which would realize the loss. Trailing stop is ${facts.trailing_active ? 'on' : 'off'}.`);
+    parts.push(`The bot's stop is set at ${fmtUsd(facts.stop_price)} — it sells automatically if the price falls there, which would realize the loss.`);
+    if (facts.trailing_coach) parts.push(...trailingReadoutSentences(facts.trailing_coach, facts.qty));
   } else if (!facts.is_excluded) {
     parts.push("The bot hasn't recorded a stop for this symbol yet.");
   }

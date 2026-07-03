@@ -92,7 +92,7 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toContain('NOT a financial advisor');
     expect(SYSTEM_PROMPT).toMatch(/NEVER tell the user to buy, sell, hold/);
     expect(SYSTEM_PROMPT).toMatch(/NEVER give a price target/);
-    expect(SYSTEM_PROMPT).toContain('at most 4 sentences');
+    expect(SYSTEM_PROMPT).toContain('at most 6 sentences');
   });
 });
 
@@ -241,5 +241,71 @@ describe('buildPositionFacts trailing_coach wiring', () => {
   it('leaves trailing_coach null when there is no bot state', () => {
     const f = buildPositionFacts('SNAP', 'manual', POS_OFF, null, null, []);
     expect(f.trailing_coach).toBeNull();
+  });
+});
+
+describe('trailing-stop rendering', () => {
+  const P = (over: Partial<RawPosition> = {}): RawPosition => ({ symbol: 'SNAP', qty: '5', avg_entry_price: '4.53', current_price: '4.42', asset_class: 'us_equity', side: 'long', ...over });
+
+  it('prompt (OFF): hands the LLM the activation price and gap from current', () => {
+    const f = buildPositionFacts('SNAP', 'live', P(), { stop_price: 4.08, high_water_mark: 4.53, trailing_active: false, entry_price: 4.53 }, null, []);
+    const p = buildCoachPrompt(f);
+    expect(p).toContain('Trailing stop: OFF');
+    expect(p).toContain('$4.98'); // activation price
+    expect(p).toContain('$0.56'); // gap above current
+  });
+
+  it('prompt (ON): hands the LLM the trigger, locked-in floor, and next-raise price', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '5.00' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
+    const p = buildCoachPrompt(f);
+    expect(p).toContain('Trailing stop: ON');
+    expect(p).toContain('$4.94');            // trigger
+    expect(p).toContain('$0.41');            // per-share locked in
+    expect(p).toContain('$2.05');            // total across 5 shares
+    expect(p).toContain('$5.20');            // next-raise (HWM)
+  });
+
+  it('prompt (triggering): tells the LLM the bot will sell next cycle', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '4.90' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
+    const p = buildCoachPrompt(f);
+    expect(p).toMatch(/sells? on its next cycle/i);
+    expect(p).toContain('$4.94');
+  });
+
+  it('readout (OFF): states off + activation price + distance from current', () => {
+    const f = buildPositionFacts('SNAP', 'live', P(), { stop_price: 4.08, high_water_mark: 4.53, trailing_active: false, entry_price: 4.53 }, null, []);
+    const t = deterministicReadout(f);
+    expect(t).toMatch(/trailing stop is off/i);
+    expect(t).toContain('$4.98');
+    expect(t).toContain('$0.56');
+  });
+
+  it('readout (ON gain): trigger + locked-in per-share and total + next-raise', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '5.00' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
+    const t = deterministicReadout(f);
+    expect(t).toContain('$4.94');
+    expect(t).toContain('$0.41');
+    expect(t).toContain('$2.05');
+    expect(t).toContain('$5.20');
+    expect(t).toMatch(/locks in|locked in|at least/i);
+  });
+
+  it('readout (ON loss): frames a worst-case loss, not a negative gain', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '4.60' }), { stop_price: 4.40, high_water_mark: 4.75, trailing_active: true, entry_price: 4.53 }, null, []);
+    const t = deterministicReadout(f);
+    expect(t).toMatch(/loss/i);
+    expect(t).not.toMatch(/-\$/); // never print a negative dollar amount
+    expect(t).toContain('$0.13');
+  });
+
+  it('readout (triggering): sell-next-cycle language, no locked-in figure', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '4.90' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
+    const t = deterministicReadout(f);
+    expect(t).toMatch(/sells? on its next cycle/i);
+  });
+
+  it('readout stays advice-free with the new trailing detail', () => {
+    const f = buildPositionFacts('SNAP', 'live', P({ current_price: '5.00' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
+    expect(deterministicReadout(f)).not.toMatch(/you should|recommend|good entry|consider|i'?d (buy|sell)/i);
   });
 });
