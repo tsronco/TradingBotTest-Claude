@@ -1,7 +1,23 @@
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api';
-import type { TrailingCoach } from '../../../api/_lib/position-coach';
+
+// Mirror of TrailingCoach in api/_lib/position-coach.ts (types are duplicated across the api/src boundary — see Facts above).
+interface TrailingCoach {
+  state: 'off' | 'on' | 'triggering';
+  activation_pct: number;
+  trail_distance_pct: number;
+  // OFF branch
+  activation_price: number | null;
+  activation_gap_abs: number | null;
+  activation_gap_pct: number | null;
+  // ON / triggering branch
+  trigger_price: number | null;
+  locked_kind: 'gain' | 'loss' | null;
+  locked_per_share: number | null;
+  locked_total: number | null;
+  next_raise_above: number | null;
+}
 
 type Mode = 'manual' | 'live';
 const MODES: readonly Mode[] = ['manual', 'live'] as const;
