@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-07-03',
+    category: 'feature',
+    title: 'Position Coach shows real trailing-stop numbers',
+    details:
+      'The /lookup coach now prints the figures a trader acts on. When the trailing stop is off it shows '
+      + 'the price it arms at (+10% above entry) and how far that is from the current price; when on it shows '
+      + 'the exact trigger, the locked-in floor (per-share and total over cost), and the price above which the '
+      + "stop next ratchets up. Flips to a worst-case-loss framing if the trigger is below cost, and to a "
+      + "'bot sells next cycle' note if price has already reached the trigger. All figures computed "
+      + 'deterministically server-side; the LLM only narrates them.',
+  },
+  {
     date: '2026-06-30',
     category: 'feature',
     title: 'Live-account funding detection — deposit/withdrawal notices',
