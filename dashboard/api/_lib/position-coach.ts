@@ -24,6 +24,11 @@ import type { Mode } from './alpaca.js';
 const MODEL = 'claude-sonnet-4-6';
 const CACHE_TTL_SECONDS = 15 * 60; // upper bound; signature busts it sooner on a real change
 
+// Mirror of strategy.py:35-36. These are stable bot constants — if TRAIL_TRIGGER_PCT
+// or TRAIL_DISTANCE_PCT ever change in strategy.py, update them here too.
+export const TRAIL_TRIGGER_PCT = 0.10;  // trailing arms at +10% above entry
+export const TRAIL_DISTANCE_PCT = 0.05; // floor rides 5% below the high-water mark
+
 // Symbols the bot is configured to leave alone, per mode. Mirrors
 // config.MODES[mode].excluded_symbols on the bot side. Empty today (SNAP was
 // removed 2026-06-29 once the position closed); kept as a typed seam so the
@@ -51,6 +56,7 @@ export interface RawStrategySym {
   stop_price?: number | null;
   high_water_mark?: number | null;
   trailing_active?: boolean | null;
+  entry_price?: number | null;
   ladder_done?: boolean[] | null;
   initial_qty?: number | null;
 }
@@ -58,6 +64,31 @@ export interface RawStrategySym {
 // Per-symbol block inside the bot's wheel_state_<mode>.json (bot:state:<mode>).
 export interface RawWheelSym {
   stage?: number | string | null;
+}
+
+/**
+ * Precomputed, plain-number trailing-stop figures for the coach to narrate. All
+ * arithmetic lives here so neither the LLM nor the mirrored client readout ever
+ * recomputes. `state` selects the narrative branch:
+ *   'off'        — trail hasn't armed; show the activation price + gap from current.
+ *   'on'         — trail is live; show the trigger, locked-in floor, next-raise price.
+ *   'triggering' — trigger has reached/passed current price (bot sells next cycle);
+ *                  suppress the locked-in figure (a stop above current would be a bug).
+ */
+export interface TrailingCoach {
+  state: 'off' | 'on' | 'triggering';
+  activation_pct: number;       // 0.10 — for "+10% above entry" phrasing
+  trail_distance_pct: number;   // 0.05 — for "5% behind the high" phrasing
+  // OFF branch
+  activation_price: number | null;   // entry × (1 + activation_pct)
+  activation_gap_abs: number | null; // activation_price − current_price (measured from CURRENT)
+  activation_gap_pct: number | null; // gap as a percent of current_price
+  // ON / triggering branch
+  trigger_price: number | null;      // = stop_price (the live trailing floor)
+  locked_kind: 'gain' | 'loss' | null;
+  locked_per_share: number | null;   // |trigger − avg_cost|
+  locked_total: number | null;       // locked_per_share × qty
+  next_raise_above: number | null;   // = high_water_mark; stop climbs on a print above this
 }
 
 export interface PositionFacts {
@@ -75,6 +106,9 @@ export interface PositionFacts {
   stop_price: number | null;
   trailing_active: boolean | null;
   high_water_mark: number | null;
+  // Precomputed trailing-stop figures for narration; null when N/A (non-stock,
+  // or the bot has no trailing state for this symbol).
+  trailing_coach: TrailingCoach | null;
   ladder_rungs_total: number | null;
   ladder_rungs_remaining: number | null;
   // Bot wheel stage (1 = cash-secured put, 2 = covered call) for option/wheel
@@ -114,6 +148,75 @@ function classify(assetClass: string | undefined): 'stock' | 'option' | 'other' 
   return 'other';
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Compute the trailing-stop narrative figures from raw position + bot state.
+ * Returns null when the concept doesn't apply (non-stock, or the bot has no
+ * trailing state / stop recorded for the symbol). Pure / testable.
+ */
+export function computeTrailingCoach(args: {
+  asset_class: 'stock' | 'option' | 'other';
+  trailing_active: boolean | null;
+  stop_price: number | null;
+  entry_price: number | null;
+  avg_cost: number;
+  current_price: number | null;
+  high_water_mark: number | null;
+  qty: number;
+}): TrailingCoach | null {
+  const { asset_class, trailing_active, stop_price, entry_price, avg_cost, current_price, high_water_mark, qty } = args;
+  // Trailing stops are a stock-strategy concept; options/wheel don't have one.
+  if (asset_class !== 'stock') return null;
+  // Need a recorded trailing state and a stop to say anything.
+  if (trailing_active == null || stop_price == null) return null;
+
+  const blank = {
+    activation_pct: TRAIL_TRIGGER_PCT,
+    trail_distance_pct: TRAIL_DISTANCE_PCT,
+    activation_price: null,
+    activation_gap_abs: null,
+    activation_gap_pct: null,
+    trigger_price: null,
+    locked_kind: null,
+    locked_per_share: null,
+    locked_total: null,
+    next_raise_above: null,
+  };
+
+  if (!trailing_active) {
+    // Bot triggers off entry_price; fall back to avg_cost only if it's missing.
+    const basis = entry_price ?? avg_cost;
+    const activation = round2(basis * (1 + TRAIL_TRIGGER_PCT));
+    const gapAbs = current_price != null ? round2(activation - current_price) : null;
+    const gapPct = current_price != null && current_price !== 0
+      ? ((activation - current_price) / current_price) * 100
+      : null;
+    return { ...blank, state: 'off', activation_price: activation, activation_gap_abs: gapAbs, activation_gap_pct: gapPct };
+  }
+
+  // ON. A stop sells on a FALL, so it must sit below current. If price has already
+  // reached/passed it (legitimate between 10-min cron cycles), it's mid-trigger —
+  // don't print a "locked-in" figure that would read as a gain.
+  if (current_price != null && stop_price >= current_price) {
+    return { ...blank, state: 'triggering', trigger_price: stop_price };
+  }
+
+  const perShareRaw = stop_price - avg_cost; // >0 gain, <=0 worst-case loss
+  const perShare = round2(Math.abs(perShareRaw));
+  return {
+    ...blank,
+    state: 'on',
+    trigger_price: stop_price,
+    locked_kind: perShareRaw >= 0 ? 'gain' : 'loss',
+    locked_per_share: perShare,
+    locked_total: round2(perShare * qty), // from the rounded per-share so displayed figures reconcile
+    next_raise_above: high_water_mark,
+  };
+}
+
 /**
  * Assemble the deterministic facts from a held position plus the bot's own
  * strategy/wheel state. All math (P/L, ladder-rung accounting) happens here so
@@ -135,6 +238,19 @@ export function buildPositionFacts(
   const stageRaw = wheelSym?.stage;
   const stage = stageRaw == null ? null : num(stageRaw);
 
+  const avgCost = num(position.avg_entry_price) ?? 0;
+  const currentPrice = num(position.current_price);
+  const trailingCoach = computeTrailingCoach({
+    asset_class: classify(position.asset_class),
+    trailing_active: strategySym?.trailing_active ?? null,
+    stop_price: num(strategySym?.stop_price),
+    entry_price: num(strategySym?.entry_price),
+    avg_cost: avgCost,
+    current_price: currentPrice,
+    high_water_mark: num(strategySym?.high_water_mark),
+    qty,
+  });
+
   return {
     symbol,
     mode,
@@ -142,13 +258,14 @@ export function buildPositionFacts(
     asset_class: classify(position.asset_class),
     side: position.side === 'short' ? 'short' : 'long',
     qty,
-    avg_cost: num(position.avg_entry_price) ?? 0,
-    current_price: num(position.current_price),
+    avg_cost: avgCost,
+    current_price: currentPrice,
     unrealized_pl: num(position.unrealized_pl),
     unrealized_pl_pct: position.unrealized_plpc != null ? (num(position.unrealized_plpc) ?? 0) * 100 : null,
     stop_price: num(strategySym?.stop_price),
     trailing_active: strategySym?.trailing_active ?? null,
     high_water_mark: num(strategySym?.high_water_mark),
+    trailing_coach: trailingCoach,
     ladder_rungs_total: rungsTotal,
     ladder_rungs_remaining: rungsRemaining,
     wheel_stage: stage,
@@ -267,6 +384,8 @@ export function coachSignature(facts: PositionFacts): string {
     facts.avg_cost,
     facts.stop_price ?? 'na',
     facts.trailing_active ?? 'na',
+    facts.high_water_mark ?? 'na',
+    facts.trailing_coach?.state ?? 'na',
     facts.ladder_rungs_remaining ?? 'na',
     facts.wheel_stage ?? 'na',
     px,

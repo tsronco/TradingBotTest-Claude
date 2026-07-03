@@ -4,6 +4,9 @@ import {
   buildCoachPrompt,
   deterministicReadout,
   coachSignature,
+  computeTrailingCoach,
+  TRAIL_TRIGGER_PCT,
+  TRAIL_DISTANCE_PCT,
   SYSTEM_PROMPT,
   type RawPosition,
   type RawStrategySym,
@@ -153,5 +156,90 @@ describe('coachSignature', () => {
     const base = buildPositionFacts('SNAP', 'live', POS, STRAT, null, []);
     const restopped = buildPositionFacts('SNAP', 'live', POS, { ...STRAT, stop_price: 4.20 }, null, []);
     expect(coachSignature(base)).not.toBe(coachSignature(restopped));
+  });
+});
+
+describe('computeTrailingCoach', () => {
+  const base = {
+    asset_class: 'stock' as const,
+    avg_cost: 4.53,
+    entry_price: 4.53,
+    qty: 5,
+  };
+
+  it('exposes the bot constants as fractions', () => {
+    expect(TRAIL_TRIGGER_PCT).toBe(0.10);
+    expect(TRAIL_DISTANCE_PCT).toBe(0.05);
+  });
+
+  it('OFF: reports the activation price and the gap from CURRENT price', () => {
+    const tc = computeTrailingCoach({ ...base, trailing_active: false, stop_price: 4.08, high_water_mark: 4.53, current_price: 4.42 })!;
+    expect(tc.state).toBe('off');
+    expect(tc.activation_price).toBe(4.98); // 4.53 * 1.10 = 4.983 -> 4.98
+    expect(tc.activation_gap_abs).toBe(0.56); // 4.98 - 4.42, from CURRENT not HWM
+    expect(tc.activation_gap_pct).toBeCloseTo(12.67, 1);
+    expect(tc.trigger_price).toBeNull();
+    expect(tc.trail_distance_pct).toBe(0.05);
+  });
+
+  it('OFF: uses entry_price (not avg_cost) for the activation price after a ladder', () => {
+    // entry stayed at 4.53 but avg_cost blended up to 5.00 after a ladder buy
+    const tc = computeTrailingCoach({ ...base, avg_cost: 5.00, entry_price: 4.53, trailing_active: false, stop_price: 4.50, high_water_mark: 4.53, current_price: 4.42 })!;
+    expect(tc.activation_price).toBe(4.98); // keyed off entry 4.53, not avg 5.00
+  });
+
+  it('OFF: falls back to avg_cost when entry_price is missing', () => {
+    const tc = computeTrailingCoach({ ...base, entry_price: null, trailing_active: false, stop_price: 4.08, high_water_mark: 4.53, current_price: 4.42 })!;
+    expect(tc.activation_price).toBe(4.98); // avg_cost 4.53 * 1.10
+  });
+
+  it('ON: reports the trigger, the locked-in gain per-share + total, and the next-raise price', () => {
+    const tc = computeTrailingCoach({ ...base, trailing_active: true, stop_price: 4.94, high_water_mark: 5.20, current_price: 5.00 })!;
+    expect(tc.state).toBe('on');
+    expect(tc.trigger_price).toBe(4.94);
+    expect(tc.locked_kind).toBe('gain');
+    expect(tc.locked_per_share).toBe(0.41); // 4.94 - 4.53
+    expect(tc.locked_total).toBe(2.05);     // 0.41 * 5
+    expect(tc.next_raise_above).toBe(5.20);
+    expect(tc.activation_price).toBeNull();
+  });
+
+  it('ON: flips to a worst-case LOSS when the trigger sits below avg cost', () => {
+    const tc = computeTrailingCoach({ ...base, trailing_active: true, stop_price: 4.40, high_water_mark: 4.75, current_price: 4.60 })!;
+    expect(tc.state).toBe('on');
+    expect(tc.locked_kind).toBe('loss');
+    expect(tc.locked_per_share).toBe(0.13); // |4.40 - 4.53|
+    expect(tc.locked_total).toBe(0.65);     // 0.13 * 5
+  });
+
+  it('SANITY GUARD: trigger at/above current price => "triggering", no locked-in figure', () => {
+    const tc = computeTrailingCoach({ ...base, trailing_active: true, stop_price: 4.94, high_water_mark: 5.20, current_price: 4.90 })!;
+    expect(tc.state).toBe('triggering');
+    expect(tc.trigger_price).toBe(4.94);
+    expect(tc.locked_kind).toBeNull();
+    expect(tc.locked_per_share).toBeNull();
+    expect(tc.next_raise_above).toBeNull();
+  });
+
+  it('returns null for non-stock instruments', () => {
+    expect(computeTrailingCoach({ ...base, asset_class: 'option', trailing_active: false, stop_price: 4.08, high_water_mark: 4.53, current_price: 4.42 })).toBeNull();
+  });
+
+  it('returns null when the bot has no trailing state or stop recorded', () => {
+    expect(computeTrailingCoach({ ...base, asset_class: 'stock', trailing_active: null, stop_price: null, high_water_mark: null, current_price: 4.42 })).toBeNull();
+  });
+});
+
+describe('buildPositionFacts trailing_coach wiring', () => {
+  const POS_OFF: RawPosition = { symbol: 'SNAP', qty: '5', avg_entry_price: '4.53', current_price: '4.42', asset_class: 'us_equity', side: 'long' };
+  it('attaches a computed trailing_coach when the bot manages the stock', () => {
+    const strat: RawStrategySym = { stop_price: 4.08, high_water_mark: 4.53, trailing_active: false, entry_price: 4.53, ladder_done: [false, false, false], initial_qty: 5 };
+    const f = buildPositionFacts('SNAP', 'live', POS_OFF, strat, null, []);
+    expect(f.trailing_coach?.state).toBe('off');
+    expect(f.trailing_coach?.activation_price).toBe(4.98);
+  });
+  it('leaves trailing_coach null when there is no bot state', () => {
+    const f = buildPositionFacts('SNAP', 'manual', POS_OFF, null, null, []);
+    expect(f.trailing_coach).toBeNull();
   });
 });
