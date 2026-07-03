@@ -1,6 +1,7 @@
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api';
+import type { TrailingCoach } from '../../../api/_lib/position-coach';
 
 type Mode = 'manual' | 'live';
 const MODES: readonly Mode[] = ['manual', 'live'] as const;
@@ -23,6 +24,7 @@ interface Facts {
   unrealized_pl_pct: number | null;
   stop_price: number | null;
   trailing_active: boolean | null;
+  trailing_coach: TrailingCoach | null;
   ladder_rungs_total: number | null;
   ladder_rungs_remaining: number | null;
   wheel_stage: number | null;
@@ -44,6 +46,35 @@ interface CoachResp {
 function fmtUsd(n: number | null): string {
   return n == null ? 'unknown' : `$${n.toFixed(2)}`;
 }
+function fmtPct(n: number): string {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+}
+// Mirror of trailingReadoutSentences() in api/_lib/position-coach.ts — kept in
+// lockstep by tests/lib/position-coach-parity.test.ts.
+function trailingReadoutSentences(tc: TrailingCoach, qty: number): string[] {
+  const unit = qty === 1 ? 'share' : 'shares';
+  if (tc.state === 'off') {
+    const out = ['The trailing stop is off — it arms on its own once the price climbs to ' + fmtUsd(tc.activation_price) + ` (${Math.round(tc.activation_pct * 100)}% above entry).`];
+    if (tc.activation_gap_abs != null && tc.activation_gap_pct != null) {
+      out.push(`That's ${fmtUsd(tc.activation_gap_abs)} (${fmtPct(tc.activation_gap_pct)}) above the current price.`);
+    }
+    return out;
+  }
+  if (tc.state === 'triggering') {
+    return [`The trailing stop is on and the price has fallen to its ${fmtUsd(tc.trigger_price)} trigger — the bot sells on its next cycle.`];
+  }
+  // state === 'on'
+  const out = [`The trailing stop is on, with its trigger at ${fmtUsd(tc.trigger_price)} — a stop that ratchets up as the price rises but never moves down.`];
+  if (tc.locked_kind === 'gain') {
+    out.push(`If it triggers, that locks in a gain of at least ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${qty} ${unit}) over your cost.`);
+  } else {
+    out.push(`Its trigger sits below your cost, so if it fires it caps the loss at ${fmtUsd(tc.locked_per_share)}/share (${fmtUsd(tc.locked_total)} across ${qty} ${unit}).`);
+  }
+  if (tc.next_raise_above != null) {
+    out.push(`Your floor climbs the moment the price prints above ${fmtUsd(tc.next_raise_above)}; every new high drags the stop up ${Math.round(tc.trail_distance_pct * 100)}% behind it.`);
+  }
+  return out;
+}
 function deterministicReadout(f: Facts): string {
   const unit = f.asset_class === 'option' ? 'contract' : 'share';
   const parts: string[] = [];
@@ -56,7 +87,8 @@ function deterministicReadout(f: Facts): string {
     parts.push(`That's an unrealized (on-paper) ${dir} of ${fmtUsd(Math.abs(f.unrealized_pl))}${pct}.`);
   }
   if (f.stop_price != null) {
-    parts.push(`The bot's stop is set at ${fmtUsd(f.stop_price)} — it sells automatically if the price falls there, realizing the loss. Trailing stop is ${f.trailing_active ? 'on' : 'off'}.`);
+    parts.push(`The bot's stop is set at ${fmtUsd(f.stop_price)} — it sells automatically if the price falls there, which would realize the loss.`);
+    if (f.trailing_coach) parts.push(...trailingReadoutSentences(f.trailing_coach, f.qty));
   } else if (!f.is_excluded) {
     parts.push("The bot hasn't recorded a stop for this symbol yet.");
   }
