@@ -191,9 +191,10 @@ export function computeTrailingCoach(args: {
     const basis = entry_price ?? avg_cost;
     const activation = round2(basis * (1 + TRAIL_TRIGGER_PCT));
     const gapAbs = current_price != null ? round2(activation - current_price) : null;
-    const gapPct = current_price != null && current_price !== 0
+    const gapPctRaw = current_price != null && current_price !== 0
       ? ((activation - current_price) / current_price) * 100
       : null;
+    const gapPct = gapPctRaw == null ? null : Math.round(gapPctRaw * 10) / 10; // 1-decimal, matches fmtPct display
     return { ...blank, state: 'off', activation_price: activation, activation_gap_abs: gapAbs, activation_gap_pct: gapPct };
   }
 
@@ -391,6 +392,8 @@ export function buildCoachPrompt(facts: PositionFacts): string {
   return lines.join('\n');
 }
 
+// NOTE: this deterministic fallback is intentionally uncapped — the SYSTEM_PROMPT
+// 6-sentence limit applies only to the LLM narration, not to this data dump.
 /**
  * Layer-1-only fallback text, used when the LLM is unavailable. Deterministic,
  * jargon-light, never advice. Pure / testable.

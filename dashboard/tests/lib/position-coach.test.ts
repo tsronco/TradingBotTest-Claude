@@ -228,6 +228,10 @@ describe('computeTrailingCoach', () => {
   it('returns null when the bot has no trailing state or stop recorded', () => {
     expect(computeTrailingCoach({ ...base, asset_class: 'stock', trailing_active: null, stop_price: null, high_water_mark: null, current_price: 4.42 })).toBeNull();
   });
+
+  it('returns null when the trail flag is set but no stop is recorded yet (transient)', () => {
+    expect(computeTrailingCoach({ ...base, trailing_active: true, stop_price: null, high_water_mark: 5.0, current_price: 4.5 })).toBeNull();
+  });
 });
 
 describe('buildPositionFacts trailing_coach wiring', () => {
@@ -307,5 +311,11 @@ describe('trailing-stop rendering', () => {
   it('readout stays advice-free with the new trailing detail', () => {
     const f = buildPositionFacts('SNAP', 'live', P({ current_price: '5.00' }), { stop_price: 4.94, high_water_mark: 5.20, trailing_active: true, entry_price: 4.53 }, null, []);
     expect(deterministicReadout(f)).not.toMatch(/you should|recommend|good entry|consider|i'?d (buy|sell)/i);
+  });
+
+  it('prompt: falls back to a plain ON label when the trail flag is set but no stop yet', () => {
+    const f = buildPositionFacts('SNAP', 'live', P(), { trailing_active: true, stop_price: null, high_water_mark: 5.0 }, null, []);
+    expect(f.trailing_coach).toBeNull();
+    expect(buildCoachPrompt(f)).toContain('Trailing stop: ON');
   });
 });
