@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-07-09T17:01:42.476505Z"
+    "last_checked": "2026-07-09T17:11:45.042656Z"
   },
   "F": {
     "stage": 1,
@@ -75,34 +75,5 @@
     "cycle_count": 0,
     "cycle_history": [],
     "last_action": "Manual mode: not opening new puts (user-driven)."
-  },
-  "SPY": {
-    "stage": "spread_active",
-    "spread_type": "put_credit",
-    "short_leg": {
-      "occ": "SPY260709P00750000",
-      "strike": 750.0,
-      "entry_premium": 0.49,
-      "qty": 3
-    },
-    "long_leg": {
-      "occ": "SPY260709P00731000",
-      "strike": 731.0,
-      "entry_premium": 0.02,
-      "qty": 3
-    },
-    "expiration": "2026-07-09",
-    "net_credit": 0.47,
-    "max_loss": 18.53,
-    "width": 19.0,
-    "opened_at": "2026-07-09T16:51:40.861979Z",
-    "tripwire_breach_since": null,
-    "open_order_id": null,
-    "open_client_order_id": null,
-    "open_limit_credit": null,
-    "total_premium_collected": 0.0,
-    "cycle_count": 0,
-    "cycle_history": [],
-    "last_action": "Adopted spread short=$750.00 long=$731.00 credit=$0.47"
   }
 }

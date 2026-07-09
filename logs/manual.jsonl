@@ -9274,3 +9274,7 @@
 {"timestamp": "2026-07-09T17:01:42.476941+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SPY"]}}
 {"timestamp": "2026-07-09T17:01:43.330943+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "SPY260709P00731000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-07-09T17:01:43.331101+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
+{"timestamp": "2026-07-09T17:11:39.830308+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-07-09T17:11:45.041420+00:00", "script": "wheel_strategy.py", "action": "spread_closed", "result": "success", "symbol": "SPY", "details": {"reason": "early_close_50pct", "spread_type": "put_credit", "short_occ": "SPY260709P00750000", "long_occ": "SPY260709P00731000", "net_credit": 0.47, "max_loss": 18.53, "fallback_used": false}}
+{"timestamp": "2026-07-09T17:11:45.043062+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["SPY"]}}
+{"timestamp": "2026-07-09T17:11:45.926842+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
