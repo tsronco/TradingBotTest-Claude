@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-07-17T13:33:27.683849Z"
+    "last_checked": "2026-07-17T13:43:30.965836Z"
   },
   "SNAP": {
     "first_seen": "2026-06-24T18:53:33.856314Z",
     "entry_price": 4.53,
     "initial_qty": 5,
     "avg_cost": 4.53,
-    "total_cost": 22.65,
-    "position_qty": 5,
+    "total_cost": 0.0,
+    "position_qty": 0,
     "stop_price": 4.08,
     "high_water_mark": 4.53,
     "trailing_active": false,
@@ -17,6 +17,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $4.62 vs avg $4.53 (PnL +1.99%). Stop $4.08, Trail OFF."
+    "last_action": "Position empty \u2014 skipping cycle."
   }
 }
