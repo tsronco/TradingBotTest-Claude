@@ -165,6 +165,65 @@ mirroring the manual-paper gate that precedes every live change in this repo.
 
 ---
 
+## Education layer — every trade is a lesson (the point of the whole exercise)
+
+The goal isn't just to run a bot; it's to *understand* each decision and be able to
+say later "that made sense" or "that was a mistake, and here's the specific reason."
+The system already has the infrastructure (dashboard AI grading + calibration +
+tendency detection) — we point it at a trader whose reasoning we captured up front.
+
+**Principle: grade PROCESS separately from OUTCOME.** A trade can lose and still be a
+good decision (variance), or win and be a bad one (luck). Only grading P&L teaches
+the wrong lessons. So we capture a *falsifiable thesis before the outcome exists*,
+then check it against what actually happened.
+
+**1. Structured, falsifiable thesis at entry (not free text).** Claude must fill a
+schema before any spread is placed — stored on the trade record as `agent_thesis`:
+- `thesis` — the directional/vol view (why bullish/neutral on this name now)
+- `why_this_structure` — why this strike, width, and expiration specifically
+- `getting_paid` — credit, credit-to-width, max profit/loss, breakeven (the math)
+- `key_risk` — the single most likely way this loses
+- `invalidation` — a concrete, checkable condition ("thesis is wrong if X closes
+  below $Y before expiry"). This is what makes it falsifiable.
+- `confidence` — 1–5
+- `rejected` — the other candidates it looked at and why it passed
+
+Forcing this schema does double duty: it's the lesson material, and it disciplines
+the model into committing to claims it can be held to.
+
+**2. Process-vs-outcome hindsight grade on close.** When `handle_spread` closes a
+spread, a second Claude call (reuse the dashboard grading path) produces:
+- `outcome_grade` — did it make money (the easy part)
+- `process_grade` — was the decision sound *given only what was knowable at entry*,
+  ignoring the result. This is the educational core.
+- `invalidation_fired` — did the entry's own named invalidation condition trigger?
+- `loss_type` — for losers: **anticipated** (lost via the `key_risk` it named — an
+  acceptable, well-reasoned loss) vs **blind-spot** (lost for a reason it never saw —
+  the trades we actually learn from).
+- `lesson` — one plain-English sentence: what this trade teaches.
+
+**3. Per-trade "lesson card."** Each closed trade renders as a flashcard — Discord
+embed to `#agent-summary` + a dashboard view — showing thesis → outcome → process
+grade → the one-line lesson. Scroll history = a study deck of the agent's decisions.
+
+**4. Confidence calibration.** Claude states 1–5 confidence per trade; over the run we
+plot whether its 5/5 trades actually outperform its 2/5 trades. If they don't, its
+confidence is noise and we learn to discount it. (The dashboard already computes
+your-grade-vs-AI calibration — same machinery, new axis.)
+
+**5. Weekly retrospective digest.** A Sunday cron (reuse the tendency-detection
+pattern) reads the week's theses + outcomes + grades and writes a plain-English
+"what we learned": recurring blind spots, which thesis *types* systematically failed,
+whether confidence tracked results, and one thing to watch next week. This is the
+document you and I actually read to get smarter together.
+
+Net effect: at any point you can open a trade and see not just P&L but *the argument
+that justified it, whether that argument held, and — if it lost — whether it lost for
+a reason the agent understood or one it missed.* That last distinction is the whole
+education.
+
+---
+
 ## File structure (on approval)
 
 **Bot (Python):**
