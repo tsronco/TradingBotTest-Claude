@@ -1,0 +1,96 @@
+name: Agent Trader (autonomous)
+
+# The autonomous Claude-driven paper account. Unlike the wheel/strategy monitors
+# (deterministic Python), this runs agent_trader.py, which asks Claude (Opus) to
+# make every trading decision on a separate ~$2k paper MARGIN account and places
+# the orders it chooses. Full autonomy, defined-risk options + stock, own state
+# file and Discord channels. Paper only — does not touch manual or live.
+#
+# Cadence: HOURLY during market hours (not every 10 min like the wheel monitors —
+# a discretionary trader doesn't need that, and hourly keeps API cost low). Like
+# the other workflows it is triggered exclusively by cron-job.org via
+# workflow_dispatch; add the entry to tools/setup_cronjobs.py. Suggested cron
+# (UTC, CDT market hours): `7 13-20 * * 1-5` (top of each hour, :07 offset).
+#
+# Shares the `bot-commits` concurrency group so the agent_state.json commit never
+# races the wheel monitors' state-file commits.
+#
+# Requires (Tim provisions): ALPACA_AGENT_* secrets, DISCORD_AGENT_* webhooks,
+# and ANTHROPIC_API_KEY (already a repo secret for the dashboard grading path).
+
+on:
+  workflow_dispatch: {}  # cron-job.org calls this; also allows manual trigger
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent trader (Claude decides + places orders)
+        env:
+          ALPACA_AGENT_API_KEY:          ${{ secrets.ALPACA_AGENT_API_KEY }}
+          ALPACA_AGENT_API_SECRET:       ${{ secrets.ALPACA_AGENT_API_SECRET }}
+          ALPACA_AGENT_BASE_URL:         ${{ secrets.ALPACA_AGENT_BASE_URL }}
+          ANTHROPIC_API_KEY:             ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional model override; defaults to claude-opus-5 (agent_config.py).
+          AGENT_MODEL:                   ${{ secrets.AGENT_MODEL }}
+          DISCORD_AGENT_TRADES_WEBHOOK:  ${{ secrets.DISCORD_AGENT_TRADES_WEBHOOK }}
+          DISCORD_AGENT_SUMMARY_WEBHOOK: ${{ secrets.DISCORD_AGENT_SUMMARY_WEBHOOK }}
+          DISCORD_AGENT_ERRORS_WEBHOOK:  ${{ secrets.DISCORD_AGENT_ERRORS_WEBHOOK }}
+          DISCORD_AGENT_ACTIONS_WEBHOOK: ${{ secrets.DISCORD_AGENT_ACTIONS_WEBHOOK }}
+        run: python agent_trader.py
+
+      - name: Push agent state to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f agent_state.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p agent_state.json \
+                         '{key: "bot:agent:state", payload: $p[0]}')" \
+              || echo "Dashboard push for agent state failed (non-fatal)"
+          else
+            echo "agent_state.json not present — skipping dashboard push"
+          fi
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add agent_state.json 2>/dev/null || true
+          git add logs/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "agent-trader: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi
