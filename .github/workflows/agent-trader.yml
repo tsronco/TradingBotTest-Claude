@@ -7,19 +7,38 @@ name: Agent Trader (autonomous)
 # file and Discord channels. Paper only — does not touch manual or live.
 #
 # Cadence: HOURLY during market hours (not every 10 min like the wheel monitors —
-# a discretionary trader doesn't need that, and hourly keeps API cost low). Like
-# the other workflows it is triggered exclusively by cron-job.org via
-# workflow_dispatch; add the entry to tools/setup_cronjobs.py. Suggested cron
-# (UTC, CDT market hours): `7 13-20 * * 1-5` (top of each hour, :07 offset).
+# a discretionary trader doesn't need that, and hourly keeps API cost low).
 #
-# Shares the `bot-commits` concurrency group so the agent_state.json commit never
-# races the wheel monitors' state-file commits.
+# This workflow uses GitHub's NATIVE `schedule:` trigger, deliberately unlike the
+# wheel monitors (which use cron-job.org). Rationale: it self-schedules with
+# nothing to run and no cron-job.org creds — the right fit when the account owner
+# is on mobile and can't run tools/setup_cronjobs.py. The documented race with
+# native cron only occurs when BOTH cron-job.org AND `schedule:` fire the same
+# workflow; this workflow is intentionally NOT in cron-job.org, so there is no
+# duplicate to race, and the shared `bot-commits` concurrency group serializes
+# the state commit against the wheel monitors regardless. Native cron's
+# occasional few-minute delay is acceptable for an hourly discretionary account.
+# (To move it onto cron-job.org later for consistency, add a JOBS entry in
+# setup_cronjobs.py AND delete the `schedule:` block below to avoid a double-fire.)
 #
-# Requires (Tim provisions): ALPACA_AGENT_* secrets, DISCORD_AGENT_* webhooks,
-# and ANTHROPIC_API_KEY (already a repo secret for the dashboard grading path).
+# ⚠️ Native `schedule:` fires ONLY from the default branch (main) — this does
+# nothing until the workflow is merged to main. It also does nothing (harmlessly
+# — run_cycle is fail-soft) until the ALPACA_AGENT_* + ANTHROPIC_API_KEY secrets
+# and DISCORD_AGENT_* webhooks are set.
+#
+# ⚠️ DST: `13-20` UTC covers market hours during CDT (Mar–Nov). When DST ends,
+# shift the hour range +1, same as the other schedules.
+#
+# Requires (Tim provisions as GitHub Actions secrets): ALPACA_AGENT_API_KEY /
+# _API_SECRET / _BASE_URL, the four DISCORD_AGENT_*_WEBHOOK values, and
+# ANTHROPIC_API_KEY. Note: ANTHROPIC_API_KEY powers the dashboard grading path,
+# but that runs on Vercel — it may exist only as a Vercel env var, so confirm it
+# is also a GitHub Actions secret (this workflow runs on Actions, not Vercel).
 
 on:
-  workflow_dispatch: {}  # cron-job.org calls this; also allows manual trigger
+  workflow_dispatch: {}          # manual trigger (Actions tab / API)
+  schedule:
+    - cron: '7 13-20 * * 1-5'    # :07 each market hour, Mon–Fri (UTC; see DST note)
 
 concurrency:
   group: bot-commits

@@ -104,6 +104,11 @@ JOBS = [
         "minutes": [6],
         "wdays": [0],
     },
+    # NOTE: the Agent Trader (Autonomous) workflow is deliberately NOT scheduled
+    # here — it uses GitHub's native `schedule:` trigger in agent-trader.yml
+    # instead (see that file's header for the rationale). Do not add a JOBS entry
+    # for it without also removing the `schedule:` block, or the two schedulers
+    # will double-fire the same workflow.
     {
         # Dashboard auto-grading: polls open manual trades every 5 min during
         # market hours and fires AI hindsight grades on newly-closed trades.
