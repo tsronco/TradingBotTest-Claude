@@ -1,6 +1,10 @@
 requests
 python-dotenv
 matplotlib
+# anthropic: the agent paper account (agent_trader.py) calls the Claude API to
+# make its trading decisions. The wheel/strategy bots do not use it. Tests mock
+# the client, so this is only needed for a real agent run.
+anthropic>=0.40.0
 yfinance>=0.2.65
 # lxml is required for yfinance's earnings-dates HTML scraping, used by
 # earnings.py for the SM auto-spread engine. Without it every earnings

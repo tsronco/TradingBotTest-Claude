@@ -1,0 +1,45 @@
+name: Agent Retrospective (weekly)
+
+# The education digest for the autonomous agent account. Reads the committed
+# lesson records (agent_state.json → "closed") from the last week, computes
+# calibration stats, and asks Claude for a plain-English "what we learned" —
+# then posts it to #agent-summary and prints it to the run log.
+#
+# Read-only on state (no Alpaca calls, no order placement, no state commit) —
+# it just synthesizes what the hourly agent-trader already recorded. Safe to
+# run before the account is live: with no closed trades it posts "nothing to
+# review yet."
+#
+# Native `schedule:` like agent-trader.yml (fires only from main). Sunday 22:00
+# UTC = 5pm CT / 6pm ET, alongside the other Sunday digests.
+#
+# Requires: ANTHROPIC_API_KEY (Actions secret), DISCORD_AGENT_SUMMARY_WEBHOOK /
+# DISCORD_AGENT_ACTIONS_WEBHOOK. Optional AGENT_GRADER_MODEL override.
+
+on:
+  workflow_dispatch: {}          # run on demand (Actions tab)
+  schedule:
+    - cron: '0 22 * * 0'         # Sundays 22:00 UTC
+
+jobs:
+  retrospective:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate + post weekly retrospective
+        env:
+          ANTHROPIC_API_KEY:             ${{ secrets.ANTHROPIC_API_KEY }}
+          AGENT_GRADER_MODEL:            ${{ secrets.AGENT_GRADER_MODEL }}
+          DISCORD_AGENT_SUMMARY_WEBHOOK: ${{ secrets.DISCORD_AGENT_SUMMARY_WEBHOOK }}
+          DISCORD_AGENT_ACTIONS_WEBHOOK: ${{ secrets.DISCORD_AGENT_ACTIONS_WEBHOOK }}
+        run: python agent_retrospective.py --post

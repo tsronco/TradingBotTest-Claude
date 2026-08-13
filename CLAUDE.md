@@ -517,6 +517,105 @@ End result: 9 embed cards per day across the seven summary channels — one per-
 
 **Held Stocks (ground-truth) section:** every per-mode summary also includes a "Held Stocks (not tracked by bot)" block that calls `/v2/positions` and lists any `us_equity` position whose symbol is NOT already in strategy state ∪ wheel state. Catches the gap where a stock would otherwise be invisible to the summary — e.g. a symbol removed from `config.MODES[*]['wheel_symbols']` that still has 100 shares from an old assignment, a manual buy made in the ~10-minute window between the last bot cycle and the 4:12 PM summary, or wheel/strategy state-file drift. The section only renders when at least one untracked stock exists, so on a clean day it stays out of the embed entirely.
 
+## Autonomous agent account (Claude-driven, experimental)
+
+A third account that is **not** a wheel account. On `manual` + `live` the bot only
+*manages* what the user opens by hand; on the **agent** account, **Claude (Opus)
+makes every decision** — what to trade, which structure, how big, when to enter,
+and when to exit — across long stock/options and any defined-risk options
+combination. The code gathers context, executes Claude's choices, enforces one
+soft guard, and captures the reasoning for a learning loop. **Paper only** (a
+separate ~$2k paper **margin** sub-account); real money is a future decision
+gated on validation. Plan/design: [docs/superpowers/plans/2026-08-13-agentic-paper-account.md](docs/superpowers/plans/2026-08-13-agentic-paper-account.md).
+
+**Separate subsystem, not a `config.MODES` entry.** The agent shares none of the
+wheel parameter surface, so it lives in its own `agent_config.py` (this keeps the
+wheel's "exactly two modes" test intact). The shared read-only infra still
+recognizes the `"agent"` string: `alpaca_data._credentials("agent")` →
+`ALPACA_AGENT_*` (paper endpoint), the Discord channel map → the four `#agent-*`
+webhooks, log stream `agent` → `logs/agent.jsonl`.
+
+**Files:**
+- `agent_config.py` — account config (creds env names, channels, `agent_state.json`,
+  models, `$2k` seed, `$500` equity floor, candidate universe = `SM_CURATED_UNIVERSE`).
+- `agent_trader.py` — the hourly harness: gather full account + market context
+  (read-only via `alpaca_data`) → ask Opus for structured decisions (forced
+  `submit_decisions` tool call, adaptive thinking, a falsifiable thesis per open)
+  → feasibility-check each intent (real tradable legs, valid order shape,
+  equity-floor breaker — **mechanics only, never a strategy/sizing veto**) →
+  execute (single-leg stock/option or `mleg`) → record positions + theses, grade
+  closes, notify, log. Fail-soft: a bad cycle logs to `#agent-errors` and exits
+  without corrupting state.
+- `agent_grading.py` — hindsight grader (Sonnet by default).
+- `agent_retrospective.py` — weekly digest CLI + stats.
+
+**Model:** decisions on `claude-opus-5` (override `AGENT_MODEL`); grading +
+retrospective on `claude-sonnet-5` (override `AGENT_GRADER_MODEL`). Uses the
+Anthropic Python SDK; `ANTHROPIC_API_KEY` must be a **GitHub Actions secret**
+(the dashboard grading path uses it too but runs on Vercel, so it may only exist
+as a Vercel env var — confirm it's also an Actions secret).
+
+**No PDT rail.** FINRA's Pattern Day Trader rule was eliminated (SEC 2026-04-14,
+effective 2026-06-04) and **Alpaca implemented its Intraday Margin Framework on
+2026-06-04** — the `$25k` minimum, PDT designation, and 3-in-5-day restriction are
+gone from the platform. A `$2k` margin account day-trades freely now; buying power
+is enforced by Alpaca at order time. (This is why the manual `auto_open_spreads`
+PDT lockout of 2026-06-03 does not apply here.)
+
+**Education layer (the point of the account).** Every trade becomes a durable
+lesson committed to git — **surface-agnostic**, no dashboard required:
+- **Falsifiable thesis at entry** (captured in `agent_state.json`): view, why this
+  structure, the math, single biggest risk, a concrete `invalidation` condition,
+  1–5 confidence, rejected alternatives.
+- **Process-vs-outcome grade on close:** a second Claude call grades the *decision*
+  separately from the *result*, and classifies every loser as **anticipated**
+  (lost via the risk the thesis named — acceptable) vs **blind_spot** (lost for a
+  risk it never saw — the valuable lesson). Also: did the invalidation fire, exit
+  quality, a one-line lesson. Refusal/error → neutral ungraded record, never an
+  exception.
+- **Close detection:** each cycle reconciles tracked positions against Alpaca,
+  snapshots still-open ones (approximate mark), grades the ones that closed. Guards
+  against grading a just-opened (not-yet-visible) position and drops stale unfilled
+  opens.
+- **Weekly retrospective:** win/loss ratio, grade + loss-type distributions, and
+  **confidence calibration** (do its 4–5s beat its 1–2s?), then a plain-English
+  "what we learned."
+- **How it's read:** the lesson data lives in `agent_state.json` in the repo, so it
+  can be read on demand through a chat session, rendered as an **Artifact**
+  (mobile-friendly), or posted to `#agent-summary`. A **dashboard** lesson-card
+  page + calibration panel is **deferred** until a dashboard deploy is possible.
+
+**Scheduling — native GitHub `schedule:`, deliberately NOT cron-job.org.**
+`agent-trader.yml` runs **hourly** during market hours (`7 13-20 * * 1-5`, native
+`schedule:`); `agent-retrospective.yml` runs Sunday 22:00 UTC. Both fire **only
+from `main`**. This one subsystem uses native cron (unlike the wheel monitors)
+because it self-schedules with nothing to run — the right fit for mobile-only
+provisioning; there's no cron-job.org duplicate to race, and the shared
+`bot-commits` concurrency group serializes commits. A guard note in
+`tools/setup_cronjobs.py` warns against adding a cron-job.org entry without
+removing the `schedule:` block (double-fire).
+
+**Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
+green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
+`ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
+`DISCORD_AGENT_*_WEBHOOK` as GitHub Actions secrets; create the four `#agent-*`
+Discord channels. Dashboard registration (account chip + lesson-card page)
+deferred until a laptop is available. Until secrets exist, scheduled runs no-op
+harmlessly (fail-soft).
+
+**Env vars (agent):**
+```
+ALPACA_AGENT_API_KEY=...
+ALPACA_AGENT_API_SECRET=...
+ALPACA_AGENT_BASE_URL=https://paper-api.alpaca.markets/v2
+DISCORD_AGENT_TRADES_WEBHOOK=...
+DISCORD_AGENT_SUMMARY_WEBHOOK=...
+DISCORD_AGENT_ERRORS_WEBHOOK=...
+DISCORD_AGENT_ACTIONS_WEBHOOK=...
+# ANTHROPIC_API_KEY must be a GitHub Actions secret (not only a Vercel env var)
+# AGENT_MODEL / AGENT_GRADER_MODEL — optional model overrides
+```
+
 ## Runbook — when something breaks
 
 ### `#errors` or `#aggressive-errors` is pinging — what do I do?

@@ -1,0 +1,115 @@
+name: Agent Trader (autonomous)
+
+# The autonomous Claude-driven paper account. Unlike the wheel/strategy monitors
+# (deterministic Python), this runs agent_trader.py, which asks Claude (Opus) to
+# make every trading decision on a separate ~$2k paper MARGIN account and places
+# the orders it chooses. Full autonomy, defined-risk options + stock, own state
+# file and Discord channels. Paper only — does not touch manual or live.
+#
+# Cadence: HOURLY during market hours (not every 10 min like the wheel monitors —
+# a discretionary trader doesn't need that, and hourly keeps API cost low).
+#
+# This workflow uses GitHub's NATIVE `schedule:` trigger, deliberately unlike the
+# wheel monitors (which use cron-job.org). Rationale: it self-schedules with
+# nothing to run and no cron-job.org creds — the right fit when the account owner
+# is on mobile and can't run tools/setup_cronjobs.py. The documented race with
+# native cron only occurs when BOTH cron-job.org AND `schedule:` fire the same
+# workflow; this workflow is intentionally NOT in cron-job.org, so there is no
+# duplicate to race, and the shared `bot-commits` concurrency group serializes
+# the state commit against the wheel monitors regardless. Native cron's
+# occasional few-minute delay is acceptable for an hourly discretionary account.
+# (To move it onto cron-job.org later for consistency, add a JOBS entry in
+# setup_cronjobs.py AND delete the `schedule:` block below to avoid a double-fire.)
+#
+# ⚠️ Native `schedule:` fires ONLY from the default branch (main) — this does
+# nothing until the workflow is merged to main. It also does nothing (harmlessly
+# — run_cycle is fail-soft) until the ALPACA_AGENT_* + ANTHROPIC_API_KEY secrets
+# and DISCORD_AGENT_* webhooks are set.
+#
+# ⚠️ DST: `13-20` UTC covers market hours during CDT (Mar–Nov). When DST ends,
+# shift the hour range +1, same as the other schedules.
+#
+# Requires (Tim provisions as GitHub Actions secrets): ALPACA_AGENT_API_KEY /
+# _API_SECRET / _BASE_URL, the four DISCORD_AGENT_*_WEBHOOK values, and
+# ANTHROPIC_API_KEY. Note: ANTHROPIC_API_KEY powers the dashboard grading path,
+# but that runs on Vercel — it may exist only as a Vercel env var, so confirm it
+# is also a GitHub Actions secret (this workflow runs on Actions, not Vercel).
+
+on:
+  workflow_dispatch: {}          # manual trigger (Actions tab / API)
+  schedule:
+    - cron: '7 13-20 * * 1-5'    # :07 each market hour, Mon–Fri (UTC; see DST note)
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent trader (Claude decides + places orders)
+        env:
+          ALPACA_AGENT_API_KEY:          ${{ secrets.ALPACA_AGENT_API_KEY }}
+          ALPACA_AGENT_API_SECRET:       ${{ secrets.ALPACA_AGENT_API_SECRET }}
+          ALPACA_AGENT_BASE_URL:         ${{ secrets.ALPACA_AGENT_BASE_URL }}
+          ANTHROPIC_API_KEY:             ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional model override; defaults to claude-opus-5 (agent_config.py).
+          AGENT_MODEL:                   ${{ secrets.AGENT_MODEL }}
+          DISCORD_AGENT_TRADES_WEBHOOK:  ${{ secrets.DISCORD_AGENT_TRADES_WEBHOOK }}
+          DISCORD_AGENT_SUMMARY_WEBHOOK: ${{ secrets.DISCORD_AGENT_SUMMARY_WEBHOOK }}
+          DISCORD_AGENT_ERRORS_WEBHOOK:  ${{ secrets.DISCORD_AGENT_ERRORS_WEBHOOK }}
+          DISCORD_AGENT_ACTIONS_WEBHOOK: ${{ secrets.DISCORD_AGENT_ACTIONS_WEBHOOK }}
+        run: python agent_trader.py
+
+      - name: Push agent state to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f agent_state.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p agent_state.json \
+                         '{key: "bot:agent:state", payload: $p[0]}')" \
+              || echo "Dashboard push for agent state failed (non-fatal)"
+          else
+            echo "agent_state.json not present — skipping dashboard push"
+          fi
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add agent_state.json 2>/dev/null || true
+          git add logs/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "agent-trader: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi
