@@ -56,6 +56,13 @@ def _credentials(mode: str) -> tuple[str, str]:
             os.getenv("ALPACA_LIVE_API_KEY", ""),
             os.getenv("ALPACA_LIVE_API_SECRET", ""),
         )
+    if mode == "agent":
+        # Autonomous agent paper account (its own margin sub-account). Paper
+        # endpoint — `_trading_base` returns the paper URL for any non-live mode.
+        return (
+            os.getenv("ALPACA_AGENT_API_KEY", ""),
+            os.getenv("ALPACA_AGENT_API_SECRET", ""),
+        )
     # Default: manual paper account.
     return (
         os.getenv("ALPACA_MANUAL_API_KEY", ""),

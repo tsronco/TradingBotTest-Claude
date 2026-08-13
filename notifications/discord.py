@@ -15,6 +15,12 @@ Live (REAL MONEY):
   - "live_errors"  → DISCORD_LIVE_ERRORS_WEBHOOK   (#live-errors)
   - "live_actions" → DISCORD_LIVE_ACTIONS_WEBHOOK  (#live-actions, firehose)
 
+Agent (autonomous Claude-driven paper account):
+  - "agent_trades"  → DISCORD_AGENT_TRADES_WEBHOOK   (#agent-trades)
+  - "agent_summary" → DISCORD_AGENT_SUMMARY_WEBHOOK  (#agent-summary)
+  - "agent_errors"  → DISCORD_AGENT_ERRORS_WEBHOOK   (#agent-errors)
+  - "agent_actions" → DISCORD_AGENT_ACTIONS_WEBHOOK  (#agent-actions, firehose)
+
 (The conservative, aggressive, and sm500/sm1000/sm2000 channel sets were
 retired 2026-06-29 along with those accounts.)
 
@@ -61,6 +67,10 @@ CHANNEL_ENV_MAP = {
     "live_summary":   "DISCORD_LIVE_SUMMARY_WEBHOOK",
     "live_errors":    "DISCORD_LIVE_ERRORS_WEBHOOK",
     "live_actions":   "DISCORD_LIVE_ACTIONS_WEBHOOK",
+    "agent_trades":   "DISCORD_AGENT_TRADES_WEBHOOK",
+    "agent_summary":  "DISCORD_AGENT_SUMMARY_WEBHOOK",
+    "agent_errors":   "DISCORD_AGENT_ERRORS_WEBHOOK",
+    "agent_actions":  "DISCORD_AGENT_ACTIONS_WEBHOOK",
 }
 
 
