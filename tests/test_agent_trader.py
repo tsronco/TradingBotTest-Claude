@@ -253,7 +253,7 @@ def test_run_cycle_refusal_is_no_trade(_wire):
 def test_run_cycle_empty_intents_holds(_wire):
     client = _FakeClient([])
     summary = at.run_cycle(client=client)
-    assert summary == {"opened": 0, "closed": 0, "rejected": 0,
+    assert summary == {"opened": 0, "closed": 0, "rejected": 0, "graded": 0,
                        "refused": False, "errors": 0}
 
 

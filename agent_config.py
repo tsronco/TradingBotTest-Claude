@@ -59,6 +59,17 @@ AGENT_CONFIG = {
     "model_env":            "AGENT_MODEL",   # optional override of DEFAULT_MODEL
     "max_decision_tokens":  4096,
 
+    # ── Education brain (hindsight grading + weekly retrospective) ──────────
+    # Grading is a cheaper judgment task than the trade decision, so it runs on
+    # Sonnet by default (matches the dashboard's grading tier). Overridable via
+    # AGENT_GRADER_MODEL. The retrospective reuses the grader model.
+    "grader_model_env":      "AGENT_GRADER_MODEL",
+    "max_grade_tokens":      1024,
+    "max_retro_tokens":      2048,
+    # How many days of closed-trade lesson records the weekly retrospective
+    # reads. 7 = the past week; the digest still notes the running total.
+    "retro_window_days":     7,
+
     # ── Capital + the single soft guard ────────────────────────────────────
     "seed_capital": 2000,
     # Soft circuit breaker: when equity is below this, the harness blocks new
@@ -84,9 +95,17 @@ def get() -> dict:
     return AGENT_CONFIG
 
 
+DEFAULT_GRADER_MODEL = "claude-sonnet-5"
+
+
 def model() -> str:
     """Resolved decision model — env override (AGENT_MODEL) or DEFAULT_MODEL."""
     return os.getenv(AGENT_CONFIG["model_env"]) or DEFAULT_MODEL
+
+
+def grader_model() -> str:
+    """Resolved grading/retrospective model — env override or DEFAULT_GRADER_MODEL."""
+    return os.getenv(AGENT_CONFIG["grader_model_env"]) or DEFAULT_GRADER_MODEL
 
 
 def credentials_env() -> tuple[str, str, str]:

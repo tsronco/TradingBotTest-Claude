@@ -36,6 +36,7 @@ import requests
 from dotenv import load_dotenv
 
 import agent_config
+import agent_grading
 import alpaca_data
 from notifications import send_embed, log_event, Color
 
@@ -484,6 +485,177 @@ def _announce_close(intent: dict, order_id: str) -> None:
     )
 
 
+def _announce_lesson(lesson: dict) -> None:
+    grade = lesson.get("grade") or {}
+    outcome = lesson.get("outcome") or {}
+    thesis = lesson.get("thesis") or {}
+    legs = ", ".join(
+        f"{l['side']} {l['qty']} {l['symbol']}" for l in lesson.get("legs", [])
+    )
+    pnl = outcome.get("estimated_pnl")
+    won = isinstance(pnl, (int, float)) and pnl > 0
+    fields = [
+        {"name": "Thesis", "value": (thesis.get("thesis") or "—")[:1024]},
+        {"name": "Outcome / Process",
+         "value": f"{grade.get('outcome_grade') or '—'} / {grade.get('process_grade') or '—'}  "
+                  f"(est P&L {'$' + format(pnl, '.2f') if isinstance(pnl, (int, float)) else '—'})"},
+        {"name": "Why", "value": _loss_type_label(grade.get("loss_type"))},
+        {"name": "Lesson", "value": (grade.get("lesson") or "—")[:1024]},
+    ]
+    send_embed(
+        _CFG["summary_channel"],
+        title=f"📚 Lesson: {legs}",
+        color=Color.GREEN if won else Color.RED,
+        fields=fields,
+        actions_channel=_CFG["actions_channel"],
+    )
+
+
+def _loss_type_label(lt: str | None) -> str:
+    return {
+        "win": "✅ Win",
+        "anticipated": "🟡 Anticipated loss (lost via the risk it named)",
+        "blind_spot": "🔴 Blind spot (lost for a reason it never saw)",
+        "breakeven": "⚪ Breakeven / flat",
+    }.get(lt or "", "—")
+
+
+# ── Close detection + grading (education layer) ────────────────────────────
+
+# A tracked open order that never becomes a visible Alpaca position within this
+# many days is treated as a dead/unfilled order and dropped without grading.
+STALE_UNFILLED_DAYS = 1
+
+
+def _leg_symbols(position: dict) -> set:
+    return {str(l.get("symbol", "")).upper() for l in position.get("legs", [])}
+
+
+def reconcile_positions(tracked: dict, alpaca_positions: list) -> tuple[list, list]:
+    """Split tracked positions into (still_open_ids, absent_ids) by whether any
+    of their leg symbols is currently held on Alpaca. Pure — no I/O."""
+    held = {str(p.get("symbol", "")).upper() for p in alpaca_positions}
+    still_open, absent = [], []
+    for pid, pos in tracked.items():
+        if _leg_symbols(pos) & held:
+            still_open.append(pid)
+        else:
+            absent.append(pid)
+    return still_open, absent
+
+
+def snapshot_position(position: dict, alpaca_positions: list) -> dict:
+    """Approximate mark for a tracked position: summed unrealized P&L / market
+    value / cost basis across its legs currently held on Alpaca. {} if none
+    held. Pure — no I/O."""
+    by_sym = {str(p.get("symbol", "")).upper(): p for p in alpaca_positions}
+    pnl = mv = cb = 0.0
+    seen = False
+    for sym in _leg_symbols(position):
+        p = by_sym.get(sym)
+        if p:
+            seen = True
+            pnl += _f(p.get("unrealized_pl")) or 0.0
+            mv += _f(p.get("market_value")) or 0.0
+            cb += _f(p.get("cost_basis")) or 0.0
+    if not seen:
+        return {}
+    return {"unrealized_pl": round(pnl, 2), "market_value": round(mv, 2),
+            "cost_basis": round(cb, 2), "seen_at": _now_iso()}
+
+
+def _underlyings_now(position: dict, market: dict) -> dict:
+    out = {}
+    for sym in {_occ_underlying(l.get("symbol", "")) for l in position.get("legs", [])}:
+        px = ((market.get(sym) or {}).get("quote") or {}).get("p")
+        if px is not None:
+            out[sym] = px
+    return out
+
+
+def build_outcome(position: dict, market: dict) -> dict:
+    """Best-effort close data for the grader: approximate P&L from the last mark
+    before close, days held, and each underlying's move since entry."""
+    snap = position.get("last_snapshot") or {}
+    entry_u = (position.get("entry_context") or {}).get("underlyings", {}) or {}
+    now_u = _underlyings_now(position, market)
+    moves = {}
+    for sym, entry_px in entry_u.items():
+        cur = now_u.get(sym)
+        if entry_px and cur:
+            moves[sym] = {"entry": entry_px, "now": cur,
+                          "pct": round((cur - entry_px) / entry_px * 100, 2)}
+    return {
+        "estimated_pnl": snap.get("unrealized_pl"),
+        "estimated_pnl_basis": "last mark before close (approximate)",
+        "days_held": _days_since(position.get("opened_at")),
+        "underlying_moves": moves,
+    }
+
+
+def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
+                         client, summary: dict, dry_run: bool = False) -> None:
+    tracked = state.get("positions", {})
+    still_open, absent = reconcile_positions(tracked, alpaca_positions)
+
+    # Snapshot the confirmed-open positions so a close next cycle has a mark.
+    for pid in still_open:
+        snap = snapshot_position(tracked[pid], alpaca_positions)
+        if snap:
+            snap["underlyings"] = _underlyings_now(tracked[pid], market)
+            tracked[pid]["last_snapshot"] = snap
+
+    for pid in absent:
+        pos = tracked[pid]
+        if pos.get("last_snapshot"):
+            # Was confirmed open on a prior cycle, now gone → a genuine close.
+            outcome = build_outcome(pos, market)
+            grade = (agent_grading.grade_position(pos, outcome, client=client)
+                     if not dry_run else agent_grading._default_grade())
+            lesson = {
+                "closed_at": _now_iso(),
+                "opened_at": pos.get("opened_at"),
+                "legs": pos.get("legs"),
+                "thesis": pos.get("thesis"),
+                "outcome": outcome,
+                "grade": grade,
+            }
+            state.setdefault("closed", []).append(lesson)
+            summary["graded"] = summary.get("graded", 0) + 1
+            summary["closed"] += 1
+            del tracked[pid]
+            if not dry_run:
+                _announce_lesson(lesson)
+                log_event(_CFG["log_stream"], "agent_trader.py", "position_graded",
+                          details={"lesson": lesson})
+        elif (_days_since(pos.get("opened_at")) or 0) > STALE_UNFILLED_DAYS:
+            # Opened but never became a visible position — treat as unfilled/dead.
+            del tracked[pid]
+            log_event(_CFG["log_stream"], "agent_trader.py", "dropped_unfilled",
+                      result="skipped", details={"position": pos})
+        # else: freshly opened, not yet visible on Alpaca — re-check next cycle.
+
+
+def _entry_context(intent: dict, market: dict) -> dict:
+    underlyings = {}
+    for leg in intent.get("legs", []):
+        u = _occ_underlying(leg.get("symbol", ""))
+        px = ((market.get(u) or {}).get("quote") or {}).get("p")
+        if px is not None:
+            underlyings[u] = px
+    return {"underlyings": underlyings}
+
+
+def _days_since(iso: str | None) -> float | None:
+    if not iso:
+        return None
+    try:
+        then = datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+    return (datetime.now(timezone.utc) - then).total_seconds() / 86400.0
+
+
 # ── Orchestration ──────────────────────────────────────────────────────────
 
 def run_cycle(client=None, dry_run: bool = False) -> dict:
@@ -492,13 +664,23 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
     Fail-soft: any unexpected error is logged to #agent-errors and the cycle
     ends without corrupting state.
     """
-    summary = {"opened": 0, "closed": 0, "rejected": 0, "refused": False, "errors": 0}
+    summary = {"opened": 0, "closed": 0, "rejected": 0, "graded": 0,
+               "refused": False, "errors": 0}
     try:
         state = load_state()
         if state["_meta"].get("created_at") is None:
             state["_meta"]["created_at"] = _now_iso()
 
         context = gather_context()
+        market = context["market"]
+
+        # Education layer: reconcile tracked positions against Alpaca — snapshot
+        # the still-open ones (for an approximate close P&L) and grade any that
+        # have closed since last cycle. Runs before decisions so the model sees
+        # a clean slate, and grading never blocks the trading cycle.
+        _reconcile_and_grade(state, context["positions"], market,
+                             client=client, summary=summary, dry_run=dry_run)
+
         decisions = request_decisions(context, client=client)
         summary["refused"] = decisions.get("refused", False)
 
@@ -535,6 +717,12 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
                     "legs": intent["legs"],
                     "thesis": intent.get("thesis"),
                     "open_order_id": order_id,
+                    # Snapshot of entry-time underlying prices so the grader can
+                    # later check the thesis's invalidation condition and the
+                    # direction of the move. last_snapshot is filled in on the
+                    # next cycle once the position is visible on Alpaca.
+                    "entry_context": _entry_context(intent, market),
+                    "last_snapshot": None,
                 }
                 _announce_open(intent, order_id)
             else:
