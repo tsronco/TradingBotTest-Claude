@@ -413,3 +413,56 @@ def test_run_cycle_falls_back_to_top_movers_on_empty_focus(monkeypatch, tmp_path
     monkeypatch.setattr(at, "log_event", lambda *a, **k: None)
     at.run_cycle(client=_FakeClient([]))
     assert got["focus"] == ["BBB", "AAA"]  # deterministic top-mover fallback
+
+
+# ── Continuity feed (self_context): the model's own recent reasoning ────────
+
+def test_build_self_context_returns_open_theses_and_prev_note():
+    state = {
+        "_meta": {"last_market_read": "quiet tape, holding DIS"},
+        "positions": {
+            "O-1": {"opened_at": "2026-08-14T13:00:00Z",
+                    "legs": [{"symbol": "DIS260828P00103000", "side": "sell", "qty": 1}],
+                    "thesis": {"thesis": "DIS range-bound", "invalidation": "DIS<103",
+                               "key_risk": "gap down", "confidence": 3}},
+        },
+    }
+    sc = at.build_self_context(state)
+    assert sc["previous_cycle_note"] == "quiet tape, holding DIS"
+    assert len(sc["open_position_theses"]) == 1
+    row = sc["open_position_theses"][0]
+    assert row["thesis"] == "DIS range-bound" and row["invalidation"] == "DIS<103"
+    assert row["confidence"] == 3
+
+
+def test_build_self_context_excludes_closed_positions():
+    """A closed trade lives in state['closed'], NOT state['positions'] — so its
+    thesis must never leak into the continuity feed (no phantom holdings)."""
+    state = {
+        "_meta": {},
+        "positions": {},  # nothing currently held
+        "closed": [{"legs": [{"symbol": "DIS260828P00103000"}],
+                    "thesis": {"thesis": "old closed DIS trade", "confidence": 4}}],
+    }
+    sc = at.build_self_context(state)
+    assert sc["open_position_theses"] == []
+    assert sc["previous_cycle_note"] is None
+    # The closed trade's text appears nowhere in the feed.
+    assert "old closed DIS trade" not in json.dumps(sc)
+
+
+def test_run_cycle_feeds_self_context_and_persists_note(_wire, monkeypatch):
+    """run_cycle must attach self_context to the decision prompt and persist the
+    model's market_read as next cycle's previous_cycle_note."""
+    captured = {}
+
+    def _capture(context, client=None, model=None):
+        captured["ctx"] = context
+        return {"intents": [], "market_read": "holding; watching AAPL", "refused": False}
+
+    monkeypatch.setattr(at, "request_decisions", _capture)
+    at.run_cycle(client=_FakeClient([]))
+    assert "self_context" in captured["ctx"]
+    assert "open_position_theses" in captured["ctx"]["self_context"]
+    # The read is persisted for next cycle.
+    assert at.load_state()["_meta"]["last_market_read"] == "holding; watching AAPL"

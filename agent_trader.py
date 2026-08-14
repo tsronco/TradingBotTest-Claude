@@ -235,6 +235,39 @@ def gather_depth(focus_symbols: list[str], positions: list, account: dict,
     }
 
 
+def build_self_context(state: dict) -> dict:
+    """Continuity feed: the model's OWN recent reasoning, so each stateless cycle
+    isn't a total amnesiac.
+
+    Two parts, both deliberately scoped to stay honest:
+      - open_position_theses: the entry thesis for every position the account
+        STILL holds. Built from state["positions"], which _reconcile_and_grade
+        has already pruned of anything closed on Alpaca — so a closed trade's
+        thesis disappears on the very next cycle and can't be hallucinated into
+        a phantom holding.
+      - previous_cycle_note: the model's market_read from one cycle ago (only
+        ever one hour old; overwritten every cycle). Framed to the model as
+        history to verify against live data, never as current truth.
+    """
+    open_theses = []
+    for pos in state.get("positions", {}).values():
+        t = pos.get("thesis") or {}
+        if not t:
+            continue
+        open_theses.append({
+            "legs": pos.get("legs"),
+            "opened_at": pos.get("opened_at"),
+            "thesis": t.get("thesis"),
+            "invalidation": t.get("invalidation"),
+            "key_risk": t.get("key_risk"),
+            "confidence": t.get("confidence"),
+        })
+    return {
+        "open_position_theses": open_theses,
+        "previous_cycle_note": (state.get("_meta") or {}).get("last_market_read"),
+    }
+
+
 # ── The focus tool (phase 1: pick which names to analyze deeply) ───────────
 
 FOCUS_TOOL = {
@@ -444,6 +477,19 @@ biggest way it loses (key_risk), the math of what you're getting paid, a 1-5 \
 confidence, and the alternatives you considered and rejected. This is how we \
 learn later whether a losing trade lost for a reason you understood or one you \
 missed — so be honest and specific.
+
+Your own recent reasoning — continuity, not a rule. You run once an hour with no \
+memory, so you are given `self_context`: the entry thesis for each position you \
+STILL hold (why you're in it, its invalidation, the confidence you assigned), \
+and your note from the previous cycle. Use it so your decisions connect across \
+time — when you add to, hold, or close a position, do it in light of what you \
+already believed about it, and if you're departing from that earlier reasoning, \
+say so plainly in your rationale rather than silently contradicting yourself. \
+This is context, NOT an instruction: you are free to change your mind. Two hard \
+caveats: (1) `self_context` is your PAST reasoning, not current market fact — \
+always trust the live positions and market data over it. (2) Positions you have \
+closed are deliberately absent from it; if something isn't in your live \
+positions, you do not hold it — never infer a holding from an old note.
 
 Posture — aim for the middle, not the sidelines. You are here to trade, and you \
 cannot grow the account by watching. When you find a setup with a defensible \
@@ -901,9 +947,18 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         _reconcile_and_grade(state, context["positions"], market,
                              client=client, summary=summary, dry_run=dry_run)
 
+        # Continuity feed: hand the model its own recent reasoning so a stateless
+        # cycle isn't a total amnesiac. Built AFTER reconcile — which has already
+        # pruned any closed position — so only STILL-held theses carry forward
+        # (a closed trade's thesis vanishes next cycle; nothing to hallucinate).
+        context["self_context"] = build_self_context(state)
+
         decisions = request_decisions(context, client=client)
         summary["refused"] = decisions.get("refused", False)
         market_read = decisions.get("market_read", "")
+        # Persist this cycle's read as next cycle's "previous_cycle_note" (always
+        # exactly one hour old; overwritten every cycle so it never goes stale).
+        state["_meta"]["last_market_read"] = market_read
 
         for intent in decisions.get("intents", []):
             ok, reason = check_feasibility(intent, context["account"])

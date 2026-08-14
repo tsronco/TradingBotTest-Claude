@@ -31,6 +31,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-14',
     category: 'engine',
+    title: 'Agent gets a continuity feed — it remembers its own recent reasoning',
+    details:
+      'The autonomous agent runs once an hour with no memory, so it was re-deriving every decision from '
+      + 'scratch and could silently contradict itself (it stated a "≥30% of width" preference one cycle, then '
+      + 'added a ~13%-of-width spread the next — because it never saw its own prior statement).\n\n'
+      + 'Each decision prompt now includes self_context: the entry thesis for every position it STILL holds '
+      + '(thesis, invalidation, key risk, confidence) plus its note from the previous cycle. It is framed as '
+      + 'continuity, not a rule — the agent keeps full discretion and can change its mind, but must say so in '
+      + 'its rationale instead of contradicting itself silently. No quality rule was added.\n\n'
+      + 'Guarded against phantom holdings: the thesis feed is built after closed positions are pruned, so a '
+      + "closed trade's thesis disappears the next cycle, and the agent is told self_context is past reasoning "
+      + 'to verify against live positions — never proof it still holds something.',
+  },
+  {
+    date: '2026-08-14',
+    category: 'engine',
     title: 'Agent account scans a ~250-name universe via a two-phase cycle',
     details:
       'The autonomous agent account now chooses from a dedicated ~250-name field of liquid, optionable '

@@ -573,6 +573,24 @@ gone from the platform. A `$2k` margin account day-trades freely now; buying pow
 is enforced by Alpaca at order time. (This is why the manual `auto_open_spreads`
 PDT lockout of 2026-06-03 does not apply here.)
 
+**Continuity feed (`self_context`, added 2026-08-14).** Each hourly cycle is a
+fresh, stateless Claude call, so without help it re-derives everything from
+scratch and can silently contradict what it decided an hour earlier (observed:
+it stated a "≥30% of width" bar one cycle, then added a ~13%-of-width DIS spread
+the next — it never *saw* its own prior statement). `build_self_context(state)`
+now hands each decision prompt the model's own recent reasoning: the entry
+thesis for every position it STILL holds (thesis / invalidation / key_risk /
+confidence) plus its `market_read` from one cycle ago (`_meta.last_market_read`,
+overwritten each cycle). Framed to the model as **continuity, not a rule** — it
+may change its mind, but must say so in the rationale rather than contradict
+itself silently. Two guards keep it honest and prevent phantom-holding
+hallucinations: the thesis feed is built *after* `_reconcile_and_grade` prunes
+closed positions (so a closed trade's thesis vanishes next cycle), and the
+mandate tells the model `self_context` is PAST reasoning to verify against live
+positions/market, never current truth. **Deliberately NO hard/soft quality rule**
+(e.g. a credit-to-width floor) — Tim's call: give it self-awareness, not a
+constraint; it keeps full discretion.
+
 **Education layer (the point of the account).** Every trade becomes a durable
 lesson committed to git — **surface-agnostic**, no dashboard required:
 - **Falsifiable thesis at entry** (captured in `agent_state.json`): view, why this
