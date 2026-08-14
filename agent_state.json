@@ -1,9 +1,9 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 10,
-    "last_cycle_at": "2026-08-14T19:12:32Z",
-    "last_market_read": "DIS trades $106.88, up on the day, and both legs of my 103/100 put credit spread have collapsed in value \u2014 the short 103 put is now $0.44 mid vs $0.49 entry and the long 100 put is $0.10; net spread mark ~$0.34 vs $0.295 credit, so the position sits roughly flat/slightly underwater on marks despite the stock moving my way (bid/ask noise on a 2x-wide spread). Thesis is intact: DIS is 3.8% above the short strike with 14 days to expiry, no earnings, and a calm tape (SPY ~776 near highs, index IV single digits). Nothing else on the shortlist offers a better risk/reward than letting theta run on a position I already own with only ~$540 of defined risk against $2.0k equity; new premium selling on high-IV names (OKTA 90%+ IV, HOOD, COIN) is tempting but options buying power is only $1,459 and I don't want a second correlated short-vol book this small.",
+    "cycle_count": 11,
+    "last_cycle_at": "2026-08-14T20:12:23Z",
+    "last_market_read": "DIS closed at $106.88, 3.8% above my short 103 strike with 14 days to expiry and no earnings \u2014 the thesis is fully intact even though the marks are noisy (short 103 put quoted $0.63, long 100 put $0.05, so the spread marks ~$0.58 vs the $0.295 credit; that ask-side mark is stale/wide given the stock rose today and the 100 put collapsed 89%). The rest of the shortlist offers nothing better: high-IV premium (OKTA ~90%, HOOD, COIN) is tempting but options buying power is only $1,459 and a second short-vol book of this size would just be correlated risk on a $1.9k account. Holding; I act only if DIS trades under $103 (close the spread) or, on the upside, if the spread can be bought back for ~$0.10 or less to lock the gain early.",
     "seed_capital": 2000
   },
   "closed": [],
@@ -16,12 +16,12 @@
       },
       "last_snapshot": {
         "cost_basis": -59.0,
-        "market_value": -68.0,
-        "seen_at": "2026-08-14T19:12:22Z",
+        "market_value": -116.0,
+        "seen_at": "2026-08-14T20:12:15Z",
         "underlyings": {
-          "DIS": 106.875
+          "DIS": 106.88
         },
-        "unrealized_pl": -9.0
+        "unrealized_pl": -57.0
       },
       "legs": [
         {
@@ -57,12 +57,12 @@
       },
       "last_snapshot": {
         "cost_basis": -59.0,
-        "market_value": -68.0,
-        "seen_at": "2026-08-14T19:12:22Z",
+        "market_value": -116.0,
+        "seen_at": "2026-08-14T20:12:15Z",
         "underlyings": {
-          "DIS": 106.875
+          "DIS": 106.88
         },
-        "unrealized_pl": -9.0
+        "unrealized_pl": -57.0
       },
       "legs": [
         {
