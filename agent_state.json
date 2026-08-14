@@ -1,12 +1,45 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 8,
-    "last_cycle_at": "2026-08-14T17:12:39Z",
+    "cycle_count": 9,
+    "last_cycle_at": "2026-08-14T18:12:55Z",
     "seed_capital": 2000
   },
   "closed": [],
   "positions": {
+    "bf551aee-1403-4959-9a31-e1e2b1b5a6bf": {
+      "entry_context": {
+        "underlyings": {
+          "DIS": 106.36
+        }
+      },
+      "last_snapshot": null,
+      "legs": [
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "sell",
+          "symbol": "DIS260828P00103000"
+        },
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "buy",
+          "symbol": "DIS260828P00100000"
+        }
+      ],
+      "open_order_id": "bf551aee-1403-4959-9a31-e1e2b1b5a6bf",
+      "opened_at": "2026-08-14T18:12:55Z",
+      "thesis": {
+        "confidence": 3,
+        "getting_paid": "Credit ~$0.38-0.45 per spread on $3.00 width = ~13-15% of max risk for 14 days, ~$40 max profit vs ~$260 max loss, with breakeven at $102.60. Probability of the short 103 strike finishing ITM is roughly 20-25% per current deltas (103 put delta about -0.2 equivalent), so expected value is positive if DIS's realized vol stays near implied.",
+        "invalidation": "Wrong if DIS closes below $103.00 on any day before 2026-08-28 \u2014 I close the spread for whatever remains rather than hold to expiry.",
+        "key_risk": "A sharp market-wide risk-off or DIS-specific headline (guidance cut, streaming/parks news) drops DIS through $103 quickly; the spread then loses most of the $260 with little time to recover.",
+        "rejected": "Rejected buying DIS calls (needs a directional move, pays theta into a quiet tape); rejected semis premium selling (AMAT/MU/AMD IV 55-70% but wide $3-6 bid/ask and huge notional per contract, one adverse gap would exceed half the account); rejected an INTC or HOOD credit spread \u2014 attractive IV but both are in sharp momentum regimes where 5-10% daily moves are routine.",
+        "thesis": "DIS is range-bound near $106 with low realized/implied vol (~21%) and no earnings before the 8/28 expiry. A 103/100 put credit spread expires worthless as long as DIS holds above $103, a 3.2% cushion over 14 calendar days. Theta and the elevated put skew on a slow-moving mega-cap are the edge.",
+        "why_this_structure": "Short put vertical is fully defined risk ($300 width minus credit), margin-efficient in a small account, and expresses 'DIS does not fall 3%+ in two weeks' rather than needing an up-move. Selling naked puts would risk assignment on 100 shares; buying calls would need direction and pay theta."
+      }
+    },
     "d3d6aef2-847a-4a98-8dd3-b243de93d136": {
       "entry_context": {
         "underlyings": {
@@ -15,12 +48,12 @@
       },
       "last_snapshot": {
         "cost_basis": -30.0,
-        "market_value": -46.0,
-        "seen_at": "2026-08-14T17:12:24Z",
+        "market_value": -43.0,
+        "seen_at": "2026-08-14T18:12:27Z",
         "underlyings": {
-          "DIS": 106.045
+          "DIS": 106.36
         },
-        "unrealized_pl": -16.0
+        "unrealized_pl": -13.0
       },
       "legs": [
         {
