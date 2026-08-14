@@ -1,8 +1,9 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 9,
-    "last_cycle_at": "2026-08-14T18:12:55Z",
+    "cycle_count": 10,
+    "last_cycle_at": "2026-08-14T19:12:32Z",
+    "last_market_read": "DIS trades $106.88, up on the day, and both legs of my 103/100 put credit spread have collapsed in value \u2014 the short 103 put is now $0.44 mid vs $0.49 entry and the long 100 put is $0.10; net spread mark ~$0.34 vs $0.295 credit, so the position sits roughly flat/slightly underwater on marks despite the stock moving my way (bid/ask noise on a 2x-wide spread). Thesis is intact: DIS is 3.8% above the short strike with 14 days to expiry, no earnings, and a calm tape (SPY ~776 near highs, index IV single digits). Nothing else on the shortlist offers a better risk/reward than letting theta run on a position I already own with only ~$540 of defined risk against $2.0k equity; new premium selling on high-IV names (OKTA 90%+ IV, HOOD, COIN) is tempting but options buying power is only $1,459 and I don't want a second correlated short-vol book this small.",
     "seed_capital": 2000
   },
   "closed": [],
@@ -13,7 +14,15 @@
           "DIS": 106.36
         }
       },
-      "last_snapshot": null,
+      "last_snapshot": {
+        "cost_basis": -59.0,
+        "market_value": -68.0,
+        "seen_at": "2026-08-14T19:12:22Z",
+        "underlyings": {
+          "DIS": 106.875
+        },
+        "unrealized_pl": -9.0
+      },
       "legs": [
         {
           "asset": "option",
@@ -47,13 +56,13 @@
         }
       },
       "last_snapshot": {
-        "cost_basis": -30.0,
-        "market_value": -43.0,
-        "seen_at": "2026-08-14T18:12:27Z",
+        "cost_basis": -59.0,
+        "market_value": -68.0,
+        "seen_at": "2026-08-14T19:12:22Z",
         "underlyings": {
-          "DIS": 106.36
+          "DIS": 106.875
         },
-        "unrealized_pl": -13.0
+        "unrealized_pl": -9.0
       },
       "legs": [
         {
