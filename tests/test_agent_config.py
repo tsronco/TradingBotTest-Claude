@@ -117,11 +117,27 @@ def test_equity_floor_below_seed_and_nonnegative():
     assert 0 <= cfg["equity_floor"] < cfg["seed_capital"]
 
 
-def test_universe_is_nonempty_and_subset_of_curated():
-    from screener_core import SM_CURATED_UNIVERSE
+def test_universe_is_wide_liquid_and_deduped():
+    """The agent scans a wide field (~150-250 names) so it has real choice. The
+    two-phase scan (quotes for all, chains for a shortlist) keeps this cheap."""
     universe = agent_config.get()["universe"]
     assert isinstance(universe, list) and universe, "universe must be a non-empty list"
-    assert set(universe) <= set(SM_CURATED_UNIVERSE)
+    # Wide enough to give the agent genuine breadth, capped so it stays curated.
+    assert 150 <= len(universe) <= 300, f"unexpected universe size {len(universe)}"
+    # No duplicates, all clean upper-case tickers.
+    assert len(universe) == len(set(universe)), "universe has duplicate tickers"
+    assert all(isinstance(s, str) and s == s.upper() and 1 <= len(s) <= 5
+               for s in universe)
+    # A few bellwethers we always want in the field.
+    for anchor in ("AAPL", "SPY", "NVDA", "QQQ"):
+        assert anchor in universe
+
+
+def test_focus_knobs_present_and_bounded():
+    cfg = agent_config.get()
+    assert 1 <= cfg["max_focus_symbols"] <= 60
+    assert cfg["max_focus_tokens"] > 0
+    assert cfg["breadth_chunk_size"] > 0
 
 
 # ── Model resolution ────────────────────────────────────────────────────────

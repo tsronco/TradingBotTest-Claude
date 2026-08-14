@@ -80,14 +80,83 @@ AGENT_CONFIG = {
     "equity_floor": 500,
 
     # ── Candidate universe (context only) ──────────────────────────────────
-    # Bounds the market pack we fetch each cycle (quotes + chains), NOT what
-    # Claude is allowed to think about. Starts from the curated SM universe;
-    # expand freely. Late-bound below to keep the import graph one-directional.
+    # The wide field Claude scans each cycle. This does NOT explode cost: the
+    # cycle is two-phase — a cheap batched QUOTE pull for the whole universe
+    # (breadth), then Claude picks a small shortlist and we fetch full option
+    # CHAINS only for those (depth). So the universe can be large and liquid
+    # without every cycle carrying 250 chains. Set to AGENT_UNIVERSE below.
     "universe": None,
+
+    # ── Two-phase scan knobs ───────────────────────────────────────────────
+    # Depth is bounded by the focus shortlist, not the universe size. Claude
+    # may name up to this many symbols to analyze deeply per cycle (held
+    # positions are always included on top of these).
+    "max_focus_symbols": 24,
+    "max_focus_tokens":  1200,   # the focus/shortlist call is small + cheap
+    "breadth_chunk_size": 100,   # symbols per batched snapshot request
 
     # ── Cadence (informational; the cron is the source of truth) ───────────
     "cadence": "hourly",
 }
+
+
+# ── Candidate universe ─────────────────────────────────────────────────────
+# ~250 highly liquid, optionable US names + the most liquid ETFs, spread across
+# every sector so Claude has a genuinely wide field to choose from. Membership
+# here is NOT a recommendation — it's only "these have quotes + tradeable option
+# chains worth looking at." Claude decides what (if anything) to do with any of
+# them. Expand or prune freely; keep additions liquid and optionable so the
+# agent never gets handed a junk chain it can't price. Because the scan is
+# two-phase (quotes for all, chains only for the shortlist), growing this list
+# costs only a few hundred tokens of quotes per cycle.
+AGENT_UNIVERSE = [
+    # Mega-cap tech + semiconductors
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AVGO", "ORCL",
+    "ADBE", "CRM", "CSCO", "ACN", "IBM", "INTC", "AMD", "QCOM", "TXN", "INTU",
+    "NOW", "AMAT", "MU", "LRCX", "ADI", "KLAC", "SNPS", "CDNS", "MRVL", "NXPI",
+    "ON", "MCHP", "ARM", "PLTR", "SMCI", "DELL", "HPQ", "ANET", "TSM",
+    # Software / internet / high-growth
+    "SHOP", "SNOW", "NET", "DDOG", "PANW", "ZS", "FTNT", "MDB", "TEAM", "WDAY",
+    "ABNB", "UBER", "LYFT", "DASH", "COIN", "HOOD", "PYPL", "ROKU", "PINS",
+    "SNAP", "SPOT", "NFLX", "DIS", "WBD", "PARA", "DOCU", "OKTA", "TWLO",
+    "RBLX", "DKNG",
+    # Financials
+    "JPM", "BAC", "WFC", "C", "GS", "MS", "USB", "PNC", "TFC", "SCHW", "AXP",
+    "V", "MA", "BLK", "BX", "KKR", "COF", "BK", "CME", "ICE", "SPGI", "MMC",
+    "AIG", "MET", "PRU", "ALL", "PGR", "TRV", "HBAN", "KEY", "RF", "FITB",
+    "ALLY", "SOFI",
+    # Energy
+    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "WMB",
+    "KMI", "DVN", "HAL", "BKR", "HES", "FANG", "OKE", "LNG", "BP", "SHEL",
+    # Healthcare
+    "UNH", "JNJ", "LLY", "ABBV", "MRK", "PFE", "TMO", "ABT", "DHR", "BMY",
+    "AMGN", "GILD", "CVS", "MDT", "ISRG", "VRTX", "REGN", "ELV", "CI", "HUM",
+    "ZTS", "BSX", "SYK", "MRNA", "BIIB",
+    # Consumer discretionary
+    "HD", "LOW", "MCD", "SBUX", "NKE", "TJX", "BKNG", "CMG", "ORLY", "AZO",
+    "ROST", "YUM", "MAR", "HLT", "GM", "F", "RIVN", "LCID", "CCL", "RCL",
+    "NCLH", "DAL", "UAL", "AAL", "LUV", "EBAY", "LULU", "DECK",
+    # Consumer staples
+    "WMT", "COST", "PG", "KO", "PEP", "PM", "MO", "MDLZ", "CL", "KMB", "GIS",
+    "KHC", "TGT", "KR", "STZ", "EL", "MNST", "KDP",
+    # Industrials
+    "CAT", "DE", "BA", "GE", "HON", "UNP", "UPS", "FDX", "LMT", "RTX", "GD",
+    "NOC", "MMM", "EMR", "ETN", "ITW", "CSX", "NSC", "WM", "PCAR", "CMI", "GEV",
+    # Communication / telecom
+    "T", "VZ", "TMUS", "CMCSA", "CHTR",
+    # Materials
+    "LIN", "APD", "SHW", "FCX", "NEM", "NUE", "DOW", "VALE", "GOLD", "CF", "ALB",
+    # Real estate
+    "PLD", "AMT", "EQIX", "O", "SPG", "CCI",
+    # Utilities
+    "NEE", "DUK", "SO", "D", "AEP",
+    # Liquid China / international ADRs
+    "BABA", "JD", "PDD", "NIO", "BIDU", "LI",
+    # Most-liquid ETFs (index, sector, and thematic)
+    "SPY", "QQQ", "IWM", "DIA", "XLF", "XLE", "XLK", "SMH", "ARKK", "GLD",
+    "SLV", "TLT", "HYG", "EEM", "FXI", "USO", "EWZ", "XBI", "XLV", "XOP",
+    "KRE", "XLU", "XLI", "XLP",
+]
 
 
 def get() -> dict:
@@ -117,10 +186,8 @@ def credentials_env() -> tuple[str, str, str]:
     )
 
 
-# ── Late binding for the candidate universe ───────────────────────────────
-# screener_core imports config in some paths; set the universe pointer after the
-# dict is built (same one-directional-import pattern config.py uses for
-# SM_CURATED_UNIVERSE). This account only borrows the universe as a starting
-# candidate pool — it runs none of the screener/wheel machinery.
-from screener_core import SM_CURATED_UNIVERSE as _SM_CURATED_UNIVERSE
-AGENT_CONFIG["universe"] = list(_SM_CURATED_UNIVERSE)
+# Point the config's universe at the dedicated agent list. Kept as a separate
+# assignment (rather than inline in the dict) so the list can live below its
+# own long comment block. The agent runs none of the screener/wheel machinery;
+# this is purely the candidate pool the two-phase scan draws quotes from.
+AGENT_CONFIG["universe"] = list(AGENT_UNIVERSE)

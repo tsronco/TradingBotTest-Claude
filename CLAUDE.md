@@ -537,15 +537,26 @@ webhooks, log stream `agent` → `logs/agent.jsonl`.
 
 **Files:**
 - `agent_config.py` — account config (creds env names, channels, `agent_state.json`,
-  models, `$2k` seed, `$500` equity floor, candidate universe = `SM_CURATED_UNIVERSE`).
-- `agent_trader.py` — the hourly harness: gather full account + market context
-  (read-only via `alpaca_data`) → ask Opus for structured decisions (forced
-  `submit_decisions` tool call, adaptive thinking, a falsifiable thesis per open)
-  → feasibility-check each intent (real tradable legs, valid order shape,
-  equity-floor breaker — **mechanics only, never a strategy/sizing veto**) →
+  models, `$2k` seed, `$500` equity floor, candidate universe = `AGENT_UNIVERSE`, a
+  dedicated ~250-name liquid/optionable field across every sector + the most
+  liquid ETFs, plus the two-phase scan knobs `max_focus_symbols`/`max_focus_tokens`/
+  `breadth_chunk_size`).
+- `agent_trader.py` — the hourly harness, a **two-phase scan** so a wide universe
+  stays cheap: **(1) breadth** — one batched quotes-only pull (`build_quote_pack`
+  → `alpaca_data.get_stock_snapshots`) shows Claude the *whole* ~250-name field
+  (price + daily move, no chains); **(1b) focus** — a lightweight forced
+  `select_focus` call where Claude names up to `max_focus_symbols` (24) tickers
+  worth a deep look (a model-unavailable or empty pick falls back to the top
+  daily movers via `_fallback_focus`); **(2) depth** — full option chains fetched
+  for *only* that shortlist + everything held (`gather_depth`), then ask Opus for
+  structured decisions (forced `submit_decisions`, adaptive thinking, a falsifiable
+  thesis per open) → feasibility-check each intent (real tradable legs, valid order
+  shape, equity-floor breaker — **mechanics only, never a strategy/sizing veto**) →
   execute (single-leg stock/option or `mleg`) → record positions + theses, grade
-  closes, notify, log. Fail-soft: a bad cycle logs to `#agent-errors` and exits
-  without corrupting state.
+  closes, notify, log. Cost is bounded by the focus shortlist, not the universe
+  size — widening `AGENT_UNIVERSE` only adds a few hundred tokens of quotes per
+  cycle. Fail-soft: a bad cycle logs to `#agent-errors` and exits without
+  corrupting state.
 - `agent_grading.py` — hindsight grader (Sonnet by default).
 - `agent_retrospective.py` — weekly digest CLI + stats.
 

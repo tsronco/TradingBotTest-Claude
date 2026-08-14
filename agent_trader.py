@@ -167,15 +167,44 @@ def _trim_chain(snaps: dict, keep: int = 40) -> dict:
     return trimmed
 
 
-def gather_context(mode: str = "agent") -> dict:
-    """Assemble the full read-only picture the model reasons over each cycle."""
+def build_quote_pack(symbols: list[str], mode: str = "agent") -> dict:
+    """Cheap "breadth" scan: one batched snapshot pull → price + daily move for
+    every candidate, NO option chains. This is what lets the universe be wide
+    (~250 names) without a heavy per-cycle payload — Claude sees the whole field
+    here, then names a shortlist we fetch chains for. Fully best-effort."""
+    try:
+        snaps = alpaca_data.get_stock_snapshots(
+            list(symbols), mode=mode, chunk_size=_CFG.get("breadth_chunk_size", 100)
+        )
+    except Exception:  # noqa: BLE001 — breadth is best-effort; never fatal
+        snaps = {}
+    pack: dict = {}
+    for sym, snap in snaps.items():
+        lt = (snap or {}).get("latestTrade") or {}
+        db = (snap or {}).get("dailyBar") or {}
+        pdb = (snap or {}).get("prevDailyBar") or {}
+        price = lt.get("p") if lt.get("p") is not None else db.get("c")
+        prev = pdb.get("c")
+        chg = round((price - prev) / prev * 100, 2) if (price and prev) else None
+        pack[sym] = {
+            "price": price,
+            "change_pct": chg,
+            "prev_close": prev,
+            "day_high": db.get("h"),
+            "day_low": db.get("l"),
+            "volume": db.get("v"),
+        }
+    return pack
+
+
+def gather_breadth(mode: str = "agent") -> dict:
+    """Phase 1: account + positions + a quotes-only view of the WHOLE universe.
+    Cheap enough to show Claude every candidate. No option chains yet."""
     account = alpaca_data.get_account(mode=mode)
     positions = alpaca_data.get_positions(mode=mode)
-    held_symbols = [p.get("symbol", "") for p in positions]
-    # Underlyings behind option positions, parsed from the OCC symbol prefix.
-    held_underlyings = [_occ_underlying(s) for s in held_symbols]
+    held_underlyings = [_occ_underlying(p.get("symbol", "")) for p in positions]
     universe = list(_CFG.get("universe") or [])
-    market = build_market_pack(universe + held_symbols + held_underlyings, mode=mode)
+    quotes = build_quote_pack(universe + held_underlyings, mode=mode)
     return {
         "account": {
             "equity": _f(account.get("equity")),
@@ -184,9 +213,130 @@ def gather_context(mode: str = "agent") -> dict:
             "options_buying_power": _f(account.get("options_buying_power")),
         },
         "positions": positions,
+        "universe": quotes,
+        "equity_floor": _CFG["equity_floor"],
+    }
+
+
+def gather_depth(focus_symbols: list[str], positions: list, account: dict,
+                 mode: str = "agent") -> dict:
+    """Phase 2: full option chains for the focus shortlist + everything currently
+    held (held names are always included so the model can always price a close).
+    Same shape gather_breadth's account/positions carry through, plus `market`."""
+    held_symbols = [p.get("symbol", "") for p in positions]
+    held_underlyings = [_occ_underlying(s) for s in held_symbols]
+    symbols = list(focus_symbols) + held_symbols + held_underlyings
+    market = build_market_pack(symbols, mode=mode)
+    return {
+        "account": account,
+        "positions": positions,
         "market": market,
         "equity_floor": _CFG["equity_floor"],
     }
+
+
+# ── The focus tool (phase 1: pick which names to analyze deeply) ───────────
+
+FOCUS_TOOL = {
+    "name": "select_focus",
+    "description": (
+        "From the full candidate universe (live quotes provided), pick the "
+        "symbols worth analyzing in depth this cycle. You will get full option "
+        "chains for exactly the names you list here (plus anything you already "
+        "hold), then decide what to trade. Pick the names with the most "
+        "promising setups right now; you don't have to justify each pick."
+    ),
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "market_read": {
+                "type": "string",
+                "description": (
+                    "One or two sentences: what stands out in the field right "
+                    "now and why you're drilling into the names you chose."
+                ),
+            },
+            "focus": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Tickers to pull full option chains for this cycle. Choose "
+                    "the best candidates; an empty list is allowed if truly "
+                    "nothing is interesting."
+                ),
+            },
+        },
+        "required": ["market_read", "focus"],
+    },
+}
+
+
+FOCUS_SYSTEM = """\
+You are an autonomous trader running the first pass of your hourly cycle. You \
+are shown a wide universe of liquid, optionable names with live quotes (price \
+and today's move) — but no option chains yet, because pulling every chain is \
+expensive. Your job right now is only to choose which names deserve a closer \
+look: pick the ones with the most promising setups for a stock or defined-risk \
+options trade this cycle. You'll receive full option chains for exactly the \
+names you pick (plus anything you already hold) and make your actual trade \
+decisions in the next step. Favor real opportunities over noise, but cast a \
+wide enough net that you don't miss a good trade. Call select_focus once.\
+"""
+
+
+def _fallback_focus(breadth: dict, cap: int | None = None) -> list[str]:
+    """Deterministic shortlist when the focus model call is unavailable: the
+    biggest daily movers in the universe (absolute % change). Keeps the depth
+    pass productive instead of empty."""
+    cap = cap or _CFG.get("max_focus_symbols", 24)
+    scored = [
+        (sym, abs(v.get("change_pct") or 0.0))
+        for sym, v in (breadth.get("universe") or {}).items()
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [sym for sym, _ in scored[:cap]]
+
+
+def request_focus(breadth: dict, client=None, model: str | None = None) -> dict:
+    """Phase-1 model call: from the wide quote-only universe, pick the shortlist
+    of names to pull full chains for. Returns
+    {"focus": [...], "market_read": str, "refused": bool}. Capped at
+    max_focus_symbols. A refusal or empty pick is fine — the depth pass always
+    includes held positions regardless, so the model can still hold or close."""
+    if client is None:  # pragma: no cover — real client path, mocked in tests
+        import anthropic
+        client = anthropic.Anthropic()
+    model = model or agent_config.model()
+    cap = _CFG.get("max_focus_symbols", 24)
+
+    user_content = (
+        f"Pick up to {cap} names to analyze deeply this cycle from the universe "
+        "below (quotes only — you'll get chains for your picks next).\n\n"
+        + json.dumps(breadth, default=str)
+    )
+    resp = client.messages.create(
+        model=model,
+        max_tokens=_CFG.get("max_focus_tokens", 1200),
+        thinking={"type": "adaptive"},
+        system=FOCUS_SYSTEM,
+        tools=[FOCUS_TOOL],
+        tool_choice={"type": "tool", "name": "select_focus"},
+        messages=[{"role": "user", "content": user_content}],
+    )
+    if getattr(resp, "stop_reason", None) == "refusal":
+        return {"focus": [], "market_read": "(model refused focus step)", "refused": True}
+    for block in resp.content:
+        if getattr(block, "type", None) == "tool_use" and block.name == "select_focus":
+            raw = block.input.get("focus", []) or []
+            focus = [str(s).upper() for s in raw if str(s).strip()][:cap]
+            return {
+                "focus": focus,
+                "market_read": block.input.get("market_read", ""),
+                "refused": False,
+            }
+    return {"focus": [], "market_read": "", "refused": False}
 
 
 # ── The decision tool (structured output via forced tool use) ──────────────
@@ -284,6 +434,9 @@ structure can't be margined it will simply be rejected and reported back to you.
 close.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
 OCC option symbols from the market data provided. Stocks trade in whole shares.
+- The market data below holds full option chains for the names you shortlisted \
+this cycle plus everything you currently hold. Trade any of them, or hold. (You \
+already scanned the wider universe when you chose this shortlist.)
 
 For every position you OPEN you must submit a thesis with a concrete, checkable \
 invalidation condition ("wrong if X closes below $Y before <date>"), the single \
@@ -502,14 +655,21 @@ def _announce_open(intent: dict, order_id: str) -> None:
     )
 
 
-def _announce_hold(market_read: str) -> None:
+def _announce_hold(market_read: str, scanned: int | None = None,
+                   focused: int | None = None) -> None:
     """Post the agent's read to the firehose on a hold cycle, so a 'no trade'
-    decision is visible and explained rather than silent."""
+    decision is visible and explained rather than silent. Shows how wide it
+    looked (universe scanned) and how many it drilled into."""
+    fields = None
+    if scanned is not None:
+        fields = [{"name": "Scan",
+                   "value": f"{scanned} names scanned · {focused or 0} analyzed in depth"}]
     send_embed(
         _CFG["actions_channel"],
         title="🕐 Holding — no trade this cycle",
         description=(market_read or "(no market read provided)")[:2048],
         color=Color.BLUE,
+        fields=fields,
         also_to_actions=False,  # already posting directly to the actions channel
     )
 
@@ -713,8 +873,26 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         if state["_meta"].get("created_at") is None:
             state["_meta"]["created_at"] = _now_iso()
 
-        context = gather_context()
+        # Phase 1 (breadth): quotes for the whole universe — cheap, wide view.
+        breadth = gather_breadth()
+        # Phase 1b: Claude picks the shortlist worth deep analysis this cycle.
+        try:
+            focus_res = request_focus(breadth, client=client)
+        except Exception as e:  # noqa: BLE001 — focus is not worth killing a cycle
+            log(f"focus step failed, falling back to top movers: {e}")
+            focus_res = {"focus": [], "market_read": f"(focus step failed: {e})",
+                         "refused": False}
+        focus = focus_res.get("focus") or _fallback_focus(breadth)
+        universe_size = len(breadth.get("universe") or {})
+
+        # Phase 2 (depth): full chains only for the shortlist + held names.
+        context = gather_depth(focus, breadth["positions"], breadth["account"])
         market = context["market"]
+
+        if not dry_run:
+            log_event(_CFG["log_stream"], "agent_trader.py", "focus_selected",
+                      details={"focus": focus, "scanned": universe_size,
+                               "market_read": focus_res.get("market_read", "")})
 
         # Education layer: reconcile tracked positions against Alpaca — snapshot
         # the still-open ones (for an approximate close P&L) and grade any that
@@ -783,7 +961,7 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
             log_event(_CFG["log_stream"], "agent_trader.py", "market_read",
                       details={"market_read": market_read, "summary": dict(summary)})
             if summary["opened"] == 0 and summary["closed"] == 0:
-                _announce_hold(market_read)
+                _announce_hold(market_read, scanned=universe_size, focused=len(focus))
 
         state["_meta"]["cycle_count"] = state["_meta"].get("cycle_count", 0) + 1
         state["_meta"]["last_cycle_at"] = _now_iso()

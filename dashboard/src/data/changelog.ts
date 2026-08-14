@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-14',
+    category: 'engine',
+    title: 'Agent account scans a ~250-name universe via a two-phase cycle',
+    details:
+      'The autonomous agent account now chooses from a dedicated ~250-name field of liquid, optionable '
+      + 'names across every sector (plus the most liquid ETFs) instead of the 52-name SM screener list — '
+      + 'so it has real breadth to find the best setups, not a narrow menu.\n\n'
+      + 'To keep that affordable, each hourly cycle is now two-phase: a cheap batched QUOTE pull shows '
+      + 'Claude the whole universe (price + daily move, no option chains), Claude picks a shortlist of up '
+      + 'to 24 names worth a deep look, and full option chains are fetched only for those picks plus '
+      + 'anything it holds. Cost is bounded by the shortlist, not the universe size, so the field can grow '
+      + 'without bloating each cycle. If the focus step is unavailable it falls back to the biggest daily '
+      + 'movers. Hold cards in #agent-actions now also show how many names it scanned vs analyzed.',
+  },
+  {
     date: '2026-07-03',
     category: 'feature',
     title: 'Position Coach shows real trailing-stop numbers',

@@ -214,12 +214,21 @@ class _OrderResp:
 
 @pytest.fixture
 def _wire(monkeypatch, tmp_path):
-    """Stub context, state path, discord, and order placement for run_cycle."""
+    """Stub context, focus, state path, discord, and order placement for run_cycle."""
     monkeypatch.setattr(at, "_state_path", lambda: str(tmp_path / "agent_state.json"))
-    monkeypatch.setattr(at, "gather_context", lambda mode="agent": {
+    monkeypatch.setattr(at, "gather_breadth", lambda mode="agent": {
         "account": {"equity": 2000.0, "cash": 2000.0},
-        "positions": [], "market": {}, "equity_floor": 500,
+        "positions": [], "universe": {}, "equity_floor": 500,
     })
+    # Focus step is stubbed so decision-path tests stay isolated from phase 1.
+    monkeypatch.setattr(at, "request_focus", lambda breadth, client=None, model=None: {
+        "focus": [], "market_read": "", "refused": False,
+    })
+    monkeypatch.setattr(at, "gather_depth",
+                        lambda focus, positions, account, mode="agent": {
+                            "account": {"equity": 2000.0, "cash": 2000.0},
+                            "positions": [], "market": {}, "equity_floor": 500,
+                        })
     monkeypatch.setattr(at, "send_embed", lambda *a, **k: None)
     monkeypatch.setattr(at, "log_event", lambda *a, **k: None)
     placed = []
@@ -262,7 +271,8 @@ def test_run_cycle_empty_intents_holds(_wire):
 def test_run_cycle_hold_surfaces_market_read(_wire, monkeypatch):
     """A hold cycle must post the model's market read (why it passed), not be silent."""
     held = {}
-    monkeypatch.setattr(at, "_announce_hold", lambda read: held.setdefault("read", read))
+    monkeypatch.setattr(at, "_announce_hold",
+                        lambda read, **k: held.setdefault("read", read))
     client = _FakeClient([], market_read="quiet tape; would act on a pullback in AAPL")
     at.run_cycle(client=client)
     assert held["read"] == "quiet tape; would act on a pullback in AAPL"
@@ -271,7 +281,8 @@ def test_run_cycle_hold_surfaces_market_read(_wire, monkeypatch):
 def test_run_cycle_trade_does_not_announce_hold(_wire, monkeypatch):
     """When it trades, no hold note fires."""
     called = {"hold": False}
-    monkeypatch.setattr(at, "_announce_hold", lambda read: called.__setitem__("hold", True))
+    monkeypatch.setattr(at, "_announce_hold",
+                        lambda read, **k: called.__setitem__("hold", True))
     client = _FakeClient([_open_intent()])
     at.run_cycle(client=client)
     assert called["hold"] is False
@@ -289,3 +300,116 @@ def test_run_cycle_order_rejection_counts_error(_wire, monkeypatch):
     client = _FakeClient([_open_intent()])
     summary = at.run_cycle(client=client)
     assert summary["errors"] == 1 and summary["opened"] == 0
+
+
+# ── Two-phase scan: breadth quotes, focus selection, depth ──────────────────
+
+class _FocusBlock:
+    def __init__(self, focus, market_read="read"):
+        self.type = "tool_use"
+        self.name = "select_focus"
+        self.input = {"focus": focus, "market_read": market_read}
+
+
+class _FocusResp:
+    def __init__(self, focus, stop_reason="tool_use", market_read="read"):
+        self.content = [_FocusBlock(focus, market_read)]
+        self.stop_reason = stop_reason
+
+
+class _FocusClient:
+    def __init__(self, focus, stop_reason="tool_use", market_read="read"):
+        self._focus = focus
+        self._stop = stop_reason
+        self._read = market_read
+        self.messages = self
+
+    def create(self, **kwargs):
+        self.last_kwargs = kwargs
+        return _FocusResp(self._focus, self._stop, self._read)
+
+
+def test_request_focus_parses_and_uppercases():
+    client = _FocusClient(["aapl", "msft", " ", "nvda"], market_read="tech firm")
+    out = at.request_focus({"universe": {}}, client=client)
+    assert out["refused"] is False
+    assert out["focus"] == ["AAPL", "MSFT", "NVDA"]  # blanks dropped, upper-cased
+    assert out["market_read"] == "tech firm"
+    assert client.last_kwargs["tool_choice"]["name"] == "select_focus"
+
+
+def test_request_focus_caps_at_max(monkeypatch):
+    monkeypatch.setitem(at._CFG, "max_focus_symbols", 3)
+    client = _FocusClient(["A", "B", "C", "D", "E"])
+    out = at.request_focus({"universe": {}}, client=client)
+    assert out["focus"] == ["A", "B", "C"]
+
+
+def test_request_focus_handles_refusal():
+    client = _FocusClient([], stop_reason="refusal")
+    out = at.request_focus({"universe": {}}, client=client)
+    assert out["refused"] is True and out["focus"] == []
+
+
+def test_fallback_focus_ranks_by_absolute_move():
+    breadth = {"universe": {
+        "AAA": {"change_pct": 0.5},
+        "BBB": {"change_pct": -8.0},
+        "CCC": {"change_pct": 3.0},
+        "DDD": {"change_pct": None},
+    }}
+    assert at._fallback_focus(breadth, cap=2) == ["BBB", "CCC"]
+
+
+def test_build_quote_pack_computes_change(monkeypatch):
+    monkeypatch.setattr(at.alpaca_data, "get_stock_snapshots",
+                        lambda syms, mode="agent", chunk_size=100: {
+                            "AAPL": {"latestTrade": {"p": 110.0},
+                                     "dailyBar": {"c": 109, "h": 111, "l": 108, "v": 1000},
+                                     "prevDailyBar": {"c": 100.0}},
+                        })
+    pack = at.build_quote_pack(["AAPL"], mode="agent")
+    assert pack["AAPL"]["price"] == 110.0
+    assert pack["AAPL"]["change_pct"] == 10.0  # (110-100)/100
+    assert pack["AAPL"]["day_high"] == 111
+
+
+def test_build_quote_pack_is_fail_soft(monkeypatch):
+    def _boom(*a, **k):
+        raise RuntimeError("data down")
+    monkeypatch.setattr(at.alpaca_data, "get_stock_snapshots", _boom)
+    assert at.build_quote_pack(["AAPL"]) == {}
+
+
+def test_gather_depth_always_includes_held(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(at, "build_market_pack",
+                        lambda syms, mode="agent": seen.setdefault("syms", syms) or {})
+    positions = [{"symbol": "TSLA260320C00300000"}]  # a held option
+    at.gather_depth(["AAPL"], positions, {"equity": 2000}, mode="agent")
+    # Focus name, the held OCC symbol, AND its parsed underlying are all fetched.
+    assert "AAPL" in seen["syms"]
+    assert "TSLA260320C00300000" in seen["syms"]
+    assert "TSLA" in seen["syms"]
+
+
+def test_run_cycle_falls_back_to_top_movers_on_empty_focus(monkeypatch, tmp_path):
+    """If the focus step returns nothing, depth still runs on the top movers."""
+    monkeypatch.setattr(at, "_state_path", lambda: str(tmp_path / "agent_state.json"))
+    monkeypatch.setattr(at, "gather_breadth", lambda mode="agent": {
+        "account": {"equity": 2000.0}, "positions": [],
+        "universe": {"AAA": {"change_pct": 1.0}, "BBB": {"change_pct": -9.0}},
+        "equity_floor": 500,
+    })
+    monkeypatch.setattr(at, "request_focus", lambda breadth, client=None, model=None: {
+        "focus": [], "market_read": "", "refused": False})
+    got = {}
+    monkeypatch.setattr(at, "gather_depth",
+                        lambda focus, positions, account, mode="agent":
+                        got.setdefault("focus", focus) or {
+                            "account": account, "positions": [], "market": {},
+                            "equity_floor": 500})
+    monkeypatch.setattr(at, "send_embed", lambda *a, **k: None)
+    monkeypatch.setattr(at, "log_event", lambda *a, **k: None)
+    at.run_cycle(client=_FakeClient([]))
+    assert got["focus"] == ["BBB", "AAA"]  # deterministic top-mover fallback

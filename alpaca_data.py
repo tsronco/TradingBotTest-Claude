@@ -129,6 +129,37 @@ def get_stock_quote(symbol: str, mode: str = "manual") -> dict:
     return data["trade"]
 
 
+def get_stock_snapshots(
+    symbols: list[str],
+    mode: str = "manual",
+    chunk_size: int = 100,
+) -> dict[str, dict]:
+    """Batch multi-symbol snapshots in one (chunked) call — the cheap "breadth"
+    fetch used to show a wide candidate universe without pulling option chains.
+
+    Each snapshot carries latestTrade / latestQuote / dailyBar / prevDailyBar.
+    Returned dict is keyed by symbol. Chunked to keep the query string bounded;
+    a failed chunk is swallowed so one bad batch never sinks the whole scan.
+    """
+    out: dict[str, dict] = {}
+    syms = sorted({s.upper() for s in symbols if s})
+    for i in range(0, len(syms), chunk_size):
+        chunk = syms[i:i + chunk_size]
+        try:
+            data = _get(
+                f"{STOCK_DATA_URL}/stocks/snapshots",
+                mode,
+                params={"symbols": ",".join(chunk), "feed": "iex"},
+            )
+        except requests.HTTPError:
+            continue
+        # The endpoint returns symbol keys at the top level; tolerate a
+        # "snapshots" wrapper too in case the shape ever changes.
+        snaps = data.get("snapshots", data) if isinstance(data, dict) else {}
+        out.update({k: v for k, v in snaps.items() if isinstance(v, dict)})
+    return out
+
+
 def get_stock_bars(
     symbol: str,
     days: int = 90,
