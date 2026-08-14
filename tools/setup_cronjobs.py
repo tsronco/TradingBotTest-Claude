@@ -104,11 +104,18 @@ JOBS = [
         "minutes": [6],
         "wdays": [0],
     },
-    # NOTE: the Agent Trader (Autonomous) workflow is deliberately NOT scheduled
-    # here — it uses GitHub's native `schedule:` trigger in agent-trader.yml
-    # instead (see that file's header for the rationale). Do not add a JOBS entry
-    # for it without also removing the `schedule:` block, or the two schedulers
-    # will double-fire the same workflow.
+    {
+        # Autonomous agent paper account. Runs HOURLY during market hours (not
+        # every 10 min like the wheel monitors) — Claude makes every trading
+        # decision on the ~$2k agent paper account. :07 offset. cron-job.org is
+        # the ONLY scheduler for this workflow (agent-trader.yml has no native
+        # `schedule:` block) — adding one back would double-fire it.
+        "title": "Agent Trader (Autonomous)",
+        "workflow": "agent-trader.yml",
+        "hours": list(range(13, 21)),  # 13–20 UTC market hours
+        "minutes": [7],                # :07 each hour
+        "wdays": [1, 2, 3, 4, 5],
+    },
     {
         # Dashboard auto-grading: polls open manual trades every 5 min during
         # market hours and fires AI hindsight grades on newly-closed trades.

@@ -159,34 +159,36 @@ def test_load_state_survives_corrupt_file(tmp_path, monkeypatch):
 # ── request_decisions with a mocked Anthropic client ────────────────────────
 
 class _FakeBlock:
-    def __init__(self, intents):
+    def __init__(self, intents, market_read="read"):
         self.type = "tool_use"
         self.name = "submit_decisions"
-        self.input = {"intents": intents}
+        self.input = {"intents": intents, "market_read": market_read}
 
 
 class _FakeResp:
-    def __init__(self, intents, stop_reason="tool_use"):
-        self.content = [_FakeBlock(intents)]
+    def __init__(self, intents, stop_reason="tool_use", market_read="read"):
+        self.content = [_FakeBlock(intents, market_read)]
         self.stop_reason = stop_reason
 
 
 class _FakeClient:
-    def __init__(self, intents, stop_reason="tool_use"):
+    def __init__(self, intents, stop_reason="tool_use", market_read="read"):
         self._intents = intents
         self._stop = stop_reason
+        self._read = market_read
         self.messages = self
 
     def create(self, **kwargs):
         self.last_kwargs = kwargs
-        return _FakeResp(self._intents, self._stop)
+        return _FakeResp(self._intents, self._stop, self._read)
 
 
 def test_request_decisions_parses_tool_output():
-    client = _FakeClient([_open_intent()])
+    client = _FakeClient([_open_intent()], market_read="quiet tape, watching")
     out = at.request_decisions({"account": {}}, client=client)
     assert out["refused"] is False
     assert len(out["intents"]) == 1
+    assert out["market_read"] == "quiet tape, watching"
     # Forced tool choice + adaptive thinking wired correctly.
     assert client.last_kwargs["tool_choice"]["name"] == "submit_decisions"
     assert client.last_kwargs["thinking"]["type"] == "adaptive"
@@ -255,6 +257,24 @@ def test_run_cycle_empty_intents_holds(_wire):
     summary = at.run_cycle(client=client)
     assert summary == {"opened": 0, "closed": 0, "rejected": 0, "graded": 0,
                        "refused": False, "errors": 0}
+
+
+def test_run_cycle_hold_surfaces_market_read(_wire, monkeypatch):
+    """A hold cycle must post the model's market read (why it passed), not be silent."""
+    held = {}
+    monkeypatch.setattr(at, "_announce_hold", lambda read: held.setdefault("read", read))
+    client = _FakeClient([], market_read="quiet tape; would act on a pullback in AAPL")
+    at.run_cycle(client=client)
+    assert held["read"] == "quiet tape; would act on a pullback in AAPL"
+
+
+def test_run_cycle_trade_does_not_announce_hold(_wire, monkeypatch):
+    """When it trades, no hold note fires."""
+    called = {"hold": False}
+    monkeypatch.setattr(at, "_announce_hold", lambda read: called.__setitem__("hold", True))
+    client = _FakeClient([_open_intent()])
+    at.run_cycle(client=client)
+    assert called["hold"] is False
 
 
 def test_run_cycle_dry_run_places_nothing(_wire):

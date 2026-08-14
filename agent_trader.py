@@ -203,6 +203,16 @@ DECISION_TOOL = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
+            "market_read": {
+                "type": "string",
+                "description": (
+                    "ALWAYS fill this in, every cycle, whether you trade or hold. "
+                    "One to three sentences: what you see in the market and your "
+                    "candidates right now, and specifically WHY you are trading or "
+                    "holding this cycle. On a hold, name what would have to change "
+                    "for you to act."
+                ),
+            },
             "intents": {
                 "type": "array",
                 "items": {
@@ -250,7 +260,7 @@ DECISION_TOOL = {
                 },
             },
         },
-        "required": ["intents"],
+        "required": ["market_read", "intents"],
     },
 }
 
@@ -282,13 +292,29 @@ confidence, and the alternatives you considered and rejected. This is how we \
 learn later whether a losing trade lost for a reason you understood or one you \
 missed — so be honest and specific.
 
-Call submit_decisions exactly once. Return an empty intents list to do nothing \
-this cycle — patience is a valid, often correct choice. Do not force a trade.\
+Posture — aim for the middle, not the sidelines. You are here to trade, and you \
+cannot grow the account by watching. When you find a setup with a defensible \
+edge and clearly defined, acceptable risk, TAKE IT — you do not need certainty \
+or a perfect setup, only a favorable risk/reward you can defend with a thesis. \
+Lean toward participating when a reasonable opportunity is in front of you, and \
+prefer defined-risk structures so a wrong call is capped. But do NOT force a \
+trade onto a weak or unclear setup just to be active, and never chase an \
+obvious loser or a name in freefall. The bar is "a real edge I can argue for," \
+not "a sure thing" and not "anything at all." When in doubt between a marginal \
+trade and holding, size it small rather than sitting out entirely.
+
+Fill in market_read every cycle — trading or holding — so your read is on the \
+record. On a hold, say plainly what you'd need to see to act. Call \
+submit_decisions exactly once.\
 """
 
 
 def request_decisions(context: dict, client=None, model: str | None = None) -> dict:
-    """Ask Opus for this cycle's decisions. Returns {"intents": [...], "refused": bool}.
+    """Ask Opus for this cycle's decisions.
+
+    Returns {"intents": [...], "market_read": str, "refused": bool}. market_read
+    is the model's plain-English read of the market + why it traded or held this
+    cycle (surfaced to #agent-actions and logged so holds aren't a black box).
 
     Uses a forced tool call for guaranteed-shape output (see the claude-api
     skill). A safety refusal is treated as a no-trade cycle, never an error.
@@ -313,12 +339,16 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
     )
     if getattr(resp, "stop_reason", None) == "refusal":
         log("model refused — treating as no-trade cycle")
-        return {"intents": [], "refused": True}
+        return {"intents": [], "market_read": "(model refused this cycle)", "refused": True}
     for block in resp.content:
         if getattr(block, "type", None) == "tool_use" and block.name == "submit_decisions":
-            return {"intents": block.input.get("intents", []), "refused": False}
+            return {
+                "intents": block.input.get("intents", []),
+                "market_read": block.input.get("market_read", ""),
+                "refused": False,
+            }
     # No tool block (shouldn't happen with forced tool_choice) — no-trade.
-    return {"intents": [], "refused": False}
+    return {"intents": [], "market_read": "", "refused": False}
 
 
 # ── Feasibility (mechanics, not judgment) ──────────────────────────────────
@@ -469,6 +499,18 @@ def _announce_open(intent: dict, order_id: str) -> None:
         color=Color.GREEN,
         fields=fields,
         actions_channel=_CFG["actions_channel"],
+    )
+
+
+def _announce_hold(market_read: str) -> None:
+    """Post the agent's read to the firehose on a hold cycle, so a 'no trade'
+    decision is visible and explained rather than silent."""
+    send_embed(
+        _CFG["actions_channel"],
+        title="🕐 Holding — no trade this cycle",
+        description=(market_read or "(no market read provided)")[:2048],
+        color=Color.BLUE,
+        also_to_actions=False,  # already posting directly to the actions channel
     )
 
 
@@ -683,6 +725,7 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
 
         decisions = request_decisions(context, client=client)
         summary["refused"] = decisions.get("refused", False)
+        market_read = decisions.get("market_read", "")
 
         for intent in decisions.get("intents", []):
             ok, reason = check_feasibility(intent, context["account"])
@@ -732,6 +775,15 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
                       f"{intent['action']}_placed",
                       alpaca_order_id=order_id,
                       details={"intent": intent})
+
+        # Record the model's read every cycle so a hold isn't a black box — logged
+        # to the audit trail always, and surfaced to #agent-actions on a hold
+        # (a cycle where nothing was opened or closed) so you can see WHY it passed.
+        if not dry_run:
+            log_event(_CFG["log_stream"], "agent_trader.py", "market_read",
+                      details={"market_read": market_read, "summary": dict(summary)})
+            if summary["opened"] == 0 and summary["closed"] == 0:
+                _announce_hold(market_read)
 
         state["_meta"]["cycle_count"] = state["_meta"].get("cycle_count", 0) + 1
         state["_meta"]["last_cycle_at"] = _now_iso()
