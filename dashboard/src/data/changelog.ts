@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-16',
     category: 'engine',
+    title: 'Agent sees a computed fair-value P&L next to Alpaca\'s worst-case mark',
+    details:
+      'Belt-and-suspenders on top of the stale-mark mandate note: each held option leg is now annotated with '
+      + 'a fair_value block that spells out the fair number instead of asking the model to derive it. It shows '
+      + "unrealized_pl_mid (from the leg's live bid/ask mid) right next to unrealized_pl_mark (Alpaca's "
+      + 'worst-case short@ask / long@bid figure), plus the leg bid/ask/mid.\n\n'
+      + 'Sign-safe via Alpaca\'s signed qty — (mid − avg_entry) × qty × 100 is correct for long and short legs '
+      + 'alike. On the DIS 103/100 spread the legs sum to +$7 fair value versus the −$57 the raw mark shows. '
+      + 'Stocks are skipped (their last-trade mark is already fair) and it is best-effort — a leg with no quote '
+      + 'just keeps the raw mark. Directly reduces the chance of a panic close on a wide/illiquid chain.',
+  },
+  {
+    date: '2026-08-16',
+    category: 'engine',
     title: 'Agent mandate: teach it that Alpaca marks spreads at the worst-case quote',
     details:
       'Alpaca marks a short option (and therefore a credit spread) at the worst-case corner of the quote — '

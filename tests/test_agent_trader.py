@@ -476,3 +476,65 @@ def test_mandate_teaches_how_alpaca_marks_spreads():
     assert "unrealized_pl" in m or "mark" in m
     assert "mid" in m and ("worst-case" in m or "worst case" in m)
     assert "width" in m  # defined-risk spread can't lose more than its width
+    assert "fair_value" in m  # points the model at the computed annotation
+
+
+# ── Fair-value annotation: mid-based P&L next to Alpaca's worst-case mark ────
+
+def _opt_pos(symbol, qty, avg_entry, unrealized_pl, asset_class="us_option"):
+    return {"symbol": symbol, "qty": str(qty), "avg_entry_price": str(avg_entry),
+            "unrealized_pl": str(unrealized_pl), "asset_class": asset_class}
+
+
+def test_fair_value_short_leg_uses_mid_not_worst_case(monkeypatch):
+    """The DIS short 103 put: marked at the 0.63 ask (−$28), but the 0.14×0.63
+    mid (0.385) is a small GAIN vs the 0.49 entry."""
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": {"bid": 0.14, "ask": 0.63})
+    pos = _opt_pos("DIS260828P00103000", -2, 0.49, -28.0)
+    at.annotate_positions_fair_value([pos], mode="agent")
+    fv = pos["fair_value"]
+    assert fv["leg_mid"] == 0.385
+    assert fv["unrealized_pl_mid"] == 21.0     # (0.385-0.49)*-2*100
+    assert fv["unrealized_pl_mark"] == -28.0   # Alpaca's worst-case, kept for contrast
+
+
+def test_fair_value_long_leg_sign(monkeypatch):
+    """The DIS long 100 put: marked at the 0.05 bid, mid 0.125 vs 0.195 entry."""
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": {"bid": 0.05, "ask": 0.20})
+    pos = _opt_pos("DIS260828P00100000", 2, 0.195, -29.0)
+    at.annotate_positions_fair_value([pos], mode="agent")
+    assert pos["fair_value"]["unrealized_pl_mid"] == -14.0  # (0.125-0.195)*2*100
+
+
+def test_fair_value_spread_legs_sum_to_fair_pnl(monkeypatch):
+    """Summing the legs' mid P&L gives the spread's true ~breakeven, not −$57."""
+    quotes = {"DIS260828P00103000": {"bid": 0.14, "ask": 0.63},
+              "DIS260828P00100000": {"bid": 0.05, "ask": 0.20}}
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": quotes[occ])
+    positions = [_opt_pos("DIS260828P00103000", -2, 0.49, -28.0),
+                 _opt_pos("DIS260828P00100000", 2, 0.195, -29.0)]
+    at.annotate_positions_fair_value(positions, mode="agent")
+    fair = sum(p["fair_value"]["unrealized_pl_mid"] for p in positions)
+    mark = sum(p["fair_value"]["unrealized_pl_mark"] for p in positions)
+    assert fair == 7.0 and mark == -57.0  # +$7 fair vs −$57 worst-case mark
+
+
+def test_fair_value_skips_stocks(monkeypatch):
+    called = {"n": 0}
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": called.__setitem__("n", called["n"] + 1))
+    pos = {"symbol": "AAPL", "qty": "10", "avg_entry_price": "150",
+           "unrealized_pl": "20", "asset_class": "us_equity"}
+    at.annotate_positions_fair_value([pos], mode="agent")
+    assert "fair_value" not in pos and called["n"] == 0  # no quote fetched for a stock
+
+
+def test_fair_value_best_effort_on_missing_quote(monkeypatch):
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": None)
+    pos = _opt_pos("DIS260828P00103000", -2, 0.49, -28.0)
+    at.annotate_positions_fair_value([pos], mode="agent")
+    assert "fair_value" not in pos  # no quote → no annotation, no crash

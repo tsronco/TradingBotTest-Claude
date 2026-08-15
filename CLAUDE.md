@@ -607,6 +607,17 @@ makes it durable rather than sample-dependent. NB the agent has **no automated
 stop** — only Claude's own intents close a position (the $500 equity floor blocks
 opens, never forces closes), so this is the only lever that governs a close.
 
+Beyond the prose, `annotate_positions_fair_value()` (called in `gather_depth`)
+now hands the model the fair number *computed*, not just described: for each held
+option leg it fetches the live quote and attaches a `fair_value` block —
+`unrealized_pl_mid` (from the leg's bid/ask mid) next to `unrealized_pl_mark`
+(Alpaca's worst-case), plus leg bid/ask/mid. Sign-safe via Alpaca's signed `qty`:
+`(mid − avg_entry) × qty × 100` is correct for long and short legs alike (verified
+on the DIS spread: legs sum to **+$7** fair vs **−$57** mark). Stocks are skipped
+(their last-trade mark is already fair) and it's best-effort (a leg with no quote
+keeps the raw mark). The model sums the legs' `unrealized_pl_mid` for a spread's
+true P&L.
+
 **Education layer (the point of the account).** Every trade becomes a durable
 lesson committed to git — **surface-agnostic**, no dashboard required:
 - **Falsifiable thesis at entry** (captured in `agent_state.json`): view, why this

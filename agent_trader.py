@@ -227,12 +227,72 @@ def gather_depth(focus_symbols: list[str], positions: list, account: dict,
     held_underlyings = [_occ_underlying(s) for s in held_symbols]
     symbols = list(focus_symbols) + held_symbols + held_underlyings
     market = build_market_pack(symbols, mode=mode)
+    # Annotate held option legs with a fair (mid-based) P&L next to Alpaca's
+    # worst-case mark, so the model reads the truth instead of the scary number.
+    annotate_positions_fair_value(positions, mode=mode)
     return {
         "account": account,
         "positions": positions,
         "market": market,
         "equity_floor": _CFG["equity_floor"],
     }
+
+
+def _is_option_position(pos: dict) -> bool:
+    """True for an option leg, False for a stock. Prefers Alpaca's asset_class;
+    falls back to detecting an OCC symbol (ticker + YYMMDD + C/P + strike)."""
+    ac = pos.get("asset_class") or pos.get("asset_class_name") or ""
+    if ac:
+        return "option" in str(ac).lower()
+    sym = pos.get("symbol", "")
+    return _occ_underlying(sym) != sym
+
+
+def annotate_positions_fair_value(positions: list, mode: str = "agent") -> list:
+    """Attach a mid-based fair-value P&L to each held OPTION leg, alongside
+    Alpaca's raw mark.
+
+    Alpaca marks a short leg at the ASK and a long leg at the BID — the
+    worst-case corner — so on a wide/illiquid chain `unrealized_pl` overstates
+    the loss on a position that's actually fine. This fetches each held option
+    leg's live quote and computes the fairer mid-based figure so the model sees
+    both numbers side by side and isn't spooked into a stale-mark panic close.
+
+    Sign-safe: Alpaca's `qty` is signed (negative for shorts), so
+    (mid − avg_entry) × qty × 100 has the correct sign for both long and short
+    legs. Stocks are skipped (their last-trade mark is already fair). Best-effort
+    — a leg whose quote can't be fetched simply keeps only the raw mark. Mutates
+    and returns the same list."""
+    for pos in positions:
+        if not _is_option_position(pos):
+            continue
+        occ = str(pos.get("symbol", "") or "")
+        qty = _f(pos.get("qty"))
+        avg = _f(pos.get("avg_entry_price"))
+        if not occ or qty is None or avg is None:
+            continue
+        try:
+            q = alpaca_data.get_option_quote(occ, mode=mode)
+        except Exception:  # noqa: BLE001 — annotation is best-effort, never fatal
+            q = None
+        if not q:
+            continue
+        bid, ask = _f(q.get("bid")), _f(q.get("ask"))
+        if bid is None or ask is None or (bid <= 0 and ask <= 0):
+            continue
+        mid = round((bid + ask) / 2.0, 4)
+        pos["fair_value"] = {
+            "leg_bid": bid,
+            "leg_ask": ask,
+            "leg_mid": mid,
+            "unrealized_pl_mid": round((mid - avg) * qty * 100, 2),
+            "unrealized_pl_mark": _f(pos.get("unrealized_pl")),
+            "note": ("unrealized_pl_mark is Alpaca's worst-case bid/ask mark "
+                     "(short leg @ ask, long leg @ bid); unrealized_pl_mid is the "
+                     "fair-value estimate from this leg's live mid. On a wide "
+                     "chain, trust the mid."),
+        }
+    return positions
 
 
 def build_self_context(state: dict) -> dict:
@@ -496,14 +556,17 @@ short option (and therefore a credit spread) at the WORST-CASE corner of the \
 quote: the short leg at its ASK, the long leg at its BID. On an illiquid or \
 wide-quoted chain that corner is often stale and far from fair value, so the \
 `unrealized_pl` you are shown can read deeply red on a position that is actually \
-fine or even winning. Do NOT take that number at face value. Judge an open \
-options position from the LIVE chain instead — the MID of each leg's bid/ask, \
-the theoretical value, the greeks — and from the underlying's price relative to \
-your strikes. A defined-risk spread cannot lose more than its width no matter \
-what the mark says; a wide bid/ask on a quiet name is noise, not a loss. Decide \
-to close because your thesis or its stated invalidation says so, or because the \
-mid genuinely reflects a loss — never because a stale worst-case mark looks \
-scary.
+fine or even winning. Do NOT take that number at face value. To make this \
+concrete, each held option leg is annotated with a `fair_value` block: \
+`unrealized_pl_mark` (Alpaca's scary worst-case number) shown next to \
+`unrealized_pl_mid` (the fair estimate from the leg's live mid), plus the leg's \
+bid/ask/mid. Read the MID figure; sum the legs' `unrealized_pl_mid` for a \
+spread's true P&L. Corroborate with the underlying's price relative to your \
+strikes and the greeks. A defined-risk spread cannot lose more than its width no \
+matter what the mark says; a wide bid/ask on a quiet name is noise, not a loss. \
+Decide to close because your thesis or its stated invalidation says so, or \
+because the MID genuinely reflects a loss — never because a stale worst-case \
+mark looks scary.
 
 Posture — aim for the middle, not the sidelines. You are here to trade, and you \
 cannot grow the account by watching. When you find a setup with a defensible \
