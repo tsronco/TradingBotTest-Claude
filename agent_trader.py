@@ -491,6 +491,20 @@ always trust the live positions and market data over it. (2) Positions you have 
 closed are deliberately absent from it; if something isn't in your live \
 positions, you do not hold it — never infer a holding from an old note.
 
+How to read a position's P&L — the mark lies on thin chains. Alpaca marks a \
+short option (and therefore a credit spread) at the WORST-CASE corner of the \
+quote: the short leg at its ASK, the long leg at its BID. On an illiquid or \
+wide-quoted chain that corner is often stale and far from fair value, so the \
+`unrealized_pl` you are shown can read deeply red on a position that is actually \
+fine or even winning. Do NOT take that number at face value. Judge an open \
+options position from the LIVE chain instead — the MID of each leg's bid/ask, \
+the theoretical value, the greeks — and from the underlying's price relative to \
+your strikes. A defined-risk spread cannot lose more than its width no matter \
+what the mark says; a wide bid/ask on a quiet name is noise, not a loss. Decide \
+to close because your thesis or its stated invalidation says so, or because the \
+mid genuinely reflects a loss — never because a stale worst-case mark looks \
+scary.
+
 Posture — aim for the middle, not the sidelines. You are here to trade, and you \
 cannot grow the account by watching. When you find a setup with a defensible \
 edge and clearly defined, acceptable risk, TAKE IT — you do not need certainty \

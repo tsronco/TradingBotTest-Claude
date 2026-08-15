@@ -591,6 +591,22 @@ positions/market, never current truth. **Deliberately NO hard/soft quality rule*
 (e.g. a credit-to-width floor) — Tim's call: give it self-awareness, not a
 constraint; it keeps full discretion.
 
+**Stale-mark literacy in the mandate (2026-08-16).** Alpaca marks a short option
+(and thus a credit spread) at the WORST-CASE quote corner — short leg at the ask,
+long leg at the bid — so on a wide/illiquid chain the reported `unrealized_pl`
+reads deeply red on a position that's actually fine (observed on the DIS 103/100
+PCS: marked ~−$57 at the 0.14×0.63 / 0.05×0.20 crosses while the mid/theoretical
+was ~breakeven-to-up, DIS $106.85 well above the $103 short strike). The mandate
+now tells the model how this works and to judge an open options position from the
+LIVE chain mid + greeks + underlying-vs-strikes, not the raw mark — and that a
+defined-risk spread can't lose more than its width regardless of the mark. This
+is **data literacy, not a strategy rule** (same category as "options are ×100"):
+it guards against a stale-mark panic close without constraining discretion. The
+agent had already reasoned around the noisy mark correctly in two hold cards; this
+makes it durable rather than sample-dependent. NB the agent has **no automated
+stop** — only Claude's own intents close a position (the $500 equity floor blocks
+opens, never forces closes), so this is the only lever that governs a close.
+
 **Education layer (the point of the account).** Every trade becomes a durable
 lesson committed to git — **surface-agnostic**, no dashboard required:
 - **Falsifiable thesis at entry** (captured in `agent_state.json`): view, why this

@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-16',
+    category: 'engine',
+    title: 'Agent mandate: teach it that Alpaca marks spreads at the worst-case quote',
+    details:
+      'Alpaca marks a short option (and therefore a credit spread) at the worst-case corner of the quote — '
+      + 'the short leg at its ask, the long leg at its bid. On a wide/illiquid chain that reads deeply red on a '
+      + 'position that is actually fine. The DIS 103/100 put credit spread showed ~-$57 on the mark while its '
+      + 'mid/theoretical value was roughly breakeven and DIS was $106.85, well above the $103 short strike.\n\n'
+      + 'The agent mandate now explains this and tells it to judge an open options position from the live chain '
+      + '(leg mids, greeks, underlying vs strikes), not the raw unrealized P&L — and that a defined-risk spread '
+      + "can't lose more than its width no matter what the mark says. It's data literacy, not a strategy rule, "
+      + 'so it keeps full discretion. Guards against a stale-mark panic close. Note the agent has no automated '
+      + 'stop at all — only its own decision closes a position — so this is the lever that matters here.',
+  },
+  {
     date: '2026-08-14',
     category: 'engine',
     title: 'Agent gets a continuity feed — it remembers its own recent reasoning',

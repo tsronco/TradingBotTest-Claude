@@ -466,3 +466,13 @@ def test_run_cycle_feeds_self_context_and_persists_note(_wire, monkeypatch):
     assert "open_position_theses" in captured["ctx"]["self_context"]
     # The read is persisted for next cycle.
     assert at.load_state()["_meta"]["last_market_read"] == "holding; watching AAPL"
+
+
+def test_mandate_teaches_how_alpaca_marks_spreads():
+    """The mandate must warn that Alpaca marks shorts/spreads at the worst-case
+    bid/ask corner, so the model judges P&L from the mid — guards against a
+    stale-mark panic close on a wide chain."""
+    m = at.SYSTEM_MANDATE.lower()
+    assert "unrealized_pl" in m or "mark" in m
+    assert "mid" in m and ("worst-case" in m or "worst case" in m)
+    assert "width" in m  # defined-risk spread can't lose more than its width
