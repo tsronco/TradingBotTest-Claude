@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-16',
     category: 'engine',
+    title: 'Agent sees fill price + slippage on its opened positions',
+    details:
+      'The cycle record now captures what a trade actually filled at, not just the structure — so the agent '
+      + 'can tell whether its limit prices are realistic. The opened record carries intended_net_credit (what '
+      + 'it asked for). The actual fill is not known at placement time (the order is still pending), so once '
+      + 'the position appears on Alpaca the next cycle, reconcile computes a fill block on the position: '
+      + 'intended vs actual net credit and the slippage between them (per share, signed).\n\n'
+      + 'Surfaced in the continuity feed, and the mandate tells the model that persistent negative slippage '
+      + 'means its limits are too optimistic for that chain and it should price more realistically. Example: '
+      + 'intended 0.295 credit, filled 0.24 → −0.055 slippage. Sign conventions are unit-tested.',
+  },
+  {
+    date: '2026-08-16',
+    category: 'engine',
     title: 'Agent learns from rejected orders and pings when one is refused',
     details:
       'Three linked fixes so the stateless agent never blindly loops on an order Alpaca will always refuse '

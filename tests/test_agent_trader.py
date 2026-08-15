@@ -633,3 +633,79 @@ def test_run_cycle_hold_persists_empty_outcome(_wire):
     at.run_cycle(client=_FakeClient([]))
     oc = at.load_state()["_meta"]["last_cycle_outcome"]
     assert oc == {"opened": [], "closed": [], "rejected": []}
+
+
+# ── Fill price / slippage capture ───────────────────────────────────────────
+
+def test_intent_net_credit_mleg_and_single_leg():
+    # mleg put credit spread, limit −0.295 → +0.295 credit intended
+    mleg = {"order_type": "limit", "limit_price": -0.295,
+            "legs": [{"symbol": "DIS...P103", "side": "sell", "qty": 1},
+                     {"symbol": "DIS...P100", "side": "buy", "qty": 1}]}
+    assert at._intent_net_credit(mleg) == 0.295
+    # single short option: selling at 1.25 → +1.25 credit
+    assert at._intent_net_credit(
+        {"order_type": "limit", "limit_price": 1.25,
+         "legs": [{"symbol": "X", "side": "sell", "qty": 1}]}) == 1.25
+    # single long option: buying at 1.25 → −1.25 (debit paid)
+    assert at._intent_net_credit(
+        {"order_type": "limit", "limit_price": 1.25,
+         "legs": [{"symbol": "X", "side": "buy", "qty": 1}]}) == -1.25
+    # market order → no intended price
+    assert at._intent_net_credit(
+        {"order_type": "market", "limit_price": None,
+         "legs": [{"symbol": "X", "side": "buy", "qty": 1}]}) is None
+
+
+def test_actual_net_credit_from_leg_avg_entries():
+    legs = [{"symbol": "DIS260828P00103000", "side": "sell", "qty": 1},
+            {"symbol": "DIS260828P00100000", "side": "buy", "qty": 1}]
+    # Filled worse than the 0.295 intended: short 0.44 − long 0.20 = 0.24 credit
+    positions = [{"symbol": "DIS260828P00103000", "avg_entry_price": "0.44"},
+                 {"symbol": "DIS260828P00100000", "avg_entry_price": "0.20"}]
+    assert at._actual_net_credit(legs, positions) == 0.24
+
+
+def test_actual_net_credit_none_if_a_leg_missing():
+    legs = [{"symbol": "A", "side": "sell", "qty": 1},
+            {"symbol": "B", "side": "buy", "qty": 1}]
+    positions = [{"symbol": "A", "avg_entry_price": "0.44"}]  # B not visible yet
+    assert at._actual_net_credit(legs, positions) is None
+
+
+def test_reconcile_computes_fill_and_slippage(monkeypatch):
+    """A tracked open with an intended price gets a fill block (intended vs actual
+    vs slippage) once its legs are visible on Alpaca."""
+    state = at._empty_state()
+    state["positions"]["O-1"] = {
+        "opened_at": "2026-08-15T13:00:00Z",
+        "legs": [{"symbol": "DIS260828P00103000", "side": "sell", "qty": 1},
+                 {"symbol": "DIS260828P00100000", "side": "buy", "qty": 1}],
+        "thesis": {"confidence": 3}, "intended_net_credit": 0.295,
+        "last_snapshot": None,
+    }
+    alpaca_positions = [
+        {"symbol": "DIS260828P00103000", "side": "short", "qty": "-1",
+         "avg_entry_price": "0.44", "unrealized_pl": "0", "market_value": "-44",
+         "cost_basis": "-44"},
+        {"symbol": "DIS260828P00100000", "side": "long", "qty": "1",
+         "avg_entry_price": "0.20", "unrealized_pl": "0", "market_value": "20",
+         "cost_basis": "20"},
+    ]
+    at._reconcile_and_grade(state, alpaca_positions, market={},
+                            client=None, summary={"closed": 0}, dry_run=True)
+    fill = state["positions"]["O-1"]["fill"]
+    assert fill["intended_net_credit"] == 0.295
+    assert fill["actual_net_credit"] == 0.24
+    assert fill["slippage"] == -0.055   # got 0.055 less credit than intended
+
+
+def test_run_cycle_open_records_intended_net_credit(_wire):
+    """A limit spread open records what it asked for, immediately, in the outcome."""
+    intent = _open_intent(order_type="limit", limit_price=-0.40, legs=[
+        {"asset": "option", "symbol": "AAL260320P00012500", "side": "sell", "qty": 1},
+        {"asset": "option", "symbol": "AAL260320P00011500", "side": "buy", "qty": 1},
+    ])
+    at.run_cycle(client=_FakeClient([intent]))
+    oc = at.load_state()["_meta"]["last_cycle_outcome"]
+    assert oc["opened"][0]["intended_net_credit"] == 0.40

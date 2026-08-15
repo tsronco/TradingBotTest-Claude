@@ -333,6 +333,9 @@ def build_self_context(state: dict) -> dict:
             "invalidation": t.get("invalidation"),
             "key_risk": t.get("key_risk"),
             "confidence": t.get("confidence"),
+            # Intended vs actual entry price + slippage (once the fill landed), so
+            # the model can see whether its limit prices are getting realistic fills.
+            "fill": pos.get("fill"),
         })
     meta = state.get("_meta") or {}
     return {
@@ -580,7 +583,11 @@ before any order was placed, so it is not proof of what happened); and \
 — opens submitted, closes, and any orders Alpaca REJECTED with the reason. \
 Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
 the same thing — read the reason and adapt (e.g. a rejected naked short must \
-become a spread). Use all of this so your decisions connect across time — when \
+become a spread). Each still-held position also carries a `fill` block once it \
+fills — `intended_net_credit` vs `actual_net_credit` and the `slippage` between \
+them (per share; negative slippage = you got a worse price than you asked for). \
+If your fills keep coming in worse than intended, your limit prices are too \
+optimistic for that chain's liquidity — price more realistically next time. Use all of this so your decisions connect across time — when \
 you add to, hold, or close a position, do it in light of what you already \
 believed about it, and if you're departing from that earlier reasoning, say so \
 plainly in your rationale rather than silently contradicting yourself. This is \
@@ -982,6 +989,40 @@ def build_outcome(position: dict, market: dict) -> dict:
     }
 
 
+def _intent_net_credit(intent: dict) -> float | None:
+    """Signed net price the agent INTENDED, per share: positive = net credit
+    received, negative = net debit paid. None for a market order (no target
+    price to compare a fill against).
+
+    Convention: a sold leg contributes +price, a bought leg −price. Alpaca's
+    mleg limit is already the signed net (negative = credit), so a multi-leg
+    intent just flips that sign; a single leg derives it from its side."""
+    if intent.get("order_type") != "limit":
+        return None
+    lp = _f(intent.get("limit_price"))
+    legs = intent.get("legs") or []
+    if lp is None or not legs:
+        return None
+    if len(legs) == 1:
+        return lp if legs[0].get("side") == "sell" else -lp
+    return -lp  # mleg net: negative limit = credit → positive credit
+
+
+def _actual_net_credit(legs: list, alpaca_positions: list) -> float | None:
+    """Signed net price actually FILLED, per share, from each leg's avg entry on
+    Alpaca (sold leg +avg, bought leg −avg). None unless EVERY leg is present
+    (a partial/one-leg view would net wrong)."""
+    by_sym = {str(p.get("symbol", "")).upper(): p for p in alpaca_positions}
+    total = 0.0
+    for leg in legs or []:
+        p = by_sym.get(str(leg.get("symbol", "")).upper())
+        avg = _f(p.get("avg_entry_price")) if p else None
+        if avg is None:
+            return None  # a leg isn't visible yet — can't net honestly
+        total += avg if leg.get("side") == "sell" else -avg
+    return round(total, 4) if legs else None
+
+
 def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
                          client, summary: dict, dry_run: bool = False) -> None:
     tracked = state.get("positions", {})
@@ -993,6 +1034,19 @@ def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
         if snap:
             snap["underlyings"] = _underlyings_now(tracked[pid], market)
             tracked[pid]["last_snapshot"] = snap
+        # Now that the position is visible, compute the ACTUAL fill vs what the
+        # agent intended (slippage) — the fill price isn't known at placement
+        # time, only once the leg avg-entries land here. Compute once.
+        pos = tracked[pid]
+        if pos.get("intended_net_credit") is not None and "fill" not in pos:
+            actual = _actual_net_credit(pos.get("legs"), alpaca_positions)
+            if actual is not None:
+                intended = pos["intended_net_credit"]
+                pos["fill"] = {
+                    "intended_net_credit": intended,
+                    "actual_net_credit": actual,
+                    "slippage": round(actual - intended, 4),
+                }
 
     for pid in absent:
         pos = tracked[pid]
@@ -1147,12 +1201,19 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
             order_id = order.get("id", "")
             if intent["action"] == "open":
                 summary["opened"] += 1
-                cycle_outcome["opened"].append({"legs": legs_str, "order_id": order_id})
+                intended_nc = _intent_net_credit(intent)
+                cycle_outcome["opened"].append(
+                    {"legs": legs_str, "order_id": order_id,
+                     "intended_net_credit": intended_nc})
                 state["positions"][order_id] = {
                     "opened_at": _now_iso(),
                     "legs": intent["legs"],
                     "thesis": intent.get("thesis"),
                     "open_order_id": order_id,
+                    # What we asked for, per share (+ = credit). The actual fill +
+                    # slippage get computed next cycle in reconcile, once the leg
+                    # avg-entries are visible on Alpaca, and stored as `fill`.
+                    "intended_net_credit": intended_nc,
                     # Snapshot of entry-time underlying prices so the grader can
                     # later check the thesis's invalidation condition and the
                     # direction of the move. last_snapshot is filled in on the

@@ -631,7 +631,18 @@ a naked short — the account is Options Level 3, defined-risk only):
    (written before orders go in, so it reflects intent, not outcome — Tim's catch).
    The mandate tells the model to reconcile the two and, on a rejection, adapt
    rather than resubmit. Persisted to `_meta.last_cycle_outcome`, overwritten every
-   cycle (stays one hour old like the note).
+   cycle (stays one hour old like the note). The opened record also carries
+   `intended_net_credit` — what the agent asked for, per share.
+   **Fill price / slippage (Tim's catch):** the actual fill isn't known at
+   placement time (order is `pending_new`, `filled_avg_price` null) — only once the
+   position's leg avg-entries land on Alpaca next cycle. So reconcile computes it
+   then: each still-held position gains a `fill` block —
+   `intended_net_credit` vs `actual_net_credit` vs `slippage` (per share, signed;
+   sold leg +avg, bought leg −avg; `None` unless every leg is visible), surfaced in
+   `open_position_theses`. The mandate tells the model that persistent negative
+   slippage means its limit prices are too optimistic for that chain's liquidity.
+   Sign conventions (`_intent_net_credit`/`_actual_net_credit`) are unit-tested on
+   the DIS example (intended 0.295 → filled 0.24 → −0.055).
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options
