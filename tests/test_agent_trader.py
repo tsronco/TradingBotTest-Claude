@@ -695,9 +695,52 @@ def test_reconcile_computes_fill_and_slippage(monkeypatch):
     at._reconcile_and_grade(state, alpaca_positions, market={},
                             client=None, summary={"closed": 0}, dry_run=True)
     fill = state["positions"]["O-1"]["fill"]
+    assert fill["fill_available"] is True
     assert fill["intended_net_credit"] == 0.295
     assert fill["actual_net_credit"] == 0.24
     assert fill["slippage"] == -0.055   # got 0.055 less credit than intended
+
+
+def test_position_qty_isolated_true_when_qty_matches():
+    legs = [{"symbol": "A", "side": "sell", "qty": 1},
+            {"symbol": "B", "side": "buy", "qty": 1}]
+    positions = [{"symbol": "A", "qty": "-1"}, {"symbol": "B", "qty": "1"}]
+    assert at._position_qty_is_isolated({"legs": legs}, positions) is True
+
+
+def test_position_qty_isolated_false_when_blended():
+    """A second unit added → Alpaca qty is 2, this order was 1 → not isolated."""
+    legs = [{"symbol": "A", "side": "sell", "qty": 1},
+            {"symbol": "B", "side": "buy", "qty": 1}]
+    positions = [{"symbol": "A", "qty": "-2"}, {"symbol": "B", "qty": "2"}]
+    assert at._position_qty_is_isolated({"legs": legs}, positions) is False
+
+
+def test_reconcile_flags_blended_quantity_instead_of_faking_slippage(monkeypatch):
+    """If the agent added a second unit, the blended avg can't isolate this
+    order's fill — reconcile must flag it, not report a meaningless number."""
+    state = at._empty_state()
+    state["positions"]["O-1"] = {
+        "opened_at": "2026-08-15T13:00:00Z",
+        "legs": [{"symbol": "DIS260828P00103000", "side": "sell", "qty": 1},
+                 {"symbol": "DIS260828P00100000", "side": "buy", "qty": 1}],
+        "thesis": {"confidence": 3}, "intended_net_credit": 0.295,
+        "last_snapshot": None,
+    }
+    # Alpaca shows qty -2/+2 (a second unit was opened) with a blended average.
+    alpaca_positions = [
+        {"symbol": "DIS260828P00103000", "side": "short", "qty": "-2",
+         "avg_entry_price": "0.42", "unrealized_pl": "0", "market_value": "-84",
+         "cost_basis": "-84"},
+        {"symbol": "DIS260828P00100000", "side": "long", "qty": "2",
+         "avg_entry_price": "0.18", "unrealized_pl": "0", "market_value": "36",
+         "cost_basis": "36"},
+    ]
+    at._reconcile_and_grade(state, alpaca_positions, market={},
+                            client=None, summary={"closed": 0}, dry_run=True)
+    fill = state["positions"]["O-1"]["fill"]
+    assert fill["fill_available"] is False
+    assert "slippage" not in fill and "actual_net_credit" not in fill
 
 
 def test_run_cycle_open_records_intended_net_credit(_wire):

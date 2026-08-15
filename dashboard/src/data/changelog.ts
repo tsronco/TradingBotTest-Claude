@@ -30,6 +30,19 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-16',
+    category: 'fix',
+    title: 'Agent slippage: skip the number when a position quantity is blended',
+    details:
+      'Follow-up to the fill/slippage capture. avg_entry_price is the blended average across all fills for a '
+      + 'leg, so if the agent adds a second unit of the same spread, comparing that blend against a single '
+      + "order's intended credit produces a real-looking but meaningless slippage number.\n\n"
+      + 'Reconcile now requires this order to account for the entire held quantity of each leg (exact per-leg '
+      + 'qty match) before computing slippage. If the quantity is blended across multiple opens (or only '
+      + 'partially filled), it writes fill_available: false with a note instead of a fake number, and the '
+      + 'mandate tells the model that a blended add legitimately shows no slippage. Guarded and unit-tested.',
+  },
+  {
+    date: '2026-08-16',
     category: 'engine',
     title: 'Agent sees fill price + slippage on its opened positions',
     details:

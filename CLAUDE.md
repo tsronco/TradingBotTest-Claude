@@ -643,6 +643,15 @@ a naked short — the account is Options Level 3, defined-risk only):
    slippage means its limit prices are too optimistic for that chain's liquidity.
    Sign conventions (`_intent_net_credit`/`_actual_net_credit`) are unit-tested on
    the DIS example (intended 0.295 → filled 0.24 → −0.055).
+   **Blended-quantity guard (Tim's catch):** `avg_entry_price` is the *blended*
+   average across all fills for a leg, so if the agent adds a second unit of the
+   same spread, comparing that blend against one order's `intended_net_credit`
+   gives an arithmetically-real-but-meaningless slippage. `_position_qty_is_isolated`
+   requires this order's per-leg qty to equal the total held qty (exact match) —
+   otherwise `fill = {fill_available: false, note: …}` is written instead of a fake
+   number, and the mandate tells the model a blended add legitimately shows no
+   slippage. (Per-share net is qty-independent, so the qty check is purely about
+   whether the average is contaminated by other orders / a partial fill.)
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options

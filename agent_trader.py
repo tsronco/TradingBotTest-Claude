@@ -587,7 +587,10 @@ become a spread). Each still-held position also carries a `fill` block once it \
 fills — `intended_net_credit` vs `actual_net_credit` and the `slippage` between \
 them (per share; negative slippage = you got a worse price than you asked for). \
 If your fills keep coming in worse than intended, your limit prices are too \
-optimistic for that chain's liquidity — price more realistically next time. Use all of this so your decisions connect across time — when \
+optimistic for that chain's liquidity — price more realistically next time. (If \
+you added to an existing position, its blended average hides the per-order fill, \
+so `fill_available` will be false and no slippage is shown — that's expected, not \
+an error.) Use all of this so your decisions connect across time — when \
 you add to, hold, or close a position, do it in light of what you already \
 believed about it, and if you're departing from that earlier reasoning, say so \
 plainly in your rationale rather than silently contradicting yourself. This is \
@@ -1023,6 +1026,32 @@ def _actual_net_credit(legs: list, alpaca_positions: list) -> float | None:
     return round(total, 4) if legs else None
 
 
+def _position_qty_is_isolated(position: dict, alpaca_positions: list) -> bool:
+    """True iff this tracked order accounts for the ENTIRE held quantity of each
+    of its legs — so `avg_entry_price` reflects only THIS order's fill, not a
+    blend across multiple opens.
+
+    If the agent adds a second unit of the same spread, Alpaca merges both fills
+    into one blended average; comparing that blend against a single order's
+    intended credit yields a real-looking but meaningless slippage. Requiring an
+    exact qty match (per leg) is the guard: held qty ≠ this order's qty ⇒ the
+    average is blended (extra units) or the fill is partial ⇒ don't report a
+    number. `_actual_net_credit`'s per-share math is qty-independent, so the qty
+    check is purely about whether the average is contaminated by other orders."""
+    by_sym = {str(p.get("symbol", "")).upper(): p for p in alpaca_positions}
+    legs = position.get("legs") or []
+    if not legs:
+        return False
+    for leg in legs:
+        p = by_sym.get(str(leg.get("symbol", "")).upper())
+        if not p:
+            return False
+        held, want = _f(p.get("qty")), _f(leg.get("qty"))
+        if held is None or want is None or abs(held) != abs(want):
+            return False
+    return True
+
+
 def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
                          client, summary: dict, dry_run: bool = False) -> None:
     tracked = state.get("positions", {})
@@ -1039,14 +1068,27 @@ def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
         # time, only once the leg avg-entries land here. Compute once.
         pos = tracked[pid]
         if pos.get("intended_net_credit") is not None and "fill" not in pos:
-            actual = _actual_net_credit(pos.get("legs"), alpaca_positions)
-            if actual is not None:
-                intended = pos["intended_net_credit"]
+            if not _position_qty_is_isolated(pos, alpaca_positions):
+                # Held qty is blended across multiple opens (or not fully filled),
+                # so avg_entry_price no longer isolates THIS order's fill. A
+                # slippage number here would be arithmetically real but
+                # meaningless — flag it, don't fabricate it.
                 pos["fill"] = {
-                    "intended_net_credit": intended,
-                    "actual_net_credit": actual,
-                    "slippage": round(actual - intended, 4),
+                    "fill_available": False,
+                    "note": ("this order's fill price can't be isolated — the "
+                             "position quantity is blended across multiple entries "
+                             "(or not fully filled), so no slippage is reported."),
                 }
+            else:
+                actual = _actual_net_credit(pos.get("legs"), alpaca_positions)
+                if actual is not None:
+                    intended = pos["intended_net_credit"]
+                    pos["fill"] = {
+                        "fill_available": True,
+                        "intended_net_credit": intended,
+                        "actual_net_credit": actual,
+                        "slippage": round(actual - intended, 4),
+                    }
 
     for pid in absent:
         pos = tracked[pid]
