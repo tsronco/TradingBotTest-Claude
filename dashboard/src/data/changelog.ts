@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-16',
     category: 'engine',
+    title: 'Agent learns from rejected orders and pings when one is refused',
+    details:
+      'Three linked fixes so the stateless agent never blindly loops on an order Alpaca will always refuse '
+      + '(e.g. a naked short — the account is Options Level 3, defined-risk only):\n\n'
+      + '1) It now gets previous_cycle_outcome: a factual, post-execution record of what actually happened last '
+      + 'cycle (opens, closes, and rejections with their reason). This sits next to previous_cycle_note, which '
+      + "is the model's reasoning written before orders go in — so the note reflects intent while the outcome "
+      + 'reflects reality, and the mandate tells it to reconcile the two and adapt on a rejection instead of '
+      + 'resubmitting.\n\n'
+      + '2) The mandate now states the account is Options Level 3 (longs, covered, defined-risk spreads only; no '
+      + 'naked shorts), so it does not attempt an unplaceable structure in the first place.\n\n'
+      + '3) A handled Alpaca rejection now pings #agent-errors instead of being log-only — so a loop on an '
+      + 'unplaceable order is visible immediately rather than burning API calls unseen.',
+  },
+  {
+    date: '2026-08-16',
+    category: 'engine',
     title: 'Agent sees a computed fair-value P&L next to Alpaca\'s worst-case mark',
     details:
       'Belt-and-suspenders on top of the stale-mark mandate note: each held option leg is now annotated with '

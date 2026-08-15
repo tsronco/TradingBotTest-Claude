@@ -334,10 +334,26 @@ def build_self_context(state: dict) -> dict:
             "key_risk": t.get("key_risk"),
             "confidence": t.get("confidence"),
         })
+    meta = state.get("_meta") or {}
     return {
         "open_position_theses": open_theses,
-        "previous_cycle_note": (state.get("_meta") or {}).get("last_market_read"),
+        # What the model REASONED last cycle (its market_read, written before any
+        # order went in — so it reflects intent, not outcome).
+        "previous_cycle_note": meta.get("last_market_read"),
+        # What ACTUALLY executed last cycle (code-generated, post-execution): opens
+        # submitted, closes, and any orders REJECTED with the reason. The pairing
+        # of note + outcome lets the model see where intent and reality diverged
+        # (a fill it didn't get, a structure Alpaca refused) instead of assuming
+        # its pre-trade note is what happened.
+        "previous_cycle_outcome": meta.get("last_cycle_outcome"),
     }
+
+
+def _legs_summary(legs: list) -> str:
+    """Compact 'sell 1 AAL...P, buy 1 AAL...P' string for outcome/notify records."""
+    return ", ".join(
+        f"{l.get('side')} {l.get('qty')} {l.get('symbol')}" for l in (legs or [])
+    )
 
 
 # ── The focus tool (phase 1: pick which names to analyze deeply) ───────────
@@ -535,6 +551,11 @@ own judgment.
 Constraints are mechanical, not editorial:
 - It is a MARGIN paper account. Alpaca enforces buying power at order time; if a \
 structure can't be margined it will simply be rejected and reported back to you.
+- This account is Options Level 3: you may BUY long options, hold covered \
+positions, and trade DEFINED-RISK multi-leg spreads (every short leg paired with \
+a long leg, or covered by stock you already hold). You may NOT sell a \
+naked/uncovered short option — Alpaca will reject it every time, so never attempt \
+one; if you want short premium, structure it as a spread with a long hedge.
 - Below the stated equity floor, opening new positions is blocked; you may still \
 close.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
@@ -552,12 +573,18 @@ missed — so be honest and specific.
 
 Your own recent reasoning — continuity, not a rule. You run once an hour with no \
 memory, so you are given `self_context`: the entry thesis for each position you \
-STILL hold (why you're in it, its invalidation, the confidence you assigned), \
-and your note from the previous cycle. Use it so your decisions connect across \
-time — when you add to, hold, or close a position, do it in light of what you \
-already believed about it, and if you're departing from that earlier reasoning, \
-say so plainly in your rationale rather than silently contradicting yourself. \
-This is context, NOT an instruction: you are free to change your mind. Two hard \
+STILL hold (why you're in it, its invalidation, the confidence you assigned); \
+`previous_cycle_note`, the read you wrote last cycle (your INTENT — written \
+before any order was placed, so it is not proof of what happened); and \
+`previous_cycle_outcome`, the FACTUAL record of what actually executed last cycle \
+— opens submitted, closes, and any orders Alpaca REJECTED with the reason. \
+Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
+the same thing — read the reason and adapt (e.g. a rejected naked short must \
+become a spread). Use all of this so your decisions connect across time — when \
+you add to, hold, or close a position, do it in light of what you already \
+believed about it, and if you're departing from that earlier reasoning, say so \
+plainly in your rationale rather than silently contradicting yourself. This is \
+context, NOT an instruction: you are free to change your mind. Two hard \
 caveats: (1) `self_context` is your PAST reasoning, not current market fact — \
 always trust the live positions and market data over it. (2) Positions you have \
 closed are deliberately absent from it; if something isn't in your live \
@@ -824,6 +851,29 @@ def _announce_close(intent: dict, order_id: str) -> None:
     )
 
 
+def _announce_rejection(intent: dict, status: int, body: str) -> None:
+    """Ping #agent-errors when Alpaca refuses an order. Handled rejections are
+    otherwise log-only (silent), so a loop on an unplaceable structure (e.g. an
+    options-level restriction) would burn API calls unseen. Best-effort — a
+    Discord failure must never break the cycle."""
+    legs = _legs_summary(intent.get("legs"))
+    try:
+        send_embed(
+            _CFG["errors_channel"],
+            title=f"⚠️ Order rejected: {legs}"[:256],
+            description=(
+                f"Alpaca refused this order (HTTP {status}). No position opened.\n\n"
+                f"Reason: {body}\n\n"
+                "If this repeats cycle after cycle, the agent may be looping on a "
+                "structure it cannot place — check the log."
+            )[:2048],
+            color=Color.RED,
+            actions_channel=_CFG["actions_channel"],
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _announce_lesson(lesson: dict) -> None:
     grade = lesson.get("grade") or {}
     outcome = lesson.get("outcome") or {}
@@ -1051,10 +1101,18 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         # exactly one hour old; overwritten every cycle so it never goes stale).
         state["_meta"]["last_market_read"] = market_read
 
+        # Factual record of what this cycle actually does — persisted as next
+        # cycle's `previous_cycle_outcome` so the agent learns from fills and,
+        # crucially, from rejections (it never reads its own logs otherwise).
+        cycle_outcome = {"opened": [], "closed": [], "rejected": []}
+
         for intent in decisions.get("intents", []):
+            legs_str = _legs_summary(intent.get("legs"))
             ok, reason = check_feasibility(intent, context["account"])
             if not ok:
                 summary["rejected"] += 1
+                cycle_outcome["rejected"].append(
+                    {"legs": legs_str, "source": "feasibility", "reason": reason})
                 log_event(_CFG["log_stream"], "agent_trader.py", "intent_rejected",
                           result="skipped", details={"reason": reason, "intent": intent})
                 continue
@@ -1065,20 +1123,31 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
                 resp = place_order(build_order_payload(intent))
             except requests.RequestException as e:
                 summary["errors"] += 1
+                cycle_outcome["rejected"].append(
+                    {"legs": legs_str, "source": "network", "reason": str(e)})
                 log_event(_CFG["log_stream"], "agent_trader.py", "order_error",
                           result="failure", details={"error": str(e)})
                 continue
             if resp.status_code >= 300:
                 summary["errors"] += 1
+                body = resp.text[:500]
+                cycle_outcome["rejected"].append(
+                    {"legs": legs_str, "source": "alpaca",
+                     "reason": f"Alpaca {resp.status_code}: {body}"})
                 log_event(_CFG["log_stream"], "agent_trader.py", "order_rejected",
                           result="failure",
-                          details={"status": resp.status_code, "body": resp.text[:500],
+                          details={"status": resp.status_code, "body": body,
                                    "intent": intent})
+                # Surface a handled rejection to #agent-errors — it's silent
+                # otherwise (log-only), so a loop on an unplaceable structure
+                # would burn API calls unnoticed until someone reads the log.
+                _announce_rejection(intent, resp.status_code, body)
                 continue
             order = resp.json()
             order_id = order.get("id", "")
             if intent["action"] == "open":
                 summary["opened"] += 1
+                cycle_outcome["opened"].append({"legs": legs_str, "order_id": order_id})
                 state["positions"][order_id] = {
                     "opened_at": _now_iso(),
                     "legs": intent["legs"],
@@ -1094,11 +1163,16 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
                 _announce_open(intent, order_id)
             else:
                 summary["closed"] += 1
+                cycle_outcome["closed"].append({"legs": legs_str, "order_id": order_id})
                 _announce_close(intent, order_id)
             log_event(_CFG["log_stream"], "agent_trader.py",
                       f"{intent['action']}_placed",
                       alpaca_order_id=order_id,
                       details={"intent": intent})
+
+        # Persist this cycle's factual outcome for next cycle's continuity feed
+        # (overwritten every cycle, so it stays exactly one hour old like the note).
+        state["_meta"]["last_cycle_outcome"] = cycle_outcome
 
         # Record the model's read every cycle so a hold isn't a black box — logged
         # to the audit trail always, and surfaced to #agent-actions on a hold

@@ -621,6 +621,27 @@ unreliable worst-case mark (weight it lightly, lean on underlying-vs-strikes) �
 so a missing annotation is never mistaken for "nothing to correct." The model
 sums the legs' `unrealized_pl_mid` for a spread's true P&L.
 
+**Rejection feedback + factual outcome + error ping (2026-08-16).** Three linked
+fixes so the stateless agent doesn't blindly loop on an order Alpaca refuses (e.g.
+a naked short — the account is Options Level 3, defined-risk only):
+1. **`previous_cycle_outcome` in `self_context`** — a code-generated, post-execution
+   record of what ACTUALLY happened last cycle (`opened`/`closed`/`rejected`, each
+   rejection carrying its reason + source `feasibility`/`network`/`alpaca`).
+   Complements `previous_cycle_note`, which is the model's *pre-execution* reasoning
+   (written before orders go in, so it reflects intent, not outcome — Tim's catch).
+   The mandate tells the model to reconcile the two and, on a rejection, adapt
+   rather than resubmit. Persisted to `_meta.last_cycle_outcome`, overwritten every
+   cycle (stays one hour old like the note).
+2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
+   buy longs / hold covered / trade defined-risk spreads, never a naked short, so
+   it doesn't attempt one in the first place. Mechanical constraint (like "options
+   are ×100"), not a strategy rule.
+3. **`_announce_rejection` pings `#agent-errors`** — a handled Alpaca rejection was
+   log-only (silent); now it posts an embed, so a loop on an unplaceable structure
+   is visible immediately instead of burning API calls until someone reads the log.
+   (Matters most if the model is ever driven on real money — the paper agent is
+   harmless, but a silent loop shouldn't be invisible.)
+
 **Education layer (the point of the account).** Every trade becomes a durable
 lesson committed to git — **surface-agnostic**, no dashboard required:
 - **Falsifiable thesis at entry** (captured in `agent_state.json`): view, why this

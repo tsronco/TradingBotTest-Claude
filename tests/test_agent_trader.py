@@ -427,12 +427,20 @@ def test_build_self_context_returns_open_theses_and_prev_note():
                                "key_risk": "gap down", "confidence": 3}},
         },
     }
+    state["_meta"]["last_cycle_outcome"] = {
+        "opened": [], "closed": [],
+        "rejected": [{"legs": "sell 1 NVDA...C", "source": "alpaca",
+                      "reason": "Alpaca 403: naked short not permitted"}],
+    }
     sc = at.build_self_context(state)
     assert sc["previous_cycle_note"] == "quiet tape, holding DIS"
     assert len(sc["open_position_theses"]) == 1
     row = sc["open_position_theses"][0]
     assert row["thesis"] == "DIS range-bound" and row["invalidation"] == "DIS<103"
     assert row["confidence"] == 3
+    # The factual outcome (incl. the rejection + reason) is fed forward too.
+    assert sc["previous_cycle_outcome"]["rejected"][0]["source"] == "alpaca"
+    assert "naked short" in sc["previous_cycle_outcome"]["rejected"][0]["reason"]
 
 
 def test_build_self_context_excludes_closed_positions():
@@ -566,3 +574,62 @@ def test_fair_value_marks_available_true_on_good_quote(monkeypatch):
 def test_mandate_explains_fair_value_unavailable_flag():
     m = at.SYSTEM_MANDATE.lower()
     assert "fair_value_available" in m and "false" in m
+
+
+# ── Rejection feedback + error ping + options-level constraint ──────────────
+
+def test_mandate_states_options_level_and_no_naked_shorts():
+    """The model must be told its permission level so it never wastes a cycle
+    attempting a structure Alpaca will always reject."""
+    m = at.SYSTEM_MANDATE.lower()
+    assert "level 3" in m
+    assert "naked" in m and ("spread" in m or "hedge" in m)
+
+
+def test_mandate_explains_previous_cycle_outcome():
+    m = at.SYSTEM_MANDATE.lower()
+    assert "previous_cycle_outcome" in m and "reject" in m
+
+
+def test_run_cycle_records_open_in_outcome(_wire):
+    """A successful open is captured in the persisted cycle outcome."""
+    at.run_cycle(client=_FakeClient([_open_intent()]))
+    oc = at.load_state()["_meta"]["last_cycle_outcome"]
+    assert len(oc["opened"]) == 1 and oc["opened"][0]["order_id"] == "ORD-1"
+    assert oc["rejected"] == [] and oc["closed"] == []
+
+
+def test_run_cycle_rejection_pings_errors_and_records_outcome(_wire, monkeypatch):
+    """An Alpaca rejection must (a) ping #agent-errors — not stay log-only — and
+    (b) be recorded in the outcome so next cycle sees it and won't blindly retry."""
+    embeds = []
+    monkeypatch.setattr(at, "send_embed",
+                        lambda channel, **k: embeds.append((channel, k)))
+    monkeypatch.setattr(at, "place_order",
+                        lambda p: _OrderResp(status=403,
+                                             body={"message": "naked short not permitted"}))
+    summary = at.run_cycle(client=_FakeClient([_open_intent()]))
+    assert summary["errors"] == 1 and summary["opened"] == 0
+    # (a) pinged the errors channel
+    assert any(ch == at._CFG["errors_channel"] for ch, _ in embeds)
+    # (b) recorded in the persisted outcome with Alpaca's reason
+    oc = at.load_state()["_meta"]["last_cycle_outcome"]
+    assert len(oc["rejected"]) == 1
+    rej = oc["rejected"][0]
+    assert rej["source"] == "alpaca" and "403" in rej["reason"]
+
+
+def test_run_cycle_feasibility_reject_recorded_in_outcome(_wire):
+    """An intent the code refuses (open without a thesis) lands in the outcome
+    with source=feasibility — so the agent sees its own malformed attempt too."""
+    at.run_cycle(client=_FakeClient([_open_intent(thesis=None)]))
+    oc = at.load_state()["_meta"]["last_cycle_outcome"]
+    assert len(oc["rejected"]) == 1 and oc["rejected"][0]["source"] == "feasibility"
+
+
+def test_run_cycle_hold_persists_empty_outcome(_wire):
+    """A hold cycle persists an empty (but present) outcome — so next cycle's
+    feed shows 'nothing executed' rather than a stale prior outcome."""
+    at.run_cycle(client=_FakeClient([]))
+    oc = at.load_state()["_meta"]["last_cycle_outcome"]
+    assert oc == {"opened": [], "closed": [], "rejected": []}
