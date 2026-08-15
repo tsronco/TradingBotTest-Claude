@@ -39,8 +39,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'worst-case short@ask / long@bid figure), plus the leg bid/ask/mid.\n\n'
       + 'Sign-safe via Alpaca\'s signed qty — (mid − avg_entry) × qty × 100 is correct for long and short legs '
       + 'alike. On the DIS 103/100 spread the legs sum to +$7 fair value versus the −$57 the raw mark shows. '
-      + 'Stocks are skipped (their last-trade mark is already fair) and it is best-effort — a leg with no quote '
-      + 'just keeps the raw mark. Directly reduces the chance of a panic close on a wide/illiquid chain.',
+      + 'Stocks are skipped (their last-trade mark is already fair). If a leg\'s live quote cannot be fetched, '
+      + 'the fallback is flagged, not silent: the block carries fair_value_available: false and a note telling '
+      + 'the model the only figure is the unreliable worst-case mark — so a missing fair value is never mistaken '
+      + 'for "nothing to correct." Directly reduces the chance of a panic close on a wide/illiquid chain.',
   },
   {
     date: '2026-08-16',

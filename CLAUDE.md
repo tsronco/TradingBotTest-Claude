@@ -614,9 +614,12 @@ option leg it fetches the live quote and attaches a `fair_value` block —
 (Alpaca's worst-case), plus leg bid/ask/mid. Sign-safe via Alpaca's signed `qty`:
 `(mid − avg_entry) × qty × 100` is correct for long and short legs alike (verified
 on the DIS spread: legs sum to **+$7** fair vs **−$57** mark). Stocks are skipped
-(their last-trade mark is already fair) and it's best-effort (a leg with no quote
-keeps the raw mark). The model sums the legs' `unrealized_pl_mid` for a spread's
-true P&L.
+(their last-trade mark is already fair). If a leg's live quote can't be fetched,
+the fallback is **flagged, not silent**: the block carries
+`fair_value_available: false` + a note telling the model the only figure is the
+unreliable worst-case mark (weight it lightly, lean on underlying-vs-strikes) —
+so a missing annotation is never mistaken for "nothing to correct." The model
+sums the legs' `unrealized_pl_mid` for a spread's true P&L.
 
 **Education layer (the point of the account).** Every trade becomes a durable
 lesson committed to git — **surface-agnostic**, no dashboard required:

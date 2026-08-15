@@ -275,13 +275,25 @@ def annotate_positions_fair_value(positions: list, mode: str = "agent") -> list:
             q = alpaca_data.get_option_quote(occ, mode=mode)
         except Exception:  # noqa: BLE001 — annotation is best-effort, never fatal
             q = None
-        if not q:
-            continue
-        bid, ask = _f(q.get("bid")), _f(q.get("ask"))
+        bid = _f(q.get("bid")) if q else None
+        ask = _f(q.get("ask")) if q else None
         if bid is None or ask is None or (bid <= 0 and ask <= 0):
+            # No usable quote this cycle. Don't fail silently — flag it, so the
+            # model knows the only number it has is the unreliable worst-case
+            # mark and doesn't mistake a missing annotation for "nothing to fix."
+            pos["fair_value"] = {
+                "fair_value_available": False,
+                "unrealized_pl_mark": _f(pos.get("unrealized_pl")),
+                "note": ("could not fetch a live quote for this leg this cycle, so "
+                         "the ONLY P&L figure available is Alpaca's worst-case "
+                         "bid/ask mark — treat it as unreliable, weight it lightly, "
+                         "and judge this position from the underlying's price vs "
+                         "your strikes and your thesis instead."),
+            }
             continue
         mid = round((bid + ask) / 2.0, 4)
         pos["fair_value"] = {
+            "fair_value_available": True,
             "leg_bid": bid,
             "leg_ask": ask,
             "leg_mid": mid,
@@ -561,7 +573,9 @@ concrete, each held option leg is annotated with a `fair_value` block: \
 `unrealized_pl_mark` (Alpaca's scary worst-case number) shown next to \
 `unrealized_pl_mid` (the fair estimate from the leg's live mid), plus the leg's \
 bid/ask/mid. Read the MID figure; sum the legs' `unrealized_pl_mid` for a \
-spread's true P&L. Corroborate with the underlying's price relative to your \
+spread's true P&L. If a leg shows `fair_value_available: false`, its live quote \
+could not be fetched this cycle — the only figure is the unreliable worst-case \
+mark, so weight it lightly and lean on the underlying vs your strikes instead. Corroborate with the underlying's price relative to your \
 strikes and the greeks. A defined-risk spread cannot lose more than its width no \
 matter what the mark says; a wide bid/ask on a quiet name is noise, not a loss. \
 Decide to close because your thesis or its stated invalidation says so, or \

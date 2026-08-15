@@ -532,9 +532,37 @@ def test_fair_value_skips_stocks(monkeypatch):
     assert "fair_value" not in pos and called["n"] == 0  # no quote fetched for a stock
 
 
-def test_fair_value_best_effort_on_missing_quote(monkeypatch):
+def test_fair_value_flags_missing_quote_as_unreliable(monkeypatch):
+    """A missing quote must be FLAGGED, not silently dropped — the model has to
+    know the leftover unrealized_pl is the unreliable worst-case mark."""
     monkeypatch.setattr(at.alpaca_data, "get_option_quote",
                         lambda occ, mode="agent": None)
     pos = _opt_pos("DIS260828P00103000", -2, 0.49, -28.0)
     at.annotate_positions_fair_value([pos], mode="agent")
-    assert "fair_value" not in pos  # no quote → no annotation, no crash
+    fv = pos["fair_value"]
+    assert fv["fair_value_available"] is False
+    assert "unrealized_pl_mid" not in fv            # no fair number could be computed
+    assert fv["unrealized_pl_mark"] == -28.0        # the raw mark is still shown...
+    assert "unreliable" in fv["note"].lower()        # ...but explicitly flagged
+
+
+def test_fair_value_flags_degenerate_quote(monkeypatch):
+    """A zero/empty bid+ask is not a usable mid — flag it too, don't compute."""
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": {"bid": 0.0, "ask": 0.0})
+    pos = _opt_pos("DIS260828P00103000", -2, 0.49, -28.0)
+    at.annotate_positions_fair_value([pos], mode="agent")
+    assert pos["fair_value"]["fair_value_available"] is False
+
+
+def test_fair_value_marks_available_true_on_good_quote(monkeypatch):
+    monkeypatch.setattr(at.alpaca_data, "get_option_quote",
+                        lambda occ, mode="agent": {"bid": 0.14, "ask": 0.63})
+    pos = _opt_pos("DIS260828P00103000", -2, 0.49, -28.0)
+    at.annotate_positions_fair_value([pos], mode="agent")
+    assert pos["fair_value"]["fair_value_available"] is True
+
+
+def test_mandate_explains_fair_value_unavailable_flag():
+    m = at.SYSTEM_MANDATE.lower()
+    assert "fair_value_available" in m and "false" in m
