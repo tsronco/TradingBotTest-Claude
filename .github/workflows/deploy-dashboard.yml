@@ -99,6 +99,15 @@ jobs:
         if: inputs.skip_tests != true
         run: npx tsc -b
 
+      # `vercel build` installs the Python function's requirements.txt with uv
+      # (dashboard/api/fundamentals.py — the yfinance endpoint). Vercel's own
+      # build machines ship uv; a bare GitHub runner does not, so the build
+      # dies with "spawn uv ENOENT" without this.
+      - name: Install uv (needed to build the Python API function)
+        run: |
+          pipx install uv
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
