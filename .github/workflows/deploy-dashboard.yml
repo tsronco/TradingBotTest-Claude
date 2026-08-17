@@ -32,7 +32,9 @@ name: Deploy Dashboard
 
 on:
   push:
-    branches: [main]
+    # TEMPORARY (revert after the pre-merge validation run): the feature branch
+    # is listed so the pipeline can be exercised before merging to main.
+    branches: [main, claude/github-actions-mobile-redeploy-eil0b3]
     paths:
       - 'dashboard/**'
       - '.github/workflows/deploy-dashboard.yml'
@@ -110,8 +112,12 @@ jobs:
 
       # --prebuilt uploads the artifact we just built instead of rebuilding on
       # Vercel, so what was tested above is what goes live.
+      # TEMPORARY guard (revert with the branch trigger above): on any branch
+      # other than main this is a validation run — everything above proves the
+      # secrets and the build, and we stop here rather than shipping to prod.
       - name: Deploy to production
         id: deploy
+        if: github.ref == 'refs/heads/main'
         run: |
           url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -125,7 +131,9 @@ jobs:
           {
             echo "### Dashboard deploy"
             echo ""
-            if [ -n "${{ steps.deploy.outputs.url }}" ]; then
+            if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+              echo "🧪 **Validation run** (branch \`${GITHUB_REF#refs/heads/}\`) — secrets, tests and build verified; deploy deliberately skipped."
+            elif [ -n "${{ steps.deploy.outputs.url }}" ]; then
               echo "✅ **Deployed:** ${{ steps.deploy.outputs.url }}"
               echo ""
               echo "Production: https://tradingbot-dashboard-blue.vercel.app"
