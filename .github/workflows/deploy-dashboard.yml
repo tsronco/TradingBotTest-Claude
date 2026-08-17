@@ -104,6 +104,30 @@ jobs:
 
       # Pulls the project's production env vars + build settings from Vercel so
       # the runner builds exactly what Vercel would build.
+      # TEMPORARY diagnostics (remove once the secrets are confirmed good).
+      # Checks the SHAPE of the two IDs without printing them, then asks the
+      # token what it can actually see. Names of teams/projects are not secret;
+      # the secret values stay masked by the runner.
+      - name: Diagnose Vercel credentials
+        continue-on-error: true
+        run: |
+          echo "--- ID shape (values never printed) ---"
+          case "$VERCEL_PROJECT_ID" in
+            prj_*) echo "VERCEL_PROJECT_ID: starts with prj_ ✅ (len ${#VERCEL_PROJECT_ID})" ;;
+            *)     echo "VERCEL_PROJECT_ID: ❌ does NOT start with prj_ (len ${#VERCEL_PROJECT_ID}) — probably the project NAME, not the ID" ;;
+          esac
+          case "$VERCEL_ORG_ID" in
+            team_*) echo "VERCEL_ORG_ID: starts with team_ ✅ (len ${#VERCEL_ORG_ID})" ;;
+            prj_*)  echo "VERCEL_ORG_ID: ❌ starts with prj_ — the two IDs may be swapped" ;;
+            *)      echo "VERCEL_ORG_ID: no team_ prefix (len ${#VERCEL_ORG_ID}) — OK for a personal account, wrong for a team" ;;
+          esac
+          echo "--- who does this token belong to? ---"
+          vercel whoami --token="$VERCEL_TOKEN" || echo "whoami FAILED — token invalid, expired, or revoked"
+          echo "--- teams this token can see ---"
+          vercel teams ls --token="$VERCEL_TOKEN" || echo "teams ls FAILED"
+          echo "--- projects this token can see ---"
+          vercel project ls --token="$VERCEL_TOKEN" || echo "project ls FAILED (often means the token lacks team scope)"
+
       - name: Pull Vercel project settings
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
