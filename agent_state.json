@@ -1,14 +1,19 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 13,
-    "last_cycle_at": "2026-08-17T14:12:42Z",
+    "cycle_count": 14,
+    "last_cycle_at": "2026-08-17T15:12:33Z",
     "last_cycle_outcome": {
-      "closed": [],
+      "closed": [
+        {
+          "legs": "buy 2 DIS260828P00103000, sell 2 DIS260828P00100000",
+          "order_id": "da8994dc-09ed-4401-976c-756c85c5bbaf"
+        }
+      ],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS has slipped to $105.69 (from $106.88 last cycle) and the 103/100 put spread's true mid P&L has flipped to roughly -$11 (short 103 mid $0.59 vs $0.49 entry, long 100 mid $0.24 vs $0.195) \u2014 the stock is still 2.6% above my short strike with 11 days left, so the thesis is intact but the cushion is thinner. Invalidation (DIS closing below $103) has not triggered and the spread's max loss is capped at ~$460 on 2 contracts; I'm not paying up to exit a position that only needs DIS to hold flat. No new open: options buying power is $1,459 on a $1.95k account and the shortlist offers nothing with an edge I can defend at these bid/ask widths (ACN/CRM/DELL chains are 15-40% wide, MU/AMAT premium is huge but so is the gap risk), so adding correlated short premium or paying spread-crossing costs for long premium would be forcing a trade.",
+    "last_market_read": "DIS has fallen to $104.96, only 1.9% above my short 103 strike with 11 days to expiry; the 103/100 put spread's true mid loss is ~-$49 on 2 contracts (short 103 mid $0.715 vs $0.49 credit, long 100 mid $0.175 vs $0.195) and the short leg's mark is up ~97% today, i.e. the drift is against me and delta is accelerating (short 103 now ~-0.30 equivalent). My stated exit rule was to close if the spread mark reached ~2.5x the credit; net mid is now $0.54 vs $0.295 credit (~1.8x) and the cushion has halved in three sessions on a broad-tape slide, so I take the ~$50 loss now rather than risk the remaining ~$410 of width on a name that has trended lower every cycle I've held it.",
     "seed_capital": 2000
   },
   "closed": [],
@@ -21,12 +26,12 @@
       },
       "last_snapshot": {
         "cost_basis": -59.0,
-        "market_value": -108.0,
-        "seen_at": "2026-08-17T14:12:31Z",
+        "market_value": -116.0,
+        "seen_at": "2026-08-17T15:12:19Z",
         "underlyings": {
-          "DIS": 105.685
+          "DIS": 104.96
         },
-        "unrealized_pl": -49.0
+        "unrealized_pl": -57.0
       },
       "legs": [
         {
@@ -62,12 +67,12 @@
       },
       "last_snapshot": {
         "cost_basis": -59.0,
-        "market_value": -108.0,
-        "seen_at": "2026-08-17T14:12:31Z",
+        "market_value": -116.0,
+        "seen_at": "2026-08-17T15:12:19Z",
         "underlyings": {
-          "DIS": 105.685
+          "DIS": 104.96
         },
-        "unrealized_pl": -49.0
+        "unrealized_pl": -57.0
       },
       "legs": [
         {
