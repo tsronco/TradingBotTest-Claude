@@ -30,6 +30,22 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-17',
+    category: 'fix',
+    title: 'Agent auto-cancels its stale unfilled orders each cycle',
+    details:
+      'A CVS trade exposed a gap: the agent placed a confused 97.5/155 limit that never filled, then next '
+      + 'cycle placed a clean 96/103 that did fill — but the old order kept resting on Alpaca (risking a double '
+      + 'CVS position ~65% of equity if it filled) and lingered in tracking as a phantom "held" position in the '
+      + "continuity feed. The agent's only actions are open and close — it can't cancel — and unfilled orders "
+      + 'were tracked as positions for up to a day.\n\n'
+      + 'Reconcile now sweeps any tracked order that never became a held position. Since it runs before this '
+      + "cycle's opens, every such entry is a prior-cycle order, and the agent re-decides fresh each hour, so a "
+      + 'still-resting order is stale by definition — it is cancelled on Alpaca and dropped from tracking. An '
+      + 'order-status check keeps a filled-but-not-yet-visible order from ever being dropped. No new agent '
+      + 'discretion — pure harness cleanup.',
+  },
+  {
+    date: '2026-08-17',
     category: 'infra',
     title: 'Dashboard deploys from mobile via GitHub Actions',
     details:

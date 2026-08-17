@@ -208,6 +208,65 @@ def test_stale_unfilled_is_dropped_not_graded(_quiet):
     assert state["closed"] == [] and summary["graded"] == 0
 
 
+# ── Sweep of stale unfilled orders (cancel + drop) ──────────────────────────
+
+def test_working_prior_order_is_cancelled_and_dropped(_quiet, monkeypatch):
+    """A prior-cycle order still resting (status 'accepted') is stale — the agent
+    re-decides each cycle — so cancel it on Alpaca and stop tracking it."""
+    cancels = []
+    monkeypatch.setattr(at, "_order_status", lambda oid: "accepted")
+    monkeypatch.setattr(at, "_cancel_order", lambda oid: cancels.append(oid))
+    state = {"positions": {
+        "ORD-9": {"opened_at": _now(), "legs": [{"symbol": "CVS260918C00097500"}],
+                  "thesis": {}, "last_snapshot": None, "open_order_id": "ORD-9"},
+    }, "closed": []}
+    at._reconcile_and_grade(state, alpaca_positions=[], market={},
+                            client=_GradeClient(_GRADE), summary={"closed": 0, "graded": 0})
+    assert "ORD-9" not in state["positions"]   # dropped from tracking
+    assert cancels == ["ORD-9"]                 # and cancelled on Alpaca
+
+
+def test_filled_but_invisible_order_is_kept_never_cancelled(_quiet, monkeypatch):
+    """If the order actually FILLED (position just not visible yet), never drop
+    or cancel it — that would lose a real position."""
+    cancels = []
+    monkeypatch.setattr(at, "_order_status", lambda oid: "filled")
+    monkeypatch.setattr(at, "_cancel_order", lambda oid: cancels.append(oid))
+    state = {"positions": {
+        "ORD-8": {"opened_at": _days_ago(2), "legs": [{"symbol": "X"}],
+                  "thesis": {}, "last_snapshot": None, "open_order_id": "ORD-8"},
+    }, "closed": []}
+    at._reconcile_and_grade(state, alpaca_positions=[], market={},
+                            client=_GradeClient(_GRADE), summary={"closed": 0, "graded": 0})
+    assert "ORD-8" in state["positions"] and cancels == []
+
+
+def test_unknown_status_recent_order_is_kept(_quiet, monkeypatch):
+    monkeypatch.setattr(at, "_order_status", lambda oid: None)
+    state = {"positions": {
+        "ORD-7": {"opened_at": _now(), "legs": [{"symbol": "X"}],
+                  "thesis": {}, "last_snapshot": None, "open_order_id": "ORD-7"},
+    }, "closed": []}
+    at._reconcile_and_grade(state, alpaca_positions=[], market={},
+                            client=_GradeClient(_GRADE), summary={"closed": 0, "graded": 0})
+    assert "ORD-7" in state["positions"]   # unknown + recent → give it a cycle
+
+
+def test_unknown_status_old_order_is_swept(_quiet, monkeypatch):
+    """Backstop: even if the status never resolves, a >1-day unfilled order is
+    still cancelled + dropped so it can't linger forever."""
+    cancels = []
+    monkeypatch.setattr(at, "_order_status", lambda oid: None)
+    monkeypatch.setattr(at, "_cancel_order", lambda oid: cancels.append(oid))
+    state = {"positions": {
+        "ORD-6": {"opened_at": _days_ago(3), "legs": [{"symbol": "X"}],
+                  "thesis": {}, "last_snapshot": None, "open_order_id": "ORD-6"},
+    }, "closed": []}
+    at._reconcile_and_grade(state, alpaca_positions=[], market={},
+                            client=_GradeClient(_GRADE), summary={"closed": 0, "graded": 0})
+    assert "ORD-6" not in state["positions"] and cancels == ["ORD-6"]
+
+
 def test_still_open_gets_snapshot(_quiet):
     state = {"positions": {
         "O4": {"opened_at": _now(), "legs": [{"symbol": "AAPL"}],

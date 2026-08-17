@@ -791,6 +791,30 @@ def place_order(payload: dict) -> requests.Response:
     )
 
 
+def _order_status(order_id: str) -> str | None:
+    """Alpaca order status (e.g. 'filled', 'accepted', 'canceled') or None if it
+    can't be fetched. Used to tell a filled order from a still-resting one when
+    sweeping stale unfilled orders."""
+    try:
+        r = requests.get(f"{_base_url()}/orders/{order_id}", headers=_headers(),
+                          timeout=DEFAULT_TIMEOUT)
+        if r.status_code >= 300:
+            return None
+        return (r.json() or {}).get("status")
+    except requests.RequestException:
+        return None
+
+
+def _cancel_order(order_id: str) -> None:
+    """Best-effort cancel of a resting order. Harmless if already terminal
+    (Alpaca returns an error we ignore) — never raises into the cycle."""
+    try:
+        requests.delete(f"{_base_url()}/orders/{order_id}", headers=_headers(),
+                        timeout=DEFAULT_TIMEOUT)
+    except requests.RequestException:
+        pass
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 def _f(v):
@@ -1144,12 +1168,32 @@ def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
                 _announce_lesson(lesson)
                 log_event(_CFG["log_stream"], "agent_trader.py", "position_graded",
                           details={"lesson": lesson})
-        elif (_days_since(pos.get("opened_at")) or 0) > STALE_UNFILLED_DAYS:
-            # Opened but never became a visible position — treat as unfilled/dead.
-            del tracked[pid]
-            log_event(_CFG["log_stream"], "agent_trader.py", "dropped_unfilled",
-                      result="skipped", details={"position": pos})
-        # else: freshly opened, not yet visible on Alpaca — re-check next cycle.
+            continue
+
+        # No snapshot → this tracked order never became a held position, i.e. it
+        # is a resting order from a PRIOR cycle (this cycle's opens aren't in
+        # state yet — reconcile runs before them). The agent re-decides fresh
+        # every cycle, so a still-unfilled order is stale by definition: cancel
+        # it and stop tracking it, so it can't drift into an unwanted late fill
+        # and doesn't linger as a phantom "position" in the continuity feed.
+        oid = pos.get("open_order_id")
+        status = _order_status(oid) if (oid and not dry_run) else None
+        if status in ("filled", "partially_filled"):
+            # It DID fill; the Alpaca position just isn't visible yet. Keep it —
+            # next reconcile will see the position and snapshot it.
+            continue
+        if status is None and (_days_since(pos.get("opened_at")) or 0) <= STALE_UNFILLED_DAYS:
+            # Status unknown (no order id / unreachable / freshly seeded) and
+            # still recent — give it another cycle; the >1d fallthrough below
+            # guarantees eventual cleanup even if the status never resolves.
+            continue
+        if oid and not dry_run:
+            _cancel_order(oid)  # best-effort; harmless if already terminal
+        del tracked[pid]
+        if not dry_run:
+            log_event(_CFG["log_stream"], "agent_trader.py", "swept_unfilled_order",
+                      result="skipped",
+                      details={"status": status, "order_id": oid, "position": pos})
 
 
 def _entry_context(intent: dict, market: dict) -> dict:

@@ -674,6 +674,23 @@ close (a 2-unit DIS spread) exposed two flaws, plus two agent-reasoning slips:
    paid) — don't bolt on a throwaway far-OTM short leg to "make it defined-risk";
    (b) the **rationale/thesis must describe the exact structure actually placed**
    (same strikes/width/risk), not a rejected alternative.
+
+**Stale-order sweep (2026-08-17).** A CVS trade exposed a gap: the agent placed a
+(confused) 97.5/155 limit that never filled, then next cycle placed a clean
+96/103 that DID fill — but the old order kept resting on Alpaca (risking a double
+CVS position ~65% of equity if it filled) AND lingered in `state["positions"]` as
+a phantom the continuity feed showed as "held." Root cause: the agent's only
+actions are open/close — it can't cancel — and unfilled orders were tracked as
+positions for up to a day. Fix: `_reconcile_and_grade` now **sweeps** any tracked
+order that never became a held position. Because reconcile runs before this
+cycle's opens, every such entry is a PRIOR-cycle order, and the agent re-decides
+fresh each hour, so a still-resting order is stale by definition — it's cancelled
+on Alpaca (`_cancel_order`, best-effort) and dropped from tracking. Guarded by an
+order-status check (`_order_status`) so a `filled`/`partially_filled` order whose
+position isn't visible yet is **kept, never dropped**; an unreachable status is
+given one more cycle, with the >1-day fallthrough as a hard backstop. No new agent
+discretion — pure harness janitorial. (A future option: give the agent an explicit
+cancel action; deferred — the auto-sweep covers the observed failure.)
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options
