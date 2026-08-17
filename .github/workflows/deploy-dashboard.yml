@@ -121,6 +121,12 @@ jobs:
             prj_*)  echo "VERCEL_ORG_ID: ❌ starts with prj_ — the two IDs may be swapped" ;;
             *)      echo "VERCEL_ORG_ID: no team_ prefix (len ${#VERCEL_ORG_ID}) — OK for a personal account, wrong for a team" ;;
           esac
+          echo "--- token shape (value never printed) ---"
+          echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN} (a Vercel token is normally 24 chars)"
+          case "$VERCEL_TOKEN" in
+            *[[:space:]]*) echo "❌ contains whitespace/newline — the paste picked up extra characters" ;;
+            *)             echo "no stray whitespace ✅" ;;
+          esac
           echo "--- who does this token belong to? ---"
           vercel whoami --token="$VERCEL_TOKEN" || echo "whoami FAILED — token invalid, expired, or revoked"
           echo "--- teams this token can see ---"
