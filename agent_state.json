@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 17,
-    "last_cycle_at": "2026-08-17T19:12:42Z",
+    "cycle_count": 18,
+    "last_cycle_at": "2026-08-17T20:12:45Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "I hold a 3-lot CVS Sep-25 96/103 debit call spread opened last cycle at $2.41 net; CVS is 94.16 (essentially unchanged from my 94.19 entry) and the spread's true mid is 2.615-0.70 = $1.92 vs $2.41 paid, a ~$149 mark-to-mid drawdown that is mostly wide-quote noise plus a day of theta, not a thesis break \u2014 spot is nowhere near my $90 invalidation and the spread mid is above my $1.20 cut line. Cash is $1,221 with the position already ~44% of equity, and nothing else in the shortlist (semis/AI names at 60-100% IV, CHTR/PINS thin chains) offers a cheaper or cleaner edge than what I already own. Holding; I would act if CVS closes under $90 (cut) or pushes above $100 with the spread mid at $4.50+ (take profit), or if a genuinely low-IV, tight-chain setup appears that I can size at ~$200-300 risk.",
+    "last_market_read": "CVS is 93.99, essentially flat vs my 94.19 entry; the Sep-25 96/103 debit spread's true mid is 2.625-0.72 = $1.905 vs $2.41 paid (~-$150), which is a day of theta plus wide quotes, not a thesis break \u2014 spot is far above my $90 invalidation and the mid is well above my $1.20 cut line. With $1,221 cash and the spread already ~40% of equity, I see nothing cheaper or cleaner in the shortlist: semis/AI (AMAT, MU, MRVL, LRCX, SMH) are at 60-100% IV with wide chains, CHTR/PSX/ROST quotes are thin, and GLD/SLV/SPY offer no defined edge I can argue for at this size. Holding; I act if CVS closes under $90 (cut), pushes over $100 with the spread mid at $4.50+ (take profit), or if a tight-chain, low-IV setup appears I can risk ~$200-300 on.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 432.0,
+        "market_value": 321.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-17T19:12:33Z",
+        "seen_at": "2026-08-17T20:12:38Z",
         "underlyings": {
-          "CVS": 94.16
+          "CVS": 93.99
         },
-        "unrealized_pl": -148.5
+        "unrealized_pl": -151.5
       },
       "legs": [
         {
