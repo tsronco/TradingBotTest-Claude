@@ -913,7 +913,13 @@ dashboard/
 
 ### Deploys
 
-`npx vercel --prod` from the `dashboard/` directory. Git push does NOT auto-deploy. The first deploy was from local; subsequent ones go via the same command.
+Two paths, both supported:
+
+**From a phone (no laptop) — `deploy-dashboard.yml`, added 2026-08-17.** A GitHub Actions workflow runs the Vercel CLI on GitHub's runners (`vercel pull` → `vercel build` → `vercel deploy --prebuilt --prod`). Trigger it either by pushing to `main` touching `dashboard/**`, or from the Actions tab → "Deploy Dashboard" → "Run workflow" (works in the GitHub mobile app). The path filter keeps the bots' every-10-minute state/log commits from triggering deploys. The full vitest suite + `tsc -b` gate the deploy — that gate is the point, since you can't run the suite locally from a phone; a `workflow_dispatch` checkbox (`skip_tests`) bypasses it for an urgent fix. The run summary prints the deployment URL.
+
+Needs three GitHub Actions secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. `.vercel/` is gitignored so the IDs can't be read from the repo — they must be secrets. The dashboard's own env vars (ALPACA_*, KV, ANTHROPIC_API_KEY, …) stay in Vercel and are fetched by `vercel pull` at build time; nothing about runtime config moved.
+
+**From a laptop.** `npx vercel --prod` from the `dashboard/` directory, as before. Vercel's git integration is still NOT connected to this repo — a bare git push does nothing on its own; the Actions workflow above is what makes push-to-deploy work.
 
 **Version bump before a dashboard/bot ship (2026-06-20).** The header `BUILD` + sidebar `v…` show a live `major.bot.dashboard` version from `dashboard/src/build-version.ts` (single source). Ship ritual: `git add` the change → `npm run bump` (from `dashboard/`; reads the *staged* set — ticks the dashboard digit for `dashboard/**`, the bot digit for everything else, state pushes excluded — and stages the bump) → commit → deploy. `npm run bump:major` bumps major and resets bot/dash to 0 (e.g. go-live → `1.0.0`). Major stays `0` until go-live. Doc-only commits (e.g. CLAUDE.md) don't bump.
 

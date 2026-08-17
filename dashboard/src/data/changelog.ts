@@ -29,6 +29,26 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-17',
+    category: 'infra',
+    title: 'Dashboard deploys from mobile via GitHub Actions',
+    details:
+      'Until now the dashboard could only ship from a laptop: `npx vercel --prod` out of a local '
+      + 'dashboard/ checkout, because Vercel\'s git integration is not connected to this repo. That made '
+      + 'every dashboard change laptop-gated.\n\n'
+      + 'New .github/workflows/deploy-dashboard.yml runs the Vercel CLI on GitHub\'s runners '
+      + '(vercel pull -> build -> deploy --prebuilt --prod). Two ways to ship from a phone: push to main '
+      + 'touching dashboard/**, or tap Run workflow in the Actions tab.\n\n'
+      + 'The path filter keeps the bots\' every-10-minute state commits (state files + logs/) from '
+      + 'triggering deploys. The full vitest suite plus tsc -b run before the deploy — that gate is the '
+      + 'point, since you cannot run the suite locally from a phone; a workflow_dispatch checkbox skips it '
+      + 'for an urgent fix. The run summary prints the deployment URL so the result is readable in the '
+      + 'GitHub mobile app.\n\n'
+      + 'Needs three new GitHub Actions secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID. The '
+      + 'dashboard\'s own env vars stay in Vercel and are fetched by vercel pull at build time — no runtime '
+      + 'config moved.',
+  },
+  {
     date: '2026-08-16',
     category: 'fix',
     title: 'Agent slippage: skip the number when a position quantity is blended',

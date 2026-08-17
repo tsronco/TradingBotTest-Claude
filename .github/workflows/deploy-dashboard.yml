@@ -1,0 +1,137 @@
+name: Deploy Dashboard
+
+# Deploys dashboard/ to Vercel production WITHOUT a laptop.
+#
+# Until now the only way to ship the dashboard was `npx vercel --prod` from a
+# local `dashboard/` checkout (git push does NOT auto-deploy — Vercel's git
+# integration is not connected to this repo). That made every dashboard change
+# laptop-gated. This workflow moves the deploy onto GitHub's runners, so it can
+# be triggered from a phone.
+#
+# Two ways to ship from mobile:
+#   1. Push to `main` touching `dashboard/**` — deploys automatically.
+#   2. Actions tab → "Deploy Dashboard" → "Run workflow" — deploys on demand
+#      (works from the GitHub mobile app and mobile browser).
+#
+# The path filter matters: the bots commit state files + logs/ to `main` every
+# 10 minutes. Those paths are NOT under `dashboard/`, so routine bot commits
+# never trigger a deploy.
+#
+# Requires (GitHub Actions secrets — add these in Settings → Secrets and
+# variables → Actions, which is doable from a mobile browser):
+#   VERCEL_TOKEN       — https://vercel.com/account/tokens (scope: full account,
+#                        or at least the tims-projects team)
+#   VERCEL_ORG_ID      — from dashboard/.vercel/project.json ("orgId"), or
+#                        Vercel → Settings → Team ID
+#   VERCEL_PROJECT_ID  — from dashboard/.vercel/project.json ("projectId"), or
+#                        Vercel → tradingbot-dashboard → Settings → Project ID
+# `.vercel/` is gitignored, so these cannot be read from the repo — they have to
+# be secrets. They are IDs and a token, not app config: the dashboard's own env
+# vars (ALPACA_*, KV, ANTHROPIC_API_KEY, …) stay in Vercel and are fetched by
+# `vercel pull` at build time. Nothing about the runtime config changes here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip the vitest gate (use only to push an urgent fix)'
+        type: boolean
+        default: false
+
+# Never let two deploys race. Newer run wins — an in-flight deploy of older
+# code is not worth finishing.
+concurrency:
+  group: dashboard-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Fail early if Vercel secrets are missing
+        run: |
+          missing=""
+          [ -n "$VERCEL_TOKEN" ]      || missing="$missing VERCEL_TOKEN"
+          [ -n "$VERCEL_ORG_ID" ]     || missing="$missing VERCEL_ORG_ID"
+          [ -n "$VERCEL_PROJECT_ID" ] || missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub Actions secret(s):$missing"
+            echo "Add them under Settings → Secrets and variables → Actions." >&2
+            echo "See the header comment in .github/workflows/deploy-dashboard.yml." >&2
+            exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The whole point of deploying from a phone is that you can't run the
+      # suite locally first. This is that check. Skippable via workflow_dispatch
+      # for an urgent fix.
+      - name: Run tests
+        if: inputs.skip_tests != true
+        run: npx vitest run --pool=threads
+
+      - name: Typecheck
+        if: inputs.skip_tests != true
+        run: npx tsc -b
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Pulls the project's production env vars + build settings from Vercel so
+      # the runner builds exactly what Vercel would build.
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      # --prebuilt uploads the artifact we just built instead of rebuilding on
+      # Vercel, so what was tested above is what goes live.
+      - name: Deploy to production
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+      # Renders on the run's summary page, which is readable in the GitHub
+      # mobile app — so you can confirm the deploy from your phone.
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Dashboard deploy"
+            echo ""
+            if [ -n "${{ steps.deploy.outputs.url }}" ]; then
+              echo "✅ **Deployed:** ${{ steps.deploy.outputs.url }}"
+              echo ""
+              echo "Production: https://tradingbot-dashboard-blue.vercel.app"
+            else
+              echo "❌ **Deploy did not complete.** Check the failed step above."
+            fi
+            echo ""
+            echo "Commit: \`${GITHUB_SHA:0:7}\` · Tests: ${{ inputs.skip_tests == true && 'skipped' || 'run' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
