@@ -1,52 +1,61 @@
 name: Deploy Dashboard
 
-# Deploys dashboard/ to Vercel production WITHOUT a laptop.
+# Deploys dashboard/ to Vercel WITHOUT a laptop.
 #
-# Until now the only way to ship the dashboard was `npx vercel --prod` from a
-# local `dashboard/` checkout (git push does NOT auto-deploy — Vercel's git
-# integration is not connected to this repo). That made every dashboard change
-# laptop-gated. This workflow moves the deploy onto GitHub's runners, so it can
-# be triggered from a phone.
+# Before this, the only way to ship the dashboard was `npx vercel --prod` from a
+# local checkout (Vercel's git integration is not connected to this repo), which
+# made every dashboard change laptop-gated. This runs the same deploy from
+# GitHub's runners, so it can be triggered from a phone:
 #
-# Two ways to ship from mobile:
-#   1. Push to `main` touching `dashboard/**` — deploys automatically.
-#   2. Actions tab → "Deploy Dashboard" → "Run workflow" — deploys on demand
-#      (works from the GitHub mobile app and mobile browser).
+#   1. Push to `main` touching `dashboard/**`  -> deploys to PRODUCTION.
+#   2. Actions tab -> "Deploy Dashboard" -> "Run workflow":
+#        - run against `main`        -> deploys to PRODUCTION
+#        - run against any other ref -> deploys a PREVIEW (production untouched)
 #
 # The path filter matters: the bots commit state files + logs/ to `main` every
-# 10 minutes. Those paths are NOT under `dashboard/`, so routine bot commits
-# never trigger a deploy.
+# 10 minutes. Those are not under `dashboard/`, so bot commits never deploy.
 #
-# Requires (GitHub Actions secrets — add these in Settings → Secrets and
-# variables → Actions, which is doable from a mobile browser):
-#   VERCEL_TOKEN       — https://vercel.com/account/tokens (scope: full account,
-#                        or at least the tims-projects team)
-#   VERCEL_ORG_ID      — from dashboard/.vercel/project.json ("orgId"), or
-#                        Vercel → Settings → Team ID
-#   VERCEL_PROJECT_ID  — from dashboard/.vercel/project.json ("projectId"), or
-#                        Vercel → tradingbot-dashboard → Settings → Project ID
-# `.vercel/` is gitignored, so these cannot be read from the repo — they have to
-# be secrets. They are IDs and a token, not app config: the dashboard's own env
-# vars (ALPACA_*, KV, ANTHROPIC_API_KEY, …) stay in Vercel and are fetched by
-# `vercel pull` at build time. Nothing about the runtime config changes here.
+# WHY NOT `vercel build` + `--prebuilt`:
+# The first version of this workflow built locally and uploaded the artifact, so
+# that the exact bits under test were the bits shipped. That cannot work here.
+# `dashboard/api/fundamentals.py` pulls yfinance -> pandas -> numpy. Building off
+# Vercel, the Python builder cannot resolve wheels for Vercel's runtime, so it
+# force-bundles numpy and pandas from source and the function exceeds the 225 MB
+# limit ("Total bundle size (276.03 MB)"). On Vercel's own builders the wheels
+# resolve and it fits. So we upload source and let Vercel build — byte-for-byte
+# the same path as `npx vercel --prod` from a laptop, which has always worked.
+# Trade-off: the deployed artifact is built on Vercel rather than being the one
+# the tests ran against. The tests still gate whether we deploy this commit at
+# all, which is the property that actually matters here.
+#
+# Requires (GitHub Actions secrets):
+#   VERCEL_TOKEN       — https://vercel.com/account/tokens
+#                        ‼️ Scope it to the TEAM ("Tim's projects"), not to a
+#                        single project. A project-scoped token has no user
+#                        identity, so the CLI's own /v2/user lookup 404s and
+#                        every command fails with a misleading
+#                        "Could not retrieve Project Settings".
+#   VERCEL_ORG_ID      — Vercel -> team settings -> Team ID      (team_…)
+#   VERCEL_PROJECT_ID  — Vercel -> tradingbot-dashboard -> Settings (prj_…)
+# `.vercel/` is gitignored, so the IDs cannot come from the repo — they must be
+# secrets. The dashboard's runtime env vars (ALPACA_*, KV, ANTHROPIC_API_KEY, …)
+# stay in Vercel and are applied there at build/run time; nothing moved.
 
 on:
   push:
-    # TEMPORARY (revert after the pre-merge validation run): the feature branch
-    # is listed so the pipeline can be exercised before merging to main.
-    branches: [main, claude/github-actions-mobile-redeploy-eil0b3]
+    branches: [main]
     paths:
       - 'dashboard/**'
       - '.github/workflows/deploy-dashboard.yml'
   workflow_dispatch:
     inputs:
       skip_tests:
-        description: 'Skip the vitest gate (use only to push an urgent fix)'
+        description: 'Skip the test gate (use only to push an urgent fix)'
         type: boolean
         default: false
 
-# Never let two deploys race. Newer run wins — an in-flight deploy of older
-# code is not worth finishing.
+# Never let two deploys race. Newer run wins — finishing a deploy of older code
+# is not useful.
 concurrency:
   group: dashboard-deploy
   cancel-in-progress: true
@@ -88,9 +97,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The whole point of deploying from a phone is that you can't run the
-      # suite locally first. This is that check. Skippable via workflow_dispatch
-      # for an urgent fix.
+      # The point of deploying from a phone is that you cannot run the suite
+      # first. This is that check. Skippable via workflow_dispatch for an
+      # urgent fix.
       - name: Run tests
         if: inputs.skip_tests != true
         run: npx vitest run --pool=threads
@@ -99,103 +108,44 @@ jobs:
         if: inputs.skip_tests != true
         run: npx tsc -b
 
-      # `vercel build` installs the Python function's requirements.txt with uv
-      # (dashboard/api/fundamentals.py — the yfinance endpoint). Vercel's own
-      # build machines ship uv; a bare GitHub runner does not, so the build
-      # dies with "spawn uv ENOENT" without this.
-      - name: Install uv (needed to build the Python API function)
-        run: |
-          pipx install uv
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # Pulls the project's production env vars + build settings from Vercel so
-      # the runner builds exactly what Vercel would build.
-      # TEMPORARY diagnostics (remove once the secrets are confirmed good).
-      # Checks the SHAPE of the two IDs without printing them, then asks the
-      # token what it can actually see. Names of teams/projects are not secret;
-      # the secret values stay masked by the runner.
-      - name: Diagnose Vercel credentials
-        continue-on-error: true
-        run: |
-          echo "--- ID shape (values never printed) ---"
-          case "$VERCEL_PROJECT_ID" in
-            prj_*) echo "VERCEL_PROJECT_ID: starts with prj_ ✅ (len ${#VERCEL_PROJECT_ID})" ;;
-            *)     echo "VERCEL_PROJECT_ID: ❌ does NOT start with prj_ (len ${#VERCEL_PROJECT_ID}) — probably the project NAME, not the ID" ;;
-          esac
-          case "$VERCEL_ORG_ID" in
-            team_*) echo "VERCEL_ORG_ID: starts with team_ ✅ (len ${#VERCEL_ORG_ID})" ;;
-            prj_*)  echo "VERCEL_ORG_ID: ❌ starts with prj_ — the two IDs may be swapped" ;;
-            *)      echo "VERCEL_ORG_ID: no team_ prefix (len ${#VERCEL_ORG_ID}) — OK for a personal account, wrong for a team" ;;
-          esac
-          echo "--- token shape (value never printed) ---"
-          echo "VERCEL_TOKEN length: ${#VERCEL_TOKEN} (a Vercel token is normally 24 chars)"
-          case "$VERCEL_TOKEN" in
-            *[[:space:]]*) echo "❌ contains whitespace/newline — the paste picked up extra characters" ;;
-            *)             echo "no stray whitespace ✅" ;;
-          esac
-          # Irreversible fingerprint: lets us tell across runs whether the
-          # stored secret actually CHANGED, without ever revealing it.
-          echo "token fingerprint (sha256, first 8): $(printf %s "$VERCEL_TOKEN" | sha256sum | cut -c1-8)"
-          echo "--- direct Vercel API probe (only status + error code printed) ---"
-          probe() {
-            local label="$1" url="$2"
-            local code
-            code=$(curl -sS -o /tmp/vercel-probe.json -w '%{http_code}' \
-                   -H "Authorization: Bearer $VERCEL_TOKEN" "$url" || echo "000")
-            echo "$label -> HTTP $code"
-            echo "   error.code:    $(jq -r '.error.code    // "none"' /tmp/vercel-probe.json 2>/dev/null)"
-            echo "   error.message: $(jq -r '.error.message // "none"' /tmp/vercel-probe.json 2>/dev/null)"
-            # Deliberately NOT dumping the body — a project response can contain
-            # environment-variable values (Alpaca keys etc.).
-          }
-          probe "GET /v2/user" "https://api.vercel.com/v2/user"
-          probe "GET /v9/projects/<id>?teamId=<org>" \
-                "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID"
-          echo "   project name:  $(jq -r '.name // "n/a"' /tmp/vercel-probe.json 2>/dev/null)"
-          rm -f /tmp/vercel-probe.json
-          echo "--- who does this token belong to? ---"
-          vercel whoami --token="$VERCEL_TOKEN" || echo "whoami FAILED — token invalid, expired, or revoked"
-          echo "--- teams this token can see ---"
-          vercel teams ls --token="$VERCEL_TOKEN" || echo "teams ls FAILED"
-          echo "--- projects this token can see ---"
-          vercel project ls --token="$VERCEL_TOKEN" || echo "project ls FAILED (often means the token lacks team scope)"
-
-      - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-
-      - name: Build
-        run: vercel build --prod --token="$VERCEL_TOKEN"
-
-      # --prebuilt uploads the artifact we just built instead of rebuilding on
-      # Vercel, so what was tested above is what goes live.
-      # TEMPORARY guard (revert with the branch trigger above): on any branch
-      # other than main this is a validation run — everything above proves the
-      # secrets and the build, and we stop here rather than shipping to prod.
-      - name: Deploy to production
+      # Uploads source; Vercel builds it. `main` goes to production, every other
+      # ref gets a preview deployment so the pipeline can be exercised without
+      # touching the live site.
+      - name: Deploy
         id: deploy
-        if: github.ref == 'refs/heads/main'
         run: |
-          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            echo "target=production" >> "$GITHUB_OUTPUT"
+            url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
+          else
+            echo "target=preview" >> "$GITHUB_OUTPUT"
+            url=$(vercel deploy --yes --token="$VERCEL_TOKEN")
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "Deployed: $url"
+          echo "Deployed ($GITHUB_REF): $url"
 
-      # Renders on the run's summary page, which is readable in the GitHub
-      # mobile app — so you can confirm the deploy from your phone.
+      # Renders on the run summary, which is readable in the GitHub mobile app.
       - name: Summary
         if: always()
         run: |
           {
             echo "### Dashboard deploy"
             echo ""
-            if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
-              echo "🧪 **Validation run** (branch \`${GITHUB_REF#refs/heads/}\`) — secrets, tests and build verified; deploy deliberately skipped."
-            elif [ -n "${{ steps.deploy.outputs.url }}" ]; then
-              echo "✅ **Deployed:** ${{ steps.deploy.outputs.url }}"
-              echo ""
-              echo "Production: https://tradingbot-dashboard-blue.vercel.app"
+            if [ -n "${{ steps.deploy.outputs.url }}" ]; then
+              if [ "${{ steps.deploy.outputs.target }}" = "production" ]; then
+                echo "✅ **Deployed to production**"
+                echo ""
+                echo "Live: https://tradingbot-dashboard-blue.vercel.app"
+                echo ""
+                echo "This deployment: ${{ steps.deploy.outputs.url }}"
+              else
+                echo "🧪 **Preview deployed** (production untouched)"
+                echo ""
+                echo "Preview: ${{ steps.deploy.outputs.url }}"
+              fi
             else
               echo "❌ **Deploy did not complete.** Check the failed step above."
             fi
