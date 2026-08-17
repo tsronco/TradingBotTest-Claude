@@ -127,6 +127,26 @@ jobs:
             *[[:space:]]*) echo "❌ contains whitespace/newline — the paste picked up extra characters" ;;
             *)             echo "no stray whitespace ✅" ;;
           esac
+          # Irreversible fingerprint: lets us tell across runs whether the
+          # stored secret actually CHANGED, without ever revealing it.
+          echo "token fingerprint (sha256, first 8): $(printf %s "$VERCEL_TOKEN" | sha256sum | cut -c1-8)"
+          echo "--- direct Vercel API probe (only status + error code printed) ---"
+          probe() {
+            local label="$1" url="$2"
+            local code
+            code=$(curl -sS -o /tmp/vercel-probe.json -w '%{http_code}' \
+                   -H "Authorization: Bearer $VERCEL_TOKEN" "$url" || echo "000")
+            echo "$label -> HTTP $code"
+            echo "   error.code:    $(jq -r '.error.code    // "none"' /tmp/vercel-probe.json 2>/dev/null)"
+            echo "   error.message: $(jq -r '.error.message // "none"' /tmp/vercel-probe.json 2>/dev/null)"
+            # Deliberately NOT dumping the body — a project response can contain
+            # environment-variable values (Alpaca keys etc.).
+          }
+          probe "GET /v2/user" "https://api.vercel.com/v2/user"
+          probe "GET /v9/projects/<id>?teamId=<org>" \
+                "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID"
+          echo "   project name:  $(jq -r '.name // "n/a"' /tmp/vercel-probe.json 2>/dev/null)"
+          rm -f /tmp/vercel-probe.json
           echo "--- who does this token belong to? ---"
           vercel whoami --token="$VERCEL_TOKEN" || echo "whoami FAILED — token invalid, expired, or revoked"
           echo "--- teams this token can see ---"
