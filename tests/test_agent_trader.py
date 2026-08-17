@@ -591,6 +591,20 @@ def test_mandate_explains_previous_cycle_outcome():
     assert "previous_cycle_outcome" in m and "reject" in m
 
 
+def test_mandate_says_long_option_is_already_defined_risk():
+    """Guards against the CVS mistake — bolting a throwaway short leg onto a long
+    call to 'make it defined-risk' when a long option already is."""
+    m = at.SYSTEM_MANDATE.lower()
+    assert "already defined-risk" in m or "already be defined-risk" in m
+    assert "throwaway" in m
+
+
+def test_mandate_requires_rationale_to_match_placed_legs():
+    m = at.SYSTEM_MANDATE.lower()
+    assert "rationale" in m
+    assert "exact structure" in m and "same strikes" in m
+
+
 def test_run_cycle_records_open_in_outcome(_wire):
     """A successful open is captured in the persisted cycle outcome."""
     at.run_cycle(client=_FakeClient([_open_intent()]))

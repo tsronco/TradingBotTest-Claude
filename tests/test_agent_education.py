@@ -113,6 +113,38 @@ def test_snapshot_empty_when_no_legs_held():
     assert at.snapshot_position({"legs": [{"symbol": "Z"}]}, []) == {}
 
 
+def test_snapshot_scales_pnl_by_this_orders_share_of_held_qty():
+    """A single unit of a 2-unit held position gets HALF the aggregate P&L — so
+    grading both units doesn't double-count the loss (the real DIS bug)."""
+    unit = {"legs": [{"symbol": "DIS...P103", "side": "sell", "qty": 1},
+                     {"symbol": "DIS...P100", "side": "buy", "qty": 1}]}
+    # Alpaca aggregates BOTH units: qty 2, combined mark −$57 (−28 / −29).
+    alpaca = [
+        {"symbol": "DIS...P103", "qty": "-2", "unrealized_pl": "-28",
+         "market_value": "-126", "cost_basis": "-98"},
+        {"symbol": "DIS...P100", "qty": "2", "unrealized_pl": "-29",
+         "market_value": "10", "cost_basis": "39"},
+    ]
+    snap = at.snapshot_position(unit, alpaca)
+    assert snap["unrealized_pl"] == -28.5   # −57 combined × (1 of 2 units)
+    # Two units each snapshot to −28.5 → sum −57, the true total (not −114).
+    assert round(snap["unrealized_pl"] * 2, 2) == -57.0
+
+
+def test_snapshot_prefers_mid_pnl_over_worst_case_mark():
+    """When a fair_value block is present, use its mid P&L, not the raw mark."""
+    pos = {"legs": [{"symbol": "DIS...P103", "side": "sell", "qty": 1},
+                    {"symbol": "DIS...P100", "side": "buy", "qty": 1}]}
+    alpaca = [
+        {"symbol": "DIS...P103", "qty": "-1", "unrealized_pl": "-28",
+         "fair_value": {"unrealized_pl_mid": 21.0}},
+        {"symbol": "DIS...P100", "qty": "1", "unrealized_pl": "-29",
+         "fair_value": {"unrealized_pl_mid": -14.0}},
+    ]
+    snap = at.snapshot_position(pos, alpaca)
+    assert snap["unrealized_pl"] == 7.0   # +21 −14 mid, not −57 mark
+
+
 def test_build_outcome_computes_underlying_move_and_days():
     pos = {
         "opened_at": _days_ago(3),

@@ -558,7 +558,12 @@ structure can't be margined it will simply be rejected and reported back to you.
 positions, and trade DEFINED-RISK multi-leg spreads (every short leg paired with \
 a long leg, or covered by stock you already hold). You may NOT sell a \
 naked/uncovered short option — Alpaca will reject it every time, so never attempt \
-one; if you want short premium, structure it as a spread with a long hedge.
+one; if you want short premium, structure it as a spread with a long hedge. \
+Important: a LONG option is ALREADY defined-risk on its own (max loss = the \
+premium you pay) — if a plain long call or put is the trade you want, just buy \
+it. Do NOT bolt on a throwaway far-OTM short leg to "make it defined-risk"; that \
+adds cost and complexity for no benefit. Add a short leg only when it does real \
+work (collects meaningful premium, or genuinely caps a short position's risk).
 - Below the stated equity floor, opening new positions is blocked; you may still \
 close.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
@@ -572,7 +577,11 @@ invalidation condition ("wrong if X closes below $Y before <date>"), the single 
 biggest way it loses (key_risk), the math of what you're getting paid, a 1-5 \
 confidence, and the alternatives you considered and rejected. This is how we \
 learn later whether a losing trade lost for a reason you understood or one you \
-missed — so be honest and specific.
+missed — so be honest and specific. Your rationale and thesis MUST describe the \
+exact structure you are actually placing — the same strikes, width, net debit or \
+credit, and max risk as the legs in your order. If you considered one structure \
+and then placed a different one, rewrite the description to match what you \
+submitted; do not leave stale numbers from a rejected alternative.
 
 Your own recent reasoning — continuity, not a rule. You run once an hour with no \
 memory, so you are given `self_context`: the entry thesis for each position you \
@@ -944,23 +953,43 @@ def reconcile_positions(tracked: dict, alpaca_positions: list) -> tuple[list, li
 
 
 def snapshot_position(position: dict, alpaca_positions: list) -> dict:
-    """Approximate mark for a tracked position: summed unrealized P&L / market
-    value / cost basis across its legs currently held on Alpaca. {} if none
-    held. Pure — no I/O."""
+    """Approximate mark for a tracked position across its legs held on Alpaca.
+    {} if none held. Pure — no I/O.
+
+    Two corrections vs a naive sum (both surfaced by a real 2-unit DIS trade):
+      - **qty-scaled**: Alpaca aggregates every unit of a leg into one position
+        with one blended P&L. If this tracked order is only part of the held
+        quantity (the agent added a second unit), attributing the WHOLE position
+        P&L to it double-counts across the units. Each leg's P&L is scaled by
+        this order's share of the held qty, so summing the units' snapshots
+        recovers the true total instead of N× it.
+      - **mid-based**: prefer the fair (mid) P&L from the `fair_value`
+        annotation over Alpaca's worst-case bid/ask mark, so a wide chain doesn't
+        overstate the loss (and, via the close outcome, the graded P&L)."""
     by_sym = {str(p.get("symbol", "")).upper(): p for p in alpaca_positions}
     pnl = mv = cb = 0.0
     seen = False
-    for sym in _leg_symbols(position):
-        p = by_sym.get(sym)
-        if p:
-            seen = True
-            pnl += _f(p.get("unrealized_pl")) or 0.0
-            mv += _f(p.get("market_value")) or 0.0
-            cb += _f(p.get("cost_basis")) or 0.0
+    for leg in position.get("legs") or []:
+        p = by_sym.get(str(leg.get("symbol", "")).upper())
+        if not p:
+            continue
+        seen = True
+        held_qty = abs(_f(p.get("qty")) or 0.0)
+        want_qty = abs(_f(leg.get("qty")) or 0.0)
+        frac = min(want_qty / held_qty, 1.0) if (held_qty and want_qty) else 1.0
+        # Prefer the mid-based P&L; fall back to Alpaca's worst-case mark.
+        fv = p.get("fair_value") or {}
+        leg_pnl = fv.get("unrealized_pl_mid")
+        if leg_pnl is None:
+            leg_pnl = _f(p.get("unrealized_pl")) or 0.0
+        pnl += leg_pnl * frac
+        mv += (_f(p.get("market_value")) or 0.0) * frac
+        cb += (_f(p.get("cost_basis")) or 0.0) * frac
     if not seen:
         return {}
     return {"unrealized_pl": round(pnl, 2), "market_value": round(mv, 2),
-            "cost_basis": round(cb, 2), "seen_at": _now_iso()}
+            "cost_basis": round(cb, 2), "seen_at": _now_iso(),
+            "pnl_basis": "mid-based, qty-scaled to this order's share"}
 
 
 def _underlyings_now(position: dict, market: dict) -> dict:
@@ -986,7 +1015,9 @@ def build_outcome(position: dict, market: dict) -> dict:
                           "pct": round((cur - entry_px) / entry_px * 100, 2)}
     return {
         "estimated_pnl": snap.get("unrealized_pl"),
-        "estimated_pnl_basis": "last mark before close (approximate)",
+        "estimated_pnl_basis": (
+            "last mid-based mark before close, qty-scaled to this order's share "
+            "(approximate — not the realized close fill)"),
         "days_held": _days_since(position.get("opened_at")),
         "underlying_moves": moves,
     }

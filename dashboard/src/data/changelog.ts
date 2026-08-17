@@ -54,6 +54,31 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'config moved.',
   },
   {
+    date: '2026-08-17',
+    category: 'fix',
+    title: 'Agent graded-P&L: fix multi-unit double-count and use the mid, not the worst mark',
+    details:
+      'The first real close (a 2-unit DIS spread) showed the education layer recording the wrong P&L. '
+      + 'Alpaca aggregates every unit of a leg into one blended position, so both tracked units were picking up '
+      + 'the whole position P&L — each closed lesson logged the combined loss, which would double it in the '
+      + 'retrospective. It also used Alpaca\'s worst-case bid/ask mark instead of the mid.\n\n'
+      + 'snapshot_position now qty-scales each leg P&L by this order\'s share of the held quantity (two units of '
+      + 'a -$57 position record -$28.50 each, summing to -$57 not -$114) and prefers the mid-based fair value '
+      + 'over the worst-case mark. Same multi-unit-attribution family as the slippage-blend fix.',
+  },
+  {
+    date: '2026-08-17',
+    category: 'engine',
+    title: 'Agent mandate: a long option is already defined-risk; describe what you actually place',
+    details:
+      'Two clarifications prompted by a CVS trade whose summary described a "95/100 spread" while the actual '
+      + 'legs were a 97.5/155, with a worthless far-OTM 155 short leg added "to satisfy defined-risk structuring." '
+      + 'A long option is already defined-risk (max loss = premium paid), so the mandate now says not to bolt on '
+      + 'a throwaway short leg to make a long call/put "defined-risk" — just buy it. And the rationale/thesis '
+      + 'must describe the exact structure actually placed (same strikes, width, risk), not a rejected '
+      + 'alternative. Mechanical corrections, not strategy rules.',
+  },
+  {
     date: '2026-08-16',
     category: 'fix',
     title: 'Agent slippage: skip the number when a position quantity is blended',

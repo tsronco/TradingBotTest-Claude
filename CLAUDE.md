@@ -652,6 +652,28 @@ a naked short — the account is Options Level 3, defined-risk only):
    number, and the mandate tells the model a blended add legitimately shows no
    slippage. (Per-share net is qty-independent, so the qty check is purely about
    whether the average is contaminated by other orders / a partial fill.)
+
+**P&L attribution fix + mandate clarifications (2026-08-17).** The first real
+close (a 2-unit DIS spread) exposed two flaws, plus two agent-reasoning slips:
+1. **Graded-P&L double-count + worst-case mark (same multi-unit family as the
+   slippage blend).** `snapshot_position` summed each leg's P&L by symbol, but
+   Alpaca aggregates every unit of a leg into one blended position — so BOTH
+   tracked units picked up the *whole* position's P&L, and each closed lesson
+   recorded the combined loss (the retrospective would double it). It also used
+   Alpaca's worst-case mark, not the mid. Fixed: `snapshot_position` now (a)
+   **qty-scales** each leg's P&L by this order's share of the held quantity (two
+   units of a −$57 position snapshot to −$28.50 each → sum −$57, not −$114), and
+   (b) prefers the **mid-based** P&L from the `fair_value` annotation over the
+   worst-case mark. `build_outcome`'s basis label updated; the number is still the
+   last mid mark before close, *not* the realized close fill (a noted further
+   enhancement).
+2. **Mandate clarifications** (both mechanical, not strategy rules), prompted by a
+   CVS trade whose card described a "95/100 spread" while the OCC legs were a
+   97.5/155, with a worthless 155 short leg added "to satisfy defined-risk
+   structuring": (a) a **long option is already defined-risk** (max loss = premium
+   paid) — don't bolt on a throwaway far-OTM short leg to "make it defined-risk";
+   (b) the **rationale/thesis must describe the exact structure actually placed**
+   (same strikes/width/risk), not a rejected alternative.
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options
