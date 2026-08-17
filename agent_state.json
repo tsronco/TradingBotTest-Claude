@@ -1,9 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 11,
-    "last_cycle_at": "2026-08-14T20:12:23Z",
-    "last_market_read": "DIS closed at $106.88, 3.8% above my short 103 strike with 14 days to expiry and no earnings \u2014 the thesis is fully intact even though the marks are noisy (short 103 put quoted $0.63, long 100 put $0.05, so the spread marks ~$0.58 vs the $0.295 credit; that ask-side mark is stale/wide given the stock rose today and the 100 put collapsed 89%). The rest of the shortlist offers nothing better: high-IV premium (OKTA ~90%, HOOD, COIN) is tempting but options buying power is only $1,459 and a second short-vol book of this size would just be correlated risk on a $1.9k account. Holding; I act only if DIS trades under $103 (close the spread) or, on the upside, if the spread can be bought back for ~$0.10 or less to lock the gain early.",
+    "cycle_count": 12,
+    "last_cycle_at": "2026-08-17T13:13:27Z",
+    "last_cycle_outcome": {
+      "closed": [],
+      "opened": [],
+      "rejected": []
+    },
+    "last_market_read": "DIS is $106.88, ~3.8% above my short 103 strike with 11 days to the 8/28 expiry; summed mids show the spread +$11 and the thesis (range-bound, no earnings) is intact \u2014 the deep-red mark is just the worst-case corner on a wide chain. Nothing on the shortlist beats holding: options buying power is only $1,459 and adding a second short-premium book (OKTA/HOOD/COIN high IV) would be correlated risk-on-risk on a $1.9k account, while long premium into decay on names quoted with 20-40% wide spreads has no edge I can defend. Holding; I act if DIS trades under $103 (close for loss) or if the spread can be bought back near $0.10 to lock the gain early.",
     "seed_capital": 2000
   },
   "closed": [],
@@ -17,7 +22,7 @@
       "last_snapshot": {
         "cost_basis": -59.0,
         "market_value": -116.0,
-        "seen_at": "2026-08-14T20:12:15Z",
+        "seen_at": "2026-08-17T13:12:59Z",
         "underlyings": {
           "DIS": 106.88
         },
@@ -58,7 +63,7 @@
       "last_snapshot": {
         "cost_basis": -59.0,
         "market_value": -116.0,
-        "seen_at": "2026-08-14T20:12:15Z",
+        "seen_at": "2026-08-17T13:12:59Z",
         "underlyings": {
           "DIS": 106.88
         },
