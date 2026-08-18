@@ -30,6 +30,24 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'fix',
+    title: 'Mobile nav drawer scrolls — settings, changelog and sign out were unreachable',
+    details:
+      'On a phone the nav drawer is a fixed, viewport-height panel, and opening it locks body scroll. '
+      + 'It had no overflow of its own, so anything past the bottom edge was not merely off-screen — it '
+      + 'could not be scrolled to at all. The settings / changelog / sign_out cluster fell off the bottom '
+      + 'once the agent account added a tenth nav row and a fourth account chip.\n\n'
+      + 'The drawer now scrolls, with overscroll containment so the swipe does not chain out to the locked '
+      + 'page behind it. The aside inside it also stops being pinned to 100vh — a viewport unit inside a '
+      + 'viewport-height scroll container leaves the bottom cluster sitting exactly at the fold on any phone '
+      + 'whose usable height is under 100vh, which is every iOS home-screen install. It now fills the drawer '
+      + 'when the content is short (so the cluster still sits at the bottom) and grows past it when tall.\n\n'
+      + 'The decorative ASCII block is hidden on phones as well — it was the one element costing vertical '
+      + 'space while carrying no information, and dropping it means most phones no longer need to scroll at '
+      + 'all to reach sign out. Desktop is unchanged.',
+  },
+  {
+    date: '2026-08-18',
     category: 'feature',
     title: 'Agent account is now a first-class account on the dashboard',
     details:

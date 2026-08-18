@@ -107,8 +107,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      {/* ascii art block */}
-      <div className="mx-3 mb-3 px-3 py-2 border border-border rounded-sm text-dim text-[10px] leading-tight">
+      {/* Ascii art block — decoration only. Hidden on phones: with three
+          account chips and ten nav rows the drawer already runs past a short
+          screen, and this is the one block costing height that carries no
+          information. */}
+      <div className="hidden md:block mx-3 mb-3 px-3 py-2 border border-border rounded-sm text-dim text-[10px] leading-tight">
         <pre className="whitespace-pre m-0">{`  ┌──────────────┐
   │ ▁▂▃▄▅▆▇█▇▆▅  │
   │ wheel · csp  │

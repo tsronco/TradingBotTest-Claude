@@ -252,8 +252,30 @@ svg[data-role='chart'].is-hovering .now-layer { opacity: 0.25; }
 
 /* off-canvas drawer needs a solid backing on mobile */
 @media (max-width: 767px) {
-  .term-sidebar-wrap { background: var(--color-bg); box-shadow: 2px 0 12px rgba(0,0,0,0.6); }
-  .term-sidebar-wrap aside.term-sidebar { min-height: 100vh; }
+  .term-sidebar-wrap {
+    background: var(--color-bg);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.6);
+    /* The drawer is a fixed, viewport-height box, and AppShell locks body
+       scroll while it is open. Without an overflow of its own, any content
+       past the bottom edge — the settings / changelog / sign_out cluster on a
+       short phone — is unreachable: it does not scroll, it is just gone.
+       overscroll-behavior keeps the swipe from chaining out to the locked
+       body once the drawer hits its end. */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Installed as a PWA there is no browser chrome under the last row. Zero
+       unless viewport-fit=cover is set, so this is a no-op on the current
+       viewport meta and correct if that ever changes. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Fill the drawer when the content is short, so the flex-1 spacer still
+     pushes the account cluster to the bottom — but let the aside grow past it
+     and scroll when the content is tall. This must NOT be a viewport unit:
+     100vh inside a scroll container that is itself viewport-height leaves the
+     bottom cluster sitting exactly at the fold on any phone whose usable
+     height is less than 100vh (iOS standalone, visible browser chrome). */
+  .term-sidebar-wrap aside.term-sidebar { min-height: 100%; }
 }
 
 /* slim phosphor scrollbar — used by .chain-scroll on the OptionsChain table.
