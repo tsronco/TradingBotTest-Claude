@@ -15,6 +15,7 @@ import { api } from '../lib/api';
 import { fmtUsd, fmtPct } from '../lib/format';
 import { useAgentState } from '../hooks/useBotState';
 import { useDisplayName } from '../hooks/useDisplayName';
+import { ThesisBlock } from '../components/agent/ThesisBlock';
 import {
   openPositions,
   closedTrades,
@@ -24,7 +25,6 @@ import {
   type AgentClosedTrade,
   type AgentLeg,
   type AgentPosition,
-  type AgentThesis,
 } from '../lib/agent-state';
 
 interface AcctResp { account: { equity: string; last_equity: string; cash: string } }
@@ -292,7 +292,10 @@ function CycleOutcome({ outcome }: { outcome: NonNullable<import('../lib/agent-s
             <span className="text-red shrink-0">rejected</span>
             <span className="text-fg break-all">
               {r.legs ?? '—'}
-              <span className="text-dim"> — {r.source ?? 'unknown'}: {r.reason ?? 'no reason recorded'}</span>
+              {/* The reason is the point of showing this at all — keep it
+                  readable. text-dim is for chrome, not for content. */}
+              <span className="text-mid"> — {r.source ?? 'unknown'}: </span>
+              <span className="text-fg">{r.reason ?? 'no reason recorded'}</span>
             </span>
           </div>
         ))}
@@ -301,28 +304,7 @@ function CycleOutcome({ outcome }: { outcome: NonNullable<import('../lib/agent-s
   );
 }
 
-function ThesisBlock({ thesis }: { thesis: AgentThesis | null | undefined }) {
-  if (!thesis) return <div className="text-dim text-[11px]">no thesis recorded.</div>;
-  return (
-    <div className="flex flex-col gap-2 text-[11px] leading-relaxed">
-      {thesis.thesis && <Field label="thesis" value={thesis.thesis} />}
-      {thesis.getting_paid && <Field label="getting paid" value={thesis.getting_paid} />}
-      {thesis.key_risk && <Field label="key risk" value={thesis.key_risk} tone="amber" />}
-      {thesis.invalidation && <Field label="invalidation" value={thesis.invalidation} tone="red" />}
-      {thesis.rejected && <Field label="rejected" value={thesis.rejected} tone="dim" />}
-    </div>
-  );
-}
 
-function Field({ label, value, tone }: { label: string; value: string; tone?: 'amber' | 'red' | 'dim' }) {
-  const c = tone === 'amber' ? 'text-amber' : tone === 'red' ? 'text-red' : tone === 'dim' ? 'text-dim' : 'text-mid';
-  return (
-    <div>
-      <span className={`${c} text-[10px] tracking-[0.2em] uppercase`}>{label} </span>
-      <span className={tone === 'dim' ? 'text-dim' : 'text-fg'}>{value}</span>
-    </div>
-  );
-}
 
 function OpenCard({ pos }: { pos: AgentPosition & { id: string } }) {
   const [expanded, setExpanded] = useState(false);

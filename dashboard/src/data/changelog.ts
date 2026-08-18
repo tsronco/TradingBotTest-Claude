@@ -30,6 +30,22 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'fix',
+    title: 'Thesis text was unreadable where a field was meant to be de-emphasized',
+    details:
+      'The field tint was being applied to the prose as well as the label, so "rejected alternatives" '
+      + 'rendered its whole body in the dim chrome colour (#3d6650) against a near-black background — '
+      + 'present, but practically invisible. The same helper had been copy-pasted into the /agent page and '
+      + 'the trade detail panel, so both carried it.\n\n'
+      + 'One shared renderer now holds the rule: the tint colours the LABEL, never the body. Prose is always '
+      + 'full contrast; a field is de-emphasized through its label alone. Adding a thesis field now updates '
+      + 'both surfaces at once instead of one drifting from the other.\n\n'
+      + 'The same mistake was making the verbatim Alpaca rejection reason on /agent dim as well — the single '
+      + 'highest-signal line on that page. Fixed too, with tests asserting no thesis body ever renders in the '
+      + 'chrome colour.',
+  },
+  {
+    date: '2026-08-18',
     category: 'feature',
     title: 'Agent trades show the thesis the agent wrote before it opened them',
     details:

@@ -8,6 +8,7 @@
 import { useAgentState } from '../../hooks/useBotState';
 import { linkAgentRecord, confidenceStars } from '../../lib/agent-trade-link';
 import { fmtUsd } from '../../lib/format';
+import { ThesisBlock } from '../agent/ThesisBlock';
 import type { Trade } from '../../lib/trade-types';
 
 export function AgentThesisPanel({ trade }: { trade: Trade }) {
@@ -51,17 +52,7 @@ export function AgentThesisPanel({ trade }: { trade: Trade }) {
         </span>
       </div>
 
-      {t ? (
-        <div className="flex flex-col gap-2 text-[11px] leading-relaxed">
-          <Field label="thesis" value={t.thesis} />
-          <Field label="getting paid" value={t.getting_paid} />
-          <Field label="key risk" value={t.key_risk} tone="amber" />
-          <Field label="invalidation" value={t.invalidation} tone="red" />
-          <Field label="rejected alternatives" value={t.rejected} tone="dim" />
-        </div>
-      ) : (
-        <div className="text-dim text-[11px]">no thesis recorded for this entry.</div>
-      )}
+      <ThesisBlock thesis={t} />
 
       {link.kind === 'closed' && (
         <div className="mt-4 pt-3 border-t border-dashed border-border">
@@ -125,15 +116,3 @@ function Panel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Field({ label, value, tone }: {
-  label: string; value?: string; tone?: 'amber' | 'red' | 'dim';
-}) {
-  if (!value) return null;
-  const c = tone === 'amber' ? 'text-amber' : tone === 'red' ? 'text-red' : tone === 'dim' ? 'text-dim' : 'text-mid';
-  return (
-    <div>
-      <span className={`${c} text-[10px] tracking-[0.2em] uppercase`}>{label} </span>
-      <span className={tone === 'dim' ? 'text-dim' : 'text-fg'}>{value}</span>
-    </div>
-  );
-}
