@@ -110,8 +110,7 @@ def synthesize(lessons: list, stats: dict, client=None, model: str | None = None
         return "No closed trades in the window yet — nothing to review."
     try:
         if client is None:  # pragma: no cover — real client path, mocked in tests
-            import anthropic
-            client = anthropic.Anthropic()
+            client = agent_config.client()
         model = model or agent_config.grader_model()
         payload = {"stats": stats, "trades": [
             {"thesis": l.get("thesis"), "outcome": l.get("outcome"),

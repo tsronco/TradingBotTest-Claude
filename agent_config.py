@@ -95,6 +95,21 @@ AGENT_CONFIG = {
     "max_focus_tokens":  1200,   # the focus/shortlist call is small + cheap
     "breadth_chunk_size": 100,   # symbols per batched snapshot request
 
+    # ── API resilience ─────────────────────────────────────────────────────
+    # The Anthropic SDK retries connection errors, 408/409/429 and 5xx (which
+    # includes 529 overloaded_error) with exponential backoff, but only twice by
+    # default — roughly a couple of seconds of cover. A capacity blip lasting
+    # longer than that killed whole cycles on 2026-08-18. Since this account
+    # runs hourly and has nothing else to do while it waits, spending a bit
+    # longer here is strictly better than losing the hour.
+    "max_retries": 8,
+    # Outer retry around the DECISION call specifically, on top of the SDK's own
+    # backoff. Losing the focus call costs a shortlist (there's a fallback);
+    # losing the decision call costs the entire cycle, so it gets a second,
+    # wider-spaced line of defence.
+    "decision_retries": 3,
+    "decision_retry_backoff_seconds": 20,
+
     # ── Cadence (informational; the cron is the source of truth) ───────────
     "cadence": "hourly",
 }
@@ -175,6 +190,23 @@ def model() -> str:
 def grader_model() -> str:
     """Resolved grading/retrospective model — env override or DEFAULT_GRADER_MODEL."""
     return os.getenv(AGENT_CONFIG["grader_model_env"]) or DEFAULT_GRADER_MODEL
+
+
+def client(**overrides):
+    """The Anthropic client every agent module should use.
+
+    Centralized so the retry posture is set in ONE place: all four call sites
+    (decisions, focus, grading, retrospective) previously built a bare
+    `anthropic.Anthropic()` with the SDK default of 2 retries, which is not
+    enough cover for a transient 529.
+
+    Imported lazily so `agent_config` stays importable (and testable) without
+    the SDK installed.
+    """
+    import anthropic
+    kwargs = {"max_retries": AGENT_CONFIG["max_retries"]}
+    kwargs.update(overrides)
+    return anthropic.Anthropic(**kwargs)
 
 
 def credentials_env() -> tuple[str, str, str]:

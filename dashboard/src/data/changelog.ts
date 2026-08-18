@@ -31,6 +31,23 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
     category: 'fix',
+    title: 'Agent cycles no longer lost to a busy Anthropic API',
+    details:
+      'Two consecutive hourly cycles died on a 529 overloaded_error — a transient capacity signal from the '
+      + 'API, not a fault in the account. Each failure cost a full trading hour.\n\n'
+      + 'The SDK does retry 5xx, but only twice by default, which is a couple of seconds of cover. All four '
+      + 'call sites built their own client with that default. They now share one factory with a larger retry '
+      + 'budget, and the decision call — the only failure that costs the whole cycle, since everything before '
+      + 'it is just gathering data — gets a second, wider-spaced retry on top. A 4xx is never retried; that '
+      + 'would be our bug, and retrying it just burns quota.\n\n'
+      + 'The Discord alert now tells the two apart: an exhausted transient failure posts in amber as "agent '
+      + 'cycle skipped — Anthropic API busy" and says explicitly that it is upstream capacity rather than a '
+      + 'credential or account problem, so it is not mistaken for something needing a fix. A genuine error '
+      + 'still posts in red.',
+  },
+  {
+    date: '2026-08-18',
+    category: 'fix',
     title: 'A missing account credential now says which variable is missing',
     details:
       'The agent account card showed only "failed to load Agent". The cause was that its Alpaca keys were '

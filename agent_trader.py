@@ -30,6 +30,7 @@ A `stop_reason == "refusal"` is handled as a no-trade cycle.
 """
 import json
 import os
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -430,8 +431,7 @@ def request_focus(breadth: dict, client=None, model: str | None = None) -> dict:
     max_focus_symbols. A refusal or empty pick is fine — the depth pass always
     includes held positions regardless, so the model can still hold or close."""
     if client is None:  # pragma: no cover — real client path, mocked in tests
-        import anthropic
-        client = anthropic.Anthropic()
+        client = agent_config.client()
     model = model or agent_config.model()
     cap = _CFG.get("max_focus_symbols", 24)
 
@@ -656,8 +656,7 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
     skill). A safety refusal is treated as a no-trade cycle, never an error.
     """
     if client is None:  # pragma: no cover — real client path, mocked in tests
-        import anthropic
-        client = anthropic.Anthropic()
+        client = agent_config.client()
     model = model or agent_config.model()
 
     user_content = (
@@ -1218,6 +1217,63 @@ def _days_since(iso: str | None) -> float | None:
 
 # ── Orchestration ──────────────────────────────────────────────────────────
 
+# Names of SDK exception classes that mean "upstream is busy / the network
+# blipped", not "your request is wrong". Matched by NAME rather than by class so
+# this module does not need to import anthropic at load time and so tests can
+# exercise it with plain stand-ins.
+_TRANSIENT_EXC_NAMES = frozenset({
+    "OverloadedError",        # 529 — the one that killed cycles on 2026-08-18
+    "InternalServerError",    # 500
+    "APIConnectionError",
+    "APITimeoutError",
+    "RateLimitError",         # 429
+})
+
+
+def is_transient_api_error(exc: BaseException) -> bool:
+    """True when `exc` is worth retrying rather than surfacing as a fault.
+
+    Prefers the HTTP status when the exception carries one (any 5xx or 429),
+    and falls back to the class name so a subclass we have not enumerated is
+    still caught.
+    """
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        if status == 429 or 500 <= status < 600:
+            return True
+        # An explicit 4xx (other than 429) is our bug, not theirs — never retry.
+        return False
+    return type(exc).__name__ in _TRANSIENT_EXC_NAMES
+
+
+def call_with_retry(fn, *, attempts: int, backoff: float, sleep=time.sleep,
+                    on_retry=None):
+    """Run `fn`, retrying transient API failures with linear backoff.
+
+    This sits ON TOP of the SDK's own exponential backoff. The SDK covers a few
+    seconds; a capacity blip can outlast that, and for the decision call the
+    cost of giving up is the whole trading hour. Non-transient errors raise
+    immediately — retrying a malformed request just burns quota.
+
+    `sleep` is injected so tests don't actually wait.
+    """
+    last: BaseException | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001 — re-raised below when not transient
+            if not is_transient_api_error(e):
+                raise
+            last = e
+            if attempt >= attempts:
+                break
+            delay = backoff * attempt
+            if on_retry:
+                on_retry(attempt, delay, e)
+            sleep(delay)
+    raise last  # type: ignore[misc]
+
+
 def run_cycle(client=None, dry_run: bool = False) -> dict:
     """One hourly cycle. Returns a summary dict (also useful for tests).
 
@@ -1265,7 +1321,18 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         # (a closed trade's thesis vanishes next cycle; nothing to hallucinate).
         context["self_context"] = build_self_context(state)
 
-        decisions = request_decisions(context, client=client)
+        # The decision call is the one failure that costs the entire cycle —
+        # everything above it is just gathering. Give it a wider retry than the
+        # SDK's own before we write the hour off.
+        decisions = call_with_retry(
+            lambda: request_decisions(context, client=client),
+            attempts=_CFG.get("decision_retries", 3),
+            backoff=_CFG.get("decision_retry_backoff_seconds", 20),
+            on_retry=lambda n, delay, e: log(
+                f"decision call transient failure ({type(e).__name__}); "
+                f"retry {n} in {delay:.0f}s"
+            ),
+        )
         summary["refused"] = decisions.get("refused", False)
         market_read = decisions.get("market_read", "")
         # Persist this cycle's read as next cycle's "previous_cycle_note" (always
@@ -1368,12 +1435,25 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
     except Exception as e:  # noqa: BLE001 — fail-soft; never crash the workflow
         summary["errors"] += 1
         log(f"cycle error: {e}")
+        # An exhausted transient failure is not a fault in this system — the
+        # API was busy and we ran out of patience. Say so, in amber, so it is
+        # not mistaken for a broken account or bad credentials. The next
+        # scheduled cycle picks up normally.
+        transient = is_transient_api_error(e)
+        summary["transient_failure"] = transient
         try:
             send_embed(
                 _CFG["errors_channel"],
-                title="agent cycle error",
-                description=f"{type(e).__name__}: {e}"[:2048],
-                color=Color.RED,
+                title=("agent cycle skipped — Anthropic API busy" if transient
+                       else "agent cycle error"),
+                description=(
+                    (f"{type(e).__name__}: {e}\n\n"
+                     "Upstream capacity, not a problem with the account or its "
+                     "credentials. Retries were exhausted; the next hourly "
+                     "cycle will run normally.")
+                    if transient else f"{type(e).__name__}: {e}"
+                )[:2048],
+                color=Color.YELLOW if transient else Color.RED,
             )
         except Exception:  # noqa: BLE001
             pass

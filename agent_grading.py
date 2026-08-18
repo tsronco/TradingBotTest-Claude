@@ -97,8 +97,7 @@ def grade_position(record: dict, outcome: dict, client=None, model: str | None =
     grade = _default_grade()
     try:
         if client is None:  # pragma: no cover — real client path, mocked in tests
-            import anthropic
-            client = anthropic.Anthropic()
+            client = agent_config.client()
         model = model or agent_config.grader_model()
 
         payload = {
