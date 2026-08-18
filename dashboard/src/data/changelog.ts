@@ -30,6 +30,43 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'feature',
+    title: 'Agent trades show the thesis the agent wrote before it opened them',
+    details:
+      'A trade page for the agent account now carries an AGENT THESIS panel: the view, the math, the single '
+      + 'biggest risk it named, the falsifiable condition that would prove it wrong, and the alternatives it '
+      + 'rejected — all written before the outcome was known. Once the agent closes the position, the panel '
+      + 'appends the close: process grade and outcome grade side by side, a BLIND SPOT or ANTICIPATED badge, '
+      + 'and the one-line lesson.\n\n'
+      + 'The thesis is matched to the trade at render time rather than copied in at import, so agent_state.json '
+      + 'stays the single source of truth and a close grade appears the moment the agent writes it. Where the '
+      + 'agent opened the same structure twice, the two records are told apart by open time so each row gets '
+      + 'its own thesis instead of both collapsing onto one.\n\n'
+      + 'The entry grade changed too. Agent trades are imported, and the importer seeds a neutral C to satisfy '
+      + 'the schema — which reads as a self-assessment and is not one. Agent rows now show the confidence the '
+      + 'agent actually stated (1-5, with stars) plus a letter as a display convention. Where no agent record '
+      + 'matches, the cell shows a dash rather than a placeholder that looks real.',
+  },
+  {
+    date: '2026-08-18',
+    category: 'fix',
+    title: 'Importer understands all four vertical spreads, not just put credit',
+    details:
+      'The agent\'s open CVS position never appeared on the trades page. The importer paired its legs '
+      + 'correctly and then threw the result away: it only modelled put credit spreads, and CVS is a call '
+      + 'debit spread. The rejection was recorded in an errors list nobody reads, the import still counted as '
+      + 'a success, and the cursor advanced past the fill — so the position was left with no trade record, '
+      + 'permanently and silently.\n\n'
+      + 'Verticals are now classified from their structure — which option type, and which strike is short — '
+      + 'covering put credit, put debit, call credit and call debit. Debit spreads get the right math too: '
+      + 'the premium paid IS the risk, where the credit-spread formula would have reported the CVS trade as '
+      + 'risking $890 instead of $190. Skipped fills are now logged and reported in the cron result.\n\n'
+      + 'Note this does not backfill by itself — the import cursor has already moved past the CVS fill. Use '
+      + 'Settings → Import from Alpaca with a start date before the position opened; re-importing is safe, '
+      + 'since existing records are deduped by order id.',
+  },
+  {
+    date: '2026-08-18',
     category: 'fix',
     title: 'Agent cycles no longer lost to a busy Anthropic API',
     details:

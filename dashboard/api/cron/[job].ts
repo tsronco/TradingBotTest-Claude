@@ -481,6 +481,14 @@ async function runAutoImport(): Promise<Record<string, number | string>> {
       // same window next time without missing fills.
       await kv().set(cursorKey, now.toISOString());
       result[account] = summary.imported;
+      // A fill the importer could not model is recorded in summary.errors and
+      // does NOT fail the run — so the cursor still advances past it and the
+      // position is left with no trade record, permanently and silently. That
+      // is exactly how the agent's call debit spread went missing. Surface it.
+      if (summary.errors.length > 0) {
+        result[`${account}_skipped`] = summary.errors.join('; ').slice(0, 500);
+        console.warn('[autoImport] fills skipped for', account, summary.errors);
+      }
     } catch (e) {
       result[account] = `error: ${e instanceof Error ? e.message : String(e)}`;
     }

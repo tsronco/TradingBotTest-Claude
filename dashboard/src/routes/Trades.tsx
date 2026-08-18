@@ -8,6 +8,9 @@ import { fmtUsd, fmtPct } from '../lib/format';
 import type { Trade } from '../lib/trade-types';
 import { sortTradePairs, defaultDir, type SortKey, type SortState, type TradeRowPair } from '../lib/trade-sort';
 import { ALL_ACCOUNTS } from '../lib/account-utils';
+import { useAgentState } from '../hooks/useBotState';
+import { linkAgentRecord, confidenceToGrade, confidenceStars } from '../lib/agent-trade-link';
+import type { AgentState } from '../lib/agent-state';
 import RefreshButton from '../components/trades/RefreshButton';
 import { useDisplayName } from '../hooks/useDisplayName';
 
@@ -53,6 +56,11 @@ export default function Trades() {
         : { key, dir: defaultDir(key) },
     );
   }
+  // One read for the whole page; rows match against it purely. Agent trades
+  // are imported and carry a neutral 'C' placeholder that is not a real
+  // self-assessment — the agent states a confidence instead.
+  const agentQ = useAgentState();
+
   const tagsQ = useQuery({
     queryKey: ['settings-tags'],
     queryFn: () => api<{ tags: string[] }>('/api/settings/tags'),
@@ -154,7 +162,14 @@ export default function Trades() {
             {isLoading && (
               <tr><td colSpan={10} className="text-mid text-[12px] p-3">loading…</td></tr>
             )}
-            {sortedPairs.map(({ trade, grade }) => <TradeRow key={trade.id} trade={trade} gradeSummary={grade} />)}
+            {sortedPairs.map(({ trade, grade }) => (
+              <TradeRow
+                key={trade.id}
+                trade={trade}
+                gradeSummary={grade}
+                agentState={agentQ.data?.payload ?? null}
+              />
+            ))}
             {!isLoading && data && data.trades.length === 0 && (
               <tr><td colSpan={10} className="text-dim text-[12px] p-3">{handle}@dash:~/portfolio/trades$ ls — total 0 — none</td></tr>
             )}
@@ -258,7 +273,11 @@ function FilterPbtn<T extends string>({ label, value, options, onChange }: {
   );
 }
 
-function TradeRow({ trade, gradeSummary }: { trade: Trade; gradeSummary: { ai_letter: string | null; calibration: string | null } }) {
+function TradeRow({ trade, gradeSummary, agentState }: {
+  trade: Trade;
+  gradeSummary: { ai_letter: string | null; calibration: string | null };
+  agentState?: AgentState | null;
+}) {
   const date = trade.submitted_at?.slice(0, 10) ?? '';
   const pnl = trade.realized_pnl;
   const pnlEl = pnl != null
@@ -289,11 +308,39 @@ function TradeRow({ trade, gradeSummary }: { trade: Trade; gradeSummary: { ai_le
       <td data-label="entry" className="px-3 py-1.5 text-right">{trade.filled_avg_price != null ? fmtUsd(trade.filled_avg_price) : <span className="text-dim">—</span>}</td>
       <td data-label="exit" className="px-3 py-1.5 text-right">{trade.closed_avg_price != null ? fmtUsd(trade.closed_avg_price) : <span className="text-dim">—</span>}</td>
       <td data-label="P&amp;L" className="px-3 py-1.5 text-right">{pnlEl}</td>
-      <td data-label="grade" className="px-3 py-1.5 text-center text-hi">{trade.entry_grade}</td>
+      <td data-label="grade" className="px-3 py-1.5 text-center text-hi">
+        <GradeCell trade={trade} agentState={agentState} />
+      </td>
       <td data-label="ai" className={`px-3 py-1.5 text-center ${aiColor}`}>{gradeSummary?.ai_letter ?? '—'}</td>
       <td data-label="tags" className="px-3 py-1.5">
         {trade.tags.slice(0, 3).map((t) => <span key={t} className="text-cyan mr-2">{t}</span>)}
       </td>
     </tr>
+  );
+}
+
+/**
+ * Entry grade for a row.
+ *
+ * Agent trades are imported from Alpaca and carry the importer's neutral 'C'
+ * placeholder, which reads as a self-assessment and is not one. Where the
+ * agent's own record can be matched, show its stated confidence instead.
+ */
+function GradeCell({ trade, agentState }: { trade: Trade; agentState?: AgentState | null }) {
+  if (trade.account !== 'agent_paper') {
+    return <>{trade.entry_grade}</>;
+  }
+  const link = linkAgentRecord(agentState, trade);
+  const confidence = link?.thesis?.confidence;
+  const letter = confidenceToGrade(confidence);
+  if (!letter) {
+    // No match — say nothing rather than show a placeholder that looks real.
+    return <span className="text-dim" title="no matching entry in the agent's record">—</span>;
+  }
+  return (
+    <span title={`agent confidence ${confidence} of 5 — ${confidenceStars(confidence)}`}>
+      <span className="text-magenta">{letter}</span>
+      <span className="text-dim text-[10px]"> {confidence}/5</span>
+    </span>
   );
 }

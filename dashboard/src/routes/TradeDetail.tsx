@@ -8,6 +8,7 @@ import { SpreadMetadata } from '../components/trade/SpreadMetadata';
 import { TradeChart } from '../components/trade/TradeChart';
 import { Timeline } from '../components/trade/Timeline';
 import { GradePanel } from '../components/trade/GradePanel';
+import { AgentThesisPanel } from '../components/trade/AgentThesisPanel';
 import { RuleViolationsPanel } from '../components/trade/RuleViolationsPanel';
 import AssignmentLink from '../components/trade/AssignmentLink';
 import { api } from '../lib/api';
@@ -45,6 +46,7 @@ export default function TradeDetail() {
       <ErrorBoundary><SpreadMetadata trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><TradeChart trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><Timeline trade={data.trade} /></ErrorBoundary>
+      <ErrorBoundary><AgentThesisPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><RuleViolationsPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><GradePanel trade={data.trade} grade={data.grade} /></ErrorBoundary>
       <ErrorBoundary><TagsJournal trade={data.trade} /></ErrorBoundary>

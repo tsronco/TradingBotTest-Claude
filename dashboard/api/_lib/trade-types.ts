@@ -113,6 +113,71 @@ export interface SpreadDetails {
   max_profit?: number;            // best-case dollar profit per spread (× 100); optional for backward-compat on legacy records
 }
 
+/**
+ * Classify a two-leg vertical from its structure, and derive its P&L bounds.
+ *
+ * The structure — not the sign of the fill — decides the type. Which leg you
+ * sold relative to the other determines whether the spread is a credit or a
+ * debit, and that holds even if a bad fill makes the net come out the "wrong"
+ * way:
+ *
+ *   put,  short strike ABOVE long   → put_credit   (bull put)
+ *   put,  short strike BELOW long   → put_debit    (bear put)
+ *   call, short strike BELOW long   → call_credit  (bear call)
+ *   call, short strike ABOVE long   → call_debit   (bull call)
+ *
+ * Premiums are per share. `net` is short − long: positive on a credit spread
+ * (money in), negative on a debit spread (money out).
+ */
+export function classifyVertical(input: {
+  optionType: ContractType;
+  shortStrike: number;
+  longStrike: number;
+  shortPremium: number;
+  longPremium: number;
+}): {
+  spread_type: SpreadType;
+  is_credit: boolean;
+  /** Opening side of the package: you sell a credit spread, buy a debit one. */
+  side: 'STO' | 'BTO';
+  width: number;
+  net: number;
+  net_credit: number;
+  net_debit: number;
+  max_loss: number;
+  max_profit: number;
+} {
+  const { optionType, shortStrike, longStrike, shortPremium, longPremium } = input;
+  const width = Math.abs(shortStrike - longStrike);
+  const net = shortPremium - longPremium;
+  const shortIsHigher = shortStrike > longStrike;
+
+  const spread_type: SpreadType = optionType === 'put'
+    ? (shortIsHigher ? 'put_credit' : 'put_debit')
+    : (shortIsHigher ? 'call_debit' : 'call_credit');
+
+  const is_credit = spread_type === 'put_credit' || spread_type === 'call_credit';
+
+  // Credit: you keep the net, risk the rest of the width.
+  // Debit:  you pay the net, and that payment is the entire risk.
+  const net_credit = is_credit ? net : 0;
+  const net_debit = is_credit ? 0 : -net;
+  const max_loss = is_credit ? width - net : net_debit;
+  const max_profit = is_credit ? net : width - net_debit;
+
+  return {
+    spread_type,
+    is_credit,
+    side: is_credit ? 'STO' : 'BTO',
+    width,
+    net,
+    net_credit,
+    net_debit,
+    max_loss,
+    max_profit,
+  };
+}
+
 export interface Trade {
   id: string;
   account: AccountId;

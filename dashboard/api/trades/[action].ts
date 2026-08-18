@@ -7,6 +7,7 @@ import { runStubRuleChecks, runRuleChecks } from '../_lib/rule-check.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import {
   GRADE_LETTERS,
+  classifyVertical,
   isGradeable,
   type AccountId,
   type GradeLetter,
@@ -1643,22 +1644,23 @@ export async function runImport({
         summary.errors.push(`bad qty on ${pair.short.symbol}`);
         continue;
       }
-      // Identify which leg is which by strike for a credit spread:
-      //   put credit:  short strike HIGHER than long strike
-      //   call credit: short strike LOWER than long strike
-      // The pairing already enforced short=sell side / long=buy side; for now
-      // we only model put_credit (mirrors SpreadDetails.spread_type union).
-      if (pair.short_occ.type !== 'put') {
-        summary.errors.push(`only put_credit spreads supported in v1 (${pair.short.symbol})`);
-        continue;
-      }
-      if (pair.short_occ.strike < pair.long_occ.strike) {
-        summary.errors.push(`unrecognized spread shape on ${pair.short.symbol} (short strike below long strike)`);
-        continue;
-      }
-      const width = Math.abs(pair.short_occ.strike - pair.long_occ.strike);
-      const netCredit = shortPx - longPx;
-      const maxLoss = width - netCredit;
+      // All four verticals are supported. The pairing already enforced
+      // short=sell / long=buy; classifyVertical reads the structure (option
+      // type + which strike is short) to name the spread and derive its
+      // credit/debit math. Restricting this to put_credit is what left the
+      // agent's call debit spread with no trade record at all.
+      const shape = classifyVertical({
+        optionType: pair.short_occ.type,
+        shortStrike: pair.short_occ.strike,
+        longStrike: pair.long_occ.strike,
+        shortPremium: shortPx,
+        longPremium: longPx,
+      });
+      const { width } = shape;
+      // Signed net, short − long: positive on a credit, negative on a debit.
+      // The limit_price convention below (negative = credit) falls out of it.
+      const netCredit = shape.net;
+      const maxLoss = shape.max_loss;
       const id = await allocateTradeId();
       const now = new Date(fillTime);
       const trade: Trade = {
@@ -1666,7 +1668,8 @@ export async function runImport({
         account,
         asset_class: 'spread',
         symbol: pair.short_occ.underlying,
-        side: 'STO',
+        // You sell a credit spread and buy a debit one.
+        side: shape.side,
         qty,
         order_type: 'limit',
         limit_price: -netCredit, // credit convention: negative net price
@@ -1676,7 +1679,7 @@ export async function runImport({
         contract_symbol: pair.short.symbol ?? null,
         strike: pair.short_occ.strike,
         expiration: pair.short_occ.expiration,
-        contract_type: 'put',
+        contract_type: pair.short_occ.type,
         greeks_at_entry: null,
         alpaca_order_id: shortOrderId,
         alpaca_close_order_id: null,
@@ -1704,7 +1707,7 @@ export async function runImport({
         fill_confirmed: true,
         schema: 1,
         spread: {
-          spread_type: 'put_credit',
+          spread_type: shape.spread_type,
           short_leg: {
             occ: pair.short.symbol ?? '',
             strike: pair.short_occ.strike,
@@ -1723,8 +1726,12 @@ export async function runImport({
           },
           expiration: pair.short_occ.expiration,
           width,
-          net_credit: netCredit,
-          max_loss: maxLoss,
+          // Credit spreads carry net_credit with net_debit 0, and debit
+          // spreads the reverse — see SpreadDetails.
+          net_credit: shape.net_credit,
+          net_debit: shape.net_debit,
+          max_loss: shape.max_loss,
+          max_profit: shape.max_profit,
         },
       };
       await kv().set(tradeKey(id), trade);
