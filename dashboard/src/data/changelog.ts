@@ -30,6 +30,21 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'fix',
+    title: 'A missing account credential now says which variable is missing',
+    details:
+      'The agent account card showed only "failed to load Agent". The cause was that its Alpaca keys were '
+      + 'set as GitHub Actions secrets — which is what the bot workflow reads — but not as Vercel env vars, '
+      + 'which is what the dashboard reads. Same variable names, two entirely separate stores.\n\n'
+      + 'Missing credentials are now a distinct error (503 alpaca_credentials_missing) rather than being '
+      + 'folded into the generic 502 that also covers "Alpaca rejected the call". The account card prints '
+      + 'the reason: which variables are absent, and that they belong in the Vercel environment. A one-line '
+      + 'setup gap no longer reads as an outage.\n\n'
+      + 'ALPACA_AGENT_API_KEY / _API_SECRET were also missing from the dashboard\'s .env.example, which is '
+      + 'why the Vercel side was never set up in the first place. Added.',
+  },
+  {
+    date: '2026-08-18',
     category: 'ui',
     title: 'Sidebar nav is grouped, with a flyout panel',
     details:

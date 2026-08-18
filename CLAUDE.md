@@ -954,7 +954,9 @@ dashboard/
 
 - Project: `tims-projects-f798c8a6/tradingbot-dashboard` (Hobby plan, Vite framework, root dir `dashboard/`)
 - KV: `upstash-kv-red-canvas` (Upstash Redis via Vercel Marketplace)
-- 30 production env vars set: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 8 ALPACA_* (cons + agg + manual × 3), 9 ALPACA_SM* (sm500 + sm1000 + sm2000 × 3 — Tim provisions), 5 KV_*/REDIS_URL (KV vars auto-injected by Marketplace)
+- Production env vars: `DASHBOARD_PASSWORD`, `TOTP_SECRET`, `SESSION_SECRET`, `BACKUP_CODES_HASHED`, `BOT_PUSH_TOKEN`, `INTERNAL_FUNCTIONS_TOKEN`, `ANTHROPIC_API_KEY` (Phase 2), `CRON_TOKEN` (Phase 2), 5 KV_*/REDIS_URL (auto-injected by the Marketplace), and one **key + secret pair per account**: `ALPACA_MANUAL_*`, `ALPACA_LIVE_*`, `ALPACA_AGENT_*`. (Retired accounts' `ALPACA_*`/`ALPACA_SM*` vars are still to be cleaned up — see Future work.)
+
+  > ⚠️ **Vercel env vars and GitHub Actions secrets are separate stores that share variable names.** Setting `ALPACA_AGENT_API_KEY` as an Actions secret gets the *bot* running and does nothing for the *dashboard*, which reads it from Vercel. This bit us on 2026-08-18: the agent card rendered "failed to load Agent" for hours. A missing pair now returns `503 alpaca_credentials_missing` and the card names the variable — see `CRED_ENV_VARS` / `MissingCredentialsError` in `api/_lib/alpaca.ts`. **Every new account needs its pair added in BOTH places.**
 - `.env` (local): also set `DASHBOARD_CRON_TOKEN` (mirrors `CRON_TOKEN` for local cron testing)
 - GitHub Actions secret `BOT_PUSH_TOKEN` set on this repo (mirrors the Vercel value)
 

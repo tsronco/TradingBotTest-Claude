@@ -82,9 +82,23 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
     );
   }
   if (acctError || !acctData) {
+    // `api()` folds the server's `detail` into the message, so a configuration
+    // gap arrives here already spelled out (which env var, where to set it).
+    // Showing it beats "failed to load X", which sends you reading logs to
+    // discover a one-line setup miss.
+    const detail = acctError instanceof Error ? acctError.message : null;
+    const isCredsGap = !!detail?.includes('alpaca_credentials_missing');
     return (
-      <article data-acct-key={acctKey} className="relative border border-red bg-panel/60 rounded-sm min-w-0 mt-3 p-5 text-red text-[12px]">
-        failed to load {label}
+      <article
+        data-acct-key={acctKey}
+        className="relative border border-red bg-panel/60 rounded-sm min-w-0 mt-3 p-5 text-red text-[12px]"
+      >
+        <div>failed to load {label}</div>
+        {detail && (
+          <div className={`mt-2 text-[11px] leading-relaxed ${isCredsGap ? 'text-amber' : 'text-mid'}`}>
+            {isCredsGap ? detail.replace(/^alpaca_credentials_missing:\s*/, '') : detail}
+          </div>
+        )}
       </article>
     );
   }

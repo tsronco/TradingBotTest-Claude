@@ -20,27 +20,56 @@ export function modeFromQuery(q: unknown): Mode {
   return isMode(v) ? v : 'manual';
 }
 
+/**
+ * Env var names backing each account, so a missing one can be named in the
+ * error rather than leaving a generic failure to guess at.
+ *
+ * NOTE these must exist as **Vercel** env vars. The bots read the same-named
+ * values from GitHub Actions secrets, which is a completely separate store —
+ * setting one does not set the other.
+ */
+export const CRED_ENV_VARS: Record<Mode, { key: string; secret: string }> = {
+  // live — REAL MONEY. Hits api.alpaca.markets (not paper-api).
+  live:   { key: 'ALPACA_LIVE_API_KEY',   secret: 'ALPACA_LIVE_API_SECRET' },
+  // agent — the autonomous Claude-driven paper MARGIN sub-account. Paper
+  // endpoint, its own credential set (mirrors agent_config.py).
+  agent:  { key: 'ALPACA_AGENT_API_KEY',  secret: 'ALPACA_AGENT_API_SECRET' },
+  manual: { key: 'ALPACA_MANUAL_API_KEY', secret: 'ALPACA_MANUAL_API_SECRET' },
+};
+
+/**
+ * Thrown when an account's Alpaca credentials are not configured.
+ *
+ * Distinct from a request failure on purpose: "you never set this up" and
+ * "Alpaca rejected the call" need different fixes, and collapsing both into a
+ * generic 502 makes a one-line configuration miss look like an outage.
+ */
+export class MissingCredentialsError extends Error {
+  readonly mode: Mode;
+  readonly missing: string[];
+  constructor(mode: Mode, missing: string[]) {
+    super(
+      `Alpaca credentials not configured for the ${mode} account — ` +
+      `set ${missing.join(' and ')} in the dashboard's Vercel environment ` +
+      `(GitHub Actions secrets are a separate store and do not apply here).`,
+    );
+    this.name = 'MissingCredentialsError';
+    this.mode = mode;
+    this.missing = missing;
+  }
+}
+
 function credsFor(mode: Mode): { key: string; secret: string } {
-  let key: string | undefined;
-  let secret: string | undefined;
-  if (mode === 'live') {
-    // live — REAL MONEY. Hits api.alpaca.markets (not paper-api).
-    key = process.env.ALPACA_LIVE_API_KEY;
-    secret = process.env.ALPACA_LIVE_API_SECRET;
-  } else if (mode === 'agent') {
-    // agent — the autonomous Claude-driven paper MARGIN sub-account. Paper
-    // endpoint, its own credential set (mirrors agent_config.py).
-    key = process.env.ALPACA_AGENT_API_KEY;
-    secret = process.env.ALPACA_AGENT_API_SECRET;
-  } else {
-    // manual paper account.
-    key = process.env.ALPACA_MANUAL_API_KEY;
-    secret = process.env.ALPACA_MANUAL_API_SECRET;
+  const names = CRED_ENV_VARS[mode];
+  const key = process.env[names.key];
+  const secret = process.env[names.secret];
+  const missing: string[] = [];
+  if (!key) missing.push(names.key);
+  if (!secret) missing.push(names.secret);
+  if (missing.length > 0) {
+    throw new MissingCredentialsError(mode, missing);
   }
-  if (!key || !secret) {
-    throw new Error(`alpaca creds missing for mode=${mode}`);
-  }
-  return { key, secret };
+  return { key: key as string, secret: secret as string };
 }
 
 /** True for the live (real-money) mode. Used by trading-API callers to

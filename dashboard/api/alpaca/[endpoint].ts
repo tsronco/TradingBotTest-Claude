@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../_lib/auth-guard.js';
-import { modeFromQuery, liveGuard } from '../_lib/alpaca.js';
+import { modeFromQuery, liveGuard, MissingCredentialsError } from '../_lib/alpaca.js';
 import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.js';
 import { getOrCreateSummary } from '../_lib/ai-summary.js';
 import { getOrCreateCoach } from '../_lib/position-coach.js';
@@ -439,6 +439,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     return res.status(404).json({ error: 'unknown_endpoint' });
   } catch (e) {
+    // A configuration gap is not an upstream failure — say so plainly, and name
+    // the env var, so a missing account setup does not read as "Alpaca is down".
+    if (e instanceof MissingCredentialsError) {
+      return res.status(503).json({
+        error: 'alpaca_credentials_missing',
+        detail: e.message,
+        mode: e.mode,
+        missing: e.missing,
+      });
+    }
     return res.status(502).json({ error: 'alpaca_request_failed', detail: String(e) });
   }
 }
