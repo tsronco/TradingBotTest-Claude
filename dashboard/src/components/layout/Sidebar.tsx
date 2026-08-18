@@ -4,21 +4,10 @@ import { useAccount, type AccountMode } from '../../hooks/useAccount';
 import { accountsForSelection, ALL_MODES } from '../../lib/account-utils';
 import { useDisplayName } from '../../hooks/useDisplayName';
 import { BUILD_VERSION } from '../../build-version';
+import NavMenu from './NavMenu';
 
-// Top nav — daily trading + research, in usage order.
-// Settings is grouped at the bottom with changelog and sign-out (account-actions cluster).
-const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
-  { to: '/', label: 'home', key: '1', end: true },
-  { to: '/positions', label: 'positions', key: '2' },
-  { to: '/orders', label: 'orders', key: '3' },
-  { to: '/trades', label: 'trades', key: '4' },
-  { to: '/lookup/SPY', label: 'lookup', key: '5' },
-  { to: '/watchlist', label: 'watchlist', key: '6' },
-  { to: '/calendar', label: 'calendar', key: '7' },
-  { to: '/rules', label: 'rules', key: '8' },
-  { to: '/performance', label: 'performance', key: '9' },
-  { to: '/agent', label: 'agent', key: '0' },
-];
+// Nav is grouped (see lib/nav-items.ts) and rendered by NavMenu. Settings,
+// changelog and sign-out stay in the account-actions cluster at the bottom.
 
 // Three accounts: manual (paper) + live (real money) + agent — the autonomous
 // Claude-driven paper account (agentic trading), registered 2026-08-18.
@@ -56,29 +45,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* nav */}
-      <nav className="py-3 text-[12px]">
-        <div className="px-4 pb-2 text-[10px] tracking-[0.3em] text-dim">NAV</div>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              `navrow max-md:py-2.5 flex items-center gap-2 px-4 py-1.5 border-l-2 ${
-                isActive ? 'active border-hi' : 'border-transparent text-fg'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>
-                <span className={isActive ? 'text-hi' : ''}>{item.label}</span>
-                <span className="ml-auto text-dim text-[10px]">[{item.key}]</span>
-              </>
-            )}
-          </NavLink>
-        ))}
+      <nav>
+        <NavMenu onNavigate={onNavigate} />
       </nav>
 
       {/* accounts mini-filter panel */}

@@ -43,11 +43,21 @@ describe('AppShell drawer', () => {
   });
 
   it('navigating via a nav row closes the drawer and changes route', () => {
+    // 'positions' now lives under the 'portfolio' group, so the drill-down has
+    // to be opened first (see NavMenu).
     renderShell();
     fireEvent.click(screen.getByLabelText('Toggle navigation'));
+    fireEvent.click(screen.getByRole('button', { name: /portfolio/i }));
     fireEvent.click(screen.getByText('positions'));
     expect(screen.getByText('POSITIONS_PAGE')).toBeInTheDocument();
     expect(document.querySelector('.term-sidebar-wrap')!.className).toContain('-translate-x-full');
+  });
+
+  it('a top-level nav row still navigates in one tap', () => {
+    renderShell();
+    fireEvent.click(screen.getByLabelText('Toggle navigation'));
+    fireEvent.click(screen.getByText('home'));
+    expect(screen.getByText('HOME_PAGE')).toBeInTheDocument();
   });
 
   it('Escape closes the drawer', () => {

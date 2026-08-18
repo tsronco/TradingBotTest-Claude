@@ -30,6 +30,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'ui',
+    title: 'Sidebar nav is grouped, with a flyout panel',
+    details:
+      'Ten flat nav rows had stopped scanning as navigation and started scanning as a wall of text — and '
+      + 'a flat list gives no hint about which pages belong together. The nav is now five rows:\n\n'
+      + '• home\n'
+      + '• portfolio — positions · orders · trades\n'
+      + '• research — lookup · watchlist · calendar\n'
+      + '• insights — performance · rules\n'
+      + '• agent 🤖\n\n'
+      + 'Tapping a group opens a panel with its pages. On desktop the panel floats beside the sidebar; on a '
+      + 'phone the list steps aside and the panel takes its place with a back row, which reads as a normal '
+      + 'drill-down instead of a popover fighting the drawer\'s scroll. Escape or a click outside dismisses '
+      + 'it, and the group you are currently inside stays lit while collapsed, so you never lose your place.\n\n'
+      + 'Active highlighting is driven by an explicit route model rather than URL prefixes, which fixes a '
+      + 'class of misses the old nav had: /trade/:id does not start with /trades, and /order/new does not '
+      + 'start with /orders, so those detail pages used to leave the sidebar showing nothing selected.',
+  },
+  {
+    date: '2026-08-18',
     category: 'fix',
     title: 'Mobile nav drawer scrolls — settings, changelog and sign out were unreachable',
     details:

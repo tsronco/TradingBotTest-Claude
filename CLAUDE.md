@@ -1052,6 +1052,44 @@ Single-account chips and `All` are retained. Selecting a group renders those acc
 
 Test counts after this effort: **473 vitest / 77 files** (dashboard); **380 pytest** + **23 push-rules** (`tools/test_push_rules_to_dashboard.py`).
 
+### Sidebar navigation (grouped, shipped 2026-08-18)
+
+The nav is a **model + renderer** split: `dashboard/src/lib/nav-items.ts` holds
+the tree and the pure route matchers; `src/components/layout/NavMenu.tsx`
+renders it. Adding a page is a one-line change in `NAV`.
+
+Five top-level rows (was ten flat ones): `home` · **portfolio** (positions,
+orders, trades) · **research** (lookup, watchlist, calendar) · **insights**
+(performance, rules) · `agent`. Settings / changelog / sign-out stay in the
+bottom account cluster.
+
+**One panel, two presentations, one DOM node.** Opening a group renders a
+single panel whose *positioning* is breakpoint-driven: `md:absolute left-full`
+floats it beside the rail on desktop; on a phone the list gets `max-md:hidden`
+and the panel takes its place in flow with a back row (a drill-down — an
+absolutely-positioned flyout would be clipped by the drawer's own
+`overflow-y: auto`). Do **not** "fix" this by rendering the panel twice with
+`md:hidden` / `max-md:hidden` — that duplicates every link *and* the panel's
+`id`, which is what the first cut did.
+
+**Active highlighting comes from `matchesLeaf`, not `NavLink`'s `isActive`.**
+Several detail routes do not share their list route's prefix — `/trade/:id` vs
+`/trades`, `/order/new` vs `/orders`, `/strategy/:symbol` vs `/lookup` — so each
+leaf carries an explicit `match: string[]` of path prefixes. Prefixes match a
+path or a child segment (`/rules` covers `/rules/edit`); `/` is special-cased to
+exact, since every path starts with it. A new page with a detail route needs its
+detail prefix added to `match` or the sidebar goes blank on that page.
+
+**Mobile drawer must stay scrollable.** `.term-sidebar-wrap` carries
+`overflow-y: auto` + `overscroll-behavior: contain` under `max-width: 767px`,
+and the aside inside it uses `min-height: 100%` — never a viewport unit. The
+drawer is a fixed viewport-height box and AppShell locks body scroll while it is
+open, so without its own overflow anything past the bottom edge is unreachable,
+not merely off-screen. Guarded by CSS-source assertions in
+`tests/components/AppShell.test.tsx` (they strip CSS comments first — without
+that a commented-out declaration satisfies the match and the guard passes
+vacuously).
+
 ### Agent account on the dashboard (shipped 2026-08-18)
 
 The autonomous Claude-driven paper account (see [Autonomous agent
@@ -1116,7 +1154,7 @@ was never in `BOT_STATE_KEYS` — so `/api/bot-state` rejected every push with
 outage must not break the bot), so it failed silently. Whitelisted; regression
 test in `tests/lib/kv-keys.test.ts`.
 
-Test counts after this change: **895 vitest / 115 files** (was 849/112: +20
+Test counts after the agent registration: **895 vitest / 115 files** (was 849/112: +20
 `agent-state`, +11 `agent-account-registration`, +13 `Agent` page, plus updated
 account-count assertions) and **696 pytest** (unchanged — no Python edits).
 
