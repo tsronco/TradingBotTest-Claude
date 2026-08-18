@@ -5,7 +5,7 @@ import { fmtUsd, fmtPct, fmtNum } from '../lib/format';
 import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
-import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
+import { accountsForSelection, ALL_MODES, type Mode } from '../lib/account-utils';
 import { useDisplayName } from '../hooks/useDisplayName';
 
 interface Position {
@@ -29,17 +29,19 @@ interface AcctResp {
   account: { buying_power: string; options_buying_power?: string; cash: string };
 }
 
-type PosMode = 'manual' | 'live';
-type PosAcctKey = 'MAN' | 'LIVE';
+type PosMode = Mode;
+type PosAcctKey = 'MAN' | 'LIVE' | 'AGENT';
 
 const POS_ACCENT: Record<PosAcctKey, { text: string; bg: string; tag: string }> = {
-  MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
-  LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  MAN:   { text: 'text-cyan',    bg: 'bg-cyan',    tag: 'MAN ' },
+  LIVE:  { text: 'text-red',     bg: 'bg-red',     tag: 'LIVE' },
+  AGENT: { text: 'text-magenta', bg: 'bg-magenta', tag: 'AGNT' },
 };
 
 const MODE_TO_CARD: Record<PosMode, { acctKey: PosAcctKey; label: string }> = {
-  manual: { acctKey: 'MAN',  label: 'Manual' },
-  live:   { acctKey: 'LIVE', label: 'Live $' },
+  manual: { acctKey: 'MAN',   label: 'Manual' },
+  live:   { acctKey: 'LIVE',  label: 'Live $' },
+  agent:  { acctKey: 'AGENT', label: 'Agent'  },
 };
 
 function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string; acctKey: PosAcctKey }) {

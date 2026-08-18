@@ -29,6 +29,45 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-18',
+    category: 'feature',
+    title: 'Agent account is now a first-class account on the dashboard',
+    details:
+      'The autonomous Claude-driven paper account (agentic trading) had no dashboard presence — it ran, '
+      + 'traded, and graded itself entirely in Discord and agent_state.json. It is now registered everywhere '
+      + 'the other two accounts are:\n\n'
+      + '• Sidebar — an "agent 🤖" chip alongside manual and live, and an "agent" nav row.\n'
+      + '• Home — its own account card (magenta) with equity, buying power and equity curve, plus a link '
+      + 'through to its theses and lessons.\n'
+      + '• Positions and Orders — its holdings and order book render side by side with the other accounts. '
+      + 'Order rows show "agent-managed" instead of modify/cancel buttons: Claude owns that order book.\n'
+      + '• Trades, Calendar, Performance — its fills are auto-imported into trade records (tagged "agent"), '
+      + 'so P&L, win rate and the equity overlay finally include it.\n'
+      + '• Lookup — the position panels now tell you if the agent holds the symbol you are looking at.\n\n'
+      + 'New /agent page: the account is judged by its reasoning, not its balance, so this is where the entry '
+      + 'theses live. Open positions expand to show the thesis, the invalidation condition, the key risk it '
+      + 'named, and its intended-vs-actual fill. Closed trades render as lesson cards with the process grade '
+      + 'and the outcome grade side by side (a good decision can lose) and a BLIND SPOT / ANTICIPATED badge on '
+      + 'losses. Plus a confidence-calibration panel, the agent\'s own last market read, and any order Alpaca '
+      + 'rejected last cycle with the reason verbatim.\n\n'
+      + 'Deliberately read-only: the account is excluded from every order form, because a hand-placed trade '
+      + 'would pollute the record of Claude\'s unassisted decisions. It is also excluded from the dashboard\'s '
+      + 'AI hindsight grader — it already grades its own decisions in-loop, and there is no human entry grade '
+      + 'to calibrate against.',
+  },
+  {
+    date: '2026-08-18',
+    category: 'fix',
+    title: 'Agent state pushes were being rejected by the dashboard',
+    details:
+      'agent-trader.yml has pushed agent_state.json to bot:agent:state after every hourly cycle since the '
+      + 'account shipped, but that key was never added to the bot-state key whitelist — so /api/bot-state '
+      + 'answered every push with 400 invalid_or_unknown_key and the dashboard never held any agent state. '
+      + 'The push step swallows failures by design (fire-and-forget, so a dashboard outage cannot break the '
+      + 'bot), which is why it was silent. Key whitelisted; the same whitelist gates the read side, so both '
+      + 'directions work now. Covered by a regression test.',
+  },
+  {
     date: '2026-08-17',
     category: 'fix',
     title: 'Agent auto-cancels its stale unfilled orders each cycle',

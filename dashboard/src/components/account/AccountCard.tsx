@@ -5,6 +5,8 @@ import { fmtUsd, fmtPct } from '../../lib/format';
 import EquityChart, { formatHoverDate } from '../EquityChart';
 import { usePeriod, useGranularity, alpacaPeriod, alpacaTimeframe, type Period, type Granularity } from '../../hooks/usePeriod';
 import FundingPanel from './FundingPanel';
+import { Link } from 'react-router-dom';
+import type { Mode } from '../../lib/account-utils';
 
 const PERIODS: { value: Period; label: string }[] = [
   { value: '1D', label: '1D' },
@@ -31,24 +33,22 @@ interface HistoryResp {
   };
 }
 
+export type AcctKey = 'MAN' | 'LIVE' | 'AGENT';
+
 interface CardProps {
-  mode: 'manual' | 'live';
+  mode: Mode;
   label: string;
   /** acctKey — used for the data-acct-key attribute that drives the filter CSS. */
-  acctKey: 'CONS' | 'AGG' | 'MAN' | 'LIVE' | 'SM500' | 'SM1K' | 'SM2K';
+  acctKey: AcctKey;
 }
 
-const STYLE_BY_KEY: Record<CardProps['acctKey'], {
+const STYLE_BY_KEY: Record<AcctKey, {
   color: string; tag: string; tagText: string; flavor: string;
   textClass: string; bgClass: string;
 }> = {
-  CONS:  { color: '#22ff88', tag: 'ACCT::CONS', tagText: 'CONSERVATIVE', flavor: 'Conservative · wheel + trail',         textClass: 'text-hi',    bgClass: 'bg-hi' },
-  AGG:   { color: '#ffb454', tag: 'ACCT::AGG ', tagText: 'AGGRESSIVE',   flavor: 'Aggressive · wheel + crypto',           textClass: 'text-amber', bgClass: 'bg-amber' },
-  MAN:   { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL',       flavor: 'Manual · user-driven, bot-managed',     textClass: 'text-cyan',  bgClass: 'bg-cyan' },
-  LIVE:  { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $',       flavor: 'LIVE · real money, user-driven',        textClass: 'text-red',   bgClass: 'bg-red' },
-  SM500: { color: '#aaaaaa', tag: 'ACCT::SM5 ', tagText: '$500',          flavor: 'SM $500 · auto-spread, user-managed',   textClass: 'text-mid',   bgClass: 'bg-mid' },
-  SM1K:  { color: '#aaaaaa', tag: 'ACCT::SM1K', tagText: '$1,000',        flavor: 'SM $1K · auto-spread, user-managed',    textClass: 'text-mid',   bgClass: 'bg-mid' },
-  SM2K:  { color: '#aaaaaa', tag: 'ACCT::SM2K', tagText: '$2,000',        flavor: 'SM $2K · auto-spread, user-managed',    textClass: 'text-mid',   bgClass: 'bg-mid' },
+  MAN:   { color: '#22ddff', tag: 'ACCT::MAN ', tagText: 'MANUAL', flavor: 'Manual · user-driven, bot-managed',    textClass: 'text-cyan',  bgClass: 'bg-cyan' },
+  LIVE:  { color: '#ef4444', tag: 'ACCT::LIVE', tagText: 'LIVE $', flavor: 'LIVE · real money, user-driven',       textClass: 'text-red',   bgClass: 'bg-red' },
+  AGENT: { color: '#d36bff', tag: 'ACCT::AGNT', tagText: 'AGENT',  flavor: 'Agent · Claude decides, paper margin', textClass: 'text-magenta', bgClass: 'bg-magenta' },
 };
 
 export default function AccountCard({ mode, label, acctKey }: CardProps) {
@@ -295,12 +295,22 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
         <Metric label="Short mkt value" value={Number(a.short_market_value)} />
       </div>
 
-      {acctKey === 'LIVE' && <FundingPanel mode={mode} />}
+      {acctKey === 'LIVE' && mode === 'live' && <FundingPanel mode={mode} />}
+
+      {/* The agent account's distinguishing artifact isn't a balance — it's the
+          reasoning behind each trade. Point at it from the card. */}
+      {acctKey === 'AGENT' && (
+        <div className="px-5 py-2 border-t border-dashed border-border text-[11px] flex items-center gap-2 flex-wrap">
+          <span className="text-dim">autonomous ·</span>
+          <span className="text-mid">Claude opens and closes every position</span>
+          <Link to="/agent" className="ml-auto text-magenta hover:underline">theses &amp; lessons →</Link>
+        </div>
+      )}
 
       {/* footer status */}
       <footer className="px-5 py-2 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-dim min-w-0">
         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-hi pulse" /> live</span>
-        <span><span className="text-mid">strat</span> {acctKey === 'AGG' ? 'wheel·trail·crypto' : acctKey === 'MAN' ? 'manual·bot-mgr' : (acctKey === 'SM500' || acctKey === 'SM1K' || acctKey === 'SM2K') ? 'auto-spread·bot-mgr' : 'wheel·trail'}</span>
+        <span><span className="text-mid">strat</span> {acctKey === 'AGENT' ? 'agentic·claude-driven' : acctKey === 'MAN' ? 'manual·bot-mgr' : 'wheel·trail'}</span>
         <span className="ml-auto">updated {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York' })} ET</span>
       </footer>
     </article>

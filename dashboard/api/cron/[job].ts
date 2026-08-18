@@ -75,9 +75,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 // (DRY follow-up: three copies across the api/ vs src/ build-root boundary;
 // keep in sync.)
 //
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
+// Accounts: manual (paper) + live (real money) + agent (the autonomous
+// Claude-driven paper account).
 function modeFromAccount(account: string): Mode {
   if (account === 'live') return 'live';
+  if (account === 'agent_paper') return 'agent';
   return 'manual';
 }
 
@@ -184,11 +186,11 @@ export async function runGradeOpenTrades(opts: {
       continue;
     }
 
-    // Guard: only sync/close-detect against the two surviving accounts.
+    // Guard: only sync/close-detect against the accounts that still exist.
     // A stale open trade from a retired account (e.g. conservative_paper, sm500_paper)
     // would otherwise be routed through modeFromAccount → 'manual' and silently
     // sync against the wrong Alpaca credentials. Skip it rather than corrupt data.
-    const ACTIVE_ACCOUNTS = new Set(['manual_paper', 'live']);
+    const ACTIVE_ACCOUNTS = new Set(['manual_paper', 'live', 'agent_paper']);
     if (!ACTIVE_ACCOUNTS.has(trade.account)) {
       console.warn('[gradeOpenTrades] skipping trade for retired account', trade.id, trade.account);
       continue;
@@ -436,11 +438,20 @@ async function drainNeedsGrade(
 //   - manual/live accounts mix bot-opens (auto-spread on manual; live = real
 //     money) with hand-opens via Alpaca's web UI, so we can't reliably
 //     attribute either way → tag 'imported' only.
+//   - agent_paper is 100% Claude-opened, so every fill is attributable → tag
+//     'agent' on top of 'imported'. Importing is how the agent account gets
+//     rows on /trades, /calendar and /performance at all: its trades are never
+//     submitted through the dashboard, so nothing else would create a record.
+//     They deliberately carry no AI hindsight grade (agent_paper is not in
+//     GRADEABLE_ACCOUNTS — the agent grades its own decisions in-loop, and
+//     there is no human entry grade to calibrate against), so they add real
+//     P&L and win-rate without touching the calibration counters.
 // (The conservative/aggressive/sm* fully-bot-driven accounts were retired
 // 2026-06-29.)
 const AUTO_IMPORT_ACCOUNTS: Array<{ account: string; extraTags: string[] }> = [
   { account: 'manual_paper',       extraTags: [] },
   { account: 'live',               extraTags: [] },
+  { account: 'agent_paper',        extraTags: ['agent'] },
 ];
 
 // First-run cursor — start 7 days back so we don't sweep the entire account

@@ -14,7 +14,7 @@ import {
   underlyingFromSymbol,
   collectUnderlyings,
 } from '../lib/order-filters';
-import { accountsForSelection, ALL_MODES } from '../lib/account-utils';
+import { accountsForSelection, ALL_MODES, type Mode } from '../lib/account-utils';
 import { useDisplayName } from '../hooks/useDisplayName';
 
 interface Order {
@@ -82,17 +82,19 @@ function sideColor(side: string): string {
   return 'text-fg';
 }
 
-type OrderMode = 'manual' | 'live';
-type OrderAcctKey = 'MAN' | 'LIVE';
+type OrderMode = Mode;
+type OrderAcctKey = 'MAN' | 'LIVE' | 'AGENT';
 
 const ORDER_ACCENT: Record<OrderAcctKey, { text: string; bg: string; tag: string }> = {
-  MAN:   { text: 'text-cyan',  bg: 'bg-cyan',  tag: 'MAN ' },
-  LIVE:  { text: 'text-red',   bg: 'bg-red',   tag: 'LIVE' },
+  MAN:   { text: 'text-cyan',    bg: 'bg-cyan',    tag: 'MAN ' },
+  LIVE:  { text: 'text-red',     bg: 'bg-red',     tag: 'LIVE' },
+  AGENT: { text: 'text-magenta', bg: 'bg-magenta', tag: 'AGNT' },
 };
 
 const ORDER_MODE_TO_CARD: Record<OrderMode, { acctKey: OrderAcctKey; label: string }> = {
-  manual: { acctKey: 'MAN',  label: 'Manual' },
-  live:   { acctKey: 'LIVE', label: 'Live $' },
+  manual: { acctKey: 'MAN',   label: 'Manual' },
+  live:   { acctKey: 'LIVE',  label: 'Live $' },
+  agent:  { acctKey: 'AGENT', label: 'Agent'  },
 };
 
 interface OrdersTableProps {
@@ -121,6 +123,7 @@ function OrdersTable({
   const qc = useQueryClient();
   const { handle } = useDisplayName();
   const [editing, setEditing] = useState<Order | null>(null);
+  const isAgent = mode === 'agent';
   const cancel = useMutation({
     mutationFn: (id: string) =>
       api(`/api/alpaca/cancel-order?mode=${mode}`, {
@@ -304,25 +307,35 @@ function OrdersTable({
                     )}
                     {status === 'open' && (
                       <td data-label="action" className="px-2 py-1 text-right">
-                        <span className="flex justify-end gap-1">
-                          <button
-                            type="button"
-                            className="pbtn max-md:min-h-[40px] max-md:px-3"
-                            onClick={() => setEditing(o)}
-                          >
-                            [modify]
-                          </button>
-                          <button
-                            type="button"
-                            className="pbtn max-md:min-h-[40px] max-md:px-3"
-                            disabled={cancel.isPending}
-                            onClick={() => {
-                              if (window.confirm('cancel this order?')) cancel.mutate(o.id);
-                            }}
-                          >
-                            [cancel]
-                          </button>
-                        </span>
+                        {/* The agent account is read-only from the dashboard —
+                            Claude owns its order book, and a human modify or
+                            cancel would silently contradict the thesis it is
+                            trading. Show why rather than an inert button. */}
+                        {isAgent ? (
+                          <span className="text-dim text-[10px]" title="Claude manages this account's orders; the dashboard is read-only on it.">
+                            agent-managed
+                          </span>
+                        ) : (
+                          <span className="flex justify-end gap-1">
+                            <button
+                              type="button"
+                              className="pbtn max-md:min-h-[40px] max-md:px-3"
+                              onClick={() => setEditing(o)}
+                            >
+                              [modify]
+                            </button>
+                            <button
+                              type="button"
+                              className="pbtn max-md:min-h-[40px] max-md:px-3"
+                              disabled={cancel.isPending}
+                              onClick={() => {
+                                if (window.confirm('cancel this order?')) cancel.mutate(o.id);
+                              }}
+                            >
+                              [cancel]
+                            </button>
+                          </span>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -332,7 +345,7 @@ function OrdersTable({
           </table>
         </div>
       )}
-      {editing && (
+      {editing && !isAgent && (
         <OrderEditModal
           order={editing}
           mode={mode}

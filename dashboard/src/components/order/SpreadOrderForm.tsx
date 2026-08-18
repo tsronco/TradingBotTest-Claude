@@ -13,8 +13,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import type { AccountId, GradeLetter, RuleWarning, SpreadType } from '../../lib/trade-types';
-import { accountToMode, ALL_PAPER_ACCOUNTS, type Mode } from '../../lib/account-utils';
+import type { GradeLetter, RuleWarning, SpreadType } from '../../lib/trade-types';
+import { accountToMode, TRADEABLE_PAPER_ACCOUNTS, type Mode, type OrderAccountId } from '../../lib/account-utils';
 import { GradePicker } from './GradePicker';
 import { TagPicker } from './TagPicker';
 import PayoffChart from './PayoffChart';
@@ -58,8 +58,8 @@ interface PreviewResult {
 
 interface Props {
   symbol: string;
-  account: AccountId;
-  setAccount: (a: AccountId) => void;
+  account: OrderAccountId;
+  setAccount: (a: OrderAccountId) => void;
   onReview: (preview: PreviewResult) => void;
   /** Which of the 4 vertical types to build. Defaults to put_credit (legacy). */
   spreadType?: SpreadType;
@@ -282,11 +282,14 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
         </div>
       )}
 
-      {/* account selector — same 6 paper accounts as the legacy form */}
+      {/* Account selector. Only accounts a human may trade appear here: the
+          autonomous agent account is excluded entirely (hand orders would
+          pollute the record of Claude's own decisions) and live renders as a
+          disabled chip below. */}
       <div className="flex flex-col gap-1">
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
-          {ALL_PAPER_ACCOUNTS.map((a) => (
+          {TRADEABLE_PAPER_ACCOUNTS.map((a) => (
             <button
               key={a}
               type="button"

@@ -8,6 +8,7 @@ import { alpacaData, alpacaTrade, alpacaTradeMutation } from '../_lib/data-api.j
 import {
   GRADE_LETTERS,
   isGradeable,
+  type AccountId,
   type GradeLetter,
   type SpreadType,
   type Trade,
@@ -280,6 +281,7 @@ async function getUnderlyingPrice(symbol: string, mode: string): Promise<number 
 // across the api/ vs src/ build-root boundary; keep in sync.)
 function modeFromAccount(account: string): string {
   if (account === 'live') return 'live';
+  if (account === 'agent_paper') return 'agent';
   return 'manual';
 }
 
@@ -1537,7 +1539,11 @@ export async function runImport({
   since,
   extraTags = [],
 }: {
-  account: OrderDraft['account'];
+  // Any registered account — wider than OrderDraft['account'], which covers
+  // only the accounts a human may place an order into. The agent account is
+  // importable (that is how its trades reach the dashboard) but never
+  // order-placeable from here.
+  account: AccountId;
   since: string;
   extraTags?: string[];
 }): Promise<TradeImportSummary> {

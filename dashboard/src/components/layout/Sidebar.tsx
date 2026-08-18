@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useLogout } from '../../hooks/useAuth';
 import { useAccount, type AccountMode } from '../../hooks/useAccount';
-import { accountsForSelection } from '../../lib/account-utils';
+import { accountsForSelection, ALL_MODES } from '../../lib/account-utils';
 import { useDisplayName } from '../../hooks/useDisplayName';
 import { BUILD_VERSION } from '../../build-version';
 
@@ -17,14 +17,23 @@ const navItems: { to: string; label: string; key: string; end?: boolean }[] = [
   { to: '/calendar', label: 'calendar', key: '7' },
   { to: '/rules', label: 'rules', key: '8' },
   { to: '/performance', label: 'performance', key: '9' },
+  { to: '/agent', label: 'agent', key: '0' },
 ];
 
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
-const acctOpts: { value: AccountMode; label: string; key: string }[] = [
+// Three accounts: manual (paper) + live (real money) + agent — the autonomous
+// Claude-driven paper account (agentic trading), registered 2026-08-18.
+const acctOpts: { value: AccountMode; label: string; key: string; title?: string }[] = [
   { value: 'both',   label: 'all',    key: 'a' },
   { value: 'manual', label: 'manual', key: 'm' },
   { value: 'live',   label: 'live $', key: 'l' },
+  {
+    value: 'agent',
+    label: 'agent 🤖',
+    key: 'g',
+    title: 'Autonomous paper account — Claude makes every trading decision. Read-only from the dashboard.',
+  },
 ];
+
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const logout = useLogout();
@@ -76,7 +85,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mx-3 mt-2 mb-3 border border-border rounded-sm">
         <div className="px-3 py-1.5 text-[10px] tracking-[0.25em] text-dim border-b border-border flex items-center gap-2">
           <span>ACCOUNTS</span>
-          <span className="ml-auto text-hi tnum">{accountsForSelection(mode).length}/2 ●</span>
+          <span className="ml-auto text-hi tnum">{accountsForSelection(mode).length}/{ALL_MODES.length} ●</span>
         </div>
         <div className="py-1 text-[11px]">
           {acctOpts.map((o) => {
@@ -86,6 +95,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 key={o.value}
                 type="button"
                 onClick={() => { setMode(o.value); onNavigate?.(); }}
+                title={o.title}
                 className={`acct-btn max-md:py-2 px-3 py-1 flex items-center gap-2 ${isActive ? 'active' : 'text-fg'}`}
               >
                 <span className={isActive ? 'text-hi' : 'text-dim'}>{isActive ? '▸' : '·'}</span>

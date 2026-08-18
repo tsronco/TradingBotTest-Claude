@@ -1,4 +1,8 @@
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
+// Accounts: manual (paper) + live (real money) + agent (the autonomous
+// Claude-driven paper account). The wheel accounts push three payloads each
+// (wheel state / strategy state / rules); the agent runs a different engine and
+// pushes a single combined state document — positions with their entry theses,
+// closed-trade lesson records, and cycle metadata — from agent-trader.yml.
 export const BOT_STATE_KEYS = [
   'bot:state:manual',
   'bot:state:live',
@@ -6,7 +10,11 @@ export const BOT_STATE_KEYS = [
   'bot:strategy:live',
   'bot:rules:manual',
   'bot:rules:live',
+  'bot:agent:state',
 ] as const;
+
+/** The single key holding the autonomous agent account's state document. */
+export const AGENT_STATE_KEY = 'bot:agent:state';
 
 export type BotStateKey = (typeof BOT_STATE_KEYS)[number];
 
@@ -34,7 +42,7 @@ const DASHBOARD_KEY_PATTERNS: RegExp[] = [
   /^watchlist$/,
   /^rules:(manual|patterns|cheatsheets|goals|tendencies|proposals)$/,
   /^config:display_name$/,
-  /^import:cursor:(manual_paper|live)$/,
+  /^import:cursor:(manual_paper|live|agent_paper)$/,
 ];
 
 export function isAllowedDashboardKey(key: string): boolean {
@@ -75,9 +83,18 @@ export function tradesCounterKey(yyyymmdd: string): string {
   return `trades:counter:${yyyymmdd}`;
 }
 
-export type Mode = 'manual' | 'live';
+export type Mode = 'manual' | 'live' | 'agent';
 
-export function botRulesKey(mode: Mode): BotStateKey {
+/** Modes that run the wheel/strategy bot. The agent account has no wheel
+ *  parameter surface, so it has no `bot:rules:*` payload — callers must gate on
+ *  this before building a rules key. */
+export type WheelMode = 'manual' | 'live';
+
+export function isWheelMode(mode: Mode): mode is WheelMode {
+  return mode === 'manual' || mode === 'live';
+}
+
+export function botRulesKey(mode: WheelMode): BotStateKey {
   return `bot:rules:${mode}` as BotStateKey;
 }
 

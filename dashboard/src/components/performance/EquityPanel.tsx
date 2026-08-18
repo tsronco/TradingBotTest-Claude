@@ -21,11 +21,13 @@ export default function EquityPanel({ dateRange, account }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const cfg = PERIODS[dateRange] ?? PERIODS.ALL;
 
-  const showMan  = !account || account === 'manual_paper';
-  const showLive = !account || account === 'live';
+  const showMan   = !account || account === 'manual_paper';
+  const showLive  = !account || account === 'live';
+  const showAgent = !account || account === 'agent_paper';
 
-  const man  = useEquityHistory('manual', cfg, showMan);
-  const live = useEquityHistory('live',   cfg, showLive);
+  const man   = useEquityHistory('manual', cfg, showMan);
+  const live  = useEquityHistory('live',   cfg, showLive);
+  const agent = useEquityHistory('agent',  cfg, showAgent);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -45,9 +47,13 @@ export default function EquityPanel({ dateRange, account }: Props) {
       const s = chart.addSeries(LineSeries, { color: '#ef4444', lineWidth: 2 });
       s.setData(toData(live.data.history));
     }
+    if (showAgent && agent.data?.history?.equity?.length) {
+      const s = chart.addSeries(LineSeries, { color: '#d36bff', lineWidth: 2 });
+      s.setData(toData(agent.data.history));
+    }
     chart.timeScale().fitContent();
     return () => chart.remove();
-  }, [showMan, showLive, man.data, live.data]);
+  }, [showMan, showLive, showAgent, man.data, live.data, agent.data]);
 
   return (
     <div>
@@ -55,6 +61,7 @@ export default function EquityPanel({ dateRange, account }: Props) {
       <div className="text-[10px] text-dim mt-2 flex gap-3">
         {showMan && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#a78bfa' }} />manual</span>}
         {showLive && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#ef4444' }} />live $</span>}
+        {showAgent && <span><span className="inline-block w-2 h-2 mr-1" style={{ background: '#d36bff' }} />agent</span>}
       </div>
     </div>
   );

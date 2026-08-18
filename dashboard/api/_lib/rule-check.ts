@@ -73,11 +73,12 @@ export async function runRuleChecks(
   }
 
   // --- Bot rules (warn-only) ---
-  // accountToMode returns a kv-keys Mode (manual or live); both have their
-  // bot:rules:<mode> key whitelisted and pushed by the monitor workflows, so
-  // the lookup is valid for every account.
+  // accountToMode returns a wheel mode (manual or live) or null for the agent
+  // account, which runs a different engine and has no bot:rules:<mode> payload.
+  // A null mode simply skips the bot-rule overlay — the agent account has no
+  // wheel symbol list or DTE window to warn against.
   const mode = accountToMode(input.account);
-  const bot = (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null;
+  const bot = mode ? (await kv().get<BotRulesPayload>(botRulesKey(mode))) ?? null : null;
   if (bot && input.asset_class === 'option') {
     if (Array.isArray(bot.wheel?.symbols) && !bot.wheel.symbols.includes(input.symbol)) {
       violations.push({
@@ -156,8 +157,11 @@ function sevRank(s: RuleSeverity): number {
   return s === 'block' ? 0 : s === 'warn' ? 1 : 2;
 }
 
-function accountToMode(account: AccountId): 'manual' | 'live' {
+/** Wheel mode backing an account, or null for accounts that don't run the
+ *  wheel bot (the autonomous agent account). */
+function accountToMode(account: AccountId): 'manual' | 'live' | null {
   if (account === 'live') return 'live';
+  if (account === 'agent_paper') return null;
   return 'manual';
 }
 

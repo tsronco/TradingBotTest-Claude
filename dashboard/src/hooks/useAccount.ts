@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money),
-// plus 'both' for the side-by-side view.
-export type AccountMode = 'manual' | 'live' | 'both';
+// Three accounts: manual (paper) + live (real money) + agent (the autonomous
+// Claude-driven paper account, added 2026-08-18), plus 'both' — the "all" chip —
+// for the side-by-side view. ('both' predates the third account; the token is
+// kept so existing localStorage selections keep working.)
+export type AccountMode = 'manual' | 'live' | 'agent' | 'both';
+
+const VALID_MODES: readonly AccountMode[] = ['manual', 'live', 'agent', 'both'];
 const KEY = 'dash:selectedAccount';
 const CHANGE_EVENT = 'dash:account-mode-change';
 
 function readMode(): AccountMode {
   if (typeof window === 'undefined') return 'both';
-  return ((localStorage.getItem(KEY) as AccountMode) ?? 'both');
+  const stored = localStorage.getItem(KEY) as AccountMode | null;
+  // Guard against a stale selection left over from a retired account
+  // (conservative/aggressive/sm*) — those would otherwise resolve to an
+  // unknown mode and blank every account-aware page.
+  return stored && VALID_MODES.includes(stored) ? stored : 'both';
 }
 
 /**

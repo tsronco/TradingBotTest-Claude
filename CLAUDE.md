@@ -533,7 +533,10 @@ wheel parameter surface, so it lives in its own `agent_config.py` (this keeps th
 wheel's "exactly two modes" test intact). The shared read-only infra still
 recognizes the `"agent"` string: `alpaca_data._credentials("agent")` →
 `ALPACA_AGENT_*` (paper endpoint), the Discord channel map → the four `#agent-*`
-webhooks, log stream `agent` → `logs/agent.jsonl`.
+webhooks, log stream `agent` → `logs/agent.jsonl`. The dashboard mirrors this
+split: `agent` is a full `Mode`/`AccountId` for reads, but NOT a `WheelMode` —
+it has no `bot:state:*` / `bot:rules:*` payload, so `useBotWheelState` disables
+itself and `rule-check` skips the bot-rule overlay for it.
 
 **Files:**
 - `agent_config.py` — account config (creds env names, channels, `agent_state.json`,
@@ -738,9 +741,14 @@ removing the `schedule:` block (double-fire).
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
 `DISCORD_AGENT_*_WEBHOOK` as GitHub Actions secrets; create the four `#agent-*`
-Discord channels. Dashboard registration (account chip + lesson-card page)
-deferred until a laptop is available. Until secrets exist, scheduled runs no-op
-harmlessly (fail-soft).
+Discord channels. Until secrets exist, scheduled runs no-op harmlessly
+(fail-soft).
+
+**Dashboard registration — ✅ SHIPPED 2026-08-18** (was deferred pending a
+laptop; the Actions-based deploy path made it doable). The agent is now a
+first-class account everywhere the other two are, plus a dedicated page for the
+thing that makes it different. See "Agent account on the dashboard" under the
+[Dashboard subproject](#dashboard-subproject).
 
 **Env vars (agent):**
 ```
@@ -849,7 +857,7 @@ Gotchas learned the first time: `SendMessage` (to resume a stalled agent with it
 
 ## Dashboard subproject
 
-A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. **Phase 1 shipped 2026-05-02. Phase 2 (manual trading + AI grading) shipped 2026-05-03.** All seven accounts (conservative, aggressive, manual, live, sm500, sm1000, sm2000) are registered in the dashboard.
+A personal web dashboard at `dashboard/` — Vite + React 19 + Tailwind v4 SPA, deployed to Vercel. **Phase 1 shipped 2026-05-02. Phase 2 (manual trading + AI grading) shipped 2026-05-03.** Three accounts are registered in the dashboard: `manual`, `live`, and `agent` (the autonomous Claude-driven paper account, registered 2026-08-18 — see [Agent account on the dashboard](#agent-account-on-the-dashboard-shipped-2026-08-18)). The conservative/aggressive/sm* accounts were retired 2026-06-29.
 
 - Live: https://tradingbot-dashboard-blue.vercel.app
 - Spec: `docs/superpowers/specs/2026-05-02-trading-dashboard-design.md`
@@ -1043,6 +1051,74 @@ Three SM accounts registered across all ~8 dashboard enumeration sites: `Account
 Single-account chips and `All` are retained. Selecting a group renders those accounts side-by-side on account-aware pages (Home cards, Positions, Orders, etc.) via a single `accountsForSelection(mode)` derivation replacing all prior `mode==='both'` branches. Labels are decoupled from tokens. Spec/plan: `docs/superpowers/{specs,plans}/2026-05-15-small-account-auto-spread*.md`.
 
 Test counts after this effort: **473 vitest / 77 files** (dashboard); **380 pytest** + **23 push-rules** (`tools/test_push_rules_to_dashboard.py`).
+
+### Agent account on the dashboard (shipped 2026-08-18)
+
+The autonomous Claude-driven paper account (see [Autonomous agent
+account](#autonomous-agent-account-claude-driven-experimental)) is registered
+across the dashboard. Three accounts are now enumerated everywhere: `manual`,
+`live`, `agent`.
+
+**Registration touch-points** (the list to update if a fourth account ever
+lands): `AccountMode` (`useAccount.ts`), `Mode`/`WheelMode`/`PaperAccountId`/
+`AnyAccountId`/`ALL_MODES`/`ALL_ACCOUNTS`/`ALL_PAPER_ACCOUNTS`/
+`TRADEABLE_PAPER_ACCOUNTS`/`ACCOUNT_LABEL`/`accountsForSelection`
+(`src/lib/account-utils.ts`), `Mode` + `credsFor()` (`api/_lib/alpaca.ts` →
+`ALPACA_AGENT_API_KEY`/`_SECRET`), `AccountId` + `GRADEABLE_ACCOUNTS`
+(`api/_lib/trade-types.ts`), `BOT_STATE_KEYS` + `Mode`/`WheelMode` +
+`importCursorKey` pattern (`api/_lib/kv-keys.ts`), `accountToMode`
+(`api/_lib/rule-check.ts`), `modeFromAccount` + `ACTIVE_ACCOUNTS` +
+`AUTO_IMPORT_ACCOUNTS` (`api/cron/[job].ts`), `modeFromAccount`
+(`api/trades/[action].ts`), the sidebar chip + nav row, the `#cards` data-mode
+CSS in `globals.css`, and the per-mode accent maps in Home / Positions / Orders
+/ the two lookup position panels.
+
+**Where it surfaces:** sidebar chip (`agent 🤖`) + `agent` nav row; Home
+account card (magenta accent, `AGENT` acct-key) with a link to `/agent`;
+Positions and Orders tables; Trades / Calendar / Performance (via auto-import,
+below); the Lookup position panels; the Settings import dropdown.
+
+**Read-only by design — two deliberate exclusions:**
+1. **Not order-placeable.** `TRADEABLE_PAPER_ACCOUNTS` excludes `agent_paper`,
+   so it never appears in an order form, and `OrderAccountId` makes that a type
+   error rather than a runtime check. Orders on `/orders` show `agent-managed`
+   in place of modify/cancel. Rationale: the account exists to measure Claude's
+   *unassisted* decisions — a hand-placed trade pollutes the record and leaves a
+   position the agent has no thesis for.
+2. **Not dashboard-AI-gradeable.** `GRADEABLE_ACCOUNTS` excludes it. The agent
+   already grades its own decisions in-loop (`agent_grading.py`: process grade
+   vs outcome grade, anticipated-vs-blind_spot), and there is no human entry
+   grade to calibrate an AI grade against.
+
+**How its trades reach `/trades`:** they are never submitted through the
+dashboard, so nothing would create a trade record. `AUTO_IMPORT_ACCOUNTS` in the
+grade-open-trades cron now includes `agent_paper` with `extraTags: ['agent']`,
+so its fills are imported like any externally-opened position. Because it isn't
+gradeable, those rows add real P&L and win-rate without touching the calibration
+counters (calibration only counts trades that carry an AI hindsight grade).
+
+**`/agent` page** (`src/routes/Agent.tsx`) — the account's real deliverable.
+Reads `bot:agent:state` and renders: a scoreboard (equity vs seed, open P&L,
+win rate, **avg-win : avg-loss**, blind-spots vs anticipated); the agent's own
+`last_market_read`; last cycle's opens/closes and — highest signal — any order
+Alpaca **rejected**, with the reason verbatim (a stateless agent can otherwise
+loop on an unplaceable structure); open positions that expand to the full entry
+thesis (view / getting paid / key risk / invalidation / rejected alternatives)
+plus intended-vs-actual fill slippage; a confidence-calibration panel; and
+closed trades as **lesson cards** with process and outcome graded side by side
+and a BLIND SPOT / ANTICIPATED badge. Pure derivations live in
+`src/lib/agent-state.ts` (unit-tested separately from the page).
+
+**Bug fixed in the same pass:** `agent-trader.yml` had been pushing
+`agent_state.json` to `bot:agent:state` since the account shipped, but that key
+was never in `BOT_STATE_KEYS` — so `/api/bot-state` rejected every push with
+`400 invalid_or_unknown_key`. The push step is fire-and-forget (a dashboard
+outage must not break the bot), so it failed silently. Whitelisted; regression
+test in `tests/lib/kv-keys.test.ts`.
+
+Test counts after this change: **895 vitest / 115 files** (was 849/112: +20
+`agent-state`, +11 `agent-account-registration`, +13 `Agent` page, plus updated
+account-count assertions) and **696 pytest** (unchanged — no Python edits).
 
 ### Phase 4 (next) — known follow-ups from Phase 3
 

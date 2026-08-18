@@ -1,8 +1,18 @@
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
-export type Mode = 'manual' | 'live';
+// Three accounts: manual (paper) + live (real money) + agent — the autonomous
+// Claude-driven paper account (agentic trading), registered 2026-08-18. The
+// conservative/aggressive/sm* accounts were retired 2026-06-29.
+export type Mode = 'manual' | 'live' | 'agent';
+
+const MODES: readonly Mode[] = ['manual', 'live', 'agent'];
 
 export function isMode(s: unknown): s is Mode {
-  return s === 'manual' || s === 'live';
+  return typeof s === 'string' && (MODES as readonly string[]).includes(s);
+}
+
+/** Paper modes — everything except `live`. Used by callers that need to know
+ *  whether a request can reach real money. */
+export function isPaperMode(mode: Mode): boolean {
+  return mode !== 'live';
 }
 
 export function modeFromQuery(q: unknown): Mode {
@@ -17,6 +27,11 @@ function credsFor(mode: Mode): { key: string; secret: string } {
     // live — REAL MONEY. Hits api.alpaca.markets (not paper-api).
     key = process.env.ALPACA_LIVE_API_KEY;
     secret = process.env.ALPACA_LIVE_API_SECRET;
+  } else if (mode === 'agent') {
+    // agent — the autonomous Claude-driven paper MARGIN sub-account. Paper
+    // endpoint, its own credential set (mirrors agent_config.py).
+    key = process.env.ALPACA_AGENT_API_KEY;
+    secret = process.env.ALPACA_AGENT_API_SECRET;
   } else {
     // manual paper account.
     key = process.env.ALPACA_MANUAL_API_KEY;

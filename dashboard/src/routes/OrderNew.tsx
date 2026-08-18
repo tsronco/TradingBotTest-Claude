@@ -1,5 +1,6 @@
 // dashboard/src/routes/OrderNew.tsx
 import { useState } from 'react';
+import type { OrderAccountId } from '../lib/account-utils';
 import { useSearchParams } from 'react-router-dom';
 import { StockOrderForm } from '../components/order/StockOrderForm';
 import { OptionOrderForm } from '../components/order/OptionOrderForm';
@@ -23,9 +24,12 @@ export default function OrderNew() {
   const contract = params.get('contract');
   const type = params.get('type');
   const action = params.get('action') as 'open' | 'close' | null;
-  type OrderAccount = 'manual_paper' | 'live';
-  const initialAccount = (params.get('account') as OrderAccount) ?? 'manual_paper';
-  const [account, setAccount] = useState<OrderAccount>(initialAccount);
+  // Order forms never target the autonomous agent account — see
+  // OrderAccountId / TRADEABLE_PAPER_ACCOUNTS in account-utils.
+  const requested = params.get('account');
+  const initialAccount: OrderAccountId =
+    requested === 'live' ? 'live' : 'manual_paper';
+  const [account, setAccount] = useState<OrderAccountId>(initialAccount);
 
   if (!symbol && !contract) {
     return (

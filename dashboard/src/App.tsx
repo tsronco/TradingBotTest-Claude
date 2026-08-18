@@ -17,6 +17,7 @@ import Watchlist from './routes/Watchlist';
 import Calendar from './routes/Calendar';
 import Performance from './routes/Performance';
 import Changelog from './routes/Changelog';
+import Agent from './routes/Agent';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/performance" element={<Performance />} />
+            <Route path="/agent" element={<Agent />} />
             <Route path="/changelog" element={<Changelog />} />
           </Route>
         </Routes>

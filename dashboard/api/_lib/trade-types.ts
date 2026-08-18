@@ -1,10 +1,20 @@
-// Two accounts since the 2026-06-29 sunset: manual (paper) + live (real money).
-export type AccountId = 'manual_paper' | 'live';
+// Accounts: manual (paper) + live (real money) + agent_paper — the autonomous
+// Claude-driven account (agentic trading), registered 2026-08-18. The
+// conservative/aggressive/sm* accounts were retired 2026-06-29.
+export type AccountId = 'manual_paper' | 'live' | 'agent_paper';
 
-// AI hindsight grading covers both surviving accounts — manual + live — where
-// the user hand-picks entry grades. Single source of truth for every grading
-// gate (cron close-loop, needs-grade drain, regrade endpoint) and the client
-// button visibility.
+// AI hindsight grading covers the two hand-traded accounts — manual + live —
+// where the user picks an entry grade the AI can be calibrated against.
+//
+// `agent_paper` is deliberately NOT gradeable here: that account's trades are
+// opened by Claude with a falsifiable thesis and are already graded in-loop by
+// agent_grading.py (process grade vs outcome grade, anticipated-vs-blind_spot
+// loss classification), and there is no human entry grade to calibrate against.
+// Running the dashboard's grader over them would duplicate the work and pollute
+// the calibration stats. Those lessons surface on /agent instead.
+//
+// Single source of truth for every grading gate (cron close-loop, needs-grade
+// drain, regrade endpoint) and the client button visibility.
 export const GRADEABLE_ACCOUNTS: ReadonlySet<AccountId> = new Set<AccountId>([
   'manual_paper', 'live',
 ]);

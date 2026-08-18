@@ -19,12 +19,13 @@ interface TrailingCoach {
   next_raise_above: number | null;
 }
 
-type Mode = 'manual' | 'live';
-const MODES: readonly Mode[] = ['manual', 'live'] as const;
+type Mode = 'manual' | 'live' | 'agent';
+const MODES: readonly Mode[] = ['manual', 'live', 'agent'] as const;
 
 const MODE_ACCENT: Record<Mode, { dot: string; text: string }> = {
   manual: { dot: 'bg-cyan', text: 'text-cyan' },
   live: { dot: 'bg-red', text: 'text-red' },
+  agent: { dot: 'bg-magenta', text: 'text-magenta' },
 };
 
 interface Facts {

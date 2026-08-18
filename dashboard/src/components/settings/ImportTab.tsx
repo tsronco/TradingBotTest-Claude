@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { api, ApiError } from '../../lib/api';
+import { ALL_ACCOUNTS, ACCOUNT_LABEL, type AnyAccountId } from '../../lib/account-utils';
 
-type Account = 'manual_paper' | 'live';
+type Account = AnyAccountId;
 
 interface ImportSummary {
   imported: number;
@@ -63,8 +64,9 @@ export function ImportTab() {
               onChange={(e) => setAccount(e.target.value as Account)}
               className="bg-panel-2 border border-border px-2 py-1 text-fg text-[12px]"
             >
-              <option value="manual_paper">manual (paper)</option>
-              <option value="live">live (real money)</option>
+              {ALL_ACCOUNTS.map((a) => (
+                <option key={a} value={a}>{ACCOUNT_LABEL[a]}</option>
+              ))}
             </select>
           </label>
           <label className="flex flex-col gap-1">

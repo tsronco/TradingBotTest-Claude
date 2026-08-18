@@ -163,16 +163,21 @@ body {
 #cards { min-width: 0; }
 #cards > * { min-width: 0; }
 
-/* Live spans the full top row in both-mode (3 cols → span 3).
-   In single-mode views the grid collapses to 1 col, where 1/-1 == 1/2 → no-op. */
+/* Live spans the full top row in the all-accounts view; manual + agent sit
+   side by side beneath it. In single-mode views the grid collapses to 1 col,
+   where 1/-1 == 1/2 → no-op. */
 #cards article[data-acct-key='LIVE'] { grid-column: 1 / -1; }
 
 /* card visibility driven by data-mode attribute.
-   Two accounts since the 2026-06-29 sunset: manual + live. */
-#cards[data-mode='manual'] article[data-acct-key='LIVE'] { display: none; }
-#cards[data-mode='live'] article[data-acct-key='MAN'] { display: none; }
+   Three accounts: manual + live + agent (the autonomous Claude-driven paper
+   account, registered 2026-08-18). Home only renders the selected modes, so
+   these rules are belt-and-braces for any consumer that renders all cards. */
+#cards[data-mode='manual'] article:not([data-acct-key='MAN']) { display: none; }
+#cards[data-mode='live'] article:not([data-acct-key='LIVE']) { display: none; }
+#cards[data-mode='agent'] article:not([data-acct-key='AGENT']) { display: none; }
 #cards[data-mode='manual'],
-#cards[data-mode='live'] {
+#cards[data-mode='live'],
+#cards[data-mode='agent'] {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 

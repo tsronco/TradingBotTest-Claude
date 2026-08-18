@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import AccountCard from '../components/account/AccountCard';
+import AccountCard, { type AcctKey } from '../components/account/AccountCard';
 import { api } from '../lib/api';
 import { useAccount } from '../hooks/useAccount';
 import { usePeriod, useGranularity, type Period } from '../hooks/usePeriod';
@@ -14,11 +14,10 @@ function periodFlag(p: Period): string {
   return p === '1A' ? '1y' : p.toLowerCase();
 }
 
-type HomeAcctKey = 'MAN' | 'LIVE';
-
-const HOME_MODE_TO_CARD: Record<Mode, { acctKey: HomeAcctKey; label: string }> = {
-  manual: { acctKey: 'MAN',  label: 'Manual' },
-  live:   { acctKey: 'LIVE', label: 'Live $' },
+const HOME_MODE_TO_CARD: Record<Mode, { acctKey: AcctKey; label: string }> = {
+  manual: { acctKey: 'MAN',   label: 'Manual' },
+  live:   { acctKey: 'LIVE',  label: 'Live $' },
+  agent:  { acctKey: 'AGENT', label: 'Agent'  },
 };
 
 export default function Home() {
@@ -36,14 +35,20 @@ export default function Home() {
     queryKey: ['account', 'live'],
     queryFn: () => api<AcctResp>('/api/alpaca/account?mode=live'),
   });
+  const agentQ = useQuery({
+    queryKey: ['account', 'agent'],
+    queryFn: () => api<AcctResp>('/api/alpaca/account?mode=agent'),
+  });
 
   const equityMap: Record<Mode, number> = {
     manual: manQ.data ? Number(manQ.data.account.equity) : 0,
     live:   liveQ.data ? Number(liveQ.data.account.equity) : 0,
+    agent:  agentQ.data ? Number(agentQ.data.account.equity) : 0,
   };
   const lastMap: Record<Mode, number> = {
     manual: manQ.data ? Number(manQ.data.account.last_equity) : 0,
     live:   liveQ.data ? Number(liveQ.data.account.last_equity) : 0,
+    agent:  agentQ.data ? Number(agentQ.data.account.last_equity) : 0,
   };
 
   const selectedModes = accountsForSelection(mode);
@@ -119,7 +124,14 @@ export default function Home() {
       </div>
 
       {/* account cards */}
-      <div id="cards" data-mode={mode} className="grid gap-5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+      {/* Live spans the full row (see globals.css), so a 2-column track puts
+          manual + agent side by side beneath it and leaves no dead column. */}
+      <div
+        id="cards"
+        data-mode={mode}
+        className="grid gap-5"
+        style={{ gridTemplateColumns: `repeat(${cardCount > 1 ? 2 : 1}, minmax(0, 1fr))` }}
+      >
         {selectedModes.map((m2) => {
           const { acctKey, label } = HOME_MODE_TO_CARD[m2];
           return <AccountCard key={m2} mode={m2} label={label} acctKey={acctKey} />;
