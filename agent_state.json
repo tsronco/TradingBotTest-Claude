@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 18,
-    "last_cycle_at": "2026-08-17T20:12:45Z",
+    "cycle_count": 19,
+    "last_cycle_at": "2026-08-18T13:12:32Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 93.99, essentially flat vs my 94.19 entry; the Sep-25 96/103 debit spread's true mid is 2.625-0.72 = $1.905 vs $2.41 paid (~-$150), which is a day of theta plus wide quotes, not a thesis break \u2014 spot is far above my $90 invalidation and the mid is well above my $1.20 cut line. With $1,221 cash and the spread already ~40% of equity, I see nothing cheaper or cleaner in the shortlist: semis/AI (AMAT, MU, MRVL, LRCX, SMH) are at 60-100% IV with wide chains, CHTR/PSX/ROST quotes are thin, and GLD/SLV/SPY offer no defined edge I can argue for at this size. Holding; I act if CVS closes under $90 (cut), pushes over $100 with the spread mid at $4.50+ (take profit), or if a tight-chain, low-IV setup appears I can risk ~$200-300 on.",
+    "last_market_read": "CVS is 93.99, unchanged from my entry area; the Sep-25 96/103 debit vertical's true mid is 2.625 - 0.72 = $1.905 vs $2.41 paid (about -$150 on 3 lots), which is theta plus a very wide chain, not a thesis break \u2014 spot is far above my $90 cut and the mid is well above my $1.20 abandon line, with five weeks left for a 2-9% move. Elsewhere in the shortlist I see nothing with a defensible edge at this account size: the semi/AI complex (AMAT, MRVL, ARM, INTC, SMCI, MDB) is quoted at 60-150% IV with dollar-wide spreads, ACN/CHTR/ROST/STZ chains are stale and untradeable at $200-300 risk, and index-proxy names offer no thesis I could write honestly. With $1,221 cash and the existing spread already ~40% of equity, adding another directional bet on a thin chain would be forcing activity.",
     "seed_capital": 2000
   },
   "closed": [
@@ -115,7 +115,7 @@
         "cost_basis": 723.0,
         "market_value": 321.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-17T20:12:38Z",
+        "seen_at": "2026-08-18T13:12:22Z",
         "underlyings": {
           "CVS": 93.99
         },
