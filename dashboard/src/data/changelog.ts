@@ -65,9 +65,11 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'point, since you cannot run the suite locally from a phone; a workflow_dispatch checkbox skips it '
       + 'for an urgent fix. The run summary prints the deployment URL so the result is readable in the '
       + 'GitHub mobile app.\n\n'
-      + 'Needs three new GitHub Actions secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID. The '
-      + 'dashboard\'s own env vars stay in Vercel and are fetched by vercel pull at build time — no runtime '
-      + 'config moved.',
+      + 'Needs three new GitHub Actions secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID. '
+      + 'VERCEL_TOKEN must be scoped to the TEAM, not to a single project: a project-scoped token works '
+      + 'against the REST API but not the CLI, which fails with a misleading "Could not retrieve Project '
+      + 'Settings". The dashboard\'s own env vars stay in Vercel and are applied there when it builds and '
+      + 'runs the deployment — no runtime config moved.',
   },
   {
     date: '2026-08-17',
