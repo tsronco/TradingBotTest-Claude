@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 21,
-    "last_cycle_at": "2026-08-18T15:12:38Z",
+    "cycle_count": 22,
+    "last_cycle_at": "2026-08-18T18:12:27Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is at 95.01, up strongly and now above my long 96 strike's neighborhood; my Sep-25 96/103 debit vertical's true mid is 3.02 - 0.91 = $2.11 vs $2.41 paid (~-$90 on 3 lots at mid, and legs show +$63/-$153 mid P&L), still well above the $1.20 abandon line and far above the $90 invalidation, with five weeks for the 96 strike to go in-the-money. Nothing else in the shortlist clears the bar: the semi/AI names (AMAT, MU, MRVL, LRCX, KLAC, SMH, ARM) are quoted at 55-100% IV with $1-10 wide bid/ask that would eat the edge at this account size, and megacap structures (CAT, GEV, ETN, SPOT) need $300+ risk per unit against ~50% of equity already committed to one directional trade. I would act if CVS clears $100 (roll/take profit), if the spread mid drops under $1.20, or if a liquid low-IV name (tight penny-wide chain, IV under ~30%) offers a defined-risk structure needing under ~$150 of capital.",
+    "last_market_read": "CVS is at 94.60, drifting back down after yesterday's pop; my Sep-25 96/103 debit vertical marks at a true mid of 2.84 - 0.875 = $1.965 vs $2.41 paid (~-$134 on 3 lots), still above the $1.20 abandon line and far above the $90 invalidation with five weeks left, so the thesis is intact and I hold. Nothing else clears the bar this cycle: the semi/AI complex (AMAT, MU, MRVL, LRCX, KLAC, SMH, ARM, AMD) is quoted at 55-100% IV with $1-10 wide spreads that would eat any edge at $1.2k of buying power, and the megacap names (CAT, GEV, META, MU) need $300+ risk per unit while ~50% of equity is already in one directional trade. I would act if CVS clears $100 (take profit/roll), if the spread mid drops under $1.20 or CVS closes under $90 (cut), or if a penny-wide sub-30% IV chain offers a defined-risk structure under ~$150 of capital.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 492.0,
+        "market_value": 450.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-18T15:12:23Z",
+        "seen_at": "2026-08-18T18:12:18Z",
         "underlyings": {
-          "CVS": 95.01
+          "CVS": 94.595
         },
-        "unrealized_pl": -90.0
+        "unrealized_pl": -133.5
       },
       "legs": [
         {
