@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 24,
-    "last_cycle_at": "2026-08-18T20:12:19Z",
+    "cycle_count": 25,
+    "last_cycle_at": "2026-08-19T13:12:57Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 94.90 and my Sep-25 96/103 debit vertical now marks at a true mid of 2.86 - 0.745 = $2.115 vs $2.41 paid (~-$88 on 3 lots) \u2014 improved from last cycle, well above the $1.20 abandon line and far above the $90 invalidation, with five weeks left; thesis intact, hold. Nothing else clears the bar with $1.2k buying power: the semi/AI complex (AMD, MRVL, MU, SMH, ARM) prints 50-100% IV with dollar-wide quotes that eat any edge, and CAT/GEV/LLY/META/SPOT need $300+ of premium per unit while ~40% of my equity already sits in one directional bet, so a second position would leave no room to defend either. I act if CVS clears $100-103 (take profit), if the spread mid breaks $1.20 or CVS closes under $90 (cut), or if a sub-30% IV chain with tight quotes offers a defined-risk structure costing under ~$150.",
+    "last_market_read": "CVS is 94.90 (indicated bid/ask unchanged from yesterday's close) and my Sep-25 96/103 debit vertical marks at a true mid of 2.86 \u2212 0.745 = $2.115 vs $2.41 paid, roughly \u2212$88 on 3 lots \u2014 far above the $1.20 abandon line and far above the $90 invalidation, with five weeks of time left and the underlying only $1.10 from the long strike; thesis intact, hold. No second position clears the bar with $1,221 of buying power: AMD/MU/SMH/ARM/AVGO/COIN chains print 50\u2013100% IV with dollar-plus spreads that eat the whole edge, and CAT/GEV/META/ETN require $300+ per unit while ~40% of equity already sits in one directional bet. I act if CVS trades $100+ or the spread mid reaches $4.50 (take profit), if the mid breaks $1.20 or CVS closes under $90 (cut), or if a sub-30% IV chain with tight quotes offers a defined-risk structure costing under ~$150.",
     "seed_capital": 2000
   },
   "closed": [
@@ -115,7 +115,7 @@
         "cost_basis": 723.0,
         "market_value": 474.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-18T20:12:11Z",
+        "seen_at": "2026-08-19T13:12:33Z",
         "underlyings": {
           "CVS": 94.9
         },
