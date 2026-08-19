@@ -31,6 +31,30 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
     category: 'engine',
+    title: 'Agent API spend cut ~60% — it was costing ~$100/month',
+    details:
+      'Six days of hourly cycles burned ~$15 in Anthropic credits on a $2k paper account that was down '
+      + '$300. The decision call was ~85% of it: 24 focus symbols x 40 option-chain rows each, on Opus, at '
+      + 'the default (highest) reasoning effort, with nothing logging any of it.\n\n'
+      + 'Four changes, none of which touch the decision model — the judgment that matters still runs on '
+      + 'Opus:\n\n'
+      + '• Chain rows are now selected NEAREST THE MONEY instead of first-40-by-dict-order, and trimmed to '
+      + '14. The old slice was arbitrary: it could hand the model forty far-OTM strikes while omitting the '
+      + 'ones a real structure would use. A smaller payload here is also a better one.\n'
+      + '• Focus shortlist 24 → 12 symbols. Depth cost scales as symbols × rows, so together these cut the '
+      + 'chain payload ~82%.\n'
+      + '• The focus step — picking names off a quote table — moved to Sonnet. Same request shape, a third '
+      + 'of the price, and it was never the hard part of a cycle.\n'
+      + '• Reasoning effort is now set explicitly (low for focus, medium for decisions). Leaving it unset '
+      + 'meant `high` on every cycle, including the many that end in "hold".\n\n'
+      + 'Every model call now logs its token counts and an estimated cost to the agent JSONL, so the next '
+      + 'cost drift shows up in a log rather than on a credit balance.\n\n'
+      + 'Estimated ~$77/month → ~$31/month at the current hourly cadence. Halving the cadence would roughly '
+      + 'halve it again.',
+  },
+  {
+    date: '2026-08-18',
+    category: 'engine',
     title: 'Agent can finally see where a stock has been, not just where it is',
     details:
       'The agent wrote "a steady grind higher" into a CVS thesis about a stock that was drifting sideways. '

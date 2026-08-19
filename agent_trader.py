@@ -178,7 +178,11 @@ def build_market_pack(symbols: list[str], mode: str = "agent") -> dict:
             )
             # Trim to keep the payload bounded — keep the OCC + core fields.
             entry["option_count"] = len(snaps)
-            entry["options"] = _trim_chain(snaps)
+            # Spot drives near-the-money selection; a quote failure degrades to
+            # the leading slice rather than dropping the chain.
+            q = entry.get("quote") or {}
+            spot = q.get("ap") or q.get("bp") or q.get("p")
+            entry["options"] = _trim_chain(snaps, spot=spot)
         except Exception:  # noqa: BLE001
             entry["options"] = {}
             entry["option_count"] = 0
@@ -186,11 +190,74 @@ def build_market_pack(symbols: list[str], mode: str = "agent") -> dict:
     return pack
 
 
-def _trim_chain(snaps: dict, keep: int = 40) -> dict:
-    """Keep a bounded slice of a chain snapshot dict with just the fields the
-    model needs to price a structure: bid/ask, greeks, IV."""
+# Rough per-MTok list prices, only for the cost estimate written into the log.
+# Wrong-but-close beats invisible: the point is to notice a cost trend without
+# waiting for a billing page. Update if pricing moves.
+_PRICE_PER_MTOK = {
+    "claude-opus-5":    {"in": 5.0,  "out": 25.0},
+    "claude-sonnet-5":  {"in": 3.0,  "out": 15.0},
+    "claude-haiku-4-5": {"in": 1.0,  "out": 5.0},
+}
+
+
+def log_model_usage(step: str, model: str, resp) -> dict:
+    """Record what a model call cost. Best-effort and never raises.
+
+    Spend was previously invisible — nothing logged token counts, so the only
+    signal was the credit balance. A cycle now leaves a trail per call.
+    """
+    try:
+        u = getattr(resp, "usage", None)
+        if u is None:
+            return {}
+        tin = int(getattr(u, "input_tokens", 0) or 0)
+        tout = int(getattr(u, "output_tokens", 0) or 0)
+        cached = int(getattr(u, "cache_read_input_tokens", 0) or 0)
+        price = _PRICE_PER_MTOK.get(model, {"in": 5.0, "out": 25.0})
+        est = round(tin / 1e6 * price["in"] + tout / 1e6 * price["out"], 4)
+        usage = {"step": step, "model": model, "input_tokens": tin,
+                 "output_tokens": tout, "cached_input_tokens": cached,
+                 "est_cost_usd": est}
+        log(f"usage {step}: in={tin} out={tout} ~${est}")
+        log_event(_CFG["log_stream"], "agent_trader.py", "model_usage",
+                  details=usage)
+        return usage
+    except Exception:  # noqa: BLE001 — accounting must never break a cycle
+        return {}
+
+
+def _occ_strike(symbol: str) -> float | None:
+    """Strike from an OCC symbol. The last 8 digits are the strike in
+    thousandths (…C00096000 -> 96.0). Returns None for a non-OCC symbol."""
+    s = str(symbol or "")
+    tail = s[-8:]
+    if len(s) < 15 or not tail.isdigit():
+        return None
+    return int(tail) / 1000.0
+
+
+def _trim_chain(snaps: dict, spot: float | None = None, keep: int | None = None) -> dict:
+    """Bound a chain snapshot to the rows worth reasoning about.
+
+    Selection is NEAREST THE MONEY, not the first N by dict order as it used to
+    be. That was both wasteful and wrong: an arbitrary slice can hand the model
+    forty far-OTM strikes while omitting the ones any real structure would use.
+    Sorting by distance from spot means a smaller payload is also a better one.
+
+    Falls back to the original leading slice when spot is unknown, so a missing
+    quote costs relevance but never the whole chain.
+    """
+    if keep is None:
+        keep = _CFG.get("chain_keep", 14)
+    items = list(snaps.items())
+    if spot:
+        def distance(kv):
+            k = _occ_strike(kv[0])
+            # Unparseable strikes sort last rather than crashing the sort.
+            return abs(k - spot) if k is not None else float("inf")
+        items.sort(key=distance)
     trimmed = {}
-    for occ, snap in list(snaps.items())[:keep]:
+    for occ, snap in items[:keep]:
         q = (snap or {}).get("latestQuote", {}) or {}
         trimmed[occ] = {
             "bid": q.get("bp"),
@@ -471,8 +538,9 @@ def request_focus(breadth: dict, client=None, model: str | None = None) -> dict:
     includes held positions regardless, so the model can still hold or close."""
     if client is None:  # pragma: no cover — real client path, mocked in tests
         client = agent_config.client()
-    model = model or agent_config.model()
-    cap = _CFG.get("max_focus_symbols", 24)
+    # Shortlisting from a quote table does not need the decision model.
+    model = model or agent_config.focus_model()
+    cap = _CFG.get("max_focus_symbols", 12)
 
     user_content = (
         f"Pick up to {cap} names to analyze deeply this cycle from the universe "
@@ -483,11 +551,13 @@ def request_focus(breadth: dict, client=None, model: str | None = None) -> dict:
         model=model,
         max_tokens=_CFG.get("max_focus_tokens", 1200),
         thinking={"type": "adaptive"},
+        output_config={"effort": _CFG.get("focus_effort", "low")},
         system=FOCUS_SYSTEM,
         tools=[FOCUS_TOOL],
         tool_choice={"type": "tool", "name": "select_focus"},
         messages=[{"role": "user", "content": user_content}],
     )
+    log_model_usage("focus", model, resp)
     if getattr(resp, "stop_reason", None) == "refusal":
         return {"focus": [], "market_read": "(model refused focus step)", "refused": True}
     for block in resp.content:
@@ -710,11 +780,15 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
         model=model,
         max_tokens=_CFG["max_decision_tokens"],
         thinking={"type": "adaptive"},
+        # Unset meant `high` — the account was paying for maximum reasoning
+        # depth on every cycle, including the many that end in "hold".
+        output_config={"effort": _CFG.get("decision_effort", "medium")},
         system=SYSTEM_MANDATE,
         tools=[DECISION_TOOL],
         tool_choice={"type": "tool", "name": "submit_decisions"},
         messages=[{"role": "user", "content": user_content}],
     )
+    log_model_usage("decision", model, resp)
     if getattr(resp, "stop_reason", None) == "refusal":
         log("model refused — treating as no-trade cycle")
         return {"intents": [], "market_read": "(model refused this cycle)", "refused": True}

@@ -91,9 +91,23 @@ AGENT_CONFIG = {
     # Depth is bounded by the focus shortlist, not the universe size. Claude
     # may name up to this many symbols to analyze deeply per cycle (held
     # positions are always included on top of these).
-    "max_focus_symbols": 24,
+    "max_focus_symbols": 12,
     "max_focus_tokens":  1200,   # the focus/shortlist call is small + cheap
     "breadth_chunk_size": 100,   # symbols per batched snapshot request
+
+    # ── Cost control ───────────────────────────────────────────────────────
+    # The decision call's option-chain payload dominates spend: it scales as
+    # focus_symbols x chain_keep, and at 24 x 40 it was ~43k input tokens per
+    # cycle on Opus. These two numbers are the main dial.
+    "chain_keep": 14,          # option rows per symbol, nearest the money
+    # The focus step is a shortlist pick over quotes — a cheap judgment task
+    # that does not need the decision model. Sonnet keeps the same request
+    # shape (adaptive thinking + effort) at a fraction of the price.
+    "focus_model_env": "AGENT_FOCUS_MODEL",
+    # Reasoning depth per call. Unset means `high`, which is what the account
+    # was silently paying for. Thinking tokens bill as output.
+    "focus_effort": "low",
+    "decision_effort": "medium",
 
     # ── API resilience ─────────────────────────────────────────────────────
     # The Anthropic SDK retries connection errors, 408/409/429 and 5xx (which
@@ -180,11 +194,18 @@ def get() -> dict:
 
 
 DEFAULT_GRADER_MODEL = "claude-sonnet-5"
+DEFAULT_FOCUS_MODEL = "claude-sonnet-5"
 
 
 def model() -> str:
     """Resolved decision model — env override (AGENT_MODEL) or DEFAULT_MODEL."""
     return os.getenv(AGENT_CONFIG["model_env"]) or DEFAULT_MODEL
+
+
+def focus_model() -> str:
+    """Model for the phase-1 shortlist pick. Cheaper than the decision model on
+    purpose — picking names off a quote list is not the hard part of a cycle."""
+    return os.getenv(AGENT_CONFIG["focus_model_env"]) or DEFAULT_FOCUS_MODEL
 
 
 def grader_model() -> str:
