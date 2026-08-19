@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 28,
-    "last_cycle_at": "2026-08-19T16:13:07Z",
+    "cycle_count": 29,
+    "last_cycle_at": "2026-08-19T18:13:07Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS slipped to 93.86 (-15.1% over 30 days, -6.4% vs its 20-day average) and my Sep-25 96/103 debit vertical is now roughly $2.67 - $0.695 = $1.975 mid vs the $2.41 paid, i.e. about -$130 real, not the -$384 worst-case mark; spot is still above my $90 invalidation and the spread mid is still above my $1.20 abandon line, with five weeks to expiry, so I hold rather than lock in a loss on a wide chain. Elsewhere the shortlist is unattractive on a $1.2k buying-power base: the AI/semi complex (AMAT -9.9% 1w, AVGO -12.5% 1w, DELL -8.7% 1w, MRVL/LRCX) carries 55-105% IV with dollar-plus wide quotes into imminent earnings (AVGO 14d, DELL 13d, MRVL 8d), MRNA is +129% in a week on 110-170% IV (a freefall/melt-up I won't chase), and TGT/TJX/EL are printing earnings TODAY. To act I'd need either CVS to break $90 (cut) or the spread mid to reach $4.50 (take profit), or a post-earnings name whose vol has deflated for a known reason with quotes tight enough to clear my slippage.",
+    "last_market_read": "CVS is 94.26, up modestly from yesterday's 93.86; my Sep-25 96/103 vertical marks at 2.54 - 0.695 = 1.845 mid vs the 2.41 debit (~ -$170 real, not the -$333 worst-case mark) \u2014 spot is well above my $90 invalidation and the mid is above the $1.20 abandon line with five weeks left, so I hold. Nothing else on the shortlist clears the bar on $1.2k of buying power: CRM (+21% 1m, +10% vs 20d avg) prints earnings in 7 days at ~69% IV, AVGO reports in 14 days after -12.7% in a week, TGT and EL are printing today, and MRNA is +135% in a week on 120-190% IV \u2014 all either event-risk-loaded or too wide to clear slippage. To act I'd need CVS to break $90 (cut), the spread mid to reach $4.50 (take profit), or a name whose vol has already deflated post-print with quotes tight enough to trade in $200-300 size.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 339.0,
+        "market_value": 390.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-19T16:12:56Z",
+        "seen_at": "2026-08-19T18:12:52Z",
         "underlyings": {
-          "CVS": 93.86
+          "CVS": 94.255
         },
-        "unrealized_pl": -130.5
+        "unrealized_pl": -169.5
       },
       "legs": [
         {
