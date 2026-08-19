@@ -6,8 +6,11 @@ name: Agent Trader (autonomous)
 # the orders it chooses. Full autonomy, defined-risk options + stock, own state
 # file and Discord channels. Paper only — does not touch manual or live.
 #
-# Cadence: HOURLY during market hours (not every 10 min like the wheel monitors —
-# a discretionary trader doesn't need that, and hourly keeps API cost low).
+# Cadence: EVERY 2 HOURS during market hours (not every 10 min like the wheel
+# monitors — a discretionary trader doesn't need that). Halved from hourly on
+# 2026-08-19: hourly was ~$100/month in Anthropic credits on a $2k paper
+# account, and most cycles end in a hold. See tools/setup_cronjobs.py for the
+# fire times and why they were chosen.
 #
 # Triggered by cron-job.org via workflow_dispatch, exactly like the wheel monitors.
 # We originally used GitHub's native `schedule:` (self-scheduling, no cron-job.org
@@ -21,9 +24,9 @@ name: Agent Trader (autonomous)
 # scheduler — adding a native `schedule:` back would double-fire the workflow
 # (two cycles per slot → duplicate trade attempts), so don't.
 #
-# ⚠️ DST: the cron-job.org schedule (`7 13-20 * * 1-5` UTC) covers market hours
-# during CDT (Mar–Nov). When DST ends, shift the hour range +1, same as the other
-# schedules.
+# ⚠️ DST: the cron-job.org schedule (`7 14,16,18,19 * * 1-5` UTC) covers market
+# hours during CDT (Mar–Nov). When DST ends, shift each hour +1, same as the
+# other schedules.
 #
 # Requires (GitHub Actions secrets): ALPACA_AGENT_API_KEY / _API_SECRET /
 # _BASE_URL, the four DISCORD_AGENT_*_WEBHOOK values, and ANTHROPIC_API_KEY.

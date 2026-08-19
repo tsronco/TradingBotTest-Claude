@@ -125,7 +125,7 @@ AGENT_CONFIG = {
     "decision_retry_backoff_seconds": 20,
 
     # ── Cadence (informational; the cron is the source of truth) ───────────
-    "cadence": "hourly",
+    "cadence": "every 2 hours",
 }
 
 

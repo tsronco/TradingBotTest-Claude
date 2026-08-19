@@ -544,7 +544,7 @@ itself and `rule-check` skips the bot-rule overlay for it.
   dedicated ~250-name liquid/optionable field across every sector + the most
   liquid ETFs, plus the two-phase scan knobs `max_focus_symbols`/`max_focus_tokens`/
   `breadth_chunk_size`).
-- `agent_trader.py` — the hourly harness, a **two-phase scan** so a wide universe
+- `agent_trader.py` — the every-2-hours harness, a **two-phase scan** so a wide universe
   stays cheap: **(1) breadth** — one batched quotes-only pull (`build_quote_pack`
   → `alpaca_data.get_stock_snapshots`) shows Claude the *whole* ~250-name field
   (price + daily move, no chains); **(1b) focus** — a lightweight forced
@@ -727,15 +727,25 @@ lesson committed to git — **surface-agnostic**, no dashboard required:
   (mobile-friendly), or posted to `#agent-summary`. A **dashboard** lesson-card
   page + calibration panel is **deferred** until a dashboard deploy is possible.
 
-**Scheduling — native GitHub `schedule:`, deliberately NOT cron-job.org.**
-`agent-trader.yml` runs **hourly** during market hours (`7 13-20 * * 1-5`, native
-`schedule:`); `agent-retrospective.yml` runs Sunday 22:00 UTC. Both fire **only
-from `main`**. This one subsystem uses native cron (unlike the wheel monitors)
-because it self-schedules with nothing to run — the right fit for mobile-only
-provisioning; there's no cron-job.org duplicate to race, and the shared
-`bot-commits` concurrency group serializes commits. A guard note in
-`tools/setup_cronjobs.py` warns against adding a cron-job.org entry without
-removing the `schedule:` block (double-fire).
+**Scheduling — cron-job.org, like everything else here.** `agent-trader.yml`
+runs **every 2 hours** during market hours (`7 14,16,18,19 * * 1-5` UTC);
+`agent-retrospective.yml` runs Sunday 22:00 UTC. Both fire **only from `main`**,
+and the shared `bot-commits` concurrency group serializes their commits.
+
+This originally used GitHub's native `schedule:` (self-scheduling suited
+mobile-only provisioning), but native cron proved as unreliable here as it did
+for the wheel monitors — on 2026-08-14 it skipped fires and ran others 10–49 min
+late. `agent-trader.yml` therefore carries **no `schedule:` block**;
+cron-job.org is the only scheduler, and adding a native one back would
+double-fire the workflow.
+
+Cadence was halved from hourly on 2026-08-19 (see the cost posture below). The
+fire hours sit inside the session rather than merely being evenly spaced,
+because **the agent has no `is_market_open()` guard** — unlike the wheel, a fire
+outside 13:30–20:00 UTC still costs a full model call and can transact nothing.
+That is why the old 13:07 UTC pre-open fire was dropped, and why 19:07 (15:07
+ET, ~53 min before the close) is preferred over an even 20:07 that would land
+after it.
 
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
@@ -749,6 +759,21 @@ laptop; the Actions-based deploy path made it doable). The agent is now a
 first-class account everywhere the other two are, plus a dedicated page for the
 thing that makes it different. See "Agent account on the dashboard" under the
 [Dashboard subproject](#dashboard-subproject).
+
+**Cost posture (2026-08-19).** Six days of hourly cycles cost ~$15 in Anthropic
+credits on a $2k paper account that was down $300 — ~$100/month. Measured
+payloads put the decision call at ~85% of it. Four changes cut it ~60% without
+touching the decision model (Opus still makes every call that matters):
+near-the-money chain selection capped at `chain_keep: 14` (was the first 40 by
+dict order — arbitrary, so this improved relevance too), `max_focus_symbols`
+24 → 12, the focus step moved to Sonnet via `agent_config.focus_model()`, and
+`output_config.effort` set explicitly (`low` focus / `medium` decision) where
+unset had meant `high` on every cycle. Cadence was then halved to every 2 hours,
+landing at **~$15/month**. `log_model_usage()` writes tokens + an estimated cost
+per call to `logs/agent.jsonl` — spend was previously invisible, which is why it
+ran unnoticed. **The agent has no market-closed guard**, so a fire outside
+13:30–20:00 UTC costs a full model call and can transact nothing; keep the cron
+hours inside the session.
 
 **Env vars (agent):**
 ```

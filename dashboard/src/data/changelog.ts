@@ -29,6 +29,23 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-08-19',
+    category: 'config',
+    title: 'Agent cadence halved to every 2 hours',
+    details:
+      'Following the payload and effort cuts, the agent now runs 4 times a day instead of 8 — '
+      + '7 14,16,18,19 * * 1-5 UTC (10:07, 12:07, 14:07 and 15:07 ET). Together with those changes this '
+      + 'takes it from roughly $100/month in Anthropic credits to roughly $15.\n\n'
+      + 'A discretionary trader carrying multi-week structures does not need an hourly look, and most '
+      + 'cycles were ending in a hold.\n\n'
+      + 'The hours sit inside the session rather than being merely evenly spaced. The agent has no '
+      + 'market-closed guard — unlike the wheel bots — so a fire outside 13:30-20:00 UTC costs a full '
+      + 'model call and can transact nothing. That is why the old pre-open 13:07 fire was dropped, and why '
+      + 'the last look is 15:07 ET (~53 min before the close, so a late exit trigger is not left until the '
+      + 'next morning) rather than an even 16:07 that would land after it.\n\n'
+      + 'Takes effect only once tools/setup_cronjobs.py is re-run — it PATCHes the live cron-job.org jobs.',
+  },
+  {
     date: '2026-08-18',
     category: 'engine',
     title: 'Agent API spend cut ~60% — it was costing ~$100/month',

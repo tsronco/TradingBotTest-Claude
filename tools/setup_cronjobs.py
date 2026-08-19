@@ -105,15 +105,28 @@ JOBS = [
         "wdays": [0],
     },
     {
-        # Autonomous agent paper account. Runs HOURLY during market hours (not
-        # every 10 min like the wheel monitors) — Claude makes every trading
-        # decision on the ~$2k agent paper account. :07 offset. cron-job.org is
-        # the ONLY scheduler for this workflow (agent-trader.yml has no native
+        # Autonomous agent paper account — Claude makes every trading decision
+        # on the ~$2k agent paper account. :07 offset. cron-job.org is the ONLY
+        # scheduler for this workflow (agent-trader.yml has no native
         # `schedule:` block) — adding one back would double-fire it.
+        #
+        # EVERY 2 HOURS (was hourly, 13–20 UTC = 8 fires). Halved 2026-08-19 on
+        # cost: hourly cycles were running ~$100/month in Anthropic credits on a
+        # $2k paper account, and the agent spends most cycles holding. A
+        # discretionary trader carrying multi-week structures does not need an
+        # hourly look.
+        #
+        # Hours chosen to sit inside the session (13:30–20:00 UTC) rather than
+        # merely to be evenly spaced: the agent has NO market-closed guard, so a
+        # fire outside the session costs a full model call and can transact
+        # nothing. This drops the old 13:07 pre-open fire for that reason.
+        # 14:07/16:07/18:07 UTC = 10:07/12:07/14:07 ET; 19:07 UTC = 15:07 ET is
+        # a last look ~53 min before the close, so an exit trigger that appears
+        # late in the day is not left unchecked until tomorrow.
         "title": "Agent Trader (Autonomous)",
         "workflow": "agent-trader.yml",
-        "hours": list(range(13, 21)),  # 13–20 UTC market hours
-        "minutes": [7],                # :07 each hour
+        "hours": [14, 16, 18, 19],
+        "minutes": [7],
         "wdays": [1, 2, 3, 4, 5],
     },
     {
