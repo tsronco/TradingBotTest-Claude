@@ -86,6 +86,10 @@ describe('TradeDetail route — spread rendering', () => {
     expect(screen.getByText(/short.*12\.50/i)).toBeInTheDocument();
     expect(screen.getByText(/long.*11\.50/i)).toBeInTheDocument();
     expect(screen.getByText(/net credit.*0\.25/i)).toBeInTheDocument();
-    expect(screen.getByText(/max loss.*0\.75/i)).toBeInTheDocument();
+    // Max loss is wrapped in a coloured span, so the label and value are
+    // separate text nodes — assert against the row's full text.
+    expect(screen.getByText(/max loss/i).textContent).toMatch(/0\.75/);
+    // qty is 1 here, so the position figure is 0.75 x 100.
+    expect(screen.getByText(/max loss/i).textContent).toContain('$75.00');
   });
 });

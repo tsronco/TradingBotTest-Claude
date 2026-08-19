@@ -31,6 +31,27 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
     category: 'fix',
+    title: 'Spread panel showed the wrong option type and understated risk by the lot count',
+    details:
+      'Three defects in the trade detail spread panel, all from a component written when the only spread '
+      + 'that existed was a single-lot put credit spread. Found on the agent\'s 3-contract CVS call debit '
+      + 'spread.\n\n'
+      + '• Both legs were labelled "put" regardless of the actual structure, so a call vertical rendered as '
+      + 'puts. Not cosmetic: a $103 put on a $94 stock would be deep in the money and worth ~$9, not the '
+      + '$0.40 shown, so the label and the premium contradicted each other. The option type now comes from '
+      + 'the spread type, which is authoritative.\n\n'
+      + '• Dollar figures multiplied the per-share value by 100 but never by the contract count, so max loss '
+      + 'read $241 on a position risking $723 — a third of the real number. The risk guardrails were never '
+      + 'affected (exposure and rule-check have always included qty); this was display-only. Contract count '
+      + 'is now shown alongside so the multiplier is not a guess.\n\n'
+      + '• The net line was hardcoded to "Net credit", so every debit spread reported $0.00. It now reads '
+      + 'net debit or net credit by structure. Max profit is shown too.\n\n'
+      + 'Also fixed a latent crash the error boundary was hiding: a trade record with no entry grade threw '
+      + 'while rendering the grades panel, blanking it entirely. It degrades to a dash now.',
+  },
+  {
+    date: '2026-08-18',
+    category: 'fix',
     title: 'Thesis text was unreadable where a field was meant to be de-emphasized',
     details:
       'The field tint was being applied to the prose as well as the label, so "rejected alternatives" '

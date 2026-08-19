@@ -113,6 +113,18 @@ export interface SpreadDetails {
   max_profit?: number;            // best-case dollar profit per spread (× 100); optional for backward-compat on legacy records
 }
 
+/** Which option type a vertical is built from. The spread type is the
+ *  authority — a record's `contract_type` can be wrong on legacy rows written
+ *  before the importer handled anything but put credit spreads. */
+export function optionTypeForSpread(spreadType: SpreadType): ContractType {
+  return spreadType === 'put_credit' || spreadType === 'put_debit' ? 'put' : 'call';
+}
+
+/** True for the two credit structures (money in at open). */
+export function isCreditSpread(spreadType: SpreadType): boolean {
+  return spreadType === 'put_credit' || spreadType === 'call_credit';
+}
+
 /**
  * Classify a two-leg vertical from its structure, and derive its P&L bounds.
  *

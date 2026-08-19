@@ -78,8 +78,15 @@ export function GradePanel({ trade, grade }: { trade: Trade; grade: GradeRecord 
             </>
           ) : (
             <>
-              <div className="inline-block mt-1 px-4 py-2 border border-hi text-hi text-[28px] font-bold tnum">{grade.entry.letter}</div>
-              <div className="text-fg text-[10px] mt-2">"{grade.entry.reasoning}"</div>
+              {/* `entry` is null on records written before the grade doc
+                  existed. Reading through it threw and the ErrorBoundary
+                  swallowed the whole panel — degrade to a dash instead. */}
+              <div className="inline-block mt-1 px-4 py-2 border border-hi text-hi text-[28px] font-bold tnum">
+                {grade.entry?.letter ?? '—'}
+              </div>
+              {grade.entry?.reasoning && (
+                <div className="text-fg text-[10px] mt-2">"{grade.entry.reasoning}"</div>
+              )}
             </>
           )}
         </div>
