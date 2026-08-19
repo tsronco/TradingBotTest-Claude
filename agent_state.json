@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 27,
-    "last_cycle_at": "2026-08-19T15:12:34Z",
+    "cycle_count": 28,
+    "last_cycle_at": "2026-08-19T16:13:07Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is at 95.11, just below my long 96 strike, and the Sep-25 96/103 vertical marks at a true mid of 3.09 \u2212 0.995 = $2.095 vs $2.41 paid \u2014 modestly red but well inside the thesis (spot far above the $90 invalidation, mid far above the $1.20 abandon line) with five weeks left, so I hold. Nothing else in the shortlist clears the bar: the high-beta semis/AI names (AMD, AMAT, LRCX, DELL, MRVL, MRNA) carry 60\u2013150% IV with dollar-plus wide quotes that eat any theoretical edge on a $1.2k buying-power base, and the calm names (PFE, MRK, TGT, NEM) offer verticals whose reward doesn't justify tying up capital next to an existing directional CVS bet on the same low-IV healthcare theme.",
+    "last_market_read": "CVS slipped to 93.86 (-15.1% over 30 days, -6.4% vs its 20-day average) and my Sep-25 96/103 debit vertical is now roughly $2.67 - $0.695 = $1.975 mid vs the $2.41 paid, i.e. about -$130 real, not the -$384 worst-case mark; spot is still above my $90 invalidation and the spread mid is still above my $1.20 abandon line, with five weeks to expiry, so I hold rather than lock in a loss on a wide chain. Elsewhere the shortlist is unattractive on a $1.2k buying-power base: the AI/semi complex (AMAT -9.9% 1w, AVGO -12.5% 1w, DELL -8.7% 1w, MRVL/LRCX) carries 55-105% IV with dollar-plus wide quotes into imminent earnings (AVGO 14d, DELL 13d, MRVL 8d), MRNA is +129% in a week on 110-170% IV (a freefall/melt-up I won't chase), and TGT/TJX/EL are printing earnings TODAY. To act I'd need either CVS to break $90 (cut) or the spread mid to reach $4.50 (take profit), or a post-earnings name whose vol has deflated for a known reason with quotes tight enough to clear my slippage.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 468.0,
+        "market_value": 339.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-19T15:12:25Z",
+        "seen_at": "2026-08-19T16:12:56Z",
         "underlyings": {
-          "CVS": 95.11
+          "CVS": 93.86
         },
-        "unrealized_pl": -94.5
+        "unrealized_pl": -130.5
       },
       "legs": [
         {
