@@ -767,8 +767,12 @@ touching the decision model (Opus still makes every call that matters):
 near-the-money chain selection capped at `chain_keep: 14` (was the first 40 by
 dict order — arbitrary, so this improved relevance too), `max_focus_symbols`
 24 → 12, the focus step moved to Sonnet via `agent_config.focus_model()`, and
-`output_config.effort` set explicitly (`low` focus / `medium` decision) where
-unset had meant `high` on every cycle. Cadence was then halved to every 2 hours,
+`output_config.effort` set explicitly (`low` on focus, where picking names off a
+quote table is genuinely simple). **Decision effort stays `high`** — it was
+briefly cut to `medium` in that pass and put back: once the payload was trimmed
+the gap is ~$0.04/cycle (~$3/month), and the trade decision is the product of
+this account. Note `max_decision_tokens` bounds thinking *and* response
+together, so moving to `xhigh`/`max` would need that raised first. Cadence was then halved to every 2 hours,
 landing at **~$15/month**. `log_model_usage()` writes tokens + an estimated cost
 per call to `logs/agent.jsonl` — spend was previously invisible, which is why it
 ran unnoticed. **The agent has no market-closed guard**, so a fire outside

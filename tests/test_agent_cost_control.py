@@ -86,10 +86,26 @@ def test_payload_dials_are_below_the_settings_that_caused_the_bill():
     assert cfg["max_focus_symbols"] * cfg["chain_keep"] < 960 / 2
 
 
-def test_reasoning_effort_is_set_rather_than_defaulting_to_high():
+def test_focus_runs_at_low_effort():
+    # Picking names off a quote table is what the low tier is for.
+    assert agent_config.AGENT_CONFIG["focus_effort"] == "low"
+
+
+def test_decision_effort_is_not_cut_below_high():
+    # The trade decision is the product of this account. Medium saves ~$3/month
+    # once the payload is trimmed — not a trade worth making, and Anthropic's
+    # guidance is a minimum of `high` for intelligence-sensitive work.
+    assert agent_config.AGENT_CONFIG["decision_effort"] in {"high", "xhigh", "max"}
+
+
+def test_decision_token_cap_leaves_room_for_reasoning_at_this_effort():
+    # max_decision_tokens bounds thinking AND the response together; a higher
+    # effort tier needs a bigger cap or the forced tool call can truncate.
     cfg = agent_config.AGENT_CONFIG
-    assert cfg["focus_effort"] in {"low", "medium"}
-    assert cfg["decision_effort"] in {"low", "medium", "high"}
+    if cfg["decision_effort"] in {"xhigh", "max"}:
+        assert cfg["max_decision_tokens"] >= 8192
+    else:
+        assert cfg["max_decision_tokens"] >= 4096
 
 
 def test_focus_uses_a_cheaper_model_than_the_decision():

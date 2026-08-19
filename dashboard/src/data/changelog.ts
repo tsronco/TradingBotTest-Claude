@@ -31,6 +31,22 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-19',
     category: 'config',
+    title: 'Agent decision effort put back to high',
+    details:
+      'The cost pass had dropped the decision call from high to medium reasoning effort. That was the wrong '
+      + 'knob to touch. Once the option-chain payload was trimmed, the gap between medium and high is about '
+      + '$0.04 per cycle — roughly $3/month at four fires a day — and the trade decision is the entire '
+      + 'product of this account. Anthropic\'s guidance is a minimum of high for intelligence-sensitive '
+      + 'work.\n\n'
+      + 'The focus step stays at low: picking names off a quote table is what that tier is for. The savings '
+      + 'come from the payload and the cadence, not from thinking less about the trade.\n\n'
+      + 'Worth knowing if this is ever raised further: max_decision_tokens bounds thinking and the response '
+      + 'together, so xhigh or max would need that cap raised first or the forced tool call can truncate '
+      + 'mid-thesis.',
+  },
+  {
+    date: '2026-08-19',
+    category: 'config',
     title: 'Agent cadence halved to every 2 hours',
     details:
       'Following the payload and effort cuts, the agent now runs 4 times a day instead of 8 — '

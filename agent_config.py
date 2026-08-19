@@ -104,10 +104,24 @@ AGENT_CONFIG = {
     # that does not need the decision model. Sonnet keeps the same request
     # shape (adaptive thinking + effort) at a fraction of the price.
     "focus_model_env": "AGENT_FOCUS_MODEL",
-    # Reasoning depth per call. Unset means `high`, which is what the account
-    # was silently paying for. Thinking tokens bill as output.
+    # Reasoning depth per call. Thinking tokens bill as output.
+    #
+    # Focus is a shortlist pick off a quote table — a genuinely simple task, and
+    # `low` is what that tier is for.
+    #
+    # The DECISION stays at `high` deliberately. It was briefly dropped to
+    # `medium` during the 2026-08-19 cost pass, which was the wrong knob to
+    # touch: once the chain payload was trimmed, the gap between medium and high
+    # is ~$0.04/cycle — about $3/month at 4 fires a day — and the trade decision
+    # is the entire product of this account. Anthropic's own guidance is a
+    # minimum of `high` for intelligence-sensitive work. Spend on the payload,
+    # not on thinking less about the trade.
+    #
+    # NB `max_decision_tokens` (4096) bounds thinking AND the response together.
+    # High leaves roughly 3k for reasoning after the thesis prose; going to
+    # `xhigh`/`max` would need that raised first or the tool call can truncate.
     "focus_effort": "low",
-    "decision_effort": "medium",
+    "decision_effort": "high",
 
     # ── API resilience ─────────────────────────────────────────────────────
     # The Anthropic SDK retries connection errors, 408/409/429 and 5xx (which
