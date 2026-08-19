@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 29,
-    "last_cycle_at": "2026-08-19T18:13:07Z",
+    "cycle_count": 30,
+    "last_cycle_at": "2026-08-19T19:12:54Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 94.26, up modestly from yesterday's 93.86; my Sep-25 96/103 vertical marks at 2.54 - 0.695 = 1.845 mid vs the 2.41 debit (~ -$170 real, not the -$333 worst-case mark) \u2014 spot is well above my $90 invalidation and the mid is above the $1.20 abandon line with five weeks left, so I hold. Nothing else on the shortlist clears the bar on $1.2k of buying power: CRM (+21% 1m, +10% vs 20d avg) prints earnings in 7 days at ~69% IV, AVGO reports in 14 days after -12.7% in a week, TGT and EL are printing today, and MRNA is +135% in a week on 120-190% IV \u2014 all either event-risk-loaded or too wide to clear slippage. To act I'd need CVS to break $90 (cut), the spread mid to reach $4.50 (take profit), or a name whose vol has already deflated post-print with quotes tight enough to trade in $200-300 size.",
+    "last_market_read": "CVS is 94.09, essentially flat on the week (-0.7% 1w, -14.9% 1m, -6.2% vs 20d avg); my Sep-25 96/103 vertical marks at 2.62 - 0.675 = 1.945 mid vs the 2.41 debit paid (~-$140 real, not the -$285 worst-case mark). Spot is well above the $90 invalidation and the mid is comfortably above my $1.20 abandon line with five weeks to expiry, so I hold. Nothing else on the shortlist earns $1.2k of buying power: TGT and EL are printing earnings today (0 days), AVGO reports in 14 days after -12.2% in a week, DELL in 13 days with 68-93% IV, MRNA is +145% in a week on 120-190% IV, and GE/LRCX/NUE/NEM quotes are 1.5-3 points wide at the money \u2014 slippage alone eats the edge in $200-300 size. To act I need CVS to close below $90 (cut), the spread mid to reach $4.50 (take profit), or a post-print name whose vol has already deflated with tight enough quotes to trade small.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 390.0,
+        "market_value": 438.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-19T18:12:52Z",
+        "seen_at": "2026-08-19T19:12:45Z",
         "underlyings": {
-          "CVS": 94.255
+          "CVS": 94.085
         },
-        "unrealized_pl": -169.5
+        "unrealized_pl": -139.5
       },
       "legs": [
         {
