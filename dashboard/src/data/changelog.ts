@@ -30,6 +30,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-18',
+    category: 'engine',
+    title: 'Agent can finally see where a stock has been, not just where it is',
+    details:
+      'The agent wrote "a steady grind higher" into a CVS thesis about a stock that was drifting sideways. '
+      + 'That was not a reasoning slip so much as a missing input: its market payload contained today only — '
+      + 'last price, today\'s percent change, the day\'s high/low and volume. There was no history for the '
+      + 'claim to be checked against, by the model writing it or by anyone reading it afterwards.\n\n'
+      + 'Every name it looks at in depth now carries a price_context block: returns over 1 week, 1 month and '
+      + '3 months, where price sits versus its 20-day average, and distance from the 52-week high and low. '
+      + 'Fetched for the focus shortlist plus held names (~25 a cycle) rather than the whole ~250-name '
+      + 'universe, since that is where theses actually get written. A value that cannot be computed reports '
+      + 'null rather than zero, because zero reads as "flat" and that is a claim.\n\n'
+      + 'Two mandate rules go with it. Trend claims must cite a number — "up 8% over 30 days, 3% off its '
+      + 'recent high" can be wrong, which is what makes it worth writing, where "a steady grind higher" '
+      + 'cannot. And when a thesis leans on implied vol being cheap or rich, it has to say what is putting it '
+      + 'there; each name now carries days since the last earnings print and days to the next, since vol that '
+      + 'deflated after a known event is a different situation from vol that is structurally low.',
+  },
+  {
+    date: '2026-08-18',
     category: 'fix',
     title: 'Spread panel showed the wrong option type and understated risk by the lot count',
     details:

@@ -183,3 +183,54 @@ def test_client_factory_allows_per_call_overrides(monkeypatch):
     agent_config.client(max_retries=1, timeout=5)
     assert captured["max_retries"] == 1
     assert captured["timeout"] == 5
+
+
+# ── depth context wiring ───────────────────────────────────────────────────
+
+class _StubBars:
+    """Deterministic rising series so trend numbers are predictable."""
+    @staticmethod
+    def get_stock_bars(symbol, days=90, timeframe="1Day", mode="manual"):
+        return [{"c": 100 + i * 0.1} for i in range(300)]
+
+
+def test_context_pack_attaches_trend_and_earnings(monkeypatch):
+    monkeypatch.setattr(agent_trader.alpaca_data, "get_stock_bars", _StubBars.get_stock_bars)
+    monkeypatch.setattr(agent_trader.earnings_mod, "earnings_context",
+                        lambda sym: {"days_to_next_earnings": 40, "days_since_last_earnings": 12})
+    pack = agent_trader.build_context_pack(["cvs", "DIS"])
+    assert set(pack) == {"CVS", "DIS"}
+    assert pack["CVS"]["trend"]["available"] is True
+    assert pack["CVS"]["trend"]["return_3m_pct"] is not None
+    assert pack["CVS"]["earnings"]["days_since_last_earnings"] == 12
+    assert "%" in pack["CVS"]["trend_summary"]
+
+
+def test_context_pack_survives_a_bars_failure(monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("alpaca down")
+    monkeypatch.setattr(agent_trader.alpaca_data, "get_stock_bars", boom)
+    monkeypatch.setattr(agent_trader.earnings_mod, "earnings_context", lambda sym: {})
+    pack = agent_trader.build_context_pack(["CVS"])
+    # Unavailable, not absent and not zeroed — the mandate keys off this.
+    assert pack["CVS"]["trend"]["available"] is False
+
+
+def test_context_pack_survives_an_earnings_failure(monkeypatch):
+    monkeypatch.setattr(agent_trader.alpaca_data, "get_stock_bars", _StubBars.get_stock_bars)
+    def boom(sym):
+        raise RuntimeError("yfinance rate limited")
+    monkeypatch.setattr(agent_trader.earnings_mod, "earnings_context", boom)
+    pack = agent_trader.build_context_pack(["CVS"])
+    assert pack["CVS"]["trend"]["available"] is True
+    assert "unavailable" in pack["CVS"]["earnings"]["note"]
+
+
+def test_context_is_keyed_by_underlying_not_by_option_leg(monkeypatch):
+    # An OCC leg has no chart of its own; depth symbols include both.
+    monkeypatch.setattr(agent_trader.alpaca_data, "get_stock_bars", _StubBars.get_stock_bars)
+    monkeypatch.setattr(agent_trader.earnings_mod, "earnings_context", lambda sym: {})
+    underlyings = [agent_trader._occ_underlying(s)
+                   for s in ["CVS260925C00096000", "CVS", "DIS260828P00103000"]]
+    pack = agent_trader.build_context_pack(underlyings)
+    assert set(pack) == {"CVS", "DIS"}

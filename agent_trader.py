@@ -38,6 +38,8 @@ from dotenv import load_dotenv
 
 import agent_config
 import agent_grading
+import agent_market_context
+import earnings as earnings_mod
 import alpaca_data
 from notifications import send_embed, log_event, Color
 
@@ -123,6 +125,37 @@ def save_state(state: dict) -> None:
 
 
 # ── Context gathering (read-only) ──────────────────────────────────────────
+
+def build_context_pack(symbols: list[str], mode: str = "agent") -> dict:
+    """Trend + earnings context for the DEPTH set (focus shortlist + held).
+
+    Deliberately not run over the whole breadth universe: this is one bars call
+    per symbol, and ~25 names hourly is affordable where ~250 would not be.
+    It is also where it matters — theses are written about depth names, and the
+    thesis is what went wrong without it (see agent_market_context).
+
+    Wholly best-effort. A symbol that fails to fetch carries `available: False`
+    and the model is told to treat that as unknown, never as confirmation.
+    """
+    pack: dict = {}
+    for sym in sorted(set(s.upper() for s in symbols if s)):
+        entry: dict = {}
+        try:
+            # ~370 calendar days so the 52-week window is actually a year.
+            bars = alpaca_data.get_stock_bars(sym, days=370, mode=mode)
+            entry["trend"] = agent_market_context.trailing_stats(bars)
+            summary = agent_market_context.describe_trend(entry["trend"])
+            if summary:
+                entry["trend_summary"] = summary
+        except Exception as e:  # noqa: BLE001 — context, never fatal
+            entry["trend"] = {"available": False, "note": f"bars unavailable: {type(e).__name__}"}
+        try:
+            entry["earnings"] = earnings_mod.earnings_context(sym)
+        except Exception as e:  # noqa: BLE001
+            entry["earnings"] = {"note": f"unavailable: {type(e).__name__}"}
+        pack[sym] = entry
+    return pack
+
 
 def build_market_pack(symbols: list[str], mode: str = "agent") -> dict:
     """Quotes + near-dated option chain snapshots for the candidate + held set.
@@ -228,6 +261,11 @@ def gather_depth(focus_symbols: list[str], positions: list, account: dict,
     held_underlyings = [_occ_underlying(s) for s in held_symbols]
     symbols = list(focus_symbols) + held_symbols + held_underlyings
     market = build_market_pack(symbols, mode=mode)
+    # Trend + earnings context, keyed by underlying (an OCC leg has no chart of
+    # its own). This is what makes a trend claim checkable — see
+    # agent_market_context for why it exists.
+    underlyings = [_occ_underlying(s) for s in symbols if s]
+    context_pack = build_context_pack(underlyings, mode=mode)
     # Annotate held option legs with a fair (mid-based) P&L next to Alpaca's
     # worst-case mark, so the model reads the truth instead of the scary number.
     annotate_positions_fair_value(positions, mode=mode)
@@ -235,6 +273,7 @@ def gather_depth(focus_symbols: list[str], positions: list, account: dict,
         "account": account,
         "positions": positions,
         "market": market,
+        "price_context": context_pack,
         "equity_floor": _CFG["equity_floor"],
     }
 
@@ -627,6 +666,10 @@ matter what the mark says; a wide bid/ask on a quiet name is noise, not a loss. 
 Decide to close because your thesis or its stated invalidation says so, or \
 because the MID genuinely reflects a loss — never because a stale worst-case \
 mark looks scary.
+
+Trend claims must carry numbers. Every depth name comes with a `price_context` entry: returns over 1 week / 1 month / 3 months, where price sits versus its 20-day average, and how far it is from its 52-week high and low. Use it. A phrase like "a steady grind higher" is unfalsifiable — it cannot be checked by you when you write it, or by anyone reading it later, and you have written exactly that about a stock that was drifting sideways. State direction the way the data states it: "up 8% over 30 days, 3% off its recent high" is a claim that can be wrong, which is what makes it worth writing. If `price_context` reports `available: false` or a null value, that field is UNKNOWN — say so and lean on what you do have. Never treat missing history as confirmation of a trend, and never assert a direction you cannot cite a number for.
+
+Say why implied vol is where it is. "IV is cheap" is only half an observation; what matters is the reason, because it decides whether cheap premium is an opportunity or a warning. Low vol immediately after an earnings print is vol that has already deflated for a known reason and may stay low — quite different from vol that is structurally low on a quiet name, or vol that is low because the market genuinely expects nothing to happen. Each depth name carries an `earnings` block with `days_since_last_earnings` and `days_to_next_earnings` (null means unknown, not "none"). When your thesis leans on the level of implied vol — buying premium because it is cheap, or selling it because it is rich — say in one clause what you think is putting it there, and check the earnings timing before you call it cheap.
 
 Posture — aim for the middle, not the sidelines. You are here to trade, and you \
 cannot grow the account by watching. When you find a setup with a defensible \
