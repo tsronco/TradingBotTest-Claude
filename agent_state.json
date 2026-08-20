@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 32,
-    "last_cycle_at": "2026-08-20T16:12:48Z",
+    "cycle_count": 33,
+    "last_cycle_at": "2026-08-20T18:12:51Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 93.77, down 13.2% over a month and 5.9% below its 20-day average \u2014 the bullish-drift premise behind my Sep-25 96/103 call vertical is no longer supported, but the spread's true mid is 2.33 - 0.545 = 1.785 vs the 2.41 debit (~-$188 real, not the -$390 worst-case mark), still above my $1.20 abandon line and spot well above the $90 cut, so my own stated rules say hold rather than panic-close into a wide chain. Nothing new on the shortlist earns the remaining $1.2k: DE and WMT print earnings today (0 days) so their at-the-money vol is pure event vol with 3-5 point wide quotes, MRNA is +118% in a week at 110-140% IV (no thesis I can defend), AZO/GEV/CF quotes are 5-25 points wide at the money where slippage alone consumes any $200 edge, and XOP sits exactly at a 52-week high after +7.3% in a month \u2014 chasing that is not an edge. I act when CVS closes below $90 (cut), the spread mid reaches $4.50 (take profit), the mid breaks $1.20, or a post-earnings name (DE/WMT tomorrow) shows deflated vol with penny-tight quotes I can actually trade.",
+    "last_market_read": "CVS is 93.98, essentially flat vs yesterday; my Sep-25 96/103 call vertical's true mid is 2.405 - 0.565 = 1.84 vs the 2.41 debit (~-$171 real, not the -$342 worst-case mark) \u2014 above my stated $1.20 abandon line and spot well above the $90 cut, so my own rules say hold. The rest of the shortlist gives me nothing tradable with $1.2k: DE and WMT are printing earnings TODAY (days_to_next_earnings = 0) so their ATM vol is pure event premium with 4-6 point wide quotes; AZO/GEV quotes are 10-25 points wide at the money where slippage alone eats a $200 edge; UAL -11.8%/1w and WMT -10.4%/1w are falling knives I have no catalyst to catch. I act when CVS closes below $90 (cut), the spread mid hits $4.50 (take profit), the mid breaks $1.20, or DE/WMT show post-earnings deflated vol with tight quotes tomorrow.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 333.0,
+        "market_value": 381.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-20T16:12:37Z",
+        "seen_at": "2026-08-20T18:12:40Z",
         "underlyings": {
-          "CVS": 93.765
+          "CVS": 93.98
         },
-        "unrealized_pl": -187.5
+        "unrealized_pl": -171.0
       },
       "legs": [
         {
