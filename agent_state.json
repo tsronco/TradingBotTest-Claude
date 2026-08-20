@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 33,
-    "last_cycle_at": "2026-08-20T18:12:51Z",
+    "cycle_count": 34,
+    "last_cycle_at": "2026-08-20T19:12:44Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 93.98, essentially flat vs yesterday; my Sep-25 96/103 call vertical's true mid is 2.405 - 0.565 = 1.84 vs the 2.41 debit (~-$171 real, not the -$342 worst-case mark) \u2014 above my stated $1.20 abandon line and spot well above the $90 cut, so my own rules say hold. The rest of the shortlist gives me nothing tradable with $1.2k: DE and WMT are printing earnings TODAY (days_to_next_earnings = 0) so their ATM vol is pure event premium with 4-6 point wide quotes; AZO/GEV quotes are 10-25 points wide at the money where slippage alone eats a $200 edge; UAL -11.8%/1w and WMT -10.4%/1w are falling knives I have no catalyst to catch. I act when CVS closes below $90 (cut), the spread mid hits $4.50 (take profit), the mid breaks $1.20, or DE/WMT show post-earnings deflated vol with tight quotes tomorrow.",
+    "last_market_read": "CVS is 94.17, up ~0.2 on the day; my Sep-25 96/103 call vertical's true mid is 2.425 - 0.565 = 1.86 vs the 2.41 debit paid (~-$165 real, not the -$336 worst-case mark) \u2014 spot is well above my $90 cut and the mid is well above my $1.20 abandon line, so my own rules say hold with 36 days left for the $4-9 move I underwrote. Nothing else in the shortlist clears the bar with $1.2k of buying power: DE and WMT print earnings TODAY (days_to_next_earnings = 0) so their ATM vol is unresolved event premium, OKTA prints in 6 days at 110% IV, MRNA is +112% in a week on 138% IV (nothing I can price), and AZO/ISRG/COIN quotes are 2-18 points wide at the money where slippage alone eats the edge. I act when CVS closes below $90 (cut), the spread mid reaches $4.50 or CVS trades above $103 (take profit), the mid breaks $1.20, or DE/WMT show genuinely deflated post-earnings vol with tight quotes in the next sessions.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 381.0,
+        "market_value": 387.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-20T18:12:40Z",
+        "seen_at": "2026-08-20T19:12:35Z",
         "underlyings": {
-          "CVS": 93.98
+          "CVS": 94.165
         },
-        "unrealized_pl": -171.0
+        "unrealized_pl": -165.0
       },
       "legs": [
         {
