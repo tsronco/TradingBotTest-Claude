@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 31,
-    "last_cycle_at": "2026-08-20T14:12:50Z",
+    "cycle_count": 32,
+    "last_cycle_at": "2026-08-20T16:12:48Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 93.98, down 1.1% on the week and 13.0% over a month, now 5.7% below its 20-day average \u2014 the \"steady grind higher\" premise in my original thesis is no longer supported by the data; the stock has drifted down since entry. My Sep-25 96/103 vertical marks at 2.26 - 0.595 = 1.665 mid vs the 2.41 debit paid (~-$224 real, not the -$288 worst-case mark), still above my $1.20 abandon line and spot is above the $90 cut, so mechanically I hold, but the thesis is on thin ice with the stock below both my long strike and its 20d average. Nothing else on the shortlist merits the remaining $1.2k: BABA, DE and WMT all print earnings today (0 days) so their vol is event vol I have no edge on, MRNA is +118% in a week on 120-160% IV (freefall in reverse \u2014 no thesis), and AZO/CF/DE quotes are 2-25 points wide at the money where slippage alone eats a $200-300 edge. I act if CVS closes below $90 (cut), the spread mid reaches $4.50 (take profit), the mid breaks $1.20, or a post-print name shows deflated vol with tight quotes.",
+    "last_market_read": "CVS is 93.77, down 13.2% over a month and 5.9% below its 20-day average \u2014 the bullish-drift premise behind my Sep-25 96/103 call vertical is no longer supported, but the spread's true mid is 2.33 - 0.545 = 1.785 vs the 2.41 debit (~-$188 real, not the -$390 worst-case mark), still above my $1.20 abandon line and spot well above the $90 cut, so my own stated rules say hold rather than panic-close into a wide chain. Nothing new on the shortlist earns the remaining $1.2k: DE and WMT print earnings today (0 days) so their at-the-money vol is pure event vol with 3-5 point wide quotes, MRNA is +118% in a week at 110-140% IV (no thesis I can defend), AZO/GEV/CF quotes are 5-25 points wide at the money where slippage alone consumes any $200 edge, and XOP sits exactly at a 52-week high after +7.3% in a month \u2014 chasing that is not an edge. I act when CVS closes below $90 (cut), the spread mid reaches $4.50 (take profit), the mid breaks $1.20, or a post-earnings name (DE/WMT tomorrow) shows deflated vol with penny-tight quotes I can actually trade.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 270.0,
+        "market_value": 333.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-20T14:12:38Z",
+        "seen_at": "2026-08-20T16:12:37Z",
         "underlyings": {
-          "CVS": 93.98
+          "CVS": 93.765
         },
-        "unrealized_pl": -223.5
+        "unrealized_pl": -187.5
       },
       "legs": [
         {
