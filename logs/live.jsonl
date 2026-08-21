@@ -9494,3 +9494,6 @@
 {"timestamp": "2026-08-21T19:53:32.524033+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-08-21T19:53:32.835917+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-08-21T19:53:33.190025+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-08-21T20:03:34.842828+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-08-21T20:03:35.230362+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-08-21T20:03:35.887179+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
