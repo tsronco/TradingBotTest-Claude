@@ -1,19 +1,20 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 37,
-    "last_cycle_at": "2026-08-21T18:12:44Z",
+    "cycle_count": 38,
+    "last_cycle_at": "2026-08-21T19:13:20Z",
     "last_cycle_outcome": {
-      "closed": [
+      "closed": [],
+      "opened": [
         {
-          "legs": "sell 3 CVS260925C00096000, buy 3 CVS260925C00103000",
-          "order_id": "a547f047-6845-4a69-ba04-f3eea31ce9e9"
+          "intended_net_credit": -5.45,
+          "legs": "buy 1 HOOD260904C00107000",
+          "order_id": "3caf0c6e-c9b4-4921-9929-8fb60fb81eab"
         }
       ],
-      "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 92.81, down 4.5% on the week and 13.2% on the month, 6.1% below its 20-day average \u2014 the mild-upward-drift premise for my Sep-25 96/103 call vertical is dead, and the spread's true mid is now 1.84 - 0.57 = 1.27, essentially at my stated $1.20 abandon line, with the underlying $3.2 below the long strike and delta only ~0.52/0.30. My own invalidation rule (mid below half the 2.41 debit) is triggered on any further tick down, so I'm closing rather than letting theta grind out the last of the premium into a downtrend. No new opens: MRVL prints earnings in 6 days at 84-105% IV (unresolved event premium, not cheap vol), MRNA is +125% in a week at 90-125% IV, FCX sits exactly at its 52-week high, and with ~$1.2k of buying power the ATM chains on ARM/COIN/TSLA carry $0.50-2.00 wide quotes that eat a one-contract edge; I'd act on a defined-risk debit vertical in a name whose 20-day trend agrees with the direction and whose ATM spread is under ~5% of premium.",
+    "last_market_read": "Flat with $1,419 cash after closing the CVS vertical. The shortlist is mostly momentum extremes I don't want to pay for: MRNA +127% in a week at 90-128% IV, MRVL prints earnings in 6 days with IV 79-105% (unresolved event premium, not cheap), FCX sits exactly at its 52-week high, COIN +25% in a week. The one setup with a trend that agrees with the structure and a tolerable chain is HOOD: +11.9% 1w, +40.8% 3m, +14.0% above its 20-day average, no earnings for 75 days so its ~63% IV is structural for a high-beta broker rather than event-inflated \u2014 but ATM debit spreads there still cost ~5-6% in spread and only the 107 strikes are quoted in the data I was given, so I cannot build a defined-strike vertical without a second strike in the same expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -100,31 +101,17 @@
         "thesis": "DIS trades at $106.16 in a calm tape (SPY near highs, index IV single digits). The Aug-28 103 put is ~22 delta with ~3% of downside cushion and only 14 days to expiry; the empirical odds of a >3% two-week decline in a low-beta media/parks name with no earnings before Aug 28 are well below the ~25% the option market is charging. Time decay works for me every day DIS holds above $103.",
         "why_this_structure": "A defined-risk credit spread caps loss at $270 in a $2,000 account, which naked short puts or long stock could not do. I chose puts over calls because the skew pays better on the downside and the drift/carry is with me. Width kept at $3 so max loss stays ~13% of equity; only one contract to keep sizing conservative in a small account."
       }
-    }
-  ],
-  "positions": {
-    "432b7ab1-5063-48a2-9ed6-ead09ed82885": {
-      "entry_context": {
-        "underlyings": {
-          "CVS": 94.19
-        }
-      },
-      "fill": {
-        "actual_net_credit": -2.41,
-        "fill_available": true,
-        "intended_net_credit": -2.5,
-        "slippage": 0.09
-      },
-      "intended_net_credit": -2.5,
-      "last_snapshot": {
-        "cost_basis": 723.0,
-        "market_value": 198.0,
-        "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-21T18:12:28Z",
-        "underlyings": {
-          "CVS": 92.81
-        },
-        "unrealized_pl": -342.0
+    },
+    {
+      "closed_at": "2026-08-21T19:12:57Z",
+      "grade": {
+        "exit_quality": "panic",
+        "graded": true,
+        "invalidation_fired": "no",
+        "lesson": "A well-reasoned low-IV debit spread with a 5-week thesis was abandoned after just 4 days on normal short-term noise, before either the stated invalidation (close below $90) or the profit target had any chance to play out.",
+        "loss_type": "blind_spot",
+        "outcome_grade": "D",
+        "process_grade": "B"
       },
       "legs": [
         {
@@ -140,8 +127,13 @@
           "symbol": "CVS260925C00103000"
         }
       ],
-      "open_order_id": "432b7ab1-5063-48a2-9ed6-ead09ed82885",
       "opened_at": "2026-08-17T18:12:45Z",
+      "outcome": {
+        "days_held": 4.041696706608796,
+        "estimated_pnl": -342.0,
+        "estimated_pnl_basis": "last mid-based mark before close, qty-scaled to this order's share (approximate \u2014 not the realized close fill)",
+        "underlying_moves": {}
+      },
       "thesis": {
         "confidence": 3,
         "getting_paid": "Net debit ~2.45/share x 3 x 100 = $735 max loss. Width 7.00 = $2,100 max value, so max profit ~$1,365 (~1.86:1). Breakeven at expiry 98.45 (+4.5%); full payout above 103 (+9.4%). Net delta ~+0.28/contract, ~+84 shares equivalent.",
@@ -150,6 +142,36 @@
         "rejected": "Rejected a plain long Sep-25 96 call (more theta paid, no premium recovery). Rejected re-doing last cycle's 97.5/155 structure \u2014 the 155 short leg collected nothing and was pure clutter. Rejected short-premium structures in AMAT/MU/MRVL despite 60-100% IV: single-name semis at those vols can move 15% in a week and the spread widths needed would consume most of the account's buying power. Rejected SPY/IWM index condors \u2014 credits available are too thin relative to commissions and width at this account size.",
         "thesis": "CVS at 94.19 carries the lowest implied vol in my entire shortlist (~26% on Sep expiries vs 50-100% for AMAT/MU/MRVL/LRCX) with no earnings before Sep 25 and a steady grind higher. Low IV means long premium is cheap here rather than expensive, so the efficient expression of a mild bullish drift is a debit call vertical: pay ~2.45 for 7.00 of width on the Sep-25 96/103, giving me ~1.86:1 on capped risk with a 5-week window for a $4-9 move in a $94 stock (a ~4-9% move, well within CVS's realized range).",
         "why_this_structure": "A 96/103 debit vertical rather than a naked long call: the 103 short leg returns 0.38/share (15% of the long's cost) and caps upside at a level CVS is unlikely to blow through in 5 weeks, cutting theta bleed and cost basis. Max loss is the 735 debit, no assignment risk on a covered short, and options buying power (1,494) comfortably covers it. A credit spread was rejected because 26% IV is a poor price to sell."
+      }
+    }
+  ],
+  "positions": {
+    "3caf0c6e-c9b4-4921-9929-8fb60fb81eab": {
+      "entry_context": {
+        "underlyings": {
+          "HOOD": 106.87
+        }
+      },
+      "intended_net_credit": -5.45,
+      "last_snapshot": null,
+      "legs": [
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "buy",
+          "symbol": "HOOD260904C00107000"
+        }
+      ],
+      "open_order_id": "3caf0c6e-c9b4-4921-9929-8fb60fb81eab",
+      "opened_at": "2026-08-21T19:13:20Z",
+      "thesis": {
+        "confidence": 3,
+        "getting_paid": "Debit 5.45 x 100 = $545 max loss. Delta 0.53, so a $10 move up in HOOD (to ~117, still 23% below its 52w high) is roughly +$500-550 of intrinsic before theta, i.e. about 1:1 on risk for a 9% underlying move; break-even at expiry 112.45.",
+        "invalidation": "Wrong if HOOD closes below 100.00 (roughly its pre-breakout shelf) before 2026-09-04, or if the option mid falls below 2.70 (half the debit) \u2014 exit at either.",
+        "key_risk": "A momentum reversal: HOOD is 14% extended above its 20-day average, so a mean-reversion snap back toward 94 makes the call near-worthless and I lose the full $545, which is 38% of account equity.",
+        "rejected": "MRVL and MRNA long calls rejected: MRVL has earnings in 6 days with 79-105% IV, MRNA is +127% in a week at 90-128% IV \u2014 both are paying for event/parabolic vol. FCX rejected as it sits exactly at its 52-week high with no cushion. ARM rejected as the trend is against it (-12.8% 1w, -14.0% 1m). A credit spread was rejected because I have no strike pair quoted in the same expiry for these names this cycle.",
+        "thesis": "HOOD is 106.87, up 11.9% over the past week, 5.2% over the month and 40.8% over three months, trading 14.0% above its 20-day average of 93.79 and still 29.8% below its 52-week high of 152.34 \u2014 an established uptrend with room overhead rather than a name at an extreme. I want directional exposure to a continuation over the next two weeks.",
+        "why_this_structure": "A plain long ATM call (delta 0.53) is already defined-risk at the premium paid; adding a short leg would cap the upside that is the entire point and, on this chain, the extra strike quotes were not available to me. Sep-04 expiry (14 days) keeps theta at -0.19/day manageable versus a 5.45 debit while covering the near-term trend window."
       }
     }
   }
