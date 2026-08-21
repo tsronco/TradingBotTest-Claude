@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 35,
-    "last_cycle_at": "2026-08-21T14:12:37Z",
+    "cycle_count": 36,
+    "last_cycle_at": "2026-08-21T16:12:31Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS has broken down: 93.23 spot, -4.0% on the week and -12.8% over 30 days, now 5.7% below its 20-day average \u2014 the \"mild upward drift\" premise behind my Sep-25 96/103 call vertical is dead, and the true mid on the spread is 2.48 - 0.555 = 1.925 vs the 2.41 debit (~-$146 real). Spot is still above my stated $90 cut and the mid is above the $1.20 abandon line, so my own rules say hold rather than dump into a 1.32-wide bid/ask that would cost me more than the thesis damage; with $1.2k buying power nothing else clears the bar (NVDA prints in 5 days so its 40-55% vol is unresolved event premium, MRNA is +140% in a week at 105-140% IV, FCX/COIN/ORCL/ROST quotes are 1-3 points wide ATM where slippage eats the edge). I cut if CVS closes below $90 or the spread mid breaks $1.20, and I take profit at a mid of $4.50 or CVS above $103.",
+    "last_market_read": "CVS is 93.10, down 4.3% on the week and 12.9% over a month, sitting 5.9% below its 20-day average \u2014 the mild-drift premise behind my Sep-25 96/103 call vertical is broken, but spot is still above my stated $90 cut and the spread's true mid (1.98 - 0.69 = 1.29) is just above my $1.20 abandon line, so my own rules say hold one more cycle rather than pay a wide bid/ask to exit. Nothing else on the shortlist clears the bar with $1.2k of buying power: MRVL prints earnings in 6 days at 80-105% IV (unresolved event premium, not cheap), MRNA is +134% in a week at 100-140% IV, FCX and TGT are pinned exactly at 52-week highs with 1-2 point wide ATM quotes where slippage eats a small position's edge, and COIN's +26% week is momentum I can't size safely at 75% IV. I act if CVS closes below $90 or the spread mid breaks $1.20 (close), or CVS reclaims $103 / the mid reaches $4.50 (take profit).",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +113,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 255.0,
+        "market_value": 273.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-21T14:12:28Z",
+        "seen_at": "2026-08-21T16:12:21Z",
         "underlyings": {
-          "CVS": 93.23
+          "CVS": 93.1
         },
-        "unrealized_pl": -145.5
+        "unrealized_pl": -336.0
       },
       "legs": [
         {
