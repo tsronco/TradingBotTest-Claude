@@ -1,14 +1,19 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 36,
-    "last_cycle_at": "2026-08-21T16:12:31Z",
+    "cycle_count": 37,
+    "last_cycle_at": "2026-08-21T18:12:44Z",
     "last_cycle_outcome": {
-      "closed": [],
+      "closed": [
+        {
+          "legs": "sell 3 CVS260925C00096000, buy 3 CVS260925C00103000",
+          "order_id": "a547f047-6845-4a69-ba04-f3eea31ce9e9"
+        }
+      ],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "CVS is 93.10, down 4.3% on the week and 12.9% over a month, sitting 5.9% below its 20-day average \u2014 the mild-drift premise behind my Sep-25 96/103 call vertical is broken, but spot is still above my stated $90 cut and the spread's true mid (1.98 - 0.69 = 1.29) is just above my $1.20 abandon line, so my own rules say hold one more cycle rather than pay a wide bid/ask to exit. Nothing else on the shortlist clears the bar with $1.2k of buying power: MRVL prints earnings in 6 days at 80-105% IV (unresolved event premium, not cheap), MRNA is +134% in a week at 100-140% IV, FCX and TGT are pinned exactly at 52-week highs with 1-2 point wide ATM quotes where slippage eats a small position's edge, and COIN's +26% week is momentum I can't size safely at 75% IV. I act if CVS closes below $90 or the spread mid breaks $1.20 (close), or CVS reclaims $103 / the mid reaches $4.50 (take profit).",
+    "last_market_read": "CVS is 92.81, down 4.5% on the week and 13.2% on the month, 6.1% below its 20-day average \u2014 the mild-upward-drift premise for my Sep-25 96/103 call vertical is dead, and the spread's true mid is now 1.84 - 0.57 = 1.27, essentially at my stated $1.20 abandon line, with the underlying $3.2 below the long strike and delta only ~0.52/0.30. My own invalidation rule (mid below half the 2.41 debit) is triggered on any further tick down, so I'm closing rather than letting theta grind out the last of the premium into a downtrend. No new opens: MRVL prints earnings in 6 days at 84-105% IV (unresolved event premium, not cheap vol), MRNA is +125% in a week at 90-125% IV, FCX sits exactly at its 52-week high, and with ~$1.2k of buying power the ATM chains on ARM/COIN/TSLA carry $0.50-2.00 wide quotes that eat a one-contract edge; I'd act on a defined-risk debit vertical in a name whose 20-day trend agrees with the direction and whose ATM spread is under ~5% of premium.",
     "seed_capital": 2000
   },
   "closed": [
@@ -113,13 +118,13 @@
       "intended_net_credit": -2.5,
       "last_snapshot": {
         "cost_basis": 723.0,
-        "market_value": 273.0,
+        "market_value": 198.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-21T16:12:21Z",
+        "seen_at": "2026-08-21T18:12:28Z",
         "underlyings": {
-          "CVS": 93.1
+          "CVS": 92.81
         },
-        "unrealized_pl": -336.0
+        "unrealized_pl": -342.0
       },
       "legs": [
         {
