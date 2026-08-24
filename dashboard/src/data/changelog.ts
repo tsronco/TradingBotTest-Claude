@@ -289,6 +289,22 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'directions work now. Covered by a regression test.',
   },
   {
+    date: '2026-08-19',
+    category: 'engine',
+    title: 'Agent learns from its own graded trades, not just the weekly retro',
+    details:
+      "The first weekly retrospective (0-for-3) diagnosed the real problem sharply: the thinking was fine "
+      + '(process grades all B — specific theses, sensible sizing, real invalidation levels), but two of three '
+      + 'trades were closed EARLY on mark-to-market noise before any stated invalidation was hit. One exit was '
+      + 'graded "panic." The recurring blind spot is exit discipline, not trade selection.\n\n'
+      + 'That closes a loop we had deliberately left open: the agent now gets its own recent closed lessons '
+      + '(grades, loss type, exit quality, days held, one-line lesson) plus a pattern tally fed into every '
+      + 'decision — not only the Sunday retrospective. The mandate tells it to read them and fix a repeating '
+      + "mistake, with a soft exit-discipline principle: a defined-risk spread's mark can swing on IV/theta/wide "
+      + 'quotes without the thesis failing, so hold to the written invalidation unless the thesis itself '
+      + 'changed. Self-awareness, not a hard rule — it keeps full discretion.',
+  },
+  {
     date: '2026-08-17',
     category: 'fix',
     title: 'Agent auto-cancels its stale unfilled orders each cycle',

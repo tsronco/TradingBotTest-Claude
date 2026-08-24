@@ -443,6 +443,52 @@ def test_build_self_context_returns_open_theses_and_prev_note():
     assert "naked short" in sc["previous_cycle_outcome"]["rejected"][0]["reason"]
 
 
+def test_self_context_feeds_recent_lessons_and_patterns():
+    """The education loop: the agent's own graded closed trades + a pattern tally
+    are fed back into the decision context so it can spot a recurring mistake."""
+    state = {
+        "_meta": {},
+        "positions": {},
+        "closed": [
+            {"legs": [{"symbol": "DIS...P103", "side": "sell", "qty": 1}],
+             "outcome": {"estimated_pnl": -28.5, "days_held": 2.9},
+             "grade": {"outcome_grade": "D", "process_grade": "B",
+                       "loss_type": "blind_spot", "exit_quality": "panic",
+                       "lesson": "exited early on noise before invalidation"}},
+            {"legs": [{"symbol": "CVS...C096", "side": "buy", "qty": 3}],
+             "outcome": {"estimated_pnl": -146.0, "days_held": 4.0},
+             "grade": {"outcome_grade": "D", "process_grade": "B",
+                       "loss_type": "blind_spot", "exit_quality": "early",
+                       "lesson": "closed a 5-week thesis at day 4 on a mark swing"}},
+        ],
+    }
+    sc = at.build_self_context(state)
+    assert len(sc["recent_lessons"]) == 2
+    assert sc["recent_lessons"][0]["exit_quality"] == "panic"
+    assert sc["recent_lessons"][1]["days_held"] == 4.0
+    # The recurring blind spot is tallied so it can't be missed.
+    assert sc["lesson_patterns"]["loss_types"]["blind_spot"] == 2
+    assert sc["lesson_patterns"]["exit_qualities"] == {"panic": 1, "early": 1}
+
+
+def test_recent_lessons_respects_the_cap(monkeypatch):
+    monkeypatch.setitem(at._CFG, "max_lessons_in_context", 2)
+    state = {"_meta": {}, "positions": {}, "closed": [
+        {"legs": [{"symbol": f"X{i}", "side": "buy", "qty": 1}],
+         "outcome": {}, "grade": {"lesson": f"L{i}"}} for i in range(5)
+    ]}
+    sc = at.build_self_context(state)
+    assert len(sc["recent_lessons"]) == 2          # only the most recent 2
+    assert sc["recent_lessons"][-1]["lesson"] == "L4"
+
+
+def test_mandate_tells_model_to_learn_from_lessons_and_not_exit_early():
+    m = at.SYSTEM_MANDATE.lower()
+    assert "recent_lessons" in m and "lesson_patterns" in m
+    assert "early" in m and "invalidation" in m       # the exit-discipline guard
+    assert "noise, not thesis failure" in m
+
+
 def test_build_self_context_excludes_closed_positions():
     """A closed trade lives in state['closed'], NOT state['positions'] — so its
     thesis must never leak into the continuity feed (no phantom holdings)."""

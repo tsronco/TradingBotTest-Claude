@@ -694,6 +694,29 @@ position isn't visible yet is **kept, never dropped**; an unreachable status is
 given one more cycle, with the >1-day fallthrough as a hard backstop. No new agent
 discretion — pure harness janitorial. (A future option: give the agent an explicit
 cancel action; deferred — the auto-sweep covers the observed failure.)
+
+**Education loop closed into decisions (2026-08-19).** The first weekly
+retrospective (0-for-3) produced a sharp, correct diagnosis: process grades were
+all B (theses specific, sized sensibly, real invalidation levels), so direction /
+thesis wasn't the problem — the **recurring blind spot was exit discipline**. Two
+of three trades were closed EARLY on mark-to-market noise before any stated
+invalidation was hit (DIS bailed with price nowhere near $103; CVS closed day 4
+of a 5-week thesis, ~−$342 realized vs a ~−$146 mid — i.e. panic-dumped through a
+wide bid/ask). That met the trigger we'd set ("act once the retrospective shows a
+repeated regret"), so the long-deferred long-term loop is now closed: `self_context`
+gains `recent_lessons` (the last `max_lessons_in_context`=6 CLOSED lessons —
+grades, loss_type, exit_quality, days_held, one-line lesson) + a deterministic
+`lesson_patterns` tally so a recurring `blind_spot`/`exit_quality` is unmissable.
+The mandate now tells the model to read them each cycle and fix a repeating
+mistake, with a **soft** exit-discipline principle (self-awareness, not a rule):
+a defined-risk spread's mark swings on IV/theta/bid-ask width without the thesis
+failing — judge from the mid + underlying-vs-strikes, hold to the written
+invalidation unless the THESIS itself changed, and if exiting, price it to avoid
+dumping through a wide bid/ask. The specific "exits early" signal comes from the
+dynamic `recent_lessons` data (not hard-coded), so it self-clears if the pattern
+stops. NB the two DIS lessons in the store carry the pre-fix double-counted −$57
+each; the learning signal (loss_type/exit_quality/lesson text) is unaffected and
+they age out of the window next week.
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options

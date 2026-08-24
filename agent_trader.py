@@ -414,19 +414,60 @@ def annotate_positions_fair_value(positions: list, mode: str = "agent") -> list:
     return positions
 
 
-def build_self_context(state: dict) -> dict:
-    """Continuity feed: the model's OWN recent reasoning, so each stateless cycle
-    isn't a total amnesiac.
+def _recent_lessons_digest(state: dict, limit: int) -> list:
+    """The most recent CLOSED-trade lessons in compact form — the agent's own
+    graded history, fed back so it can learn from it instead of repeating the
+    same mistake every stateless cycle. Closed lessons are factual and done, so
+    (unlike open positions) they carry no phantom-holding risk."""
+    closed = state.get("closed", []) or []
+    recent = closed[-limit:] if limit else closed
+    out = []
+    for l in recent:
+        g = l.get("grade") or {}
+        o = l.get("outcome") or {}
+        out.append({
+            "legs": _legs_summary(l.get("legs")),
+            "outcome_grade": g.get("outcome_grade"),
+            "process_grade": g.get("process_grade"),
+            "loss_type": g.get("loss_type"),
+            "exit_quality": g.get("exit_quality"),
+            "days_held": o.get("days_held"),
+            "estimated_pnl": o.get("estimated_pnl"),
+            "lesson": g.get("lesson"),
+        })
+    return out
 
-    Two parts, both deliberately scoped to stay honest:
+
+def _lesson_patterns(recent_lessons: list) -> dict:
+    """Deterministic tally over the recent lessons so a recurring blind spot or
+    exit mistake is UNMISSABLE (not something the model has to re-derive each
+    cycle) — e.g. loss_types {blind_spot: 2}, exit_qualities {panic: 1, early: 1}."""
+    lt: dict = {}
+    eq: dict = {}
+    for l in recent_lessons:
+        if l.get("loss_type"):
+            lt[l["loss_type"]] = lt.get(l["loss_type"], 0) + 1
+        if l.get("exit_quality"):
+            eq[l["exit_quality"]] = eq.get(l["exit_quality"], 0) + 1
+    return {"loss_types": lt, "exit_qualities": eq}
+
+
+def build_self_context(state: dict) -> dict:
+    """Continuity feed: the model's OWN recent reasoning + graded history, so each
+    stateless cycle isn't a total amnesiac.
+
+    Deliberately scoped to stay honest:
       - open_position_theses: the entry thesis for every position the account
         STILL holds. Built from state["positions"], which _reconcile_and_grade
         has already pruned of anything closed on Alpaca — so a closed trade's
         thesis disappears on the very next cycle and can't be hallucinated into
         a phantom holding.
-      - previous_cycle_note: the model's market_read from one cycle ago (only
-        ever one hour old; overwritten every cycle). Framed to the model as
-        history to verify against live data, never as current truth.
+      - previous_cycle_note / previous_cycle_outcome: the model's intent and the
+        factual result from one cycle ago (overwritten every cycle).
+      - recent_lessons / lesson_patterns: the agent's own graded CLOSED trades and
+        a tally over them, so it can learn from its track record — closing the
+        education loop back into the decision, not just the retrospective. Closed
+        lessons are factual and done (no phantom-holding risk).
     """
     open_theses = []
     for pos in state.get("positions", {}).values():
@@ -445,6 +486,7 @@ def build_self_context(state: dict) -> dict:
             "fill": pos.get("fill"),
         })
     meta = state.get("_meta") or {}
+    recent_lessons = _recent_lessons_digest(state, _CFG.get("max_lessons_in_context", 6))
     return {
         "open_position_theses": open_theses,
         # What the model REASONED last cycle (its market_read, written before any
@@ -456,6 +498,10 @@ def build_self_context(state: dict) -> dict:
         # (a fill it didn't get, a structure Alpaca refused) instead of assuming
         # its pre-trade note is what happened.
         "previous_cycle_outcome": meta.get("last_cycle_outcome"),
+        # The agent's OWN graded closed trades + a pattern tally — the education
+        # loop fed back into the decision so a recurring mistake gets corrected.
+        "recent_lessons": recent_lessons,
+        "lesson_patterns": _lesson_patterns(recent_lessons),
     }
 
 
@@ -717,6 +763,21 @@ caveats: (1) `self_context` is your PAST reasoning, not current market fact — 
 always trust the live positions and market data over it. (2) Positions you have \
 closed are deliberately absent from it; if something isn't in your live \
 positions, you do not hold it — never infer a holding from an old note.
+
+Learn from your own record. `self_context.recent_lessons` are your CLOSED trades \
+with their process/outcome grades, loss type, exit quality, days held, and a \
+one-line lesson each; `lesson_patterns` tallies them. Read them every cycle and \
+look for a recurring mistake — if the same `loss_type` (especially `blind_spot`) \
+or a poor `exit_quality` keeps repeating, name it in your reasoning and change \
+the behavior that causes it. One pattern to guard against specifically: closing a \
+position EARLY on a scary mark before your stated invalidation was actually hit. \
+A defined-risk spread's mark can swing hard on IV, theta, or a wide bid/ask \
+without your thesis failing — that is noise, not thesis failure. Judge from the \
+mid and the underlying vs your strikes, hold to the invalidation you wrote unless \
+the THESIS itself has genuinely changed (not just the mark), and if you do exit, \
+price it to avoid dumping through a wide bid/ask and realizing far worse than the \
+mid. This is guidance to counteract a documented tendency, not a rule removing \
+your discretion — if the thesis has truly broken, exiting is correct.
 
 How to read a position's P&L — the mark lies on thin chains. Alpaca marks a \
 short option (and therefore a credit spread) at the WORST-CASE corner of the \
