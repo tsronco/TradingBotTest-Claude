@@ -87,6 +87,50 @@ def test_grade_position_never_raises_on_client_error():
     assert g["graded"] is False
 
 
+class _CapturingGradeClient:
+    """Grade client that records the user message it was sent, so tests can
+    assert what the grader actually sees."""
+    def __init__(self, grade):
+        self._grade = grade
+        self.messages = self
+        self.last_user_content = None
+
+    def create(self, **kw):
+        self.last_user_content = kw["messages"][0]["content"]
+        return _Resp([_ToolBlock("record_grade", self._grade)], "tool_use")
+
+
+def test_grade_position_feeds_close_rationale_to_grader():
+    """The grader must SEE why the agent exited, so it can tell a sound
+    thesis-change exit from a premature panic on mark noise."""
+    client = _CapturingGradeClient(_GRADE)
+    record = {"thesis": {"thesis": "CVS mild upward drift"},
+              "close_rationale": "the upward-drift premise is dead; thesis broke"}
+    agent_grading.grade_position(record, {"estimated_pnl": -146}, client=client)
+    assert "close_rationale" in client.last_user_content
+    assert "thesis broke" in client.last_user_content
+
+
+def test_grade_position_falls_back_to_outcome_close_rationale():
+    client = _CapturingGradeClient(_GRADE)
+    # No close_rationale on the record, but present in the outcome dict.
+    agent_grading.grade_position(
+        {"thesis": {}}, {"close_rationale": "cut on a genuine thesis change"},
+        client=client)
+    assert "genuine thesis change" in client.last_user_content
+
+
+def test_grader_rubric_distinguishes_thesis_change_from_noise():
+    """The grader prompt must teach: cutting a broken thesis is sound even at a
+    loss; exiting on mark noise while thesis+invalidation intact is the error."""
+    s = agent_grading.GRADER_SYSTEM.lower()
+    assert "thesis genuinely changed" in s
+    assert "mark noise" in s and "premature" in s
+    assert "cleanly" in s  # correct-decision-bad-execution → teach execution
+    # loss_type by risk, not timing.
+    assert "even if" in s and "anticipated" in s
+
+
 # ── reconcile / snapshot / outcome (pure) ───────────────────────────────────
 
 def test_reconcile_splits_open_vs_absent():
@@ -151,12 +195,29 @@ def test_build_outcome_computes_underlying_move_and_days():
         "legs": [{"symbol": "AAPL260320P00150000"}],
         "entry_context": {"underlyings": {"AAPL": 155.0}},
         "last_snapshot": {"unrealized_pl": 25.0},
+        "close_rationale": "thesis intact, taking profit at target",
     }
     market = {"AAPL": {"quote": {"p": 160.0}}}
     out = at.build_outcome(pos, market)
     assert out["estimated_pnl"] == 25.0
     assert out["underlying_moves"]["AAPL"]["pct"] == pytest.approx(3.23, abs=0.02)
     assert 2.5 < out["days_held"] < 3.5
+    assert out["close_rationale"] == "thesis intact, taking profit at target"
+
+
+def test_stamp_close_reason_marks_matching_positions_only():
+    state = {"positions": {
+        "CVS-1": {"legs": [{"symbol": "CVS260925C00096000", "side": "buy", "qty": 3},
+                           {"symbol": "CVS260925C00103000", "side": "sell", "qty": 3}]},
+        "DIS-1": {"legs": [{"symbol": "DIS260828P00103000", "side": "sell", "qty": 1}]},
+    }}
+    close_intent = {"action": "close", "rationale": "CVS uptrend broke — thesis dead",
+                    "legs": [{"symbol": "CVS260925C00096000", "side": "sell", "qty": 3},
+                             {"symbol": "CVS260925C00103000", "side": "buy", "qty": 3}]}
+    at._stamp_close_reason(state, close_intent, market_read="wide tape")
+    assert state["positions"]["CVS-1"]["close_rationale"] == "CVS uptrend broke — thesis dead"
+    assert state["positions"]["CVS-1"]["closed_market_read"] == "wide tape"
+    assert "close_rationale" not in state["positions"]["DIS-1"]  # untouched
 
 
 # ── _reconcile_and_grade integration ────────────────────────────────────────

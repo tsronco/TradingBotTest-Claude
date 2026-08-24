@@ -1202,9 +1202,25 @@ def _underlyings_now(position: dict, market: dict) -> dict:
     return out
 
 
+def _stamp_close_reason(state: dict, intent: dict, market_read: str) -> None:
+    """Record WHY the agent closed a position, on the matching tracked position(s).
+    The grade fires a cycle later (when the position vanishes from Alpaca), by
+    which point the close intent is gone — so without this the grader can't tell
+    a correct thesis-change exit from a premature panic on mark noise, and
+    mis-grades a sound exit as a blind spot."""
+    close_syms = {str(l.get("symbol", "")).upper() for l in intent.get("legs", [])}
+    if not close_syms:
+        return
+    for pos in state.get("positions", {}).values():
+        if _leg_symbols(pos) & close_syms:
+            pos["close_rationale"] = intent.get("rationale")
+            pos["closed_market_read"] = market_read
+
+
 def build_outcome(position: dict, market: dict) -> dict:
     """Best-effort close data for the grader: approximate P&L from the last mark
-    before close, days held, and each underlying's move since entry."""
+    before close, days held, each underlying's move since entry, and — crucially —
+    the agent's own stated reason for closing, so the exit can be judged fairly."""
     snap = position.get("last_snapshot") or {}
     entry_u = (position.get("entry_context") or {}).get("underlyings", {}) or {}
     now_u = _underlyings_now(position, market)
@@ -1221,6 +1237,10 @@ def build_outcome(position: dict, market: dict) -> dict:
             "(approximate — not the realized close fill)"),
         "days_held": _days_since(position.get("opened_at")),
         "underlying_moves": moves,
+        # The agent's stated reason for exiting (None if it vanished without a
+        # bot-placed close — e.g. expired/assigned). Lets the grader separate a
+        # sound thesis-change exit from a premature exit on mark noise.
+        "close_rationale": position.get("close_rationale"),
     }
 
 
@@ -1587,6 +1607,11 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
             else:
                 summary["closed"] += 1
                 cycle_outcome["closed"].append({"legs": legs_str, "order_id": order_id})
+                # Stamp WHY it closed onto the matching tracked position(s), so the
+                # grader (which fires a cycle later, when the position vanishes)
+                # can judge the exit DECISION — thesis change vs mark noise — not
+                # just that it happened.
+                _stamp_close_reason(state, intent, market_read)
                 _announce_close(intent, order_id)
             log_event(_CFG["log_stream"], "agent_trader.py",
                       f"{intent['action']}_placed",

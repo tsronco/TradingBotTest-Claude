@@ -717,6 +717,26 @@ dynamic `recent_lessons` data (not hard-coded), so it self-clears if the pattern
 stops. NB the two DIS lessons in the store carry the pre-fix double-counted −$57
 each; the learning signal (loss_type/exit_quality/lesson text) is unaffected and
 they age out of the window next week.
+
+**Grader sees the exit reason (2026-08-19).** Closing the loop above is only as
+good as the grades it feeds back — and the grader was **blind to why the agent
+exited**. Its payload had entry thesis + outcome but not the close reason, so it
+mis-graded the CVS close: CVS's thesis genuinely broke (uptrend gone), which
+makes cutting it a *sound* exit even at a loss, but the grader saw only "closed
+at day 4, −$342, price nowhere near the $90 stop" and tagged it `blind_spot` /
+"exited early on noise." Fed back, that teaches the *opposite* of what we want
+(hold dead theses longer). Two fixes: (1) **`_stamp_close_reason`** records the
+agent's close rationale on the matching tracked position at close time (the grade
+fires a cycle later, once the position vanishes, so the intent is gone by then);
+`build_outcome` + the grade payload now carry `close_rationale`. (2) **Rubric
+sharpened**: exiting because the THESIS genuinely changed is sound process even
+at a loss; exiting on MARK NOISE while thesis + invalidation are both intact is
+the process error; `loss_type` is classed by the *risk* (a loss via the named
+key_risk is `anticipated` even if exited early), not the timing; and `exit_quality`
+grades EXECUTION separately (a correct cut dumped through a wide bid/ask is
+`panic` → teaches "exit cleaner," not "hold longer"). Tim's distinction: cutting a
+trade you no longer believe in is discipline, not a mistake — the grader must not
+punish it.
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options

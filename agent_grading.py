@@ -27,9 +27,10 @@ _GRADES = ["A", "B", "C", "D", "F"]
 GRADE_TOOL = {
     "name": "record_grade",
     "description": (
-        "Record the hindsight grade for a closed trade. Grade the PROCESS "
-        "(was the decision sound given only what was knowable at entry) "
-        "separately from the OUTCOME (did it make money)."
+        "Record the hindsight grade for a closed trade. Grade the PROCESS — the "
+        "soundness of BOTH the entry and the exit decision, given only what was "
+        "knowable — separately from the OUTCOME (did it make money). A correct "
+        "exit on a broken thesis is sound process even at a loss."
     ),
     "strict": True,
     "input_schema": {
@@ -46,14 +47,25 @@ GRADE_TOOL = {
                 "type": "string",
                 "enum": ["win", "anticipated", "blind_spot", "breakeven"],
                 "description": (
-                    "win = made money; anticipated = lost via the key_risk it named; "
-                    "blind_spot = lost for a reason it never saw; breakeven = flat."
+                    "Classify by the RISK, not the exit timing. win = made money; "
+                    "anticipated = lost via a risk the thesis NAMED (even if exited "
+                    "early); blind_spot = lost for a reason the thesis never "
+                    "mentioned; breakeven = flat."
                 ),
             },
             "exit_quality": {
                 "type": "string",
                 "enum": ["good", "early", "late", "panic", "unclear"],
-                "description": "Since the agent chose its own exit, how well did it exit?",
+                "description": (
+                    "How well the EXIT went (separate from whether closing was the "
+                    "right call). good = sound decision, cleanly executed near the "
+                    "mid / at a sensible level; early = exited while the thesis AND "
+                    "its stated invalidation were both still intact (premature — "
+                    "nothing had actually changed); late = held past the point the "
+                    "thesis broke, letting the loss compound; panic = the decision "
+                    "to exit may have been right, but it was dumped through a wide "
+                    "bid/ask, realizing far worse than the mid; unclear."
+                ),
             },
             "lesson": {
                 "type": "string",
@@ -69,20 +81,37 @@ GRADE_TOOL = {
 GRADER_SYSTEM = """\
 You are a trading coach grading a single closed paper trade to help the trader \
 learn. You are given the trade's ENTRY THESIS (written before the outcome \
-existed) and its OUTCOME.
+existed), the reason the trader gave for CLOSING it (close_rationale), and its \
+OUTCOME.
 
 Grade two things separately and honestly:
 - outcome_grade: did it make money? (the easy part)
-- process_grade: was the decision SOUND GIVEN ONLY WHAT WAS KNOWABLE AT ENTRY, \
-ignoring how it turned out? A well-reasoned trade that lost to variance can \
-still earn a high process grade; a sloppy trade that got lucky should not.
+- process_grade: was the DECISION-MAKING sound given only what was knowable — \
+covering BOTH the decision to enter AND the decision to exit? A well-reasoned \
+trade that lost to variance can still earn a high process grade; a sloppy trade \
+that got lucky should not.
 
-Then classify the loss (loss_type): a loser that lost via the exact key_risk \
-the thesis named is 'anticipated' (acceptable, well-understood); a loser that \
-lost for a reason the thesis never mentioned is 'blind_spot' (the valuable \
-lesson). Check whether the thesis's own stated invalidation condition actually \
-fired. Judge the exit, since the trader chose it. Finish with one plain-English \
-sentence of what this trade teaches.
+Judging the EXIT is central, since the trader chose it — and use close_rationale \
+to judge it FAIRLY, not just from the P&L:
+- Exiting because the THESIS GENUINELY CHANGED — the reason the trade was taken \
+no longer holds — is a SOUND decision, even when it books a loss. Do NOT \
+penalize the process for correctly abandoning a broken thesis; cutting a trade \
+you no longer believe in is discipline, not a mistake, and the alternative \
+(holding a dead thesis to avoid booking the loss) is worse.
+- Exiting on MARK NOISE — a scary unrealized P&L from IV, theta, or a wide \
+bid/ask — while the thesis AND its stated invalidation were both still intact is \
+PREMATURE, and THAT is the process error.
+- Judge the exit's EXECUTION separately (exit_quality): a clean fill near the \
+mid is 'good'; dumping through a wide bid/ask and realizing far worse than the \
+mid is 'panic'. A correct exit decision executed badly should teach "exit more \
+cleanly," NOT "hold longer."
+
+Classify the loss (loss_type) by the RISK, not the timing: a loser that lost via \
+the exact key_risk the thesis NAMED is 'anticipated' (well-understood) EVEN IF \
+it was exited early; only a loss for a reason the thesis never mentioned is \
+'blind_spot'. Check whether the thesis's own stated invalidation actually fired. \
+Finish with one plain-English sentence of what this trade teaches — aimed at the \
+REAL error (entry choice, exit decision, or exit execution), not a generic one.
 
 Be specific and fair. The goal is learning, not flattery. Call record_grade once.\
 """
@@ -105,6 +134,12 @@ def grade_position(record: dict, outcome: dict, client=None, model: str | None =
             "legs": record.get("legs"),
             "opened_at": record.get("opened_at"),
             "entry_context": record.get("entry_context"),
+            # The agent's own reason for exiting — surfaced top-level so the grader
+            # judges the exit DECISION fairly (thesis change vs mark-noise panic),
+            # not just that the position closed at a loss. None if it wasn't a
+            # bot-placed close (e.g. expiry/assignment).
+            "close_rationale": (record.get("close_rationale")
+                                or outcome.get("close_rationale")),
             "outcome": outcome,
         }
         resp = client.messages.create(

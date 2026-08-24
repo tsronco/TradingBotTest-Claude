@@ -30,6 +30,23 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-08-19',
+    category: 'fix',
+    title: 'Agent grader now sees WHY a trade was closed',
+    details:
+      'The grader was blind to the exit reason — its input had the entry thesis and the outcome but never the '
+      + "agent's reason for closing. So it mis-graded the CVS close: CVS's thesis genuinely broke (its uptrend "
+      + 'was gone), which makes cutting it a sound exit even at a loss — but the grader saw only "closed at day '
+      + '4, down $342, price nowhere near the $90 stop" and tagged it a blind-spot early exit. Fed back into '
+      + 'decisions, that teaches the opposite of what we want: hold dead theses longer.\n\n'
+      + "The close rationale is now recorded on the position at close time and passed to the grader. The rubric "
+      + 'is sharpened too: exiting because the thesis genuinely changed is sound process even at a loss; exiting '
+      + 'on mark noise while thesis and invalidation are both intact is the error; a loss via a named key_risk is '
+      + '"anticipated" even if exited early (classed by risk, not timing); and exit execution is graded '
+      + 'separately, so a correct cut dumped through a wide spread teaches "exit cleaner," not "hold longer." '
+      + 'Cutting a trade you no longer believe in is discipline, not a mistake.',
+  },
+  {
+    date: '2026-08-19',
     category: 'config',
     title: 'Agent decision effort put back to high',
     details:
