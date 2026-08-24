@@ -1,20 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 39,
-    "last_cycle_at": "2026-08-24T14:13:08Z",
+    "cycle_count": 40,
+    "last_cycle_at": "2026-08-24T19:12:37Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": -3.05,
-          "legs": "buy 1 DIS260918C00111000",
-          "order_id": "cec87595-aa45-4bca-aeb5-717af6bd2ea3"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "Account is flat with $1,419 cash; the HOOD long call I submitted last cycle does not appear in positions, so it evidently did not fill and HOOD is not in this cycle's data \u2014 I treat myself as flat. Today's shortlist is dominated by event risk and momentum extremes: NVDA reports in 2 days (IV 53-57% on the front weeklies is pure unresolved event premium \u2014 expensive both ways), DELL and MDB report in 8 days with 80-120% IV, MRNA is +106% in a week and +74% above its 20-day average at ~105% IV. The one name where the trend, the vol and the chain all line up is DIS: +7.6% 1w, +17.4% 1m, +8.1% above its 20-day average, only 6.3% off its 52-week high, earnings 19 days behind it and 80 days away \u2014 which is exactly why its IV sits at a modest 23-25% (post-earnings deflation on a mega-cap with no catalyst pending), so long premium there is cheap for a reason I can name rather than because a landmine is buried in it.",
+    "last_market_read": "DIS pulled back to $110.16 today (still +6.4% 1w, +16.1% 1m, +7.0% above its $102.93 20-day avg) \u2014 my Sep-18 111 call is at a $2.435 mid vs $3.05 cost, -$61 on the mid, but the stated invalidation ($107 close) has NOT been hit, and my documented failure pattern is bailing early on noise, so I hold it. No new opens: the rest of the shortlist is either sitting on a hard binary (NVDA earnings in 2 days at 53-57% front IV, MRVL in 3 days at 80-97%, MDB in 8 days at 86-117% \u2014 all pure unresolved event premium, expensive to buy and un-sellable naked), or extended momentum with wide chains (TGT at its 52w high, V/MA at 52w highs) where a $1,114 buying-power account can't build a sensible spread without paying most of the width in slippage.",
     "seed_capital": 2000
   },
   "closed": [
@@ -152,8 +146,23 @@
           "DIS": 111.395
         }
       },
+      "fill": {
+        "actual_net_credit": -3.05,
+        "fill_available": true,
+        "intended_net_credit": -3.05,
+        "slippage": 0.0
+      },
       "intended_net_credit": -3.05,
-      "last_snapshot": null,
+      "last_snapshot": {
+        "cost_basis": 305.0,
+        "market_value": 232.0,
+        "pnl_basis": "mid-based, qty-scaled to this order's share",
+        "seen_at": "2026-08-24T19:12:29Z",
+        "underlyings": {
+          "DIS": 110.155
+        },
+        "unrealized_pl": -61.5
+      },
       "legs": [
         {
           "asset": "option",
