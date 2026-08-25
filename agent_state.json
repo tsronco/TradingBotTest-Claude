@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 41,
-    "last_cycle_at": "2026-08-25T14:12:50Z",
+    "cycle_count": 42,
+    "last_cycle_at": "2026-08-25T16:13:18Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is at $110.91, up 6.7% 1w / 14.8% 1m and 7.1% above its $103.56 20-day average, only 6.7% from its 52-week high \u2014 my Sep-18 111 call is at a $2.675 mid vs $3.05 cost (-$37 on mid, and +$14 today), and my $107-close invalidation has not been hit, so I hold; my documented failure pattern is bailing on noise. No new opens: the shortlist is dominated by unresolved event premium (MRVL earnings in 2 days at 83-99% front IV, DELL in 7 days at 82-105%) and parabolic extension (MRNA +145% in a week at ~100-124% IV, COIN +25% in a week, HOOD +18%), all of which are either binary gambles or chains where a $1,114 buying-power account pays a large fraction of the width in slippage (e.g. DECK 89-strike quotes 1.42/3.98). I'd act on a name with a sub-30% IV directional setup and tight quotes, or on DIS strength above $114 to roll up/take profit.",
+    "last_market_read": "DIS is $111.33, +7.1% 1w / +15.2% 1m, 7.5% above its $103.58 20-day average and only 6.3% off its 52-week high; my Sep-18 111 call marks $2.92 mid vs $3.05 cost (-$13, +$41 today) and my $107-close invalidation is untouched, so I hold \u2014 my documented failure pattern is exiting on noise. No new opens: with $1,114 buying power the shortlist is either binary event risk (NVDA earnings tomorrow, MRVL in 2 days at 82-99% front IV, LULU in 9 days at 68-82% IV \u2014 all vol that is high for a known reason, so neither cheap nor a clean sell as a defined-risk spread I can afford) or parabolic extension (MRNA +147% in a week at ~95-113% IV, COIN +27.6% 1w and 18.5% above its 20d, HOOD +21.5% 1w), and the low-IV candidates (DECK 35%, TGT 30%) quote $0.7-0.9 wide on ATM strikes, a big fraction of a small position's edge.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 256.0,
+        "market_value": 283.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-25T14:12:41Z",
+        "seen_at": "2026-08-25T16:13:10Z",
         "underlyings": {
-          "DIS": 110.91
+          "DIS": 111.325
         },
-        "unrealized_pl": -37.5
+        "unrealized_pl": -13.0
       },
       "legs": [
         {
