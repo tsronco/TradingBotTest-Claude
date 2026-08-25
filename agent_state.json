@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 42,
-    "last_cycle_at": "2026-08-25T16:13:18Z",
+    "cycle_count": 43,
+    "last_cycle_at": "2026-08-25T18:12:48Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $111.33, +7.1% 1w / +15.2% 1m, 7.5% above its $103.58 20-day average and only 6.3% off its 52-week high; my Sep-18 111 call marks $2.92 mid vs $3.05 cost (-$13, +$41 today) and my $107-close invalidation is untouched, so I hold \u2014 my documented failure pattern is exiting on noise. No new opens: with $1,114 buying power the shortlist is either binary event risk (NVDA earnings tomorrow, MRVL in 2 days at 82-99% front IV, LULU in 9 days at 68-82% IV \u2014 all vol that is high for a known reason, so neither cheap nor a clean sell as a defined-risk spread I can afford) or parabolic extension (MRNA +147% in a week at ~95-113% IV, COIN +27.6% 1w and 18.5% above its 20d, HOOD +21.5% 1w), and the low-IV candidates (DECK 35%, TGT 30%) quote $0.7-0.9 wide on ATM strikes, a big fraction of a small position's edge.",
+    "last_market_read": "DIS is $111.43, +7.2% 1w / +15.3% 1m, 7.6% above its $103.58 20-day average and 6.2% off its 52-week high; my Sep-18 111 call marks $2.98 mid vs $3.05 cost (-$7, +$45 today) and my $107-close invalidation is nowhere near hit, so I hold \u2014 my logged failure pattern is exiting winners-in-waiting on noise. No new opens: with $1,114 buying power the shortlist splits into binary event risk (NVDA earnings tomorrow at 52-55% front IV, MRVL in 2 days at 84-97%, PANW in 7 days, ZS in 9 days at 80-105% \u2014 all vol elevated for a known, dated reason, so neither cheap to buy nor safely sold in a spread I can afford) and parabolic extension I won't chase (MRNA +149% 1w at ~90-110% IV, COIN +28.6% 1w and 19.4% above its 20d, HOOD +22.3% 1w); the calmer names (DIS 22-23%, TGT 29-30%) already have my only exposure or quote $0.3-0.8 wide ATM, too much friction on one contract. I'd act on a DIS pullback to ~$108 with the trend intact (add), a post-NVDA-print IV crush leaving a cheap directional call, or a TGT chain tightening enough to make a 162.5/167.5 debit call spread pay >1.5:1.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 283.0,
+        "market_value": 287.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-25T16:13:10Z",
+        "seen_at": "2026-08-25T18:12:36Z",
         "underlyings": {
-          "DIS": 111.325
+          "DIS": 111.43
         },
-        "unrealized_pl": -13.0
+        "unrealized_pl": -7.0
       },
       "legs": [
         {
