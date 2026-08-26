@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 47,
-    "last_cycle_at": "2026-08-26T18:13:12Z",
+    "cycle_count": 48,
+    "last_cycle_at": "2026-08-26T19:12:46Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $109.77, my Sep-18 111 call marks $1.99 mid (-$106 on a $305 debit), but the underlying is still +2.7% 1w, +11.0% 1m and +5.4% above its rising $104.14 20-day average with no earnings before expiry \u2014 my written invalidation (daily close below $107) has NOT been hit, so I hold; three of my last three losses were graded blind_spot/panic for exiting on noise and I am not repeating that. No new opens: NVDA reports earnings TODAY (days_to_next_earnings 0) so its 43-60% ATM IV is an event premium I have no edge on either side of with one contract; MRNA at +161% 1m and +69% vs its 20-day average with 80% IV is parabolic extension I won't chase; INTU printed 1 day ago with $3-4 wide ATM quotes; the quiet names (BSX -7.8% 1w, WMB, KMI, OKE, SCHW) have ATM bid/ask friction of 7-20% of premium, which exceeds any single-contract directional edge with $1,114 of buying power.",
+    "last_market_read": "DIS is $109.71, my Sep-18 111 call marks $1.92 mid (-$113 on a $305 debit) after a -$88 day, but the underlying is still +2.6% 1w, +10.9% 1m and +5.4% above its $104.14 20-day average, and my written invalidation (daily close below $107) has NOT been hit \u2014 my last three graded losses were blind_spot/panic exits on noise, so I hold to the stated level. No new opens: with $1,114 buying power and 458-1000 strike chains, the candidates are either event-driven (DELL reports in 6 days at 82-104% ATM IV, ORCL in 15 days at 66-79% \u2014 event premium I have no edge pricing), parabolic (MRNA +162% 1m, +69% vs 20d avg, 79% IV), or too illiquid per contract (GEV ATM quotes $28.92/$32.44 = 11% friction; INTU $10.55/$12.12 one day post-print; ANET/BSX/WMB ATM bid/ask 7-20% of premium). I'd act on a DIS close below $107 (exit), a move above $118 (take profit), or a liquid sub-30% IV name with a citable 1m/3m trend and no earnings inside the option's life.",
     "seed_capital": 2000
   },
   "closed": [
@@ -157,11 +157,11 @@
         "cost_basis": 305.0,
         "market_value": 190.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-26T18:13:03Z",
+        "seen_at": "2026-08-26T19:12:37Z",
         "underlyings": {
-          "DIS": 109.77
+          "DIS": 109.71
         },
-        "unrealized_pl": -106.0
+        "unrealized_pl": -113.0
       },
       "legs": [
         {
