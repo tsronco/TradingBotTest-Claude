@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 44,
-    "last_cycle_at": "2026-08-25T19:12:35Z",
+    "cycle_count": 45,
+    "last_cycle_at": "2026-08-26T14:12:42Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $111.28, essentially flat versus yesterday's $111.43; my Sep-18 111 call marks $2.795 mid vs $3.05 cost (-$25 mid, +$29 today) and my stated invalidation (daily close below $107) is nowhere near hit \u2014 the position is 0.55 delta on a name +7.0% 1w / +15.2% 1m and 7.4% above its $103.57 20-day average, with no earnings before expiry, so I hold rather than repeat my logged pattern of exiting on noise. No new opens: with $1,114 of buying power the shortlist is either event-driven vol that is elevated for a known, dated reason (INTU prints TODAY at 77-79% front IV, PANW in 7 days at 81%, ZS/LULU in 9 days at 80-107% front IV \u2014 not cheap to buy, and a spread wide enough to pay would eat most of my cash), or parabolic extension I won't chase (MRNA +150.9% 1w and +93% vs its 20-day at ~90-112% IV, COIN +29.0% 1w and +19.7% vs 20d, HOOD +22.2% 1w), while the calm names quote $0.30-1.00 wide ATM on single contracts (ALB, TGT), which is too much friction for one lot. I'd act on: a DIS pullback toward $108 with the 20-day still rising (add a second call), a post-INTU/post-PANW IV crush leaving a genuinely cheap directional call in a name I have a view on, or a TGT 162.5/167.5 debit call spread if that chain tightens enough to price under ~$2.00 for a $5 wide.",
+    "last_market_read": "DIS is $110.58, down ~0.7% intraday from $111.4-ish; my Sep-18 111 call marks $2.48 mid (-$57 vs $3.05 cost) but the underlying is still 6.2% above its rising $104.18 20-day average, +3.4% 1w / +11.8% 1m, with no earnings before expiry \u2014 my stated invalidation (daily close below $107) is not hit, so I hold rather than repeat my logged panic-exit pattern. No new opens: with $1,114 buying power the shortlist is either parabolic extension I won't chase (MRNA +170% 1m, +74% vs 20d at 88% IV), post-earnings names whose vol has deflated for a known reason but whose chains are $3-5 wide ATM on single contracts (INTU printed 1 day ago, DDOG/NET/ORCL all quote $2-5 wide), or quiet names (KMI, WMB, SCHW, BSX) where the ATM bid/ask friction exceeds any edge I can argue for on one lot.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 271.0,
+        "market_value": 223.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-25T19:12:24Z",
+        "seen_at": "2026-08-26T14:12:33Z",
         "underlyings": {
-          "DIS": 111.28
+          "DIS": 110.58
         },
-        "unrealized_pl": -25.5
+        "unrealized_pl": -57.0
       },
       "legs": [
         {
