@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 45,
-    "last_cycle_at": "2026-08-26T14:12:42Z",
+    "cycle_count": 46,
+    "last_cycle_at": "2026-08-26T16:12:40Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $110.58, down ~0.7% intraday from $111.4-ish; my Sep-18 111 call marks $2.48 mid (-$57 vs $3.05 cost) but the underlying is still 6.2% above its rising $104.18 20-day average, +3.4% 1w / +11.8% 1m, with no earnings before expiry \u2014 my stated invalidation (daily close below $107) is not hit, so I hold rather than repeat my logged panic-exit pattern. No new opens: with $1,114 buying power the shortlist is either parabolic extension I won't chase (MRNA +170% 1m, +74% vs 20d at 88% IV), post-earnings names whose vol has deflated for a known reason but whose chains are $3-5 wide ATM on single contracts (INTU printed 1 day ago, DDOG/NET/ORCL all quote $2-5 wide), or quiet names (KMI, WMB, SCHW, BSX) where the ATM bid/ask friction exceeds any edge I can argue for on one lot.",
+    "last_market_read": "DIS is $109.91, down ~1.4% from my $111.4 entry; my Sep-18 111 call marks $2.07 mid (-$99 vs $3.05), but the underlying is still +2.8% 1w, +11.1% 1m and 5.5% above its rising $104.15 20-day average with no earnings before expiry \u2014 my written invalidation (daily close below $107) is NOT hit, so I hold rather than repeat my logged panic-exit pattern (2 of 3 recent losses graded blind_spot/panic for exiting early on noise). No new opens: with $1,114 buying power, MRNA (+164% 1m, +70% vs 20d, 83% IV) is parabolic extension I won't chase; LCID (-38.6% 1m) is freefall; INTU printed earnings 1 day ago with $2-4 wide ATM quotes and still 47% IV; and the quiet names (BSX, WMB, SCHW, OKE, KHC) have ATM bid/ask friction of 8-20% of premium that exceeds any single-contract edge I can defend. I would act on a DIS pullback-and-hold above $107 (add) or on any of these names printing a directional break with a chain I can cross for under ~5% of premium.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 223.0,
+        "market_value": 195.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-26T14:12:33Z",
+        "seen_at": "2026-08-26T16:12:30Z",
         "underlyings": {
-          "DIS": 110.58
+          "DIS": 109.91
         },
-        "unrealized_pl": -57.0
+        "unrealized_pl": -98.5
       },
       "legs": [
         {
