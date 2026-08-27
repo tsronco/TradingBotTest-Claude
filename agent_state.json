@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 48,
-    "last_cycle_at": "2026-08-26T19:12:46Z",
+    "cycle_count": 49,
+    "last_cycle_at": "2026-08-27T14:12:47Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $109.71, my Sep-18 111 call marks $1.92 mid (-$113 on a $305 debit) after a -$88 day, but the underlying is still +2.6% 1w, +10.9% 1m and +5.4% above its $104.14 20-day average, and my written invalidation (daily close below $107) has NOT been hit \u2014 my last three graded losses were blind_spot/panic exits on noise, so I hold to the stated level. No new opens: with $1,114 buying power and 458-1000 strike chains, the candidates are either event-driven (DELL reports in 6 days at 82-104% ATM IV, ORCL in 15 days at 66-79% \u2014 event premium I have no edge pricing), parabolic (MRNA +162% 1m, +69% vs 20d avg, 79% IV), or too illiquid per contract (GEV ATM quotes $28.92/$32.44 = 11% friction; INTU $10.55/$12.12 one day post-print; ANET/BSX/WMB ATM bid/ask 7-20% of premium). I'd act on a DIS close below $107 (exit), a move above $118 (take profit), or a liquid sub-30% IV name with a citable 1m/3m trend and no earnings inside the option's life.",
+    "last_market_read": "DIS is $108.12, down from $109.71 last cycle; my Sep-18 111 call marks $1.29 mid (-$176 on a $305 debit). The underlying has NOT hit my written invalidation (daily close below $107) \u2014 it is still +0.8% 1w, +9.8% 1m and +3.3% above its $104.73 20-day average \u2014 and my three graded losses are all early exits on noise, so I hold to the stated level even though the mark is ugly; delta is ~0.35 and there are 22 days left. No new opens: with $1,114 of buying power the shortlist is either event-loaded (PANW earnings in 5 days at 92-100% ATM IV, ZS in 7 days at 84-118% \u2014 event premium I have no edge pricing), parabolic (MRNA +160.7% 1m and +56% vs 20d avg at 76-84% IV; OKTA exactly at its 52-week high after +23.4% in a week), or the ATM contract costs more than a third of my equity (NVDA $7.57, CRM $11.78, SNPS ~$20). I would act on a DIS daily close below $107 (exit the call) or a move above $118 before Sep 11 (take profit), or on a liquid name under ~30% IV with a citable 1m/3m trend, no earnings inside the option's life, and a premium under ~$200 per contract.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 190.0,
+        "market_value": 121.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-26T19:12:37Z",
+        "seen_at": "2026-08-27T14:12:37Z",
         "underlyings": {
-          "DIS": 109.71
+          "DIS": 108.12
         },
-        "unrealized_pl": -113.0
+        "unrealized_pl": -176.0
       },
       "legs": [
         {
