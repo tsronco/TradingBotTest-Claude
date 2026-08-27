@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 50,
-    "last_cycle_at": "2026-08-27T16:13:07Z",
+    "cycle_count": 51,
+    "last_cycle_at": "2026-08-27T18:12:34Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.45, above my written invalidation of a daily close below $107 but only barely; the Sep-18 111 call marks $1.02 mid (-$203 on a $305 debit), delta ~0.35 with 22 days left, and DIS is still +9.1% 1m and +2.6% above its $104.70 20-day average \u2014 thesis level not breached, and my three graded losses were all early exits on noise, so I hold to the stated level. No new opens: PANW (earnings in 5 days, 90-92% ATM IV) and ZS (earnings in 7 days, 84-118% IV) are pure event premium I have no edge pricing; MRNA (+158% 1m, +54.7% vs 20d avg, 72-77% IV) and OKTA (exactly at its 52-week high after +27.1% in a week) are parabolic; NVDA/CRM/SNPS/SPOT ATM contracts cost $7.50-$25 per share, i.e. 60%+ of my $1,114 buying power for one lot. I would act on a DIS daily close below $107 (exit) or a move above $118 before Sep 11 (take profit), or on a liquid sub-30%-IV name with no earnings inside the option's life and premium under ~$200 per contract.",
+    "last_market_read": "DIS is $107.48 \u2014 above my written invalidation of a daily close under $107, but the Sep-18 111 call is now $1.00 mid (-$205 on the $305 debit, delta ~0.56 shown on the 107 strike; my 111 strike is ~3.3% OTM with 22 days left) and DIS is flat over the past week (+0.1% 1w, +9.2% 1m, +2.7% vs its $104.70 20-day average) \u2014 exactly the sideways-theta loss case I named as the key risk, but the stated level has NOT been breached and my three graded losses were all early exits on noise, so I hold. No new opens: PANW (earnings in 5 days, 87-91% ATM IV), ZS (earnings in 7 days, 83-120% IV) and MDB (earnings in 5 days, 87-140% IV) are pure event premium I have no edge pricing; OKTA (+28.1% 1w, sitting exactly at its 52-week high) and TEAM (+75.8% 1m, at its high) are parabolic; NVDA/CRM/ADBE/SNPS/NOW ATM contracts run $4.20-$25 per share, and with $1,114 buying power one lot would be 40-100% of the account \u2014 too concentrated to add on top of an existing losing DIS call.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 98.0,
+        "market_value": 97.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-27T16:12:58Z",
+        "seen_at": "2026-08-27T18:12:26Z",
         "underlyings": {
-          "DIS": 107.445
+          "DIS": 107.48
         },
-        "unrealized_pl": -203.0
+        "unrealized_pl": -205.0
       },
       "legs": [
         {
