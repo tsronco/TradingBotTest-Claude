@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 51,
-    "last_cycle_at": "2026-08-27T18:12:34Z",
+    "cycle_count": 52,
+    "last_cycle_at": "2026-08-27T19:12:47Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.48 \u2014 above my written invalidation of a daily close under $107, but the Sep-18 111 call is now $1.00 mid (-$205 on the $305 debit, delta ~0.56 shown on the 107 strike; my 111 strike is ~3.3% OTM with 22 days left) and DIS is flat over the past week (+0.1% 1w, +9.2% 1m, +2.7% vs its $104.70 20-day average) \u2014 exactly the sideways-theta loss case I named as the key risk, but the stated level has NOT been breached and my three graded losses were all early exits on noise, so I hold. No new opens: PANW (earnings in 5 days, 87-91% ATM IV), ZS (earnings in 7 days, 83-120% IV) and MDB (earnings in 5 days, 87-140% IV) are pure event premium I have no edge pricing; OKTA (+28.1% 1w, sitting exactly at its 52-week high) and TEAM (+75.8% 1m, at its high) are parabolic; NVDA/CRM/ADBE/SNPS/NOW ATM contracts run $4.20-$25 per share, and with $1,114 buying power one lot would be 40-100% of the account \u2014 too concentrated to add on top of an existing losing DIS call.",
+    "last_market_read": "DIS is $107.36 \u2014 the Sep-18 111 call is $1.02 mid (-$203 on a $305 debit) and my written invalidation was \"closes below $107 on any day before Sep 18\"; the last close was $107.385 and it's $107.36 intraday, so the level is being tested but not yet closed below. DIS is dead flat (+0.0% 1w, +9.1% 1m, +2.6% vs its $104.69 20-day average), which is exactly the sideways-theta loss case I named; with 22 days left and ~$100 of residual value versus a $305 basis, the remaining downside is small relative to the option value left, so per my documented pattern of exiting early on noise I hold one more cycle and will exit on a confirmed daily close under $107. No new opens: PANW (earnings in 5 days, 88% ATM IV), MDB (5 days, 90-142% IV) and ZS (7 days, 82-119% IV) are pure event premium I can't price; OKTA (+29.2% 1w, exactly at its 52-week high) and TEAM (+76.5% 1m, at its high) are parabolic; CRM/NVDA/NOW/NET/SNPS ATM contracts cost $4.50-$25 per share, so with $1,114 of buying power a single lot is 40-100% of equity \u2014 too concentrated on a $1,208 account already carrying a losing DIS call.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 97.0,
+        "market_value": 94.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-27T18:12:26Z",
+        "seen_at": "2026-08-27T19:12:38Z",
         "underlyings": {
-          "DIS": 107.48
+          "DIS": 107.36
         },
-        "unrealized_pl": -205.0
+        "unrealized_pl": -203.0
       },
       "legs": [
         {
