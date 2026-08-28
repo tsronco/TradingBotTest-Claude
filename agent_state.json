@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 53,
-    "last_cycle_at": "2026-08-28T14:12:43Z",
+    "cycle_count": 54,
+    "last_cycle_at": "2026-08-28T16:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.58 intraday, up from yesterday's $107.575 close \u2014 my written invalidation was a daily CLOSE below $107, which has not happened; the Sep-18 111 call marks $1.085 mid (-$196 on a $305 basis) and DIS is +11.9% 1m, +2.2% vs its $105.23 20-day average, so the uptrend structure is intact even though the stock has gone flat (-0.2% 1w), which is exactly the theta case I named. With 21 days left and ~$108 of value versus ~$196 already sunk, I hold rather than dump into a 1.01/1.16 quote \u2014 my lesson file shows two prior exits graded panic/unclear for closing before the stated invalidation. No new opens: with $1,114 buying power on $1,213 equity, a single ATM contract on the shortlist (NVDA $7.74, META $15.6, MRVL $13, SNPS $16, PANW $22 with earnings in 4 days at 88% IV, MRNA at 70-78% IV after a +134% one-month move) is 60-180% of equity or pure event premium \u2014 too concentrated on an account already carrying one losing long call. I would act on a defined-risk debit spread only if I could get one for under ~$120 of risk in a name with a numeric trend I can cite.",
+    "last_market_read": "DIS is $107.735 intraday, above my stated $107 close-based invalidation, and my Sep-18 111 call marks $1.04 mid (-$201 on a $305 basis) with 21 days left; DIS is +12.0% 1m and +2.4% vs its $105.24 20-day average, so the structure hasn't broken \u2014 exactly the theta grind I named as the key risk, not thesis failure, and my lesson file shows three prior exits graded panic/unclear for cutting before the written invalidation, so I hold. New opens: with $1,114 buying power against $1,215 equity, a single ATM contract on this shortlist costs $500-2,300 (NVDA 220C Sep-18 $7.56 mid = $756, MRVL $12.55 = $1,255, PANW $23 with earnings in 4 days at 66-87% IV) \u2014 60-190% of equity, unacceptable concentration on an account already carrying one losing long call, and the tight-width debit spreads I'd want (CRM +25% 1w, +28% vs 20d avg at 38% IV two days post-earnings; WDAY +30.6% 1m at 47% IV one day post-earnings) have $2.50-5 strike grids on 260-plus dollar names, so a defined-risk spread under ~$120 of risk isn't available in these chains.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 99.0,
+        "market_value": 101.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-28T14:12:33Z",
+        "seen_at": "2026-08-28T16:12:35Z",
         "underlyings": {
-          "DIS": 107.575
+          "DIS": 107.735
         },
-        "unrealized_pl": -196.5
+        "unrealized_pl": -201.0
       },
       "legs": [
         {
