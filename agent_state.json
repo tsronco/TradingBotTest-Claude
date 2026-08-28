@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 54,
-    "last_cycle_at": "2026-08-28T16:12:43Z",
+    "cycle_count": 55,
+    "last_cycle_at": "2026-08-28T18:12:45Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.735 intraday, above my stated $107 close-based invalidation, and my Sep-18 111 call marks $1.04 mid (-$201 on a $305 basis) with 21 days left; DIS is +12.0% 1m and +2.4% vs its $105.24 20-day average, so the structure hasn't broken \u2014 exactly the theta grind I named as the key risk, not thesis failure, and my lesson file shows three prior exits graded panic/unclear for cutting before the written invalidation, so I hold. New opens: with $1,114 buying power against $1,215 equity, a single ATM contract on this shortlist costs $500-2,300 (NVDA 220C Sep-18 $7.56 mid = $756, MRVL $12.55 = $1,255, PANW $23 with earnings in 4 days at 66-87% IV) \u2014 60-190% of equity, unacceptable concentration on an account already carrying one losing long call, and the tight-width debit spreads I'd want (CRM +25% 1w, +28% vs 20d avg at 38% IV two days post-earnings; WDAY +30.6% 1m at 47% IV one day post-earnings) have $2.50-5 strike grids on 260-plus dollar names, so a defined-risk spread under ~$120 of risk isn't available in these chains.",
+    "last_market_read": "DIS is $107.71 intraday \u2014 above my written $107 close-based invalidation \u2014 and the Sep-18 111 call marks $1.05 mid (-$200 on a $305 basis) with 21 days to expiry; DIS is +12.0% 1m and +2.4% vs its $105.24 20-day average, so this is the theta grind I named as the key risk, not thesis failure, and my lesson file shows three prior exits graded panic/unclear for cutting before the stated invalidation \u2014 I hold. On new opens: with $1,114 buying power against $1,216 equity, a single ATM contract on this shortlist runs $380 (NVDA Sep-4 220C) to $1,700 (LRCX), and the tighter debit spreads I'd want sit on $2.50-$5 strike grids on $200-500 names, so nothing offers under ~$150 of defined risk with a real edge; PYPL (-12.5% 1w, -10.2% vs 20d avg) is the only cheap chain but it's a falling knife I won't catch. I act if DIS closes under $107 (exit the call), if DIS tags $118 (take profit), or if a sub-$150-risk defined-risk structure with a citable trend appears.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 101.0,
+        "market_value": 102.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-28T16:12:35Z",
+        "seen_at": "2026-08-28T18:12:34Z",
         "underlyings": {
-          "DIS": 107.735
+          "DIS": 107.71
         },
-        "unrealized_pl": -201.0
+        "unrealized_pl": -200.0
       },
       "legs": [
         {
