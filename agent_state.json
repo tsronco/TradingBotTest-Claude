@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 55,
-    "last_cycle_at": "2026-08-28T18:12:45Z",
+    "cycle_count": 56,
+    "last_cycle_at": "2026-08-28T19:12:47Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.71 intraday \u2014 above my written $107 close-based invalidation \u2014 and the Sep-18 111 call marks $1.05 mid (-$200 on a $305 basis) with 21 days to expiry; DIS is +12.0% 1m and +2.4% vs its $105.24 20-day average, so this is the theta grind I named as the key risk, not thesis failure, and my lesson file shows three prior exits graded panic/unclear for cutting before the stated invalidation \u2014 I hold. On new opens: with $1,114 buying power against $1,216 equity, a single ATM contract on this shortlist runs $380 (NVDA Sep-4 220C) to $1,700 (LRCX), and the tighter debit spreads I'd want sit on $2.50-$5 strike grids on $200-500 names, so nothing offers under ~$150 of defined risk with a real edge; PYPL (-12.5% 1w, -10.2% vs 20d avg) is the only cheap chain but it's a falling knife I won't catch. I act if DIS closes under $107 (exit the call), if DIS tags $118 (take profit), or if a sub-$150-risk defined-risk structure with a citable trend appears.",
+    "last_market_read": "DIS is $107.96 \u2014 back above my written $107 close-based invalidation after touching it, and the Sep-18 111 call marks $1.09 mid (-$196 on a $305 basis) with 21 days to expiry; DIS is +12.3% 1m and +2.6% vs its $105.25 20-day average, so the thesis (drift toward the 52w high at $118.83) is intact and this is the theta grind I explicitly named as key risk \u2014 my lesson file shows three exits graded panic/unclear for cutting before the stated level, so I hold rather than dump a $109 mid into a 10c-wide quote. On new opens: with $1,114 buying power the ATM chains on this shortlist all cost $300-$4,000 per contract (NVDA Sep-18 217.5C $6.80, AMZN Sep-18 265C $7.43, GEV $38), and the only tight-grid cheap names are PYPL (-12.9% 1w, -10.6% vs 20d avg \u2014 a falling knife) and SOFI ($18, -1.0% vs 20d, no directional edge); nothing clears my bar of sub-$150 defined risk plus a citable trend, so I add nothing. I act if DIS closes under $107 (exit), if DIS tags $118 (take profit), or if a defined-risk structure with under ~$150 max loss and a numeric trend behind it appears.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 102.0,
+        "market_value": 106.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-28T18:12:34Z",
+        "seen_at": "2026-08-28T19:12:37Z",
         "underlyings": {
-          "DIS": 107.71
+          "DIS": 107.96
         },
-        "unrealized_pl": -200.0
+        "unrealized_pl": -196.0
       },
       "legs": [
         {
