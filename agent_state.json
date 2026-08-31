@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 57,
-    "last_cycle_at": "2026-08-31T14:12:48Z",
+    "cycle_count": 58,
+    "last_cycle_at": "2026-08-31T16:13:06Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.29 \u2014 0.3% above my written $107 close-based invalidation on the Sep-18 111 call (mid $0.85, -$220 of a $305 basis, 18 days left); the stock is +11.5% 1m and +1.5% vs its $105.71 20-day average, so the drift-to-$118 thesis is bruised but not broken and my lesson file penalizes me three times for cutting before a stated level, so I hold and will exit on the first daily close under $107. On new opens, cash is $1,114 and every ATM contract on this shortlist runs $70-$1,600; the cheapest genuinely trending candidate is HAL (+7.8% 1w, +15.7% 1m, +9.1% vs 20d avg, 13% below 52w high, no earnings for 50 days) where the Sep-18 37/40 call debit spread would cost ~$90 max risk \u2014 but HAL's 35% IV is oil-beta vol, not cheap, the 37/40 spread quotes are wide (bid/ask $1.07/$1.17 on the long alone) and the 40 strike isn't quoted in the data I have, so I won't guess strikes I can't price. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a sub-$150-max-risk structure with both legs actually quoted appears.",
+    "last_market_read": "DIS is $107.85 \u2014 back above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.935, ~-$212 on a $305 basis, 18 days to expiry) has not triggered its stated exit; stock is +12.1% 1m and +2.0% vs its $105.74 20-day average, needing ~3% more to make the call whole, so per my repeated lesson about cutting before a stated level I hold rather than dump a $90 remnant. On new opens I have $1,114 cash and no shortlist name offers a structure I can defend cheaply: the trending candidates (TSLA +17.6% 1m at 42% IV, COIN +25.2% 1m at 63% IV, SHOP +25.9% 1m with $1+ wide quotes) all cost $500-$1,700 per ATM contract \u2014 far too much of a $1,203 account for one directional bet \u2014 and the cheap names (PINS -9.6% 1m, BABA -6.0% 1m and 7.5% below its 20d avg) are downtrends I won't buy calls on, while their IV is elevated (PINS 40-45%, BABA 38-43%) because these are broken-momentum, post-earnings-lull names, not because premium is a gift. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a defined-risk spread with both legs actually quoted and max risk under ~$120 appears on a name whose price_context trend I can cite.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 76.0,
+        "market_value": 89.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-31T14:12:31Z",
+        "seen_at": "2026-08-31T16:12:56Z",
         "underlyings": {
-          "DIS": 107.29
+          "DIS": 107.85
         },
-        "unrealized_pl": -220.0
+        "unrealized_pl": -211.5
       },
       "legs": [
         {
