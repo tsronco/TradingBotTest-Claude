@@ -1,14 +1,20 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 59,
-    "last_cycle_at": "2026-08-31T18:12:52Z",
+    "cycle_count": 60,
+    "last_cycle_at": "2026-08-31T19:13:01Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [],
+      "opened": [
+        {
+          "intended_net_credit": -0.65,
+          "legs": "buy 1 SLB260918C00059000, sell 1 SLB260918C00060000",
+          "order_id": "d90d52d4-baac-4ee2-9573-bd4134954055"
+        }
+      ],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.59 \u2014 still above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.84, ~-$221 on a $305 basis, 18 days left) has not triggered its stated exit; stock is +11.8% 1m and +1.7% vs its $105.73 20-day avg, needing ~3.5% to make the call whole, and my documented pattern is panic-exiting before stated levels, so I hold the $84 remnant. On new opens, $1,114 cash: the up-trending names are all too expensive per ATM contract for this account (TSLA $367 at 42% IV, COIN $187 at 63% IV, SHOP/GOOGL/AMZN $500-1,400 debits), and the chains I'm given for each name are only near-ATM strikes, so I cannot construct a cheap defined-risk vertical with both legs actually quoted \u2014 SLB (+19.4% 1m, at its 52w high, 34% IV with no earnings for 53 days) is the one setup I'd want, but the only quoted strikes are 59/60, a $1-wide spread with ~$0.45 debit for ~$100 max risk and terrible fill odds on a 12-cent-wide quote. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a chain gives me two liquid strikes far enough apart to build a sub-$120-risk spread on a name whose trend I can cite.",
+    "last_market_read": "DIS is $107.82 \u2014 above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.89, -$216 on $305 basis, 18 days left) has NOT triggered its stated exit; the stock is +12.0% 1m and +2.0% vs its $105.74 20-day avg, needing ~3% to make the call whole, and my lesson pattern is exactly panic-exiting before stated levels, so I hold the $89 remnant rather than dumping it. On new opens with $1,114 cash: SLB is the cleanest trend I can cite (+10.5% 1w, +20.3% 1m, exactly at its 52-week high, 11.6% above its 20-day avg, no earnings for 53 days and IV ~34% which is ordinary for oilfield services, not a post-print deflation), and the 59/60 strikes are the two tightly-quoted lines I actually have, so I am buying a 1-wide Sep-18 59/60 call debit spread for a small, fully defined ~$65 risk. Everything else on the shortlist is either an ATM contract too expensive for a $1.2k account (TSLA, COIN, AMZN, RCL) or in a measurable downtrend (BABA -6.5% 1m, PINS -9.8% 1m, RCL -15.5% 1m).",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +161,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 79.0,
+        "market_value": 83.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-31T18:12:43Z",
+        "seen_at": "2026-08-31T19:12:30Z",
         "underlyings": {
-          "DIS": 107.59
+          "DIS": 107.815
         },
-        "unrealized_pl": -221.0
+        "unrealized_pl": -216.0
       },
       "legs": [
         {
@@ -181,6 +187,40 @@
         "rejected": "Rejected NVDA long premium: earnings in 2 days with front IV 53-57%, so I'd be buying the event at full price and eating the crush. Rejected DELL and MDB (earnings in 8 days, IV 80-120% \u2014 same problem, worse chains). Rejected MRNA: +106% in a week and 74% above its 20-day average at ~105% IV is a name in a vertical melt-up, not an edge I can defend. Rejected a DIS 111/116 debit vertical: the 116 strike was not quoted in the data given to me this cycle, and the near strikes that were quoted (112) have a $2.07/$3.52 spread that would cost more in slippage than the $0.50 of width it buys back. Rejected sizing 2 contracts: $610 would be 43% of equity on one directional idea.",
         "thesis": "DIS is in a measurable uptrend \u2014 +7.6% over 1 week, +17.4% over 1 month, +8.1% versus its 20-day average of $102.99, and 6.3% from its 52-week high \u2014 with no earnings inside the option's life (last print 19 days ago, next in 80 days). At 24% IV the Sep-18 111 call costs $3.05 for a stock trading $111.40, i.e. ~2.7% of spot for 25 days of 0.55-delta exposure. Continuation to the $118.84 52-week high would put the call around $8 intrinsic; a retest of the 20-day average is the loss case and is capped at the premium.",
         "why_this_structure": "A plain long call. Long options are already defined-risk, so no short leg is needed, and any short leg near the money would cap exactly the move I am paying to own. I chose Sep-18 (25 DTE) over Sep-04 (11 DTE) because the front week's theta is -0.094/day against -0.061 here for a similar delta \u2014 the extra two weeks buys the thesis time to work rather than being taxed away. I chose the 111 strike (ATM, delta 0.55) rather than an OTM strike so the position tracks the move rather than needing a gap."
+      }
+    },
+    "d90d52d4-baac-4ee2-9573-bd4134954055": {
+      "entry_context": {
+        "underlyings": {
+          "SLB": 59.68
+        }
+      },
+      "intended_net_credit": -0.65,
+      "last_snapshot": null,
+      "legs": [
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "buy",
+          "symbol": "SLB260918C00059000"
+        },
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "sell",
+          "symbol": "SLB260918C00060000"
+        }
+      ],
+      "open_order_id": "d90d52d4-baac-4ee2-9573-bd4134954055",
+      "opened_at": "2026-08-31T19:13:01Z",
+      "thesis": {
+        "confidence": 3,
+        "getting_paid": "Long 59 call mid $2.195, short 60 call mid $1.69, net mid ~$0.505; I'm bidding $0.65 to actually get filled on a 1-lot. Max risk $65, max value $100, max profit $35 = +54% on risk. Breakeven at expiry $59.65, i.e. essentially where the stock is now. Delta of the spread is ~+0.09 net, so it wins mainly by time passing with SLB above $60.",
+        "invalidation": "Wrong if SLB closes below $57.00 on any day before Sep 18, 2026 (that breaks the breakout shelf and puts the long strike out of the money) \u2014 I exit then for whatever residual value remains. Take profit if the spread mid reaches $0.90 or better before Sep 11.",
+        "key_risk": "The single biggest way this loses is an oil/energy pullback: SLB has run +20% in a month and is at a 52-week high, so a mean-reversion toward the $53-56 area takes the spread to near zero. Because the spread is already near max value at entry, the payoff is asymmetric against me \u2014 I risk $65 to make $35, so one adverse move costs roughly two winners.",
+        "rejected": "Rejected a naked long SLB Sep-18 60 call ($1.69 debit, $169 risk) \u2014 more than double the risk for a bet that needs new highs rather than just holding. Rejected TSLA/COIN/AMZN/RCL verticals: the only quoted strikes are adjacent ATM pairs whose per-contract debits ($4-15) blow past what a $1.2k account should risk on one idea. Rejected selling premium on BABA (43% IV, but -6.5% 1m and -7.9% vs its 20-day avg \u2014 I don't want short puts under a falling stock) and on PINS (-9.8% 1m, wide 20-35 cent quotes).",
+        "thesis": "SLB is the strongest measurable trend on my shortlist: +10.5% over 1 week, +20.3% over 1 month, +8.9% over 3 months, sitting exactly at its 52-week high of $59.67 and 11.6% above its $53.46 20-day average. A 1-wide 59/60 Sep-18 call debit spread costs ~$0.65 and is worth $1.00 at expiry as long as SLB simply holds $60 \u2014 it does not need further upside, only no meaningful give-back over 18 days. Implied vol ~34% is the name's normal level for oilfield services (last earnings 38 days ago, next 53 days away, so nothing is inflating or deflating it), which means I'm neither overpaying for an event nor buying vol that has just been crushed.",
+        "why_this_structure": "With $1,114 of buying power a plain ATM long call on any of these names is 3-25% of the account for a single directional bet. The 1-wide vertical caps risk at $65 (5.4% of equity) while still paying 54% on risk if SLB holds $60. The short 60 leg does real work here \u2014 it funds ~40% of the long leg's cost and cuts theta drag, which matters because this is a hold-what-you-have thesis, not a breakout thesis. 59/60 are also the only two SLB strikes with tight two-sided quotes (2-7 cents wide), so the fill is realistic."
       }
     }
   }
