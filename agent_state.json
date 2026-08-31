@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 56,
-    "last_cycle_at": "2026-08-28T19:12:47Z",
+    "cycle_count": 57,
+    "last_cycle_at": "2026-08-31T14:12:48Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.96 \u2014 back above my written $107 close-based invalidation after touching it, and the Sep-18 111 call marks $1.09 mid (-$196 on a $305 basis) with 21 days to expiry; DIS is +12.3% 1m and +2.6% vs its $105.25 20-day average, so the thesis (drift toward the 52w high at $118.83) is intact and this is the theta grind I explicitly named as key risk \u2014 my lesson file shows three exits graded panic/unclear for cutting before the stated level, so I hold rather than dump a $109 mid into a 10c-wide quote. On new opens: with $1,114 buying power the ATM chains on this shortlist all cost $300-$4,000 per contract (NVDA Sep-18 217.5C $6.80, AMZN Sep-18 265C $7.43, GEV $38), and the only tight-grid cheap names are PYPL (-12.9% 1w, -10.6% vs 20d avg \u2014 a falling knife) and SOFI ($18, -1.0% vs 20d, no directional edge); nothing clears my bar of sub-$150 defined risk plus a citable trend, so I add nothing. I act if DIS closes under $107 (exit), if DIS tags $118 (take profit), or if a defined-risk structure with under ~$150 max loss and a numeric trend behind it appears.",
+    "last_market_read": "DIS is $107.29 \u2014 0.3% above my written $107 close-based invalidation on the Sep-18 111 call (mid $0.85, -$220 of a $305 basis, 18 days left); the stock is +11.5% 1m and +1.5% vs its $105.71 20-day average, so the drift-to-$118 thesis is bruised but not broken and my lesson file penalizes me three times for cutting before a stated level, so I hold and will exit on the first daily close under $107. On new opens, cash is $1,114 and every ATM contract on this shortlist runs $70-$1,600; the cheapest genuinely trending candidate is HAL (+7.8% 1w, +15.7% 1m, +9.1% vs 20d avg, 13% below 52w high, no earnings for 50 days) where the Sep-18 37/40 call debit spread would cost ~$90 max risk \u2014 but HAL's 35% IV is oil-beta vol, not cheap, the 37/40 spread quotes are wide (bid/ask $1.07/$1.17 on the long alone) and the 40 strike isn't quoted in the data I have, so I won't guess strikes I can't price. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a sub-$150-max-risk structure with both legs actually quoted appears.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 106.0,
+        "market_value": 76.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-28T19:12:37Z",
+        "seen_at": "2026-08-31T14:12:31Z",
         "underlyings": {
-          "DIS": 107.96
+          "DIS": 107.29
         },
-        "unrealized_pl": -196.0
+        "unrealized_pl": -220.0
       },
       "legs": [
         {
