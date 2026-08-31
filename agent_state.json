@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 58,
-    "last_cycle_at": "2026-08-31T16:13:06Z",
+    "cycle_count": 59,
+    "last_cycle_at": "2026-08-31T18:12:52Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.85 \u2014 back above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.935, ~-$212 on a $305 basis, 18 days to expiry) has not triggered its stated exit; stock is +12.1% 1m and +2.0% vs its $105.74 20-day average, needing ~3% more to make the call whole, so per my repeated lesson about cutting before a stated level I hold rather than dump a $90 remnant. On new opens I have $1,114 cash and no shortlist name offers a structure I can defend cheaply: the trending candidates (TSLA +17.6% 1m at 42% IV, COIN +25.2% 1m at 63% IV, SHOP +25.9% 1m with $1+ wide quotes) all cost $500-$1,700 per ATM contract \u2014 far too much of a $1,203 account for one directional bet \u2014 and the cheap names (PINS -9.6% 1m, BABA -6.0% 1m and 7.5% below its 20d avg) are downtrends I won't buy calls on, while their IV is elevated (PINS 40-45%, BABA 38-43%) because these are broken-momentum, post-earnings-lull names, not because premium is a gift. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a defined-risk spread with both legs actually quoted and max risk under ~$120 appears on a name whose price_context trend I can cite.",
+    "last_market_read": "DIS is $107.59 \u2014 still above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.84, ~-$221 on a $305 basis, 18 days left) has not triggered its stated exit; stock is +11.8% 1m and +1.7% vs its $105.73 20-day avg, needing ~3.5% to make the call whole, and my documented pattern is panic-exiting before stated levels, so I hold the $84 remnant. On new opens, $1,114 cash: the up-trending names are all too expensive per ATM contract for this account (TSLA $367 at 42% IV, COIN $187 at 63% IV, SHOP/GOOGL/AMZN $500-1,400 debits), and the chains I'm given for each name are only near-ATM strikes, so I cannot construct a cheap defined-risk vertical with both legs actually quoted \u2014 SLB (+19.4% 1m, at its 52w high, 34% IV with no earnings for 53 days) is the one setup I'd want, but the only quoted strikes are 59/60, a $1-wide spread with ~$0.45 debit for ~$100 max risk and terrible fill odds on a 12-cent-wide quote. I act next cycle if DIS closes under $107 (exit), tags $118 (take profit), or if a chain gives me two liquid strikes far enough apart to build a sub-$120-risk spread on a name whose trend I can cite.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 89.0,
+        "market_value": 79.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-31T16:12:56Z",
+        "seen_at": "2026-08-31T18:12:43Z",
         "underlyings": {
-          "DIS": 107.85
+          "DIS": 107.59
         },
-        "unrealized_pl": -211.5
+        "unrealized_pl": -221.0
       },
       "legs": [
         {
