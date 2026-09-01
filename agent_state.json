@@ -1,20 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 60,
-    "last_cycle_at": "2026-08-31T19:13:01Z",
+    "cycle_count": 61,
+    "last_cycle_at": "2026-09-01T14:15:49Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": -0.65,
-          "legs": "buy 1 SLB260918C00059000, sell 1 SLB260918C00060000",
-          "order_id": "d90d52d4-baac-4ee2-9573-bd4134954055"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "DIS is $107.82 \u2014 above my written $107 close-based invalidation, so the Sep-18 111 call (mid $0.89, -$216 on $305 basis, 18 days left) has NOT triggered its stated exit; the stock is +12.0% 1m and +2.0% vs its $105.74 20-day avg, needing ~3% to make the call whole, and my lesson pattern is exactly panic-exiting before stated levels, so I hold the $89 remnant rather than dumping it. On new opens with $1,114 cash: SLB is the cleanest trend I can cite (+10.5% 1w, +20.3% 1m, exactly at its 52-week high, 11.6% above its 20-day avg, no earnings for 53 days and IV ~34% which is ordinary for oilfield services, not a post-print deflation), and the 59/60 strikes are the two tightly-quoted lines I actually have, so I am buying a 1-wide Sep-18 59/60 call debit spread for a small, fully defined ~$65 risk. Everything else on the shortlist is either an ATM contract too expensive for a $1.2k account (TSLA, COIN, AMZN, RCL) or in a measurable downtrend (BABA -6.5% 1m, PINS -9.8% 1m, RCL -15.5% 1m).",
+    "last_market_read": "Holdings: DIS Sep-18 111 call is $107.98 spot (mid $0.935, -$212 vs $305 basis) \u2014 above my written $107 close-based invalidation, so no exit trigger; 17 days left and DIS is +10.0% 1m, +1.7% vs its 20d avg, so the ~3% needed is still live and my documented failure mode is exactly panic-dumping before stated levels. SLB 59/60 Sep-18 debit spread: SLB $58.81, both strikes still in play; spread mid = 1.61 - 1.25 = $0.36 vs $0.54 debit (-$18 mid), and SLB is -1.5% off yesterday but still +19.4% 1m and 2.0% from its 52-week high, well above my $57 close-based invalidation \u2014 hold. No new open: cash is $1,060 but SLB just gave back a day and DIS needs the room; the only clean fresh trends on the shortlist (CVX +8.0% 1m at 1.2% from its 52w high, XOM +5.0% 1m) have ATM premium of $4-5 per contract, which would be ~40% of remaining cash on one directional bet after energy already ran \u2014 I'd rather keep dry powder than double down on the same oil beta I already own via SLB. I'd act if CVX/XOM pulled back to their 20-day averages (~$200/$160) with intact uptrends, or if DIS closes below $107 (exit) or above $118 (take profit).",
     "seed_capital": 2000
   },
   "closed": [
@@ -161,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 83.0,
+        "market_value": 91.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-08-31T19:12:30Z",
+        "seen_at": "2026-09-01T14:12:28Z",
         "underlyings": {
-          "DIS": 107.815
+          "DIS": 107.98
         },
-        "unrealized_pl": -216.0
+        "unrealized_pl": -211.5
       },
       "legs": [
         {
@@ -195,8 +189,23 @@
           "SLB": 59.68
         }
       },
+      "fill": {
+        "actual_net_credit": -0.54,
+        "fill_available": true,
+        "intended_net_credit": -0.65,
+        "slippage": 0.11
+      },
       "intended_net_credit": -0.65,
-      "last_snapshot": null,
+      "last_snapshot": {
+        "cost_basis": 54.0,
+        "market_value": 27.0,
+        "pnl_basis": "mid-based, qty-scaled to this order's share",
+        "seen_at": "2026-09-01T14:12:28Z",
+        "underlyings": {
+          "SLB": 58.81
+        },
+        "unrealized_pl": -18.0
+      },
       "legs": [
         {
           "asset": "option",
