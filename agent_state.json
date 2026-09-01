@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 61,
-    "last_cycle_at": "2026-09-01T14:15:49Z",
+    "cycle_count": 62,
+    "last_cycle_at": "2026-09-01T16:12:51Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Holdings: DIS Sep-18 111 call is $107.98 spot (mid $0.935, -$212 vs $305 basis) \u2014 above my written $107 close-based invalidation, so no exit trigger; 17 days left and DIS is +10.0% 1m, +1.7% vs its 20d avg, so the ~3% needed is still live and my documented failure mode is exactly panic-dumping before stated levels. SLB 59/60 Sep-18 debit spread: SLB $58.81, both strikes still in play; spread mid = 1.61 - 1.25 = $0.36 vs $0.54 debit (-$18 mid), and SLB is -1.5% off yesterday but still +19.4% 1m and 2.0% from its 52-week high, well above my $57 close-based invalidation \u2014 hold. No new open: cash is $1,060 but SLB just gave back a day and DIS needs the room; the only clean fresh trends on the shortlist (CVX +8.0% 1m at 1.2% from its 52w high, XOM +5.0% 1m) have ATM premium of $4-5 per contract, which would be ~40% of remaining cash on one directional bet after energy already ran \u2014 I'd rather keep dry powder than double down on the same oil beta I already own via SLB. I'd act if CVX/XOM pulled back to their 20-day averages (~$200/$160) with intact uptrends, or if DIS closes below $107 (exit) or above $118 (take profit).",
+    "last_market_read": "Holdings: DIS $107.32 spot vs my Sep-18 111 call \u2014 mid $0.79, -$226; DIS has not CLOSED below my stated $107 invalidation (it's $0.32 above it intraday), 1m +9.3% and +1.1% vs its 20d avg, so per my documented panic-exit problem I hold to the level I wrote. SLB $58.10: the 59/60 Sep-18 debit spread mid is 1.315 - 1.005 = $0.31 vs $0.54 debit (-$23 mid), but SLB is still +9.0% 1w / +17.8% 1m and 3.3% off its 52-week high, far above my $57 close invalidation \u2014 hold. No new position: cash is $1,060 and the shortlist's cleanest setups are event-loaded (DELL and PANW print earnings TODAY with 80-94% IV, ORCL prints in 9 days, GOLD tomorrow), which is exactly the vol I don't want to buy or fade with defined-risk on a $1.1k account; MRNA at +171% in a month with 78% IV is a chase, and CDNS is -23% in 3 months with no reversal signal. I'd act if DIS closes under $107 (exit the call) or over $118 (take profit), if SLB closes under $57 (exit the spread), or if a non-earnings name like CVS pulls back to its 20d avg with cheap ~25% IV.",
     "seed_capital": 2000
   },
   "closed": [
@@ -155,13 +155,13 @@
       "intended_net_credit": -3.05,
       "last_snapshot": {
         "cost_basis": 305.0,
-        "market_value": 91.0,
+        "market_value": 75.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-01T14:12:28Z",
+        "seen_at": "2026-09-01T16:12:41Z",
         "underlyings": {
-          "DIS": 107.98
+          "DIS": 107.315
         },
-        "unrealized_pl": -211.5
+        "unrealized_pl": -226.0
       },
       "legs": [
         {
@@ -198,13 +198,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 27.0,
+        "market_value": 29.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-01T14:12:28Z",
+        "seen_at": "2026-09-01T16:12:41Z",
         "underlyings": {
-          "SLB": 58.81
+          "SLB": 58.1
         },
-        "unrealized_pl": -18.0
+        "unrealized_pl": -23.0
       },
       "legs": [
         {
