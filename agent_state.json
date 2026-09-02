@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 65,
-    "last_cycle_at": "2026-09-02T14:13:01Z",
+    "cycle_count": 66,
+    "last_cycle_at": "2026-09-02T16:12:45Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $57.22, down from $57.80 last cycle; my 59/60 Sep-18 debit spread mids at 1.11 - 0.785 = $0.325 vs the $0.54 debit paid (-$21 at mid; the -$113/+$81 leg marks are the usual worst-case corner). SLB has NOT closed below my stated $57.00 invalidation and is still +6.7% 1w / +12.6% 1m and 5.6% above its 20d avg, so per my documented panic-exit pattern (CVS) I hold rather than dump a $0.32-mid spread with 16 days left. No new opens: with $1,122 cash the shortlist offers only rich pre-event premium (ORCL earnings in 8 days, 79-94% IV; PANW/DELL/MDB just printed and their IV is still 47-70%) or wide, illiquid chains (CHTR puts 5.04/8.24), and I won't pay up for either; I'd act on a clean directional setup with a sub-40% IV and a tight quote, or close SLB if it closes under $57.00.",
+    "last_market_read": "SLB is $57.91, up from $57.22 last cycle and back above its 20d avg (+6.8%), still +8.0% 1w / +13.9% 1m and only 3.7% off its 52w high; my 59/60 Sep-18 debit spread now mids at 1.31 - 0.985 = $0.325 vs the $0.54 paid (-$21 at mid), unchanged in value but with the underlying moving the right way and 16 days left \u2014 no invalidation ($57.00 close) hit, so I hold per my documented panic-exit lesson. No new opens: the shortlist is dominated by names below their 20d averages with 45-60% IV (DDOG -26.6% 1m, PANW -10.9% vs 20d, MDB/PANW just printed, SNOW reporting today at 85-107% IV) \u2014 that's either post-event vol I'd be paying up for or falling knives, and the wide chains (CHTR 9.22/11.68, MDB 17.04/20.83) would cost me 15-20% of premium in spread. With $1,122 cash I need a clean sub-40% IV directional setup with a tight quote; NVDA (33% IV, penny-wide quotes, +8.4% 1w, 3.6% off highs) is the only candidate that qualifies but a 227.5/232.5 debit spread costs more than I want committed alongside SLB right now.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,11 +192,11 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 22.0,
+        "market_value": 23.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-02T14:12:50Z",
+        "seen_at": "2026-09-02T16:12:36Z",
         "underlyings": {
-          "SLB": 57.22
+          "SLB": 57.91
         },
         "unrealized_pl": -21.5
       },
