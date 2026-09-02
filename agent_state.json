@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 64,
-    "last_cycle_at": "2026-09-01T19:12:43Z",
+    "cycle_count": 65,
+    "last_cycle_at": "2026-09-02T14:13:01Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB $57.795 \u2014 the 59/60 Sep-18 debit spread mid is 1.205 - 0.92 = $0.285 vs my $0.54 debit (-$26 at mid, the -$103/+$66 leg marks are the usual worst-case corner). SLB is still +8.5% 1w / +17.2% 1m, +7.4% vs its 20d avg and only 3.8% off its 52-week high, and it has NOT closed below my stated $57 invalidation, so per the lesson I keep re-learning (CVS: abandoned a good spread in 4 days on noise) I hold. No new opens: with $1,122 cash the only defensible setups on this shortlist would be event trades \u2014 PANW prints today (IV 68-83%), ORCL in 9 days at 77-91% IV \u2014 and buying pre-event premium that rich is negative-edge, while MRNA (+179% 1m, 80% IV) and CDNS (-24.6% 3m) are momentum extremes I can't size safely.",
+    "last_market_read": "SLB is $57.22, down from $57.80 last cycle; my 59/60 Sep-18 debit spread mids at 1.11 - 0.785 = $0.325 vs the $0.54 debit paid (-$21 at mid; the -$113/+$81 leg marks are the usual worst-case corner). SLB has NOT closed below my stated $57.00 invalidation and is still +6.7% 1w / +12.6% 1m and 5.6% above its 20d avg, so per my documented panic-exit pattern (CVS) I hold rather than dump a $0.32-mid spread with 16 days left. No new opens: with $1,122 cash the shortlist offers only rich pre-event premium (ORCL earnings in 8 days, 79-94% IV; PANW/DELL/MDB just printed and their IV is still 47-70%) or wide, illiquid chains (CHTR puts 5.04/8.24), and I won't pay up for either; I'd act on a clean directional setup with a sub-40% IV and a tight quote, or close SLB if it closes under $57.00.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 17.0,
+        "market_value": 22.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-01T19:12:25Z",
+        "seen_at": "2026-09-02T14:12:50Z",
         "underlyings": {
-          "SLB": 57.795
+          "SLB": 57.22
         },
-        "unrealized_pl": -25.5
+        "unrealized_pl": -21.5
       },
       "legs": [
         {
