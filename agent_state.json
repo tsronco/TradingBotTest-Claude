@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 67,
-    "last_cycle_at": "2026-09-02T18:12:38Z",
+    "cycle_count": 68,
+    "last_cycle_at": "2026-09-02T19:12:51Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $58.14, up +8.4% 1w / +14.4% 1m and only 3.3% off its 52w high, +7.2% above its 20d avg \u2014 my 59/60 Sep-18 call debit spread now mids at 1.37 - 1.00 = $0.37 vs $0.54 paid (-$17 at mid, improved from -$21), with 16 days left and no invalidation ($57.00 close) hit, so I hold; this is exactly the situation where my logged 'panic exit' lesson says to sit still. No new opens: the rest of the shortlist is names trading below their 20d averages with 45-56% IV that has NOT deflated post-print (DDOG -26.9% 1m, PANW -11.6% vs 20d and 1 day post-earnings, MDB -10.5% vs 20d 1 day post-print, SNOW reporting today at 85-109% IV) \u2014 either falling knives or event vol I'd be overpaying for, and the wide quotes (CHTR 8.12/9.22, MDB 15.5/18.0, NET 16.8/19.3) would eat 10-20% of premium at entry. NVDA is the only clean chain (33% IV, penny-wide, +7.1% 1w, 4.7% off highs) but 225-strike verticals there cost $200-250 of my $1,122 cash and I'd be adding a second high-beta long-delta bet on top of SLB right after a 7% weekly run into a 52w-high area; I'd act on a pullback toward its 20d avg (~$219) or on any of these names re-reclaiming its 20d average with a sub-1% wide quote.",
+    "last_market_read": "SLB is $58.20, +8.5% 1w / +14.5% 1m, 3.2% off its 52w high and +7.3% vs its 20d avg; my 59/60 Sep-18 call debit spread now mids at 1.445 - 1.025 = $0.42 vs $0.54 paid (-$12 at mid, improved again from -$17 last cycle) with 16 days to expiry and the $57.00 invalidation untouched \u2014 I hold, consistent with my logged panic-exit lesson. No new opens: the rest of the shortlist splits into names below their 20d averages with 45-58% IV that has NOT deflated (DDOG -27% 1m and -11% vs 20d, PANW -11% vs 20d one day post-print, MDB -12% vs 20d, NET -8.6% vs 20d) \u2014 falling knives where I'd be paying full vol \u2014 and chains whose quotes are 10-20% wide (CHTR 7.82/8.83, MDB 18.7/21.6, NET 11.1/13.4) that eat the edge at entry. NVDA is the only tight chain (33% IV, penny-wide, +7.0% 1w, 4.8% off its high) but a 225-strike vertical costs $200+ of $1,122 cash and would double my long-delta beta right after a 7% weekly run; I'd act on an NVDA pullback toward its ~$219 20d average, or on one of the beaten-down names reclaiming its 20d average with a sub-1%-wide quote.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 28.0,
+        "market_value": 32.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-02T18:12:27Z",
+        "seen_at": "2026-09-02T19:12:40Z",
         "underlyings": {
-          "SLB": 58.14
+          "SLB": 58.195
         },
-        "unrealized_pl": -17.0
+        "unrealized_pl": -12.0
       },
       "legs": [
         {
