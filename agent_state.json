@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 69,
-    "last_cycle_at": "2026-09-03T14:12:57Z",
+    "cycle_count": 70,
+    "last_cycle_at": "2026-09-03T16:14:47Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $58.44, +6.3% 1w / +17.1% 1m, only 2.7% off its 52w high and +7.2% vs its 20d average; my 59/60 Sep-18 call debit spread now mids at 1.53 - 1.155 = $0.375 vs $0.54 paid (-$16.5 at mid), with 15 days to expiry and my $57.00 invalidation untouched \u2014 I hold, per my logged panic-exit lesson (CVS: cut a good debit spread after 4 days on noise). No new opens: with $1,122 cash the only candidates are chains where I'd pay full vol into weakness (AVGO -17.9% 1m, -9.9% vs 20d, one day post-print with IV still 35-37%; GOLD -15.4% 1w with 55-90% IV and $0.50-2.75 wide quotes) or names already extended at 52w highs with 50-67% IV (TEAM +74% 1m, SNOW +19% 1m, both quoted 5-25% wide) where a defined-risk vertical costs more than the edge is worth. I'd act on a tight-chain pullback to a 20d average, or on SLB tagging my $0.90 spread target (close) or $57.00 (exit).",
+    "last_market_read": "SLB is $57.90, down from $58.44 last cycle (+5.2% 1w, +16.0% 1m, -3.7% from its 52w high, +6.2% vs 20d avg); my 59/60 Sep-18 call debit spread mids at 1.22 - 0.865 = $0.355 vs $0.54 paid (-$18.5 at mid), with 15 days left and my stated $57.00 invalidation not breached \u2014 I hold, consistent with the CVS panic-exit lesson I logged. No new opens: with $1,122 cash the shortlist is either extended momentum names at 46-95% IV with wide quotes (SNOW at its exact 52w high, MRNA +155% 1m, ORCL 7 days from earnings with 94% front IV) or damaged names (GOLD -14% 1w, one day post-print, $0.50-1.30 wide quotes) \u2014 in every case a defined-risk vertical costs more than the edge I can defend. I'd act on SLB tagging $0.90 spread mid (take profit) or a close below $57.00 (exit), or on a tight-chain name pulling back to its 20-day average with IV that isn't event-inflated.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 19.0,
+        "market_value": 25.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-03T14:12:45Z",
+        "seen_at": "2026-09-03T16:14:37Z",
         "underlyings": {
-          "SLB": 58.44
+          "SLB": 57.9
         },
-        "unrealized_pl": -16.5
+        "unrealized_pl": -18.5
       },
       "legs": [
         {
