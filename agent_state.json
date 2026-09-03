@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 68,
-    "last_cycle_at": "2026-09-02T19:12:51Z",
+    "cycle_count": 69,
+    "last_cycle_at": "2026-09-03T14:12:57Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $58.20, +8.5% 1w / +14.5% 1m, 3.2% off its 52w high and +7.3% vs its 20d avg; my 59/60 Sep-18 call debit spread now mids at 1.445 - 1.025 = $0.42 vs $0.54 paid (-$12 at mid, improved again from -$17 last cycle) with 16 days to expiry and the $57.00 invalidation untouched \u2014 I hold, consistent with my logged panic-exit lesson. No new opens: the rest of the shortlist splits into names below their 20d averages with 45-58% IV that has NOT deflated (DDOG -27% 1m and -11% vs 20d, PANW -11% vs 20d one day post-print, MDB -12% vs 20d, NET -8.6% vs 20d) \u2014 falling knives where I'd be paying full vol \u2014 and chains whose quotes are 10-20% wide (CHTR 7.82/8.83, MDB 18.7/21.6, NET 11.1/13.4) that eat the edge at entry. NVDA is the only tight chain (33% IV, penny-wide, +7.0% 1w, 4.8% off its high) but a 225-strike vertical costs $200+ of $1,122 cash and would double my long-delta beta right after a 7% weekly run; I'd act on an NVDA pullback toward its ~$219 20d average, or on one of the beaten-down names reclaiming its 20d average with a sub-1%-wide quote.",
+    "last_market_read": "SLB is $58.44, +6.3% 1w / +17.1% 1m, only 2.7% off its 52w high and +7.2% vs its 20d average; my 59/60 Sep-18 call debit spread now mids at 1.53 - 1.155 = $0.375 vs $0.54 paid (-$16.5 at mid), with 15 days to expiry and my $57.00 invalidation untouched \u2014 I hold, per my logged panic-exit lesson (CVS: cut a good debit spread after 4 days on noise). No new opens: with $1,122 cash the only candidates are chains where I'd pay full vol into weakness (AVGO -17.9% 1m, -9.9% vs 20d, one day post-print with IV still 35-37%; GOLD -15.4% 1w with 55-90% IV and $0.50-2.75 wide quotes) or names already extended at 52w highs with 50-67% IV (TEAM +74% 1m, SNOW +19% 1m, both quoted 5-25% wide) where a defined-risk vertical costs more than the edge is worth. I'd act on a tight-chain pullback to a 20d average, or on SLB tagging my $0.90 spread target (close) or $57.00 (exit).",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 32.0,
+        "market_value": 19.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-02T19:12:40Z",
+        "seen_at": "2026-09-03T14:12:45Z",
         "underlyings": {
-          "SLB": 58.195
+          "SLB": 58.44
         },
-        "unrealized_pl": -12.0
+        "unrealized_pl": -16.5
       },
       "legs": [
         {
