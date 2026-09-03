@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 70,
-    "last_cycle_at": "2026-09-03T16:14:47Z",
+    "cycle_count": 71,
+    "last_cycle_at": "2026-09-03T18:12:33Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $57.90, down from $58.44 last cycle (+5.2% 1w, +16.0% 1m, -3.7% from its 52w high, +6.2% vs 20d avg); my 59/60 Sep-18 call debit spread mids at 1.22 - 0.865 = $0.355 vs $0.54 paid (-$18.5 at mid), with 15 days left and my stated $57.00 invalidation not breached \u2014 I hold, consistent with the CVS panic-exit lesson I logged. No new opens: with $1,122 cash the shortlist is either extended momentum names at 46-95% IV with wide quotes (SNOW at its exact 52w high, MRNA +155% 1m, ORCL 7 days from earnings with 94% front IV) or damaged names (GOLD -14% 1w, one day post-print, $0.50-1.30 wide quotes) \u2014 in every case a defined-risk vertical costs more than the edge I can defend. I'd act on SLB tagging $0.90 spread mid (take profit) or a close below $57.00 (exit), or on a tight-chain name pulling back to its 20-day average with IV that isn't event-inflated.",
+    "last_market_read": "SLB is $57.75, down from $57.90 last cycle (+4.9% 1w, +15.6% 1m, -4.0% from its 52w high, +5.9% vs 20d avg); my 59/60 Sep-18 call debit spread mids at 1.105 - 0.795 = $0.31 vs $0.54 paid (-$23 at mid) with 15 days to expiry, and my stated $57.00 invalidation has NOT been breached \u2014 I hold rather than repeat the CVS panic-exit pattern in my lessons. No new opens: with $1,122 cash the shortlist is either extended momentum at high IV (SNOW exactly at its 52w high with 45% IV and $1-2 wide quotes, HOOD +33.8% 1m at 64% IV, COIN +28.8% 1m at 66% IV), post-print damaged names (AVGO -15.3% 1m one day after earnings, GOLD -11.7% 1w one day post-print with $0.50-1.00 wide quotes), or ORCL with 7 days to earnings and 80-98% front-month IV \u2014 in each case the vertical costs more than the edge I can articulate, and one more losing $60-100 ticket on a $1,146 account is real damage. I act if SLB closes below $57.00 (exit), the spread mid tags $0.90 (take profit), or a tight-chain name pulls back to its 20-day average with non-event-inflated IV.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 25.0,
+        "market_value": 24.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-03T16:14:37Z",
+        "seen_at": "2026-09-03T18:12:22Z",
         "underlyings": {
-          "SLB": 57.9
+          "SLB": 57.75
         },
-        "unrealized_pl": -18.5
+        "unrealized_pl": -23.0
       },
       "legs": [
         {
