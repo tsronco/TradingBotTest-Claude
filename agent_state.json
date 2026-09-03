@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 71,
-    "last_cycle_at": "2026-09-03T18:12:33Z",
+    "cycle_count": 72,
+    "last_cycle_at": "2026-09-03T19:12:58Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $57.75, down from $57.90 last cycle (+4.9% 1w, +15.6% 1m, -4.0% from its 52w high, +5.9% vs 20d avg); my 59/60 Sep-18 call debit spread mids at 1.105 - 0.795 = $0.31 vs $0.54 paid (-$23 at mid) with 15 days to expiry, and my stated $57.00 invalidation has NOT been breached \u2014 I hold rather than repeat the CVS panic-exit pattern in my lessons. No new opens: with $1,122 cash the shortlist is either extended momentum at high IV (SNOW exactly at its 52w high with 45% IV and $1-2 wide quotes, HOOD +33.8% 1m at 64% IV, COIN +28.8% 1m at 66% IV), post-print damaged names (AVGO -15.3% 1m one day after earnings, GOLD -11.7% 1w one day post-print with $0.50-1.00 wide quotes), or ORCL with 7 days to earnings and 80-98% front-month IV \u2014 in each case the vertical costs more than the edge I can articulate, and one more losing $60-100 ticket on a $1,146 account is real damage. I act if SLB closes below $57.00 (exit), the spread mid tags $0.90 (take profit), or a tight-chain name pulls back to its 20-day average with non-event-inflated IV.",
+    "last_market_read": "SLB is $57.37, down another ~0.4% from last cycle and now well below my 59 long strike; my 59/60 Sep-18 call debit spread mids at 0.955 - 0.70 = $0.255 vs $0.54 paid (-$28.5 at mid) with 15 days left. My written invalidation was \"closes below $57.00\" \u2014 SLB is $57.37, so it has NOT triggered, and the lesson pattern in my record (CVS panic exit at 4 days) says do not dump on a scary mark before the level breaks; SLB still needs only a ~4.6% move to $60 in 15 days and it's +15% on the month, 4.5% off its 52w high. No new opens: with $1,122 cash the shortlist is momentum names at elevated event-free-but-high IV (SNOW at its exact 52w high, 45% IV; HOOD +32.6% 1m, 62% IV; COIN +27.9% 1m, 66% IV) where a $200-400 vertical is a big fraction of a $1,142 account, ORCL with 7 days to earnings and 80-97% front IV (pure event gamble), and AVGO -14.5% 1m one day post-print where vol has already deflated for a known reason. None gives me an edge I can size responsibly here.",
     "seed_capital": 2000
   },
   "closed": [
@@ -192,13 +192,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 24.0,
+        "market_value": 20.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-03T18:12:22Z",
+        "seen_at": "2026-09-03T19:12:48Z",
         "underlyings": {
-          "SLB": 57.75
+          "SLB": 57.37
         },
-        "unrealized_pl": -23.0
+        "unrealized_pl": -28.5
       },
       "legs": [
         {
