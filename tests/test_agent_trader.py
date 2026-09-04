@@ -443,50 +443,75 @@ def test_build_self_context_returns_open_theses_and_prev_note():
     assert "naked short" in sc["previous_cycle_outcome"]["rejected"][0]["reason"]
 
 
-def test_self_context_feeds_recent_lessons_and_patterns():
-    """The education loop: the agent's own graded closed trades + a pattern tally
-    are fed back into the decision context so it can spot a recurring mistake."""
+def test_self_context_feeds_raw_trade_history_and_scoreboard():
+    """The self-learning loop: EVERY closed trade as raw facts (structure, premium
+    paid/collected, real P&L) + a running scoreboard — no letter grades, so the
+    model sees what actually made/lost money and concludes for itself."""
     state = {
-        "_meta": {},
+        "_meta": {"seed_capital": 2000},
         "positions": {},
         "closed": [
-            {"legs": [{"symbol": "DIS...P103", "side": "sell", "qty": 1}],
-             "outcome": {"estimated_pnl": -28.5, "days_held": 2.9},
-             "grade": {"outcome_grade": "D", "process_grade": "B",
-                       "loss_type": "blind_spot", "exit_quality": "panic",
-                       "lesson": "exited early on noise before invalidation"}},
-            {"legs": [{"symbol": "CVS...C096", "side": "buy", "qty": 3}],
-             "outcome": {"estimated_pnl": -146.0, "days_held": 4.0},
-             "grade": {"outcome_grade": "D", "process_grade": "B",
-                       "loss_type": "blind_spot", "exit_quality": "early",
-                       "lesson": "closed a 5-week thesis at day 4 on a mark swing"}},
+            {"opened_at": "2026-08-24T14:13:00Z", "closed_at": "2026-09-01T15:12:00Z",
+             "legs": [{"symbol": "DIS260918C00111000", "side": "buy", "qty": 1}],
+             "outcome": {"estimated_pnl": -240.5, "days_held": 8.2,
+                         "underlying_moves": {"DIS": {"entry": 111.4, "now": 110.6, "pct": -0.72}}},
+             "grade": {"process_grade": "A", "outcome_grade": "C",
+                       "lesson": "cutting at the invalidation was correct discipline"}},
+            {"legs": [{"symbol": "SLB260918C00059000", "side": "buy", "qty": 1},
+                      {"symbol": "SLB260918C00060000", "side": "sell", "qty": 1}],
+             "outcome": {"estimated_pnl": -33.0, "days_held": 4.0}},
         ],
     }
     sc = at.build_self_context(state)
-    assert len(sc["recent_lessons"]) == 2
-    assert sc["recent_lessons"][0]["exit_quality"] == "panic"
-    assert sc["recent_lessons"][1]["days_held"] == 4.0
-    # The recurring blind spot is tallied so it can't be missed.
-    assert sc["lesson_patterns"]["loss_types"]["blind_spot"] == 2
-    assert sc["lesson_patterns"]["exit_qualities"] == {"panic": 1, "early": 1}
+    hist = sc["trade_history"]
+    assert len(hist) == 2
+    # Raw facts, not grades: structure + premium direction + real P&L.
+    assert hist[0]["structure"] == "long_call" and hist[0]["premium"] == "paid"
+    assert hist[0]["pnl"] == -240.5 and hist[0]["dte_at_entry"] == 25
+    assert hist[1]["structure"] == "call_debit_spread" and hist[1]["premium"] == "paid"
+    # No sanitizing letter grades leaked into the feed.
+    assert "process_grade" not in hist[0] and "outcome_grade" not in hist[0]
+    # Scoreboard shows the aggregate the model must reckon with — but NOT a
+    # pre-computed by-structure verdict (it must reach that itself).
+    sb = sc["scoreboard"]
+    assert sb["total_closed_trades"] == 2 and sb["wins"] == 0 and sb["losses"] == 2
+    assert sb["win_rate_pct"] == 0.0 and sb["cumulative_realized_pnl"] == -273.5
 
 
-def test_recent_lessons_respects_the_cap(monkeypatch):
-    monkeypatch.setitem(at._CFG, "max_lessons_in_context", 2)
+def test_trade_history_feeds_the_full_record_up_to_cap(monkeypatch):
+    monkeypatch.setitem(at._CFG, "max_history_in_context", 3)
     state = {"_meta": {}, "positions": {}, "closed": [
-        {"legs": [{"symbol": f"X{i}", "side": "buy", "qty": 1}],
-         "outcome": {}, "grade": {"lesson": f"L{i}"}} for i in range(5)
+        {"legs": [{"symbol": f"AAA{i}", "side": "buy", "qty": 1}],
+         "outcome": {"estimated_pnl": float(i)}} for i in range(6)
     ]}
     sc = at.build_self_context(state)
-    assert len(sc["recent_lessons"]) == 2          # only the most recent 2
-    assert sc["recent_lessons"][-1]["lesson"] == "L4"
+    assert len(sc["trade_history"]) == 3          # most recent 3
+    assert sc["trade_history"][-1]["pnl"] == 5.0
+    assert sc["scoreboard"]["total_closed_trades"] == 6   # scoreboard counts ALL
 
 
-def test_mandate_tells_model_to_learn_from_lessons_and_not_exit_early():
+def test_classify_structure_from_legs():
+    assert at._classify_structure(
+        [{"symbol": "DIS260918C00111000", "side": "buy", "qty": 1}]) == ("long_call", "paid")
+    assert at._classify_structure(
+        [{"symbol": "AAPL260320P00150000", "side": "buy", "qty": 1}]) == ("long_put", "paid")
+    # Put credit spread (bull put): sell higher strike, buy lower.
+    assert at._classify_structure([
+        {"symbol": "DIS260828P00103000", "side": "sell", "qty": 1},
+        {"symbol": "DIS260828P00100000", "side": "buy", "qty": 1}]) == ("put_credit_spread", "collected")
+    # Call debit spread (bull call): buy lower, sell higher.
+    assert at._classify_structure([
+        {"symbol": "CVS260925C00096000", "side": "buy", "qty": 3},
+        {"symbol": "CVS260925C00103000", "side": "sell", "qty": 3}]) == ("call_debit_spread", "paid")
+    assert at._classify_structure([{"symbol": "AAPL", "side": "buy", "qty": 10}]) == ("long_stock", "none")
+
+
+def test_mandate_tells_model_to_study_its_record_and_stay_free():
     m = at.SYSTEM_MANDATE.lower()
-    assert "recent_lessons" in m and "lesson_patterns" in m
-    assert "early" in m and "invalidation" in m       # the exit-discipline guard
-    assert "noise, not thesis failure" in m
+    assert "trade_history" in m and "scoreboard" in m
+    assert "draw your own conclusions" in m or "find it yourself" in m
+    assert "nothing is banned" in m                  # keeps every structure available
+    assert "invalidation" in m and "noise, not thesis failure" in m  # exit principle kept
 
 
 def test_build_self_context_excludes_closed_positions():

@@ -29,6 +29,27 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-04',
+    category: 'engine',
+    title: 'Agent gets its full raw track record and has to figure itself out',
+    details:
+      'After three weeks the account was 0-for-5, down ~44%, and the autopsy was clear: every loss was a net '
+      + 'long-premium bet (long calls, debit spreads) getting ground down by theta — a structural edge leak, '
+      + "not an exit bug. But the learning loop wasn't surfacing it, because it fed the grader's polished "
+      + '"process A, good exit" lessons, which sanitized money-losing trades and only ever pointed at exit '
+      + 'timing.\n\n'
+      + 'New approach (Tim\'s design): stop editorializing, feed the model its FULL raw record and let it draw '
+      + 'its own conclusions. Every closed trade is now shown as plain facts — structure, whether it paid or '
+      + 'collected premium, strikes, days to expiration, how far the stock moved, days held, real dollars won '
+      + 'or lost — plus a running scoreboard (win rate, cumulative P&L). No letter grades. The mandate tells it '
+      + 'to study what actually makes vs loses it money and freely change structure, strikes, expiration — or '
+      + 'trade less — as the data justifies. Nothing is banned; it can use any approach. It just has to notice '
+      + 'the pattern itself.\n\n'
+      + 'Honest limits: this makes the right insight possible, not guaranteed, and no prompt manufactures an '
+      + 'edge — best case it bleeds less. The real question it now tests is whether an AI can spot what is '
+      + 'failing from its own honest record and adapt.',
+  },
+  {
     date: '2026-08-19',
     category: 'fix',
     title: 'Agent grader now sees WHY a trade was closed',

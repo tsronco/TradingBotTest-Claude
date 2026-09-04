@@ -66,10 +66,11 @@ AGENT_CONFIG = {
     "grader_model_env":      "AGENT_GRADER_MODEL",
     "max_grade_tokens":      1024,
     "max_retro_tokens":      2048,
-    # How many of the agent's own recent CLOSED lessons to feed back into each
-    # decision cycle (the education loop). Enough to expose a recurring pattern
-    # without bloating the prompt.
-    "max_lessons_in_context": 6,
+    # How many of the agent's own CLOSED trades to feed back into each decision
+    # cycle as raw history (the self-learning loop). Feeds the FULL record up to
+    # this cap so the model can spot its own structural patterns; bounded only so
+    # a long-running account's context stays sane.
+    "max_history_in_context": 40,
     # How many days of closed-trade lesson records the weekly retrospective
     # reads. 7 = the past week; the digest still notes the running total.
     "retro_window_days":     7,

@@ -737,6 +737,38 @@ grades EXECUTION separately (a correct cut dumped through a wide bid/ask is
 `panic` → teaches "exit cleaner," not "hold longer"). Tim's distinction: cutting a
 trade you no longer believe in is discipline, not a mistake — the grader must not
 punish it.
+
+**Raw self-learning feed (2026-09-04).** After ~3 weeks the account was 0-for-5,
+down ~44% ($2k → ~$1.13k). The autopsy: every loser was **net long premium** (2
+debit-spread/long-call trades lost −$342 and −$240; the credit spreads lost small,
+−$57 each) — a structural theta-negative edge leak, not an exit bug (exits had
+actually improved). But the education loop wasn't surfacing it: it fed the
+**grader's editorialized lessons** ("process A, good exit"), which *sanitized*
+money-losing trades and pointed only at exit-timing, never at "your structure is
+negative-EV." Tim's fix (his design): stop editorializing, feed the **full raw
+record** and let the model reach the conclusion itself — *ban nothing, keep every
+structure available, biases not rules*. `build_self_context` now feeds
+`trade_history` (EVERY closed trade as raw facts: `structure`, `premium`
+paid-vs-collected, strikes, `dte_at_entry`, underlying move during hold, days
+held, real `pnl` — derived purely from legs via `_occ_parse`/`_classify_structure`,
+**no letter grades**) + a `scoreboard` (win rate, cumulative P&L, seed). The
+mandate tells it to study its own record, do more of what makes money and less of
+what loses, and freely switch structure/strikes/expiry — or trade less — as the
+data justifies; *"no one is telling you what your mistake is — find it yourself."*
+The `premium: paid/collected` tag makes the theta leak **discoverable** without
+being **stated** (the model can group paid-vs-collected itself and see −$582 vs
+−$114). The exit-discipline soft principle is kept. `scoreboard` is deliberately
+NOT broken down by structure — that grouping is the conclusion the model must
+reach, not one we hand it. Honest caveats to Tim: this makes the right insight
+*possible*, not *guaranteed* (it may misdiagnose, or find the leak but not an
+edge); granular lessons (strike/DTE) need a bigger sample than 5 trades; and a
+prompt cannot manufacture alpha — best realistic case is "bleeds less," not
+"wins." The genuinely interesting question this now tests: *can the agent notice
+what's failing from its own honest record and adapt?* Replaces the prior
+`recent_lessons`/`lesson_patterns` feed (`max_lessons_in_context` →
+`max_history_in_context: 40`). Verified on the live state file: the four losses
+render as `put_credit_spread (collected) / call_debit_spread (paid) / long_call
+(paid)` with the paid-premium ones carrying the big losses.
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options

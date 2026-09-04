@@ -31,7 +31,7 @@ A `stop_reason == "refusal"` is handled as a no-trade cycle.
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -414,47 +414,129 @@ def annotate_positions_fair_value(positions: list, mode: str = "agent") -> list:
     return positions
 
 
-def _recent_lessons_digest(state: dict, limit: int) -> list:
-    """The most recent CLOSED-trade lessons in compact form — the agent's own
-    graded history, fed back so it can learn from it instead of repeating the
-    same mistake every stateless cycle. Closed lessons are factual and done, so
-    (unlike open positions) they carry no phantom-holding risk."""
+def _occ_parse(symbol: str) -> dict | None:
+    """Parse an OCC option symbol into {underlying, expiry, type, strike}, or None
+    for a plain stock ticker. OCC = TICKER + YYMMDD + C/P + strike(×1000, 8 digits)."""
+    s = str(symbol or "")
+    for i in range(1, len(s) - 6):
+        if s[i:i + 6].isdigit() and i + 6 < len(s) and s[i + 6] in ("C", "P"):
+            try:
+                yy, mm, dd = int(s[i:i + 2]), int(s[i + 2:i + 4]), int(s[i + 4:i + 6])
+                strike = int(s[i + 7:]) / 1000.0
+                exp = date(2000 + yy, mm, dd)
+            except (ValueError, TypeError):
+                return None
+            return {"underlying": s[:i], "expiry": exp.isoformat(),
+                    "type": s[i + 6], "strike": strike}
+    return None
+
+
+def _classify_structure(legs: list) -> tuple[str, str]:
+    """Return (structure_label, premium_direction) from the legs ALONE — purely
+    factual, no P&L or editorializing. premium_direction is the single most useful
+    fact for the model to learn from: 'paid' (net long premium — theta works
+    against it: long options, debit spreads), 'collected' (net credit — theta works
+    for it: credit spreads), or 'none' (stock). Derived from strikes + sides."""
+    legs = legs or []
+    opts = [l for l in legs if _occ_parse(l.get("symbol"))]
+    stocks = [l for l in legs if not _occ_parse(l.get("symbol")) and l.get("symbol")]
+    if not opts and stocks:
+        return ("long_stock" if stocks[0].get("side") == "buy" else "short_stock", "none")
+    if len(opts) == 1:
+        p = _occ_parse(opts[0].get("symbol"))
+        typ = "call" if p["type"] == "C" else "put"
+        if opts[0].get("side") == "buy":
+            return (f"long_{typ}", "paid")
+        return (f"short_{typ}", "collected")
+    if len(opts) == 2:
+        p0, p1 = _occ_parse(opts[0]["symbol"]), _occ_parse(opts[1]["symbol"])
+        if p0["type"] == p1["type"]:
+            typ = "call" if p0["type"] == "C" else "put"
+            bought = next((_occ_parse(l["symbol"]) for l in opts if l.get("side") == "buy"), None)
+            sold = next((_occ_parse(l["symbol"]) for l in opts if l.get("side") == "sell"), None)
+            if bought and sold:
+                # Debit (you PAY): bull call = buy lower/sell higher; bear put =
+                # buy higher/sell lower. The opposite side is a credit spread.
+                debit = (bought["strike"] < sold["strike"]) if typ == "call" \
+                    else (bought["strike"] > sold["strike"])
+                return (f"{typ}_{'debit' if debit else 'credit'}_spread",
+                        "paid" if debit else "collected")
+            return (f"{typ}_spread", "unknown")
+    return ("other", "unknown")
+
+
+def _dte_at_entry(legs: list, opened_at: str | None) -> int | None:
+    """Calendar days from entry to the nearest option expiry (None for stock)."""
+    exps = [p["expiry"] for p in (_occ_parse(l.get("symbol")) for l in (legs or [])) if p]
+    if not exps or not opened_at:
+        return None
+    try:
+        opened = datetime.strptime(opened_at, "%Y-%m-%dT%H:%M:%SZ").date()
+        return (date.fromisoformat(min(exps)) - opened).days
+    except (ValueError, TypeError):
+        return None
+
+
+def _trade_record(lesson: dict) -> dict:
+    """One closed trade as RAW FACTS for the model to draw its own conclusions
+    from — deliberately WITHOUT the grader's letter grades, which sanitize a
+    money-losing trade into 'process A' and hide what actually made or lost money.
+    The one-line grader note is kept as the agent's own prior reflection."""
+    legs = lesson.get("legs") or []
+    structure, premium = _classify_structure(legs)
+    outcome = lesson.get("outcome") or {}
+    moves = outcome.get("underlying_moves") or {}
+    entry_u = move_pct = None
+    if moves:
+        first = next(iter(moves.values()))
+        entry_u, move_pct = first.get("entry"), first.get("pct")
+    return {
+        "opened_at": lesson.get("opened_at"),
+        "closed_at": lesson.get("closed_at"),
+        "structure": structure,
+        "premium": premium,                       # paid / collected / none
+        "legs": _legs_summary(legs),
+        "strikes": [p["strike"] for p in (_occ_parse(l.get("symbol")) for l in legs) if p],
+        "entry_underlying": entry_u,
+        "underlying_move_pct_during_hold": move_pct,
+        "dte_at_entry": _dte_at_entry(legs, lesson.get("opened_at")),
+        "days_held": outcome.get("days_held"),
+        "pnl": outcome.get("estimated_pnl"),      # the star — real dollars won/lost
+        "your_prior_note": (lesson.get("grade") or {}).get("lesson"),
+    }
+
+
+def _trade_history_digest(state: dict, cap: int) -> list:
+    """EVERY closed trade as raw facts (capped for context size as history grows)."""
     closed = state.get("closed", []) or []
-    recent = closed[-limit:] if limit else closed
-    out = []
-    for l in recent:
-        g = l.get("grade") or {}
-        o = l.get("outcome") or {}
-        out.append({
-            "legs": _legs_summary(l.get("legs")),
-            "outcome_grade": g.get("outcome_grade"),
-            "process_grade": g.get("process_grade"),
-            "loss_type": g.get("loss_type"),
-            "exit_quality": g.get("exit_quality"),
-            "days_held": o.get("days_held"),
-            "estimated_pnl": o.get("estimated_pnl"),
-            "lesson": g.get("lesson"),
-        })
-    return out
+    recent = closed[-cap:] if cap else closed
+    return [_trade_record(l) for l in recent]
 
 
-def _lesson_patterns(recent_lessons: list) -> dict:
-    """Deterministic tally over the recent lessons so a recurring blind spot or
-    exit mistake is UNMISSABLE (not something the model has to re-derive each
-    cycle) — e.g. loss_types {blind_spot: 2}, exit_qualities {panic: 1, early: 1}."""
-    lt: dict = {}
-    eq: dict = {}
-    for l in recent_lessons:
-        if l.get("loss_type"):
-            lt[l["loss_type"]] = lt.get(l["loss_type"], 0) + 1
-        if l.get("exit_quality"):
-            eq[l["exit_quality"]] = eq.get(l["exit_quality"], 0) + 1
-    return {"loss_types": lt, "exit_qualities": eq}
+def _scoreboard(state: dict) -> dict:
+    """Running raw stats — the whole picture on one line, so the model sees the
+    aggregate the way a human would. Deliberately NOT broken down by structure:
+    that grouping is the conclusion we want the model to reach ITSELF from the
+    per-trade history, not one we hand it."""
+    closed = state.get("closed", []) or []
+    vals = [p for p in ((l.get("outcome") or {}).get("estimated_pnl") for l in closed)
+            if isinstance(p, (int, float))]
+    wins = sum(1 for p in vals if p > 0)
+    losses = sum(1 for p in vals if p < 0)
+    n = len(closed)
+    return {
+        "total_closed_trades": n,
+        "wins": wins,
+        "losses": losses,
+        "win_rate_pct": round(wins / n * 100, 1) if n else None,
+        "cumulative_realized_pnl": round(sum(vals), 2) if vals else 0.0,
+        "seed_capital": (state.get("_meta") or {}).get("seed_capital"),
+    }
 
 
 def build_self_context(state: dict) -> dict:
-    """Continuity feed: the model's OWN recent reasoning + graded history, so each
-    stateless cycle isn't a total amnesiac.
+    """Continuity feed: the model's OWN recent reasoning + full raw track record,
+    so each stateless cycle isn't a total amnesiac.
 
     Deliberately scoped to stay honest:
       - open_position_theses: the entry thesis for every position the account
@@ -464,10 +546,12 @@ def build_self_context(state: dict) -> dict:
         a phantom holding.
       - previous_cycle_note / previous_cycle_outcome: the model's intent and the
         factual result from one cycle ago (overwritten every cycle).
-      - recent_lessons / lesson_patterns: the agent's own graded CLOSED trades and
-        a tally over them, so it can learn from its track record — closing the
-        education loop back into the decision, not just the retrospective. Closed
-        lessons are factual and done (no phantom-holding risk).
+      - trade_history / scoreboard: EVERY closed trade as RAW FACTS (structure,
+        premium paid vs collected, strikes, DTE, underlying move, days held, real
+        P&L) plus running win rate + cumulative P&L. No letter grades, no
+        pre-computed "your problem is X" — the model studies its own record and
+        draws its own conclusions about what makes vs loses money, and is free to
+        change structure/strikes/expiry or trade less as the data justifies.
     """
     open_theses = []
     for pos in state.get("positions", {}).values():
@@ -486,22 +570,18 @@ def build_self_context(state: dict) -> dict:
             "fill": pos.get("fill"),
         })
     meta = state.get("_meta") or {}
-    recent_lessons = _recent_lessons_digest(state, _CFG.get("max_lessons_in_context", 6))
     return {
         "open_position_theses": open_theses,
         # What the model REASONED last cycle (its market_read, written before any
         # order went in — so it reflects intent, not outcome).
         "previous_cycle_note": meta.get("last_market_read"),
         # What ACTUALLY executed last cycle (code-generated, post-execution): opens
-        # submitted, closes, and any orders REJECTED with the reason. The pairing
-        # of note + outcome lets the model see where intent and reality diverged
-        # (a fill it didn't get, a structure Alpaca refused) instead of assuming
-        # its pre-trade note is what happened.
+        # submitted, closes, and any orders REJECTED with the reason.
         "previous_cycle_outcome": meta.get("last_cycle_outcome"),
-        # The agent's OWN graded closed trades + a pattern tally — the education
-        # loop fed back into the decision so a recurring mistake gets corrected.
-        "recent_lessons": recent_lessons,
-        "lesson_patterns": _lesson_patterns(recent_lessons),
+        # The agent's OWN full raw track record + running scoreboard — the
+        # education loop fed into every decision as unvarnished facts to learn from.
+        "trade_history": _trade_history_digest(state, _CFG.get("max_history_in_context", 40)),
+        "scoreboard": _scoreboard(state),
     }
 
 
@@ -764,20 +844,32 @@ always trust the live positions and market data over it. (2) Positions you have 
 closed are deliberately absent from it; if something isn't in your live \
 positions, you do not hold it — never infer a holding from an old note.
 
-Learn from your own record. `self_context.recent_lessons` are your CLOSED trades \
-with their process/outcome grades, loss type, exit quality, days held, and a \
-one-line lesson each; `lesson_patterns` tallies them. Read them every cycle and \
-look for a recurring mistake — if the same `loss_type` (especially `blind_spot`) \
-or a poor `exit_quality` keeps repeating, name it in your reasoning and change \
-the behavior that causes it. One pattern to guard against specifically: closing a \
-position EARLY on a scary mark before your stated invalidation was actually hit. \
-A defined-risk spread's mark can swing hard on IV, theta, or a wide bid/ask \
-without your thesis failing — that is noise, not thesis failure. Judge from the \
+Learn from your own full record — draw your OWN conclusions. \
+`self_context.trade_history` is EVERY trade you have closed, as raw facts: the \
+`structure` you used, whether you PAID premium or COLLECTED it (`premium`), the \
+strikes, days-to-expiration at entry, how far the underlying actually moved while \
+you held, how long you held, and the real dollars you won or lost (`pnl`). \
+`scoreboard` is your running win rate and cumulative P&L. Study this every cycle \
+and reach your own honest verdict: which structures, strikes, expirations, and \
+holding periods have actually MADE you money, and which have consistently LOST \
+it? Then do more of what works and less of what doesn't. You are free to use ANY \
+approach — long or short options, debit or credit spreads, single legs, or plain \
+stock — and to switch between them whenever your own record justifies it. Nothing \
+is banned and no structure is off-limits forever: if an approach that was losing \
+starts working again, use it; if one that worked stops, drop it. When something \
+keeps losing, adapt — change the strikes or the expiration, change the structure \
+entirely, or simply trade LESS and wait for a genuine edge rather than forcing a \
+trade. Be ruthlessly honest with yourself about what the numbers show, even if it \
+means abandoning an approach you find intellectually appealing. No one is telling \
+you what your mistake is — the record is in front of you; find it yourself.
+
+On exits specifically (a tendency your record may reveal): closing a position \
+EARLY on a scary mark before your stated invalidation was hit is usually a \
+mistake — a defined-risk position's mark swings on IV, theta, and bid/ask width \
+without the thesis failing, and that is noise, not thesis failure. Judge from the \
 mid and the underlying vs your strikes, hold to the invalidation you wrote unless \
-the THESIS itself has genuinely changed (not just the mark), and if you do exit, \
-price it to avoid dumping through a wide bid/ask and realizing far worse than the \
-mid. This is guidance to counteract a documented tendency, not a rule removing \
-your discretion — if the thesis has truly broken, exiting is correct.
+the THESIS itself has genuinely changed, and price exits to avoid dumping through \
+a wide bid/ask. If the thesis has truly broken, exiting is correct.
 
 How to read a position's P&L — the mark lies on thin chains. Alpaca marks a \
 short option (and therefore a credit spread) at the WORST-CASE corner of the \
