@@ -1,14 +1,19 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 72,
-    "last_cycle_at": "2026-09-03T19:12:58Z",
+    "cycle_count": 73,
+    "last_cycle_at": "2026-09-04T14:12:52Z",
     "last_cycle_outcome": {
-      "closed": [],
+      "closed": [
+        {
+          "legs": "sell 1 SLB260918C00059000, buy 1 SLB260918C00060000",
+          "order_id": "9b883564-0691-4ea7-8b82-94ceae701ec0"
+        }
+      ],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLB is $57.37, down another ~0.4% from last cycle and now well below my 59 long strike; my 59/60 Sep-18 call debit spread mids at 0.955 - 0.70 = $0.255 vs $0.54 paid (-$28.5 at mid) with 15 days left. My written invalidation was \"closes below $57.00\" \u2014 SLB is $57.37, so it has NOT triggered, and the lesson pattern in my record (CVS panic exit at 4 days) says do not dump on a scary mark before the level breaks; SLB still needs only a ~4.6% move to $60 in 15 days and it's +15% on the month, 4.5% off its 52w high. No new opens: with $1,122 cash the shortlist is momentum names at elevated event-free-but-high IV (SNOW at its exact 52w high, 45% IV; HOOD +32.6% 1m, 62% IV; COIN +27.9% 1m, 66% IV) where a $200-400 vertical is a big fraction of a $1,142 account, ORCL with 7 days to earnings and 80-97% front IV (pure event gamble), and AVGO -14.5% 1m one day post-print where vol has already deflated for a known reason. None gives me an edge I can size responsibly here.",
+    "last_market_read": "SLB is $56.31, down 1.8% on the week and now ~$2.70 below my 59 long strike; my 59/60 Sep-18 call debit spread mids at 0.60-0.39 = $0.21 vs $0.54 paid (-$33 at mid) with 14 days left. My written invalidation was \"closes below $57.00 before Sep 18\" \u2014 that has now triggered (SLB last close 56.315, trading 56.31), so per my own rule I close for residual value rather than repeat the CVS pattern of ignoring my stated level in either direction. No new opens: the shortlist is high-IV momentum names (ARM 60% IV, MU 54% with earnings in 26 days, AMAT -13% 1m, LULU at its exact 52-week low one day post-print with vol already deflated) where a defensible vertical would be $200-400 of a $1,130 account; KLAC/NOW price context is corrupted by splits. I'd act on a clean sub-$150 defined-risk setup where trend and IV agree.",
     "seed_capital": 2000
   },
   "closed": [
@@ -178,6 +183,8 @@
   ],
   "positions": {
     "d90d52d4-baac-4ee2-9573-bd4134954055": {
+      "close_rationale": "Stated invalidation hit: SLB closed at $56.315 (below my $57.00 trigger) and is $56.31 now, leaving the 59 long strike 4.8% out of the money with 14 days left. Thesis was 'holds $60, no give-back'; instead SLB gave back the entire breakout. Exiting at a limit near the mid ($0.21 net) rather than dumping into the wide bid/ask, recovering ~$21 of the $54 paid.",
+      "closed_market_read": "SLB is $56.31, down 1.8% on the week and now ~$2.70 below my 59 long strike; my 59/60 Sep-18 call debit spread mids at 0.60-0.39 = $0.21 vs $0.54 paid (-$33 at mid) with 14 days left. My written invalidation was \"closes below $57.00 before Sep 18\" \u2014 that has now triggered (SLB last close 56.315, trading 56.31), so per my own rule I close for residual value rather than repeat the CVS pattern of ignoring my stated level in either direction. No new opens: the shortlist is high-IV momentum names (ARM 60% IV, MU 54% with earnings in 26 days, AMAT -13% 1m, LULU at its exact 52-week low one day post-print with vol already deflated) where a defensible vertical would be $200-400 of a $1,130 account; KLAC/NOW price context is corrupted by splits. I'd act on a clean sub-$150 defined-risk setup where trend and IV agree.",
       "entry_context": {
         "underlyings": {
           "SLB": 59.68
@@ -192,13 +199,13 @@
       "intended_net_credit": -0.65,
       "last_snapshot": {
         "cost_basis": 54.0,
-        "market_value": 20.0,
+        "market_value": 8.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-03T19:12:48Z",
+        "seen_at": "2026-09-04T14:12:40Z",
         "underlyings": {
-          "SLB": 57.37
+          "SLB": 56.31
         },
-        "unrealized_pl": -28.5
+        "unrealized_pl": -33.0
       },
       "legs": [
         {
