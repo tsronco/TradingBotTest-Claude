@@ -769,6 +769,31 @@ what's failing from its own honest record and adapt?* Replaces the prior
 `max_history_in_context: 40`). Verified on the live state file: the four losses
 render as `put_credit_spread (collected) / call_debit_spread (paid) / long_call
 (paid)` with the paid-premium ones carrying the big losses.
+
+**Hard per-trade size cap (2026-09-04).** The raw-feed cycle above worked as
+designed — at 12:12 the agent read its own record, diagnosed "directional bets in
+high-IV names," and held cash, self-imposing a "$150 max risk / <15% equity"
+rule. Then at 14:12 it opened a TSLA 352.5/365 call debit spread at ~$630 max
+loss = **56% of the ~$1,130 account** — blowing through its own stated rule by
+4x. That's the lesson that a *soft* self-rule isn't enough on its own: a
+mechanical seatbelt is warranted. New `agent_config.max_risk_pct_equity: 0.30`,
+enforced in `check_feasibility` via `_intent_max_loss(intent)` — a
+network-free bound on a defined-risk open's dollar max loss (premium paid for a
+long option or debit spread; `width − credit` for a credit spread; `None`, i.e.
+uncapped-here, for stock and market orders, which Alpaca's buying power gates
+instead). Any open whose max loss exceeds 30% of live equity is rejected with a
+"size the trade smaller" reason, which also feeds back through
+`previous_cycle_outcome` so the model learns to resize. The mandate now states
+the 30% cap upfront (a mechanical constraint alongside Options-Level-3 and
+"options are ×100"), so the agent sizes correctly rather than only discovering
+the limit on rejection. **Deliberately narrow:** it caps HOW MUCH rides on one
+trade, never WHAT it trades — the agent keeps full discretion over structure and
+symbol; it just can't put more than ~$339 (at $1,130 equity) of defined risk on
+a single position. Percentage-of-equity so it self-scales — tightens as the
+account shrinks, loosens as it grows. Test count after this change: **~707
+pytest** (+11: 10 in `test_agent_trader.py` — `_intent_max_loss` for
+long/debit/credit/stock/market/naked plus feasibility accept/reject/scale/stock/
+disabled/mandate — and 1 in `test_agent_config.py`) + dashboard unchanged.
 2. **Options-Level-3 constraint in the mandate** — explicitly states it may only
    buy longs / hold covered / trade defined-risk spreads, never a naked short, so
    it doesn't attempt one in the first place. Mechanical constraint (like "options

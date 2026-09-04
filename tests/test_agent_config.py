@@ -117,6 +117,14 @@ def test_equity_floor_below_seed_and_nonnegative():
     assert 0 <= cfg["equity_floor"] < cfg["seed_capital"]
 
 
+def test_per_trade_size_cap_is_present_and_bounded():
+    """A single OPEN's defined-risk max loss is capped at this fraction of equity
+    (enforced in check_feasibility). Must be a sane 0<pct<=1 seatbelt."""
+    cfg = agent_config.get()
+    pct = cfg["max_risk_pct_equity"]
+    assert 0 < pct <= 1, f"unexpected size cap {pct}"
+
+
 def test_universe_is_wide_liquid_and_deduped():
     """The agent scans a wide field (~150-250 names) so it has real choice. The
     two-phase scan (quotes for all, chains for a shortlist) keeps this cheap."""

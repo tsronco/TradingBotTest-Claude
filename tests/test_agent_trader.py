@@ -76,6 +76,114 @@ def test_feasibility_rejects_no_legs():
     assert not ok
 
 
+# ── Per-trade size cap (max_risk_pct_equity) ────────────────────────────────
+
+_CAP = {"equity_floor": 500, "max_risk_pct_equity": 0.30}
+
+
+def _long_call(limit, qty=1):
+    return _open_intent(
+        limit_price=limit,
+        legs=[{"asset": "option", "symbol": "TSLA260320C00352500",
+               "side": "buy", "qty": qty}])
+
+
+def _debit_spread(limit, qty=1):
+    # net debit paid = limit_price (positive)
+    return _open_intent(
+        limit_price=limit,
+        legs=[{"asset": "option", "symbol": "TSLA260320C00352500",
+               "side": "buy", "qty": qty},
+              {"asset": "option", "symbol": "TSLA260320C00365000",
+               "side": "sell", "qty": qty}])
+
+
+def _credit_spread(limit, qty=1):
+    # net credit received = -limit_price; width = |365 - 352.5| = 12.5
+    return _open_intent(
+        limit_price=limit,
+        legs=[{"asset": "option", "symbol": "TSLA260320P00365000",
+               "side": "sell", "qty": qty},
+              {"asset": "option", "symbol": "TSLA260320P00352500",
+               "side": "buy", "qty": qty}])
+
+
+def test_intent_max_loss_long_option_is_premium_paid():
+    # $3.00 premium × 100 × 2 contracts = $600
+    assert at._intent_max_loss(_long_call(3.00, qty=2)) == pytest.approx(600.0)
+
+
+def test_intent_max_loss_debit_spread_is_net_debit():
+    # $2.00 net debit × 100 = $200
+    assert at._intent_max_loss(_debit_spread(2.00)) == pytest.approx(200.0)
+
+
+def test_intent_max_loss_credit_spread_is_width_minus_credit():
+    # width 12.5 − credit 0.30 = 12.20 × 100 = $1220
+    assert at._intent_max_loss(_credit_spread(-0.30)) == pytest.approx(1220.0)
+
+
+def test_intent_max_loss_none_for_stock_and_market_and_naked_short():
+    stock = _open_intent(order_type="market", limit_price=None,
+                         legs=[{"asset": "stock", "symbol": "TSLA",
+                                "side": "buy", "qty": 10}])
+    assert at._intent_max_loss(stock) is None
+    # market option order → premium unknown
+    mkt = _long_call(3.00)
+    mkt["order_type"] = "market"
+    mkt["limit_price"] = None
+    assert at._intent_max_loss(mkt) is None
+    # lone short leg → naked (blocked elsewhere), not size-bounded here
+    assert at._intent_max_loss(_open_intent()) is None
+
+
+def test_feasibility_rejects_oversized_open():
+    # $600 max loss on a $1130 account (56%) > 30% cap → rejected.
+    ok, reason = at.check_feasibility(
+        _debit_spread(6.00), {"equity": 1130}, _CAP)
+    assert not ok
+    assert "max loss" in reason and "30%" in reason
+
+
+def test_feasibility_allows_within_cap_open():
+    # $150 max loss on $1130 (13%) < 30% → allowed.
+    ok, reason = at.check_feasibility(
+        _debit_spread(1.50), {"equity": 1130}, _CAP)
+    assert ok, reason
+
+
+def test_feasibility_size_cap_scales_with_equity():
+    # Same $150 spread: fine at $1130, but on a $400... floor blocks first.
+    # On $600 (above floor), $150 is 25% → allowed; $200 is 33% → rejected.
+    ok, _ = at.check_feasibility(_debit_spread(1.50), {"equity": 600}, _CAP)
+    assert ok
+    ok, reason = at.check_feasibility(_debit_spread(2.00), {"equity": 600}, _CAP)
+    assert not ok and "max loss" in reason
+
+
+def test_feasibility_size_cap_ignores_stock():
+    # Stock max loss isn't bounded from the order — Alpaca BP gates it. Never
+    # rejected by the size cap even for a large notional.
+    stock = _open_intent(order_type="market", limit_price=None,
+                         legs=[{"asset": "stock", "symbol": "TSLA",
+                                "side": "buy", "qty": 100}])
+    ok, reason = at.check_feasibility(stock, {"equity": 600}, _CAP)
+    assert ok, reason
+
+
+def test_feasibility_size_cap_disabled_when_pct_zero():
+    off = {"equity_floor": 500, "max_risk_pct_equity": 0}
+    ok, reason = at.check_feasibility(_debit_spread(6.00), {"equity": 1130}, off)
+    assert ok, reason
+
+
+def test_mandate_states_the_size_cap():
+    # The agent must be told the 30% cap upfront so it sizes correctly, not just
+    # get rejected after the fact.
+    assert "30%" in at.SYSTEM_MANDATE
+    assert "defined-risk max loss" in at.SYSTEM_MANDATE
+
+
 # ── Order-payload translation ───────────────────────────────────────────────
 
 def test_single_stock_order_payload():

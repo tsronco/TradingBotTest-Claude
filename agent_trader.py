@@ -801,6 +801,12 @@ adds cost and complexity for no benefit. Add a short leg only when it does real 
 work (collects meaningful premium, or genuinely caps a short position's risk).
 - Below the stated equity floor, opening new positions is blocked; you may still \
 close.
+- No single OPEN may put more than 30% of account equity at risk — its \
+defined-risk max loss (premium paid for a long option or debit spread; \
+width − credit for a credit spread) must be ≤ 30% of equity. Size accordingly: \
+fewer contracts, or a narrower spread. An over-sized order is REJECTED and \
+reported back to you, so do the arithmetic before you submit — this is a hard \
+seatbelt against a single catastrophic loss, not a view on what to trade.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
 OCC option symbols from the market data provided. Stocks trade in whole shares.
 - The market data below holds full option chains for the names you shortlisted \
@@ -958,9 +964,37 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
 
 # ── Feasibility (mechanics, not judgment) ──────────────────────────────────
 
+def _intent_max_loss(intent: dict) -> float | None:
+    """Best-effort max dollar loss of a DEFINED-RISK open, from the intent alone
+    (no network). None when it can't be bounded from the order — a market option
+    order (premium unknown), a lone short (naked, blocked elsewhere), or stock
+    (no zero-risk; Alpaca buying power gates it instead).
+
+    Long option: premium paid. Debit spread (mleg limit > 0): the net debit.
+    Credit spread (mleg limit < 0): width − credit. Per contract ×100 × the
+    structure's base quantity."""
+    legs = intent.get("legs") or []
+    if not legs or any(l.get("asset") == "stock" for l in legs):
+        return None
+    lp = _f(intent.get("limit_price"))
+    if intent.get("order_type") != "limit" or lp is None:
+        return None
+    qty = min((l.get("qty", 1) for l in legs), default=1)
+    if len(legs) == 1:
+        return abs(lp) * 100 * qty if legs[0].get("side") == "buy" else None
+    if lp > 0:                                   # net debit paid
+        return lp * 100 * qty
+    strikes = [p["strike"] for p in (_occ_parse(l.get("symbol")) for l in legs) if p]
+    if len(strikes) >= 2:                        # credit spread: width − credit
+        return (abs(max(strikes) - min(strikes)) - abs(lp)) * 100 * qty
+    return None
+
+
 def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG) -> tuple[bool, str]:
-    """Return (ok, reason). Rejects only things Alpaca physically can't place
-    or the equity-floor breaker blocks — never vetoes strategy or sizing."""
+    """Return (ok, reason). Rejects things Alpaca physically can't place, the
+    equity-floor breaker, and the hard per-trade size cap (max loss > a fraction
+    of equity). It never vetoes WHAT is traded — only bounds order shape, account
+    floor, and how much rides on one trade."""
     action = intent.get("action")
     if action not in ("open", "close"):
         return False, f"unknown action {action!r}"
@@ -992,6 +1026,19 @@ def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG) -> tuple[bo
         equity = account.get("equity")
         if equity is not None and equity < floor:
             return False, f"equity {equity} below floor {floor} — opens blocked"
+
+        # Hard per-trade size cap: one trade's defined-risk max loss may not
+        # exceed max_risk_pct_equity of equity. Mechanical seatbelt (the agent
+        # blew past its own soft limit by 4x). Only bites structures whose max
+        # loss is knowable from the order; stock/market orders fall through.
+        pct = cfg.get("max_risk_pct_equity") or 0
+        if pct and equity:
+            max_loss = _intent_max_loss(intent)
+            if max_loss is not None and max_loss > pct * equity:
+                return False, (
+                    f"max loss ${max_loss:.0f} exceeds {int(pct * 100)}% of "
+                    f"equity (${pct * equity:.0f}) — size the trade smaller "
+                    f"(fewer contracts or a narrower spread)")
 
     return True, "ok"
 

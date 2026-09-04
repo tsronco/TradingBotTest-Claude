@@ -30,6 +30,24 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-04',
+    category: 'config',
+    title: 'Agent: hard 30%-of-equity per-trade size cap',
+    details:
+      'The raw-record cycle worked — the agent read its own losses, diagnosed "directional bets in high-IV '
+      + 'names," held cash, and set itself a "$150 max risk / <15% equity" rule. Then the very next cycle it '
+      + 'opened a TSLA 352.5/365 call debit spread at ~$630 max loss — 56% of the ~$1,130 account, blowing '
+      + 'through its own stated rule by 4x. A soft self-rule clearly isn\'t enough on its own, so there\'s now a '
+      + 'mechanical seatbelt: no single open may risk more than 30% of equity (its defined-risk max loss — '
+      + 'premium paid for a long option or debit spread, width minus credit for a credit spread). An oversized '
+      + 'order is rejected with a "size it smaller" reason that feeds back into the next cycle, and the mandate '
+      + 'states the cap upfront so the agent sizes correctly to begin with.\n\n'
+      + 'Deliberately narrow: it caps HOW MUCH rides on one trade, never WHAT it trades — full discretion over '
+      + 'structure and symbol stays intact; it just can\'t put more than ~$339 (at current equity) of defined '
+      + 'risk on one position. Percentage-of-equity so it self-scales — tightens as the account shrinks, '
+      + 'loosens as it grows. Stock and market orders fall through (Alpaca buying power gates those). +11 pytest.',
+  },
+  {
+    date: '2026-09-04',
     category: 'engine',
     title: 'Agent gets its full raw track record and has to figure itself out',
     details:

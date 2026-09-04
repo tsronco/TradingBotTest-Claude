@@ -83,6 +83,17 @@ AGENT_CONFIG = {
     # limit in the design (with PDT gone, there is no day-trade rail). Set to 0
     # to disable entirely.
     "equity_floor": 500,
+    # Hard per-trade size cap: a single OPEN's defined-risk max loss may not
+    # exceed this fraction of current equity. Enforced mechanically in
+    # check_feasibility (not a soft self-rule — the agent demonstrably talked
+    # itself past its own stated size limit by 4x on 2026-09-04, risking 56% of
+    # the account on one spread). A seatbelt on catastrophe, NOT a strategy veto:
+    # it caps HOW MUCH rides on any one trade, never WHAT it trades. Percentage of
+    # equity so it scales — tightens as the account shrinks, loosens as it grows.
+    # Set to 0/None to disable. Only bounds structures whose max loss is knowable
+    # from the order (long options, debit/credit spreads); stock is gated by
+    # Alpaca buying power instead.
+    "max_risk_pct_equity": 0.30,
 
     # ── Candidate universe (context only) ──────────────────────────────────
     # The wide field Claude scans each cycle. This does NOT explode cost: the
