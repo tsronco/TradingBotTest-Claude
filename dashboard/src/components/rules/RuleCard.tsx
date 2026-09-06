@@ -1,4 +1,5 @@
 import type { ManualRule, Trigger } from '../../lib/rules-types';
+import Markdown from '../Markdown';
 
 interface Props {
   rule: ManualRule;
@@ -49,7 +50,7 @@ export default function RuleCard({ rule, onEdit, onDelete }: Props) {
           {rule.triggers.map(summarizeTrigger).join(' AND ')}
         </div>
       )}
-      <p className="text-[11px] text-fg/85 whitespace-pre-wrap">{rule.body}</p>
+      <div className="text-[11px]"><Markdown>{rule.body}</Markdown></div>
       {(onEdit || onDelete) && (
         <div className="flex gap-3 text-[10px]">
           {onEdit  && <button onClick={() => onEdit(rule)}     className="text-cyan hover:underline">[edit]</button>}

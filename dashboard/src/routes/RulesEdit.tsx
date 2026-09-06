@@ -116,7 +116,16 @@ function ManualRuleForm({ id }: { id: string | null }) {
       </div>
       <Field label="body (plain English — what the AI grader sees)">
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} className={fieldCls} />
+        <div className="text-dim text-[10px] mt-1">Markdown supported (bold, lists, tables).</div>
       </Field>
+      {body.trim() && (
+        <div>
+          <div className="text-dim text-[10px] uppercase tracking-[0.12em] mb-1">preview</div>
+          <div className="border border-border bg-panel-2/30 p-3 rounded-sm text-[11px]">
+            <Markdown>{body}</Markdown>
+          </div>
+        </div>
+      )}
       <FormButtons
         onSave={() => save.mutate()}
         onCancel={() => nav('/rules')}

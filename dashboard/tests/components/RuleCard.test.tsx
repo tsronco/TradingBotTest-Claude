@@ -53,6 +53,14 @@ describe('RuleCard', () => {
     expect(screen.queryByText('[delete]')).toBeNull();
   });
 
+  it('renders the body as Markdown (bold + bullet list)', () => {
+    const { container } = render(<RuleCard rule={mkRule({
+      body: 'Cap risk at **$500**\n\n- reason one\n- reason two',
+    })} />);
+    expect(container.querySelector('strong')?.textContent).toBe('$500');
+    expect(container.querySelectorAll('li')).toHaveLength(2);
+  });
+
   it('summarizes max_risk_per_spread trigger with dollar cap', () => {
     render(<RuleCard rule={mkRule({
       title: 'Max risk per spread',

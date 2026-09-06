@@ -3,6 +3,7 @@ import { useGoals, useDeleteRule } from '../../hooks/useRules';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import type { Goal } from '../../lib/rules-types';
+import Markdown from '../Markdown';
 
 export default function GoalsSection() {
   const { data, isLoading } = useGoals();
@@ -41,7 +42,9 @@ export default function GoalsSection() {
                 className="mt-1"
               />
               <div className="flex-1">
-                <div className={g.checked ? 'line-through text-dim' : 'text-fg'}>{g.body}</div>
+                <div className={g.checked ? 'line-through text-dim' : 'text-fg'}>
+                  <Markdown muted={false}>{g.body}</Markdown>
+                </div>
                 {(g.target || g.due) && (
                   <div className="text-[10px] text-dim space-x-3">
                     {g.target && <span>target: <span className="text-mid">{g.target}</span></span>}

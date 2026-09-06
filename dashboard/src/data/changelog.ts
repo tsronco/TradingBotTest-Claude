@@ -30,6 +30,20 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-06',
+    category: 'ui',
+    title: 'Your rules and goals render Markdown too (bold, lists, tables)',
+    details:
+      'Extended the cheatsheet Markdown rendering to the other user-authored fields: My rules bodies and Goals '
+      + 'now render Markdown, and the rule edit form gained the same live preview + hint as cheatsheets. For '
+      + 'plain prose nothing changes (it renders as plain text), so this is a pure upgrade — if you ever want '
+      + 'to bold a phrase, add a bullet list, or drop a small table into a rule you write, it now formats.\n\n'
+      + 'AI-generated proposals and tendencies are deliberately left as plain text: the grader occasionally '
+      + 'emits a stray * or _ mid-sentence that Markdown would turn into accidental italics, and you do not '
+      + "author that text so there's no upside to risk it. The shared Markdown component grew a `muted` prop so "
+      + 'a checked goal still shows dim + strikethrough correctly.',
+  },
+  {
+    date: '2026-09-06',
     category: 'feature',
     title: 'Cheatsheets render Markdown — tables, headings, lists, links',
     details:

@@ -14,7 +14,7 @@ const COMPONENTS: Components = {
   h1: ({ children }) => <h1 className="text-hi font-bold text-[15px] mt-3 mb-1.5 first:mt-0">{children}</h1>,
   h2: ({ children }) => <h2 className="text-hi font-bold text-[13px] mt-3 mb-1.5 first:mt-0">{children}</h2>,
   h3: ({ children }) => <h3 className="text-fg font-bold text-[12px] mt-3 mb-1 first:mt-0 uppercase tracking-[0.1em]">{children}</h3>,
-  p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
+  p: ({ children }) => <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-5 my-1.5 space-y-0.5">{children}</ul>,
   ol: ({ children }) => <ol className="list-decimal pl-5 my-1.5 space-y-0.5">{children}</ol>,
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
@@ -54,9 +54,17 @@ const COMPONENTS: Components = {
   ),
 };
 
-export default function Markdown({ children, className = '' }: { children: string; className?: string }) {
+export default function Markdown({
+  children, className = '', muted = true,
+}: {
+  children: string;
+  className?: string;
+  // muted=true applies the default dimmed body color; pass false to inherit the
+  // parent's color (e.g. a checked goal that must show strikethrough + dim).
+  muted?: boolean;
+}) {
   return (
-    <div className={`md-body text-fg/85 ${className}`}>
+    <div className={`md-body ${muted ? 'text-fg/85 ' : ''}${className}`}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
         {children}
       </ReactMarkdown>
