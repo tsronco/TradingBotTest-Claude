@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import TriggerBuilder from '../components/rules/TriggerBuilder';
+import Markdown from '../components/Markdown';
 import type {
   ManualRule, Pattern, Cheatsheet, Goal, Proposal, Severity, Trigger,
 } from '../lib/rules-types';
@@ -254,7 +255,18 @@ function CheatsheetForm({ id }: { id: string | null }) {
       <Field label="title"><input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldCls} /></Field>
       <Field label="body (markdown)">
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={fieldCls} />
+        <div className="text-dim text-[10px] mt-1">
+          Markdown with GitHub-style tables. Paste a pipe table (| col | col |) and it renders below.
+        </div>
       </Field>
+      {body.trim() && (
+        <div>
+          <div className="text-dim text-[10px] uppercase tracking-[0.12em] mb-1">preview</div>
+          <div className="border border-border bg-panel-2/30 p-3 rounded-sm">
+            <Markdown>{body}</Markdown>
+          </div>
+        </div>
+      )}
       <FormButtons
         onSave={() => save.mutate()}
         onCancel={() => nav('/rules')}

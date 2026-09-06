@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useCheatsheets, useDeleteRule } from '../../hooks/useRules';
 import type { Cheatsheet } from '../../lib/rules-types';
+import Markdown from '../Markdown';
 
 export default function CheatsheetsSection() {
   const { data, isLoading } = useCheatsheets();
@@ -25,7 +26,7 @@ export default function CheatsheetsSection() {
           {items.map((c: Cheatsheet) => (
             <details key={c.id} className="border border-border bg-panel-2/30 p-3 rounded-sm text-[11px]">
               <summary className="text-fg font-medium cursor-pointer">{c.title}</summary>
-              <div className="mt-2 whitespace-pre-wrap text-fg/85">{c.body}</div>
+              <Markdown className="mt-2">{c.body}</Markdown>
               <div className="flex gap-3 text-[10px] mt-2">
                 <button onClick={() => nav(`/rules/edit?section=cheatsheets&id=${c.id}`)} className="text-cyan hover:underline">[edit]</button>
                 <button onClick={() => handleDelete(c.id)} className="text-red hover:underline">[delete]</button>

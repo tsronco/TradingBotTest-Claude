@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-06',
     category: 'feature',
+    title: 'Cheatsheets render Markdown — tables, headings, lists, links',
+    details:
+      'The cheatsheet body was labelled "markdown" but displayed as raw pre-wrapped text, so a pasted table '
+      + 'came out as a wall of pipe characters. It now renders GitHub-flavored Markdown: pipe tables show as '
+      + 'real bordered tables, plus headings, bold/italic, bullet and numbered lists, links, code, and rules — '
+      + 'all styled to the terminal theme. The edit form gained a live preview beneath the body box, so you can '
+      + 'paste a table and see it render before saving, and a one-line hint noting tables are supported.\n\n'
+      + 'Raw HTML is intentionally not honored (only Markdown structure), so pasted content can never inject '
+      + 'markup. Powered by react-markdown + remark-gfm through a shared Markdown component, reusable anywhere '
+      + 'notes need formatting.',
+  },
+  {
+    date: '2026-09-06',
+    category: 'feature',
     title: 'Positions group spread legs and show net cost / max loss / max profit / breakeven',
     details:
       'A multi-leg options position (a vertical spread) was shown as two disconnected rows with no sense of '
