@@ -207,11 +207,29 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
                 const lookupSymbol = parsed?.underlying ?? p.symbol;
                 const lookupHref = `/lookup/${lookupSymbol}`;
 
+                // Direction is otherwise encoded only in the sign of qty — make
+                // it explicit. Positive qty = long (bought), negative = short
+                // (sold/written). Badge on every option; on stock only when
+                // short (a long-share badge on every row is just noise).
+                const qtyNum = Number(p.qty);
+                const showDirBadge = isOption || qtyNum < 0;
+                const isLong = qtyNum > 0;
+
                 return (
                   <tr key={p.symbol} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
                     <td data-primary className="px-4 py-1.5 text-fg">
                       <Link to={lookupHref} className="hover:text-hi">
                         {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
+                        {showDirBadge && (
+                          <span
+                            className={`inline-block align-middle mr-1.5 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none ${
+                              isLong ? 'bg-hi/15 text-hi' : 'bg-red/15 text-red'
+                            }`}
+                            title={isLong ? 'LONG — you bought this contract' : 'SHORT — you sold/wrote this contract'}
+                          >
+                            {isLong ? 'LONG' : 'SHORT'}
+                          </span>
+                        )}
                         {p.symbol}
                         {isOption && parsed && (
                           <span className="text-dim ml-2 text-[10px]">
@@ -223,7 +241,9 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
                         )}
                       </Link>
                     </td>
-                    <td data-label="qty" className="px-4 py-1.5 text-right text-fg">{fmtNum(Number(p.qty))}</td>
+                    <td data-label="qty" className={`px-4 py-1.5 text-right ${qtyNum < 0 ? 'text-red' : 'text-fg'}`}>
+                      {qtyNum > 0 ? '+' : ''}{fmtNum(qtyNum)}
+                    </td>
                     <td data-label="avg cost" className="px-4 py-1.5 text-right text-fg">
                       {fmtUsd(Number(p.avg_entry_price))}
                       {isOption && (
@@ -311,6 +331,11 @@ export default function Positions() {
             <span className="text-dim">[</span>
             <span className="text-fg">live</span>
             <span className="text-dim">]</span>
+            <span className="text-dim mx-2">·</span>
+            <span className="inline-block px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none bg-hi/15 text-hi">LONG</span>
+            <span className="text-dim"> = you bought it · </span>
+            <span className="inline-block px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none bg-red/15 text-red">SHORT</span>
+            <span className="text-dim"> = you sold/wrote it</span>
             <span className="text-dim mx-2">·</span>
             <span className="text-dim">DTE in </span>
             <span className="text-amber">amber</span>

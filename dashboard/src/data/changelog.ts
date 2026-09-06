@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-06',
+    category: 'ui',
+    title: 'Positions show a LONG / SHORT badge — no more reading the qty sign',
+    details:
+      'On a multi-leg options position (a spread, a covered call) the only thing telling you which leg you '
+      + 'BOUGHT versus which you SOLD was the sign of the quantity — a "1" versus a "-1", buried in a number '
+      + 'column. Easy to miss, and the difference matters (the long leg caps your risk; the short leg is what '
+      + 'you collected premium on).\n\n'
+      + 'Every option row now carries an explicit green LONG (you bought it) or red SHORT (you sold/wrote it) '
+      + 'badge next to the symbol; short stock positions get the SHORT badge too. The qty column now shows an '
+      + 'explicit + or − sign and turns red when negative, and a one-line legend at the top of the page spells '
+      + 'out what each badge means. Display-only — no data or API change.',
+  },
+  {
     date: '2026-09-04',
     category: 'config',
     title: 'Agent: hard 30%-of-equity per-trade size cap',
@@ -116,6 +130,22 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'the last look is 15:07 ET (~53 min before the close, so a late exit trigger is not left until the '
       + 'next morning) rather than an even 16:07 that would land after it.\n\n'
       + 'Takes effect only once tools/setup_cronjobs.py is re-run — it PATCHes the live cron-job.org jobs.',
+  },
+  {
+    date: '2026-08-19',
+    category: 'engine',
+    title: 'Agent learns from its own graded trades, not just the weekly retro',
+    details:
+      "The first weekly retrospective (0-for-3) diagnosed the real problem sharply: the thinking was fine "
+      + '(process grades all B — specific theses, sensible sizing, real invalidation levels), but two of three '
+      + 'trades were closed EARLY on mark-to-market noise before any stated invalidation was hit. One exit was '
+      + 'graded "panic." The recurring blind spot is exit discipline, not trade selection.\n\n'
+      + 'That closes a loop we had deliberately left open: the agent now gets its own recent closed lessons '
+      + '(grades, loss type, exit quality, days held, one-line lesson) plus a pattern tally fed into every '
+      + 'decision — not only the Sunday retrospective. The mandate tells it to read them and fix a repeating '
+      + "mistake, with a soft exit-discipline principle: a defined-risk spread's mark can swing on IV/theta/wide "
+      + 'quotes without the thesis failing, so hold to the written invalidation unless the thesis itself '
+      + 'changed. Self-awareness, not a hard rule — it keeps full discretion.',
   },
   {
     date: '2026-08-18',
@@ -343,22 +373,6 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'The push step swallows failures by design (fire-and-forget, so a dashboard outage cannot break the '
       + 'bot), which is why it was silent. Key whitelisted; the same whitelist gates the read side, so both '
       + 'directions work now. Covered by a regression test.',
-  },
-  {
-    date: '2026-08-19',
-    category: 'engine',
-    title: 'Agent learns from its own graded trades, not just the weekly retro',
-    details:
-      "The first weekly retrospective (0-for-3) diagnosed the real problem sharply: the thinking was fine "
-      + '(process grades all B — specific theses, sensible sizing, real invalidation levels), but two of three '
-      + 'trades were closed EARLY on mark-to-market noise before any stated invalidation was hit. One exit was '
-      + 'graded "panic." The recurring blind spot is exit discipline, not trade selection.\n\n'
-      + 'That closes a loop we had deliberately left open: the agent now gets its own recent closed lessons '
-      + '(grades, loss type, exit quality, days held, one-line lesson) plus a pattern tally fed into every '
-      + 'decision — not only the Sunday retrospective. The mandate tells it to read them and fix a repeating '
-      + "mistake, with a soft exit-discipline principle: a defined-risk spread's mark can swing on IV/theta/wide "
-      + 'quotes without the thesis failing, so hold to the written invalidation unless the thesis itself '
-      + 'changed. Self-awareness, not a hard rule — it keeps full discretion.',
   },
   {
     date: '2026-08-17',
