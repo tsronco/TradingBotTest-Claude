@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -6,7 +7,10 @@ import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
 import { accountsForSelection, ALL_MODES, type Mode } from '../lib/account-utils';
+import { groupPositions, type RawPosition, type SpreadMetrics } from '../lib/position-spreads';
 import { useDisplayName } from '../hooks/useDisplayName';
+
+type WheelMap = Record<string, Record<string, unknown>>;
 
 interface Position {
   symbol: string;
@@ -181,96 +185,17 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
               </tr>
             </thead>
             <tbody>
-              {positions.map((p) => {
-                const pl = Number(p.unrealized_pl);
-                const plpc = Number(p.unrealized_plpc) * 100;
-                const klass = pl >= 0 ? 'text-hi' : 'text-red';
-                const isOption = p.asset_class === 'us_option';
-                const parsed = isOption ? parseOptionSymbol(p.symbol) : null;
-                const dte = parsed ? daysToExpiration(parsed.expiration) : null;
-
-                const wheelEntry = parsed ? wheel[parsed.underlying] : null;
-                const isThisWheelContract =
-                  wheelEntry &&
-                  (wheelEntry.open_contract === p.symbol || wheelEntry.contract === p.symbol);
-
-                let closeProgress: number | null = null;
-                if (isThisWheelContract && wheelEntry && Number(p.qty) < 0) {
-                  const entry = Number(wheelEntry.entry_premium ?? p.avg_entry_price);
-                  const current = Number(p.current_price);
-                  if (entry > 0) {
-                    const profitPct = ((entry - current) / entry) * 100;
-                    closeProgress = (profitPct / closeThreshold) * 100;
-                  }
-                }
-
-                const lookupSymbol = parsed?.underlying ?? p.symbol;
-                const lookupHref = `/lookup/${lookupSymbol}`;
-
-                // Direction is otherwise encoded only in the sign of qty — make
-                // it explicit. Positive qty = long (bought), negative = short
-                // (sold/written). Badge on every option; on stock only when
-                // short (a long-share badge on every row is just noise).
-                const qtyNum = Number(p.qty);
-                const showDirBadge = isOption || qtyNum < 0;
-                const isLong = qtyNum > 0;
-
-                return (
-                  <tr key={p.symbol} className="border-b border-border/50 hover:bg-panel-2/40 transition-colors">
-                    <td data-primary className="px-4 py-1.5 text-fg">
-                      <Link to={lookupHref} className="hover:text-hi">
-                        {isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
-                        {showDirBadge && (
-                          <span
-                            className={`inline-block align-middle mr-1.5 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none ${
-                              isLong ? 'bg-hi/15 text-hi' : 'bg-red/15 text-red'
-                            }`}
-                            title={isLong ? 'LONG — you bought this contract' : 'SHORT — you sold/wrote this contract'}
-                          >
-                            {isLong ? 'LONG' : 'SHORT'}
-                          </span>
-                        )}
-                        {p.symbol}
-                        {isOption && parsed && (
-                          <span className="text-dim ml-2 text-[10px]">
-                            <span className={parsed.type === 'put' ? 'text-red' : 'text-cyan'}>
-                              {parsed.type.toUpperCase()}
-                            </span>{' '}
-                            ${parsed.strike} {fmtIsoDateMDY(parsed.expiration)}
-                          </span>
-                        )}
-                      </Link>
-                    </td>
-                    <td data-label="qty" className={`px-4 py-1.5 text-right ${qtyNum < 0 ? 'text-red' : 'text-fg'}`}>
-                      {qtyNum > 0 ? '+' : ''}{fmtNum(qtyNum)}
-                    </td>
-                    <td data-label="avg cost" className="px-4 py-1.5 text-right text-fg">
-                      {fmtUsd(Number(p.avg_entry_price))}
-                      {isOption && (
-                        <span className="text-dim text-[10px] ml-1">
-                          ({fmtUsd(Number(p.avg_entry_price) * 100)})
-                        </span>
-                      )}
-                    </td>
-                    <td data-label="current" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.current_price))}</td>
-                    <td data-label="mkt value" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.market_value))}</td>
-                    <td data-label="unrealized P/L" className={`px-4 py-1.5 text-right ${klass}`}>
-                      {pl >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(pl), { sign: false }).replace('-$', '$')}{' '}
-                      <span className="text-dim">({fmtPct(plpc, { sign: true }).replace('-', '−')})</span>
-                    </td>
-                    <td data-label="DTE" className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
-                      {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
-                    </td>
-                    <td data-label="wheel close" className="px-4 py-1.5 text-right">
-                      {closeProgress == null ? (
-                        <span className="text-dim">—</span>
-                      ) : (
-                        <ProgressBar pct={closeProgress} />
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {groupPositions(positions).map((g) =>
+                g.kind === 'single' ? (
+                  <LegRow key={g.pos.symbol} p={g.pos} wheel={wheel} closeThreshold={closeThreshold} />
+                ) : (
+                  <Fragment key={`spread-${g.long.symbol}`}>
+                    <SpreadSummaryRow metrics={g.metrics} accent={colorAccent} />
+                    <LegRow p={g.long} wheel={wheel} closeThreshold={closeThreshold} grouped />
+                    <LegRow p={g.short} wheel={wheel} closeThreshold={closeThreshold} grouped groupedLast />
+                  </Fragment>
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -299,6 +224,158 @@ function ProgressBar({ pct }: { pct: number }) {
       <span className="text-dim">]</span>
       <span className="ml-1.5">{Math.round(clamped)}%</span>
     </span>
+  );
+}
+
+// One position row — a stock, a lone option, or a leg of a spread. `grouped`
+// draws the left bracket that ties a spread's legs to their summary row above.
+function LegRow({
+  p, wheel, closeThreshold, grouped, groupedLast,
+}: {
+  p: RawPosition;
+  wheel: WheelMap;
+  closeThreshold?: number;
+  grouped?: boolean;
+  groupedLast?: boolean;
+}) {
+  const pl = Number(p.unrealized_pl);
+  const plpc = Number(p.unrealized_plpc) * 100;
+  const klass = pl >= 0 ? 'text-hi' : 'text-red';
+  const isOption = p.asset_class === 'us_option';
+  const parsed = isOption ? parseOptionSymbol(p.symbol) : null;
+  const dte = parsed ? daysToExpiration(parsed.expiration) : null;
+
+  const wheelEntry = parsed ? wheel[parsed.underlying] : null;
+  const isThisWheelContract =
+    wheelEntry && (wheelEntry.open_contract === p.symbol || wheelEntry.contract === p.symbol);
+
+  let closeProgress: number | null = null;
+  if (isThisWheelContract && wheelEntry && closeThreshold && Number(p.qty) < 0) {
+    const entry = Number(wheelEntry.entry_premium ?? p.avg_entry_price);
+    const current = Number(p.current_price);
+    if (entry > 0) {
+      const profitPct = ((entry - current) / entry) * 100;
+      closeProgress = (profitPct / closeThreshold) * 100;
+    }
+  }
+
+  const lookupSymbol = parsed?.underlying ?? p.symbol;
+  const lookupHref = `/lookup/${lookupSymbol}`;
+
+  // Direction is otherwise encoded only in the sign of qty — make it explicit.
+  // Positive qty = long (bought), negative = short (sold/written). Badge on
+  // every option; on stock only when short (a long-share badge is noise).
+  const qtyNum = Number(p.qty);
+  const showDirBadge = isOption || qtyNum < 0;
+  const isLong = qtyNum > 0;
+
+  // Left bracket for spread legs.
+  const bracket = grouped
+    ? `md:border-l-2 md:border-border ${groupedLast ? 'md:border-b md:border-b-border' : ''}`
+    : '';
+
+  return (
+    <tr className={`border-b border-border/50 hover:bg-panel-2/40 transition-colors ${grouped ? 'bg-panel/30' : ''}`}>
+      <td data-primary className={`py-1.5 text-fg ${grouped ? 'pl-6 md:pl-8 pr-4' : 'px-4'} ${bracket}`}>
+        <Link to={lookupHref} className="hover:text-hi">
+          {grouped
+            ? <span className="text-dim mr-1">└</span>
+            : isOption ? <span className="text-dim mr-1">▸</span> : <span className="text-dim mr-1">·</span>}
+          {showDirBadge && (
+            <span
+              className={`inline-block align-middle mr-1.5 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none ${
+                isLong ? 'bg-hi/15 text-hi' : 'bg-red/15 text-red'
+              }`}
+              title={isLong ? 'LONG — you bought this contract' : 'SHORT — you sold/wrote this contract'}
+            >
+              {isLong ? 'LONG' : 'SHORT'}
+            </span>
+          )}
+          {p.symbol}
+          {isOption && parsed && (
+            <span className="text-dim ml-2 text-[10px]">
+              <span className={parsed.type === 'put' ? 'text-red' : 'text-cyan'}>{parsed.type.toUpperCase()}</span>{' '}
+              ${parsed.strike} {fmtIsoDateMDY(parsed.expiration)}
+            </span>
+          )}
+        </Link>
+      </td>
+      <td data-label="qty" className={`px-4 py-1.5 text-right ${qtyNum < 0 ? 'text-red' : 'text-fg'}`}>
+        {qtyNum > 0 ? '+' : ''}{fmtNum(qtyNum)}
+      </td>
+      <td data-label="avg cost" className="px-4 py-1.5 text-right text-fg">
+        {fmtUsd(Number(p.avg_entry_price))}
+        {isOption && <span className="text-dim text-[10px] ml-1">({fmtUsd(Number(p.avg_entry_price) * 100)})</span>}
+      </td>
+      <td data-label="current" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.current_price))}</td>
+      <td data-label="mkt value" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.market_value))}</td>
+      <td data-label="unrealized P/L" className={`px-4 py-1.5 text-right ${klass}`}>
+        {pl >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(pl), { sign: false }).replace('-$', '$')}{' '}
+        <span className="text-dim">({fmtPct(plpc, { sign: true }).replace('-', '−')})</span>
+      </td>
+      <td data-label="DTE" className={`px-4 py-1.5 text-right ${dte != null && dte <= 7 ? 'text-amber' : 'text-fg'}`}>
+        {dte == null ? <span className="text-dim">—</span> : `${dte}d`}
+      </td>
+      <td data-label="wheel close" className="px-4 py-1.5 text-right">
+        {closeProgress == null ? <span className="text-dim">—</span> : <ProgressBar pct={closeProgress} />}
+      </td>
+    </tr>
+  );
+}
+
+// The header row above a spread's two legs: names the strategy and shows the
+// defined-risk numbers (net cost, max loss, max profit, breakeven) the way an
+// options builder does — computed once via the shared payoff engine.
+function SpreadSummaryRow({ metrics: m, accent }: { metrics: SpreadMetrics; accent: string }) {
+  const dte = daysToExpiration(m.expiration);
+  const money = (v: number | null) =>
+    v == null ? '∞' : `${v < 0 ? '−' : ''}$${Math.abs(Math.round(v)).toLocaleString('en-US')}`;
+  const lo = Math.min(m.longStrike, m.shortStrike);
+  const hi = Math.max(m.longStrike, m.shortStrike);
+
+  return (
+    <tr className="bg-panel-2/50">
+      <td colSpan={8} className={`px-4 py-2 md:border-l-2 md:border-border`}>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[11px]">
+          <span className="inline-block px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-[0.12em] leading-none bg-panel-2 text-mid border border-border">
+            SPREAD
+          </span>
+          <span className={`font-bold tracking-wide ${accent}`}>{m.name}</span>
+          <span className="text-dim">
+            {m.underlying} {lo}/{hi} {m.optionType.toUpperCase()}
+            {m.contracts > 1 && <> ×{m.contracts}</>}
+            <span className="mx-1.5">·</span>
+            {fmtIsoDateMDY(m.expiration)}
+            <span className={dte <= 7 ? 'text-amber ml-1' : 'ml-1'}>({dte}d)</span>
+          </span>
+
+          <span className="flex flex-wrap gap-x-4 gap-y-1 ml-auto tnum">
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">{m.isDebit ? 'net debit' : 'net credit'}</span>
+              <span className="text-fg">{money(Math.abs(m.netCost))}</span>
+            </span>
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">max loss</span>
+              <span className="text-red">{money(m.maxLoss)}</span>
+            </span>
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">max profit</span>
+              <span className="text-hi">{money(m.maxProfit)}</span>
+            </span>
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">breakeven</span>
+              <span className="text-fg">{m.breakeven == null ? '—' : `$${m.breakeven.toFixed(2)}`}</span>
+            </span>
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">P&amp;L</span>
+              <span className={m.groupPL >= 0 ? 'text-hi' : 'text-red'}>
+                {m.groupPL >= 0 ? '▲' : '▼'} {money(Math.abs(m.groupPL))}
+              </span>
+            </span>
+          </span>
+        </div>
+      </td>
+    </tr>
   );
 }
 

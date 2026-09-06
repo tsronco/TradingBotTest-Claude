@@ -30,6 +30,24 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-06',
+    category: 'feature',
+    title: 'Positions group spread legs and show net cost / max loss / max profit / breakeven',
+    details:
+      'A multi-leg options position (a vertical spread) was shown as two disconnected rows with no sense of '
+      + 'the trade as a whole — you had to open an external tool to see what you actually risked or could make. '
+      + 'Now the Positions screen detects vertical spreads (two legs, same underlying + expiration + type, one '
+      + 'long and one short at different strikes) and renders them as a group: a header row names the strategy '
+      + '(Bull Call, Bear Call, Bull Put, Bear Put) and shows net debit/credit, max loss, max profit, breakeven '
+      + 'and live P&L, with the two legs bracketed underneath.\n\n'
+      + 'The max-profit / max-loss / breakeven math reuses the same payoff engine the order form and payoff '
+      + 'chart already use, so there is one source of truth. For the TSLA 352.5/365 call debit spread that '
+      + 'prompted this, it reads: net debit $515, max loss −$515, max profit $735, breakeven $357.65 — matching '
+      + "an options builder exactly (the builder's numbers only differed earlier because it was pricing a fresh "
+      + 'entry at current quotes, not your actual entry). Stocks and unpaired single legs render as before. '
+      + 'Display-only — no data, API, or bot change.',
+  },
+  {
+    date: '2026-09-06',
     category: 'ui',
     title: 'Positions show a LONG / SHORT badge — no more reading the qty sign',
     details:
