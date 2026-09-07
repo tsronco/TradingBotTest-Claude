@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 76,
-    "last_cycle_at": "2026-09-04T19:12:51Z",
+    "cycle_count": 77,
+    "last_cycle_at": "2026-09-07T14:12:52Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA is 354.05, up 1.5% on the week and +1.6% vs its 20-day average \u2014 right where I bought the 352.5/365 Sep-18 call debit spread an hour ago for a $5.15 net debit, and above my stated $344 invalidation. Summing the legs' fair-value mids, the spread is roughly flat (-19.0 + 11.5 = -$7.5 on a $515 position), which is bid/ask noise, not thesis failure; my documented worst habit is closing before invalidation, so I hold. With only $614 of buying power and one directional bet already on, nothing else on the shortlist (ADBE prints in 6 days at 60-75% IV, LULU is pinned at its exact 52-week low, MU is $1,000 notional, KLAC/NFLX price context is split-corrupted) offers an edge worth a second concentrated position \u2014 I'd act if TSLA broke $344 (exit) or if a liquid, low-IV name with no earnings inside the expiry set up cleanly.",
+    "last_market_read": "TSLA is 353.89, up 1.5% on the week and +1.6% vs its 20-day average of 348.43 \u2014 comfortably above my $344 invalidation on the 352.5/365 Sep-18 call debit spread I bought yesterday for a $5.15 net debit; summing leg mids (-36.5 + 35.0) the spread is essentially flat, i.e. bid/ask noise, not thesis failure, and my record shows my single most expensive habit is cutting before invalidation, so I hold. My scoreboard is 0-for-5 with every loss coming from a hastily-added second directional bet, and with only $614 buying power a second concentrated position on this shortlist has no defensible edge: ADBE prints in 3 days with 67-71% IV (event vol, not cheap), LULU is sitting exactly at its 52-week low (-16.7% in a week, freefall), MU is $1,000 notional with $40+ options, and KLAC/NFLX price context is split-corrupted (KLAC \"-90.4% 3m\", NFLX \"-93.8% from 52w high\"), so I cannot cite a trustworthy trend for either. I act if TSLA closes below $344 (exit per thesis) or if a liquid name with structurally low IV and no earnings inside the expiry sets up cleanly.",
     "seed_capital": 2000
   },
   "closed": [
@@ -237,11 +237,11 @@
         "cost_basis": 515.0,
         "market_value": 495.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-04T19:12:42Z",
+        "seen_at": "2026-09-07T14:12:38Z",
         "underlyings": {
-          "TSLA": 354.045
+          "TSLA": 353.89
         },
-        "unrealized_pl": -7.5
+        "unrealized_pl": -1.5
       },
       "legs": [
         {
