@@ -190,6 +190,23 @@ def get_account(mode: str = "manual") -> dict:
     return _get(f"{_trading_base(mode)}/account", mode)
 
 
+def get_clock(mode: str = "manual") -> dict:
+    """Alpaca market clock — {is_open, next_open, next_close, timestamp}.
+    Authoritative for both regular hours AND holidays (Alpaca knows the NYSE
+    calendar), so callers don't need a hardcoded holiday list."""
+    return _get(f"{_trading_base(mode)}/clock", mode)
+
+
+def is_market_open(mode: str = "manual") -> bool:
+    """True when the market is in a regular session right now. Fail-open: on any
+    error, return True so a flaky clock endpoint never silences a caller on a
+    real trading day (the caller's own logic still can't transact if closed)."""
+    try:
+        return bool(get_clock(mode).get("is_open", False))
+    except Exception:  # noqa: BLE001 — never let a clock hiccup block a cycle
+        return True
+
+
 def get_positions(mode: str = "manual") -> list[dict]:
     return _get(f"{_trading_base(mode)}/positions", mode)
 

@@ -339,6 +339,9 @@ def _wire(monkeypatch, tmp_path):
                         })
     monkeypatch.setattr(at, "send_embed", lambda *a, **k: None)
     monkeypatch.setattr(at, "log_event", lambda *a, **k: None)
+    # Market open by default so the closed-guard doesn't short-circuit (and so
+    # tests never hit the real /clock endpoint). Closed-path tests override this.
+    monkeypatch.setattr(at.alpaca_data, "is_market_open", lambda mode="agent": True)
     placed = []
     monkeypatch.setattr(at, "place_order",
                         lambda payload: placed.append(payload) or _OrderResp())
@@ -400,6 +403,29 @@ def test_run_cycle_dry_run_places_nothing(_wire):
     client = _FakeClient([_open_intent()])
     summary = at.run_cycle(client=client, dry_run=True)
     assert summary["opened"] == 0 and len(_wire) == 0
+
+
+def test_run_cycle_skips_when_market_closed(_wire, monkeypatch):
+    """On a holiday/after-close, skip with a heartbeat — NO model call, NO order,
+    NO Discord (the confusing 'holding on a closed day' message)."""
+    monkeypatch.setattr(at.alpaca_data, "is_market_open", lambda mode="agent": False)
+    # A client that WOULD open if consulted — proves the decision call is skipped.
+    client = _FakeClient([_open_intent()])
+    holds = {}
+    monkeypatch.setattr(at, "_announce_hold", lambda *a, **k: holds.setdefault("h", True))
+    summary = at.run_cycle(client=client)
+    assert summary.get("skipped") == "market_closed"
+    assert summary["opened"] == 0 and len(_wire) == 0
+    assert not hasattr(client, "last_kwargs")  # the paid model call never happened
+    assert "h" not in holds                    # no hold message posted
+
+
+def test_run_cycle_dry_run_ignores_market_closed(_wire, monkeypatch):
+    """dry_run bypasses the market-closed guard so tests/backfills still run."""
+    monkeypatch.setattr(at.alpaca_data, "is_market_open", lambda mode="agent": False)
+    client = _FakeClient([])
+    summary = at.run_cycle(client=client, dry_run=True)
+    assert "skipped" not in summary
 
 
 def test_run_cycle_order_rejection_counts_error(_wire, monkeypatch):

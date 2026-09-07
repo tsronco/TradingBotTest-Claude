@@ -29,6 +29,19 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-07',
+    category: 'fix',
+    title: 'Agent no longer wakes up on market holidays',
+    details:
+      'The agent had no market-hours awareness, and its cron runs Mon–Fri — so on Labor Day (a Monday) it '
+      + 'fired anyway, burned a full paid Opus decision call, could trade nothing, and posted a confusing '
+      + '"holding" message on a closed day.\n\n'
+      + 'It now checks Alpaca\'s market clock at the top of each cycle (authoritative for both hours and the '
+      + 'NYSE holiday calendar — no hardcoded list) and, when the market is closed, skips silently with a '
+      + 'log heartbeat: no model call, no Discord. The check fails open (a flaky clock never silences a real '
+      + 'trading day) and dry runs bypass it. Saves the wasted API spend on every holiday and off-hours fire.',
+  },
+  {
     date: '2026-09-06',
     category: 'ui',
     title: 'Your rules and goals render Markdown too (bold, lists, tables)',

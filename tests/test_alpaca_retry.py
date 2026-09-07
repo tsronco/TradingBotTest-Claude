@@ -252,3 +252,24 @@ def test_alpaca_data_get_position_retries_on_503_then_404(monkeypatch, stub_slee
 
     assert result is None
     assert stub_sleep == [alpaca_data._RETRY_BACKOFFS[0]]
+
+
+# ── Market clock guard (is_market_open) ─────────────────────────────────────
+
+def test_is_market_open_true_when_clock_open(monkeypatch):
+    monkeypatch.setattr(alpaca_data, "get_clock", lambda mode="manual": {"is_open": True})
+    assert alpaca_data.is_market_open("agent") is True
+
+
+def test_is_market_open_false_when_clock_closed(monkeypatch):
+    # e.g. a holiday like Labor Day — Alpaca's clock reports is_open False.
+    monkeypatch.setattr(alpaca_data, "get_clock", lambda mode="manual": {"is_open": False})
+    assert alpaca_data.is_market_open("agent") is False
+
+
+def test_is_market_open_fails_open_on_error(monkeypatch):
+    """A flaky /clock must not silence a caller on a real trading day → True."""
+    def _boom(mode="manual"):
+        raise requests.exceptions.ConnectionError("clock down")
+    monkeypatch.setattr(alpaca_data, "get_clock", _boom)
+    assert alpaca_data.is_market_open("agent") is True

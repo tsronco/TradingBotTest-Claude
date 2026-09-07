@@ -840,12 +840,23 @@ cron-job.org is the only scheduler, and adding a native one back would
 double-fire the workflow.
 
 Cadence was halved from hourly on 2026-08-19 (see the cost posture below). The
-fire hours sit inside the session rather than merely being evenly spaced,
-because **the agent has no `is_market_open()` guard** — unlike the wheel, a fire
-outside 13:30–20:00 UTC still costs a full model call and can transact nothing.
-That is why the old 13:07 UTC pre-open fire was dropped, and why 19:07 (15:07
-ET, ~53 min before the close) is preferred over an even 20:07 that would land
-after it.
+fire hours sit inside the session rather than merely being evenly spaced, to
+transact as much as possible during regular hours.
+
+**Market-closed guard (added 2026-09-07).** The agent now DOES have an
+`is_market_open()` check — `alpaca_data.is_market_open("agent")` hits Alpaca's
+`/clock` (authoritative for both hours AND the NYSE holiday calendar, so no
+hardcoded holiday list). `run_cycle` calls it right after loading state, before
+`gather_breadth` and any model call: if the market is closed it logs a
+`market_closed_skip` heartbeat and returns early — **no paid decision call, no
+Discord "holding" message**. This was prompted by the agent firing on Labor Day
+(a Monday, so its Mon–Fri cron ran), burning an Opus call and posting a
+confusing hold on a closed day. The guard is **fail-open** (a flaky `/clock`
+returns True, so a real trading day is never silenced) and `dry_run` bypasses it
+(tests/backfills still run). This makes the exact cron-hour placement less
+critical than it was — a pre-open or post-close fire now skips cheaply — though
+keeping fires inside 13:30–20:00 UTC is still preferred so a live session isn't
+spent on a skip.
 
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
@@ -875,9 +886,11 @@ this account. Note `max_decision_tokens` bounds thinking *and* response
 together, so moving to `xhigh`/`max` would need that raised first. Cadence was then halved to every 2 hours,
 landing at **~$15/month**. `log_model_usage()` writes tokens + an estimated cost
 per call to `logs/agent.jsonl` — spend was previously invisible, which is why it
-ran unnoticed. **The agent has no market-closed guard**, so a fire outside
-13:30–20:00 UTC costs a full model call and can transact nothing; keep the cron
-hours inside the session.
+ran unnoticed. **A market-closed guard was added 2026-09-07** (see the
+scheduling section): `run_cycle` now skips — no model call, no Discord — when
+Alpaca's `/clock` reports the market closed, so a holiday or off-hours fire no
+longer burns an Opus call. Keeping cron hours inside 13:30–20:00 UTC is still
+preferred so a live session isn't spent on a skip.
 
 **Env vars (agent):**
 ```

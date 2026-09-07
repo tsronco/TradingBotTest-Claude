@@ -1624,6 +1624,19 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         if state["_meta"].get("created_at") is None:
             state["_meta"]["created_at"] = _now_iso()
 
+        # Market-closed guard. The agent has no natural market-hours check and
+        # its cron runs Mon–Fri, so on a holiday (e.g. Labor Day) or after an
+        # early close it would otherwise burn a full paid decision call and be
+        # able to transact nothing — and ping a confusing "holding" message on a
+        # closed day. Skip silently with a heartbeat: no model call, no Discord.
+        # (dry_run bypasses so tests/backfills still run; fail-open in
+        # alpaca_data.is_market_open means a flaky clock never skips a real day.)
+        if not dry_run and not alpaca_data.is_market_open("agent"):
+            log("market closed — skipping agent cycle (no model call, no notify)")
+            log_event(_CFG["log_stream"], "agent_trader.py", "market_closed_skip")
+            summary["skipped"] = "market_closed"
+            return summary
+
         # Phase 1 (breadth): quotes for the whole universe — cheap, wide view.
         breadth = gather_breadth()
         # Phase 1b: Claude picks the shortlist worth deep analysis this cycle.
