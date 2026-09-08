@@ -396,3 +396,50 @@ def test_strategy_skips_excluded_symbol(monkeypatch, tmp_path):
 
     assert "SNAP" not in seeded and "SNAP" not in ran, "bot must not manage excluded SNAP"
     assert "AAPL" in seeded and "AAPL" in ran, "non-excluded stocks still managed"
+
+
+# ── Seed embed wording when Alpaca reserves shares (WMT 2026-09-08) ──────────
+# A 1-share live position under a resting $113 GTC sell reported qty=1 but
+# qty_available=0, and the seed embed read "Bot now managing 0 shares" — a
+# correct number that looks like a failure. The copy now says held vs free.
+
+def test_seed_description_plain_when_nothing_reserved():
+    txt = strategy._seed_description(held=10, free=10, entry_price=105.88, stop_price=95.29)
+    assert txt == "Bot now managing 10 shares @ $105.88. Stop $95.29."
+
+
+def test_seed_description_explains_fully_reserved_position():
+    txt = strategy._seed_description(held=1, free=0, entry_price=105.88, stop_price=95.29)
+    assert "Holding 1 share @ $105.88" in txt
+    assert "0 free shares" in txt
+    assert "reserved by an open order" in txt
+    assert "Bot now managing 0" not in txt
+
+
+def test_seed_description_explains_partially_reserved_position():
+    txt = strategy._seed_description(held=110, free=10, entry_price=15.0, stop_price=13.5)
+    assert "Holding 110 shares" in txt
+    assert "10 free" in txt
+    assert "100 reserved" in txt
+
+
+def test_held_qty_reads_total_not_available():
+    pos = {"qty": "1", "qty_available": "0", "avg_entry_price": "105.88"}
+    assert strategy._held_qty(pos) == 1
+    assert strategy._available_qty(pos) == 0
+
+
+def test_run_symbol_last_action_names_reserved_shares():
+    sym_state = strategy._manual_seed_state(
+        "WMT", {"qty": "1", "qty_available": "0", "avg_entry_price": "105.88"})
+    assert sym_state["position_qty"] == 0
+    out = strategy._manual_run_symbol("WMT", sym_state, 0, 105.88, held_qty=1)
+    assert "1 share held, 0 free" in out["last_action"]
+    assert "reserved" in out["last_action"]
+
+
+def test_run_symbol_last_action_plain_when_truly_empty():
+    sym_state = strategy._manual_seed_state(
+        "WMT", {"qty": "0", "qty_available": "0", "avg_entry_price": "105.88"})
+    out = strategy._manual_run_symbol("WMT", sym_state, 0, 105.88, held_qty=0)
+    assert out["last_action"] == "Position empty — skipping cycle."

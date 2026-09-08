@@ -30,6 +30,20 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-08',
+    category: 'fix',
+    title: 'Seed embed says "held vs free" instead of "managing 0 shares"',
+    details:
+      'First live buy (1 WMT) under a resting $113 GTC sell: Alpaca reported qty=1 but qty_available=0, so '
+      + 'the bot correctly seeded 0 free shares — and the Discord embed read "Bot now managing 0 shares," '
+      + 'which looks like a failure. The bot only ever manages shares Alpaca has not reserved for an open '
+      + 'order or options collateral (that rule dates to the 2026-06-03 SNAP covered-call incident).\n\n'
+      + 'The seed embed now says how many shares are held, how many are free for the bot, and how many '
+      + 'are reserved. The per-cycle last_action for a fully-reserved position says "1 share held, 0 free — '
+      + 'reserved by an open order or options collateral" instead of "Position empty." Behavior unchanged: '
+      + 'cancel the resting order and the next cycle adopts the shares; let it fill and the symbol prunes.',
+  },
+  {
+    date: '2026-09-08',
     category: 'feature',
     title: 'Live (real-money) trading from the dashboard is ON',
     details:
