@@ -26,6 +26,7 @@ import { verifyTotp } from '../_lib/totp.js';
 import { gradeTrade } from '../_lib/grading.js';
 import { etOffsetMinutes } from '../_lib/et-time.js';
 import { runGradeOpenTrades } from '../cron/[job].js';
+import { liveTradingEnabled } from '../_lib/live-enabled.js';
 
 interface OrderDraft {
   account: 'manual_paper' | 'live';
@@ -431,7 +432,7 @@ async function previewSpread(req: VercelRequest, res: VercelResponse) {
 
 async function submitSpread(req: VercelRequest, res: VercelResponse) {
   const p = req.body as SpreadPayload;
-  if (p.account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+  if (p.account === 'live' && !liveTradingEnabled()) {
     return res.status(403).json({ error: 'live_trading_disabled' });
   }
   if (!VALID_SPREAD_TYPES.has(p.spread_type)) {
@@ -754,10 +755,10 @@ async function claimIdemIndex(
 async function submit(req: VercelRequest, res: VercelResponse) {
   if (isSpreadPayload(req.body)) return submitSpread(req, res);
   const draft = (req.body ?? {}) as OrderDraft;
-  // Phase 2 follow-up #2: server-side `live` account guard. Without this, an
-  // `account: 'live'` body would reach the real-money endpoint. Reject
-  // explicitly unless the ops env var has been set to opt in.
-  if (draft.account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+  // Server-side `live` account kill switch. Live is ON by default since
+  // 2026-09-08; `LIVE_ENABLED=false` in the Vercel env flips every live write
+  // (submit / spread / import / modify / cancel) back to 403 without a deploy.
+  if (draft.account === 'live' && !liveTradingEnabled()) {
     return res.status(403).json({ error: 'live_trading_disabled' });
   }
   const validation_errors = validate(draft);
@@ -1504,7 +1505,7 @@ async function importFromAlpaca(req: VercelRequest, res: VercelResponse) {
   const account = body.account as OrderDraft['account'];
   const since = body.since;
   if (!account || !since) return res.status(400).json({ error: 'account_and_since_required' });
-  if (account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+  if (account === 'live' && !liveTradingEnabled()) {
     return res.status(403).json({ error: 'live_trading_disabled' });
   }
   const sinceTs = Date.parse(since);

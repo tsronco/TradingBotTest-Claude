@@ -1166,11 +1166,50 @@ Lifecycle states (no explicit status field — derived from timestamps):
 - `/calendar` with month grid, P&L heatmap, expiration overlay for open options, day-drawer trade list, filter bar (account · symbol · tag · asset class)
 - `/performance` with 6 panels (equity curve overlaying all 3 modes, drawdown chart, your-grade-vs-AI scatter, win-rate-by-tag bars, P&L-by-symbol sortable table, time-of-day heatmap), filterable by date range + account + tag + asset class
 - DST-aware ET helper at `dashboard/api/_lib/et-time.ts` (closes Phase 2 follow-up #3)
-- Server-side `live` account 403 guard (closes Phase 2 follow-up #2). Set `LIVE_ENABLED=true` env to enable
+- Server-side `live` account 403 guard (closes Phase 2 follow-up #2). **Live dashboard trading is ON by default as of 2026-09-08** (see "Live account trading from the dashboard" below) — `LIVE_ENABLED=false` in the Vercel env is the kill switch
 - TS Direction warning at `api/alpaca/[endpoint].ts:84` cleaned up via `as const` (closes Phase 2 follow-up #4)
 - Vercel function count: 9 → 10 of 12 Hobby cap (added `api/rules/[resource].ts`)
 - Test count: 146 → 351 vitest (+205) at Phase 3 ship, plus +9 pytest (`tools/test_push_rules_to_dashboard.py`); current totals 473 vitest / 380 pytest / 23 push-rules
 - Smoke test playbook: `dashboard/docs/PHASE3_SMOKE.md`
+
+### Live account trading from the dashboard (turned on 2026-09-08)
+
+Hand-placed **real-money** orders from the dashboard are enabled. Everything
+that used to require the `LIVE_ENABLED=true` opt-in is now on by default; the
+single switch lives in `dashboard/api/_lib/live-enabled.ts` (`liveTradingEnabled()`
+= `process.env.LIVE_ENABLED !== 'false'`). **`LIVE_ENABLED=false` in the Vercel
+env is the kill switch** — set it and every live write goes back to
+`403 live_trading_disabled` on the next request, no redeploy needed. Reads
+(account / positions / orders / equity) were never gated and still aren't.
+
+What the switch covers (all five server paths + the UI):
+- `POST /api/trades/submit` — single-leg stock + option orders on `account: 'live'`
+- `submitSpread` — the four vertical spreads on live (`kind: 'spread'` payloads)
+- `POST /api/trades/import` — one-shot Alpaca activity import for live
+- the grade-open-trades cron's **auto-import** of live fills (was `skipped_live_disabled`)
+- `modify-order` / `cancel-order` on `mode=live` via the shared `liveGuard()`
+- UI: the `[live $]` chip is selectable on the stock, option **and spread**
+  forms (the spread form used to render it disabled); `OrderNew` accepts
+  `?account=live`; `ORDERABLE_ACCOUNTS` / `isTradeableAccount('live')` in
+  `src/lib/account-utils.ts` now include live. The thresholds tab labels the
+  live row "(real money)" instead of the stale "(LIVE_ENABLED=false)".
+
+What is deliberately unchanged:
+- **The agent never touches live.** `agent_paper` stays out of
+  `ORDERABLE_ACCOUNTS`, `TRADEABLE_PAPER_ACCOUNTS`, and every order form; its
+  creds are the paper-only `ALPACA_AGENT_*`.
+- **Per-account TOTP threshold** applies to live exactly like paper (default
+  $1,500 in the thresholds tab — tune it there). Rule-check warnings, entry
+  grade + reasoning, and the confirm modal all run for live.
+- **The bot's live posture** — it still manages what you open by hand
+  (trail/ladder/stop, 50% close on puts, CC on assignment) and never opens
+  puts. `spread_management` is still `False` on live, so a live spread shows
+  the amber "won't auto-close" banner and you manage it by hand.
+
+Tests: `tests/api/live-enabled.test.ts` (the switch), plus the rewritten
+`trades-submit-live-guard`, `alpaca-live-guard`, `trades-import`,
+`SpreadOrderForm`, and `agent-account-registration` cases (default-on,
+kill-switch, paper-untouched, agent-excluded).
 
 ### Mobile responsiveness (shipped 2026-05-15)
 

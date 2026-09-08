@@ -134,12 +134,29 @@ describe('POST /api/trades/import', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'account_and_since_required' }));
   });
 
-  it('rejects live without LIVE_ENABLED', async () => {
+  it('rejects live only when the LIVE_ENABLED=false kill switch is set', async () => {
+    const orig = process.env.LIVE_ENABLED;
+    try {
+      process.env.LIVE_ENABLED = 'false';
+      const handler = (await import('../../api/trades/[action]')).default;
+      const res = mockRes();
+      await handler(mockReq({ account: 'live', since: '2026-05-01T00:00:00Z' }), res);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'live_trading_disabled' }));
+    } finally {
+      if (orig === undefined) delete process.env.LIVE_ENABLED;
+      else process.env.LIVE_ENABLED = orig;
+    }
+  });
+
+  it('imports live activity when LIVE_ENABLED is unset (live is on by default since 2026-09-08)', async () => {
     delete process.env.LIVE_ENABLED;
+    alpacaTradeMock.mockResolvedValue([]);
     const handler = (await import('../../api/trades/[action]')).default;
     const res = mockRes();
     await handler(mockReq({ account: 'live', since: '2026-05-01T00:00:00Z' }), res);
-    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMock).toHaveBeenCalledWith('live', expect.stringContaining('/v2/account/activities'), expect.anything());
   });
 
   it('pairs a put credit spread (STO higher strike + BTO lower strike, same timestamp)', async () => {

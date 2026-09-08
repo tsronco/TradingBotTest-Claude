@@ -76,14 +76,18 @@ export const ALL_PAPER_ACCOUNTS: PaperAccountId[] = ['manual_paper', 'agent_pape
 export const ALL_ACCOUNTS: AnyAccountId[] = ['manual_paper', 'live', 'agent_paper'];
 
 /**
- * Accounts an order form may hold in its draft state.
+ * Accounts an order form may hold in its draft state — i.e. the accounts a
+ * human may place an order into from the dashboard.
  *
- * `live` is included because the forms render it as a visibly-disabled chip
- * (real money is bot-only); `agent_paper` is not, because a hand-placed order
- * must never reach the autonomous account at all — see
- * TRADEABLE_PAPER_ACCOUNTS below.
+ * `live` (real money) is orderable as of 2026-09-08: every order form renders
+ * it as a red chip and the server applies the per-account TOTP threshold.
+ * `agent_paper` is not here, because a hand-placed order must never reach the
+ * autonomous account at all — see TRADEABLE_PAPER_ACCOUNTS below.
  */
 export type OrderAccountId = 'manual_paper' | 'live';
+
+/** Every account a human may place an order into (paper + live). */
+export const ORDERABLE_ACCOUNTS: OrderAccountId[] = ['manual_paper', 'live'];
 
 /**
  * Paper accounts a human may place an order into from the dashboard.
@@ -91,15 +95,15 @@ export type OrderAccountId = 'manual_paper' | 'live';
  * `agent_paper` is excluded on purpose: the whole point of that account is to
  * measure Claude's unassisted decisions, so a hand-placed order would pollute
  * the record (and the agent's next cycle would see a position it has no thesis
- * for). The dashboard stays read-only on it — same posture as `live`, for a
- * different reason.
+ * for). The dashboard stays read-only on it.
  */
 export const TRADEABLE_PAPER_ACCOUNTS: Extract<OrderAccountId, PaperAccountId>[] = [
   'manual_paper',
 ];
 
-export function isTradeableAccount(account: AnyAccountId): boolean {
-  return (TRADEABLE_PAPER_ACCOUNTS as AnyAccountId[]).includes(account);
+/** True when a human may place an order into `account` from the dashboard. */
+export function isTradeableAccount(account: AnyAccountId): account is OrderAccountId {
+  return (ORDERABLE_ACCOUNTS as AnyAccountId[]).includes(account);
 }
 
 

@@ -29,6 +29,22 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-08',
+    category: 'feature',
+    title: 'Live (real-money) trading from the dashboard is ON',
+    details:
+      'Every gate that kept the dashboard read-only on the live account is open: stock, option, and spread '
+      + 'order forms all offer the red [live $] chip (the spread form used to render it disabled), and the '
+      + 'server accepts live submits, spreads, modify/cancel, the one-shot import, and the cron auto-import of '
+      + 'live fills. Nothing required the old LIVE_ENABLED=true opt-in any more.\n\n'
+      + 'Safety posture is unchanged where it matters: the per-account TOTP threshold, rule checks, entry grade '
+      + '+ reasoning, and the confirm modal all apply to live just like paper. The autonomous agent account is '
+      + 'still excluded from every order form — it never touches live. The bot keeps managing what you open by '
+      + 'hand and still never opens puts; live spreads stay hand-managed (amber banner).\n\n'
+      + 'Kill switch: set LIVE_ENABLED=false in the Vercel env and every live write returns 403 on the next '
+      + 'request, no redeploy needed. Reads were never gated.',
+  },
+  {
     date: '2026-09-07',
     category: 'fix',
     title: 'Agent no longer wakes up on market holidays',

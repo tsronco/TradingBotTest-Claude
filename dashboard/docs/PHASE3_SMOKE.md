@@ -73,7 +73,7 @@ This requires actual market activity, so test with a paper STO put that's likely
     https://tradingbot-dashboard-blue.vercel.app/api/trades/submit?action=submit \
     -d '{"account":"live","asset_class":"stock","symbol":"F","side":"buy","qty":1,"order_type":"market","tif":"day","entry_grade":"B","entry_reasoning":"x","rule_violations":[]}'
   ```
-- [ ] Expected: `403 {"error":"live_trading_disabled"}`.
+- [ ] Expected (as of 2026-09-08, live ON by default): the order is **accepted** and routed to `api.alpaca.markets` — so run this only with a harmless order, or set `LIVE_ENABLED=false` in Vercel first, in which case expect `403 {"error":"live_trading_disabled"}`.
 
 ## If all six sections pass
 

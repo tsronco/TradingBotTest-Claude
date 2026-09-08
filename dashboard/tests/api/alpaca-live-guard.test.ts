@@ -1,14 +1,15 @@
 /**
- * D1 — LIVE_ENABLED gate on modify-order and cancel-order (writes only).
+ * D1 — LIVE_ENABLED kill switch on modify-order and cancel-order (writes only).
+ * Live is ON by default (2026-09-08); LIVE_ENABLED='false' turns it off.
  *
  * After the decouple decision (2026-06-17): the gate applies ONLY to the
  * two money-moving write endpoints (modify-order, cancel-order). GET read
  * endpoints (account, positions, equity-history, etc.) are intentionally
  * ungated — live monitoring must keep working without LIVE_ENABLED.
  *
- * Write-guard tests: when mode=live and LIVE_ENABLED is not 'true', the
+ * Write-guard tests: when mode=live and LIVE_ENABLED is 'false', the
  * endpoint returns 403 and makes NO Alpaca mutation call.
- * When LIVE_ENABLED='true' the write path passes through.
+ * When LIVE_ENABLED is unset or 'true' the write path passes through.
  * Paper modes (conservative) always pass through regardless of LIVE_ENABLED.
  *
  * Read-passthrough tests: mode=live GET reads MUST call Alpaca regardless
@@ -38,12 +39,13 @@ vi.mock('../../api/_lib/alpaca', () => ({
   modeFromQuery: (...a: unknown[]) => modeFromQueryMock(...a),
   // liveGuard is the real implementation inlined here so the handler's
   // import resolves correctly without pulling in @alpacahq/typescript-sdk.
-  // Semantics match alpaca.ts exactly: 'live' + LIVE_ENABLED !== 'true' → 403.
+  // Semantics match alpaca.ts exactly: 'live' + LIVE_ENABLED === 'false' → 403
+  // (live is ON by default since 2026-09-08; 'false' is the kill switch).
   liveGuard: (
     mode: string,
     res: { status: (code: number) => { json: (body: unknown) => void } },
   ): boolean => {
-    if (mode === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    if (mode === 'live' && process.env.LIVE_ENABLED === 'false') {
       res.status(403).json({ error: 'live_trading_disabled' });
       return true;
     }
@@ -129,20 +131,21 @@ afterEach(() => {
 // ── modify-order ──────────────────────────────────────────────────────────────
 
 describe('alpaca/[endpoint] — modify-order — live guard (D1)', () => {
-  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED is unset', async () => {
+  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED is unset — live is on by default', async () => {
     modeFromQueryMock.mockReturnValue('live');
+    alpacaTradeMutationMock.mockResolvedValue({ id: 'new-ord-999', qty: '5' });
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
     await handler(
       mockReq('modify-order', 'POST', 'live', { order_id: 'ord-123', qty: 5 }),
       res as unknown as import('@vercel/node').VercelResponse,
     );
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect((res.json as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ error: 'live_trading_disabled' });
-    expect(alpacaTradeMutationMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMutationMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED="false"', async () => {
+  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED="false" (kill switch)', async () => {
     process.env.LIVE_ENABLED = 'false';
     modeFromQueryMock.mockReturnValue('live');
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
@@ -152,6 +155,7 @@ describe('alpaca/[endpoint] — modify-order — live guard (D1)', () => {
       res as unknown as import('@vercel/node').VercelResponse,
     );
     expect(res.status).toHaveBeenCalledWith(403);
+    expect((res.json as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ error: 'live_trading_disabled' });
     expect(alpacaTradeMutationMock).not.toHaveBeenCalled();
   });
 
@@ -187,20 +191,21 @@ describe('alpaca/[endpoint] — modify-order — live guard (D1)', () => {
 // ── cancel-order ──────────────────────────────────────────────────────────────
 
 describe('alpaca/[endpoint] — cancel-order — live guard (D1)', () => {
-  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED is unset', async () => {
+  it('passes through (calls Alpaca) when mode=live and LIVE_ENABLED is unset — live is on by default', async () => {
     modeFromQueryMock.mockReturnValue('live');
+    alpacaTradeMutationMock.mockResolvedValue(null);
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
     const res = mockRes();
     await handler(
       mockReq('cancel-order', 'POST', 'live', { order_id: 'ord-456' }),
       res as unknown as import('@vercel/node').VercelResponse,
     );
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect((res.json as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ error: 'live_trading_disabled' });
-    expect(alpacaTradeMutationMock).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMutationMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED="false"', async () => {
+  it('returns 403 and does NOT call Alpaca when mode=live and LIVE_ENABLED="false" (kill switch)', async () => {
     process.env.LIVE_ENABLED = 'false';
     modeFromQueryMock.mockReturnValue('live');
     const { default: handler } = await import('../../api/alpaca/[endpoint]');
@@ -210,6 +215,7 @@ describe('alpaca/[endpoint] — cancel-order — live guard (D1)', () => {
       res as unknown as import('@vercel/node').VercelResponse,
     );
     expect(res.status).toHaveBeenCalledWith(403);
+    expect((res.json as ReturnType<typeof vi.fn>).mock.calls[0][0]).toMatchObject({ error: 'live_trading_disabled' });
     expect(alpacaTradeMutationMock).not.toHaveBeenCalled();
   });
 

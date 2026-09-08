@@ -5,6 +5,7 @@ import { KV_KEYS, tradeKey, gradeKey, rulesKey, assignmentChildKey, tradesIndexM
 import { gradeTrade } from '../_lib/grading.js';
 import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Mode } from '../_lib/alpaca.js';
+import { liveTradingEnabled } from '../_lib/live-enabled.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
 import { isGradeable } from '../_lib/trade-types.js';
 import {
@@ -468,7 +469,7 @@ async function runAutoImport(): Promise<Record<string, number | string>> {
   const result: Record<string, number | string> = {};
   const now = new Date();
   for (const { account, extraTags } of AUTO_IMPORT_ACCOUNTS) {
-    if (account === 'live' && process.env.LIVE_ENABLED !== 'true') {
+    if (account === 'live' && !liveTradingEnabled()) {
       result[account] = 'skipped_live_disabled';
       continue;
     }

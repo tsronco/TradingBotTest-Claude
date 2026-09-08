@@ -284,8 +284,9 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
 
       {/* Account selector. Only accounts a human may trade appear here: the
           autonomous agent account is excluded entirely (hand orders would
-          pollute the record of Claude's own decisions) and live renders as a
-          disabled chip below. */}
+          pollute the record of Claude's own decisions). Live is selectable
+          (real money — same TOTP-above-threshold flow as the single-leg
+          forms) as of 2026-09-08. */}
       <div className="flex flex-col gap-1">
         <div className="text-dim text-[10px] tracking-[0.25em] mb-2">━━━ account ─────────</div>
         <div className="flex gap-1 flex-wrap">
@@ -301,11 +302,11 @@ export function SpreadOrderForm({ symbol, account, setAccount, onReview, spreadT
           ))}
           <button
             type="button"
-            disabled
-            className="pbtn max-md:min-h-[44px] text-red opacity-40"
-            title="Live spreads are bot-managed only — not available for manual entry"
+            className={`pbtn max-md:min-h-[44px] ${account === 'live' ? 'active' : ''} text-red`}
+            onClick={() => setAccount('live')}
+            title="LIVE — real money. Orders above per-account threshold require TOTP."
           >
-            [live]
+            [live ${account === 'live' ? '*' : ''}]
           </button>
         </div>
       </div>

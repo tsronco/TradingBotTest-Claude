@@ -1,6 +1,8 @@
 // Three accounts: manual (paper) + live (real money) + agent — the autonomous
 // Claude-driven paper account (agentic trading), registered 2026-08-18. The
 // conservative/aggressive/sm* accounts were retired 2026-06-29.
+import { liveTradingEnabled } from './live-enabled.js';
+
 export type Mode = 'manual' | 'live' | 'agent';
 
 const MODES: readonly Mode[] = ['manual', 'live', 'agent'];
@@ -89,9 +91,11 @@ export { credsFor };
  * rejected and has already written a 403; returns false when the caller may
  * proceed.
  *
- * Exact semantics: mode === 'live' AND process.env.LIVE_ENABLED !== 'true'
- * → write HTTP 403 JSON { error: 'live_trading_disabled' } and return true.
- * Paper modes (any mode other than 'live') always return false (allowed).
+ * Exact semantics: mode === 'live' AND live trading is switched off
+ * (`LIVE_ENABLED=false`, see live-enabled.ts) → write HTTP 403 JSON
+ * { error: 'live_trading_disabled' } and return true. Live is ON by default
+ * since 2026-09-08. Paper modes (any mode other than 'live') always return
+ * false (allowed).
  *
  * Usage:
  *   if (liveGuard(mode, res)) return;
@@ -100,7 +104,7 @@ export function liveGuard(
   mode: Mode,
   res: { status: (code: number) => { json: (body: unknown) => void } },
 ): boolean {
-  if (mode === 'live' && process.env.LIVE_ENABLED !== 'true') {
+  if (mode === 'live' && !liveTradingEnabled()) {
     res.status(403).json({ error: 'live_trading_disabled' });
     return true;
   }

@@ -56,15 +56,15 @@ const liveDraft = {
   tags: [],
 };
 
-describe('trades/submit — live account guard', () => {
+describe('trades/submit — live account kill switch (live ON by default since 2026-09-08)', () => {
   const origLiveEnabled = process.env.LIVE_ENABLED;
 
   beforeEach(() => {
     delete process.env.LIVE_ENABLED;
     alpacaTradeMutation.mockReset();
-    // Placement (POST /v2/orders) goes through alpacaTradeMutation now — give it
-    // a resolved order so the paper-account path can complete past placement.
-    alpacaTradeMutation.mockResolvedValue({ id: 'order-paper-1', submitted_at: '2026-06-23T13:00:00Z' });
+    // Placement (POST /v2/orders) goes through alpacaTradeMutation — give it a
+    // resolved order so a permitted path can complete past placement.
+    alpacaTradeMutation.mockResolvedValue({ id: 'order-1', submitted_at: '2026-09-08T13:00:00Z' });
   });
 
   afterEach(() => {
@@ -72,7 +72,26 @@ describe('trades/submit — live account guard', () => {
     else process.env.LIVE_ENABLED = origLiveEnabled;
   });
 
-  it('returns 403 when account=live and LIVE_ENABLED is unset', async () => {
+  it('does NOT 403 account=live when LIVE_ENABLED is unset (live is on by default)', async () => {
+    const handler = (await import('../../api/trades/[action]')).default;
+    const req: any = { method: 'POST', query: { action: 'submit' }, body: liveDraft };
+    const res = mkRes();
+    await handler(req, res);
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(alpacaTradeMutation).toHaveBeenCalled();
+  });
+
+  it('does NOT 403 account=live when LIVE_ENABLED is "true"', async () => {
+    process.env.LIVE_ENABLED = 'true';
+    const handler = (await import('../../api/trades/[action]')).default;
+    const req: any = { method: 'POST', query: { action: 'submit' }, body: liveDraft };
+    const res = mkRes();
+    await handler(req, res);
+    expect(res.status).not.toHaveBeenCalledWith(403);
+  });
+
+  it('returns 403 and never reaches Alpaca when account=live and LIVE_ENABLED is "false" (kill switch)', async () => {
+    process.env.LIVE_ENABLED = 'false';
     const handler = (await import('../../api/trades/[action]')).default;
     const req: any = { method: 'POST', query: { action: 'submit' }, body: liveDraft };
     const res = mkRes();
@@ -83,18 +102,34 @@ describe('trades/submit — live account guard', () => {
     expect(alpacaTradeMutation).not.toHaveBeenCalled();
   });
 
-  it('returns 403 when account=live and LIVE_ENABLED is "false"', async () => {
+  it('kill switch also blocks a live spread submit', async () => {
     process.env.LIVE_ENABLED = 'false';
     const handler = (await import('../../api/trades/[action]')).default;
-    const req: any = { method: 'POST', query: { action: 'submit' }, body: liveDraft };
+    const spread = {
+      kind: 'spread',
+      account: 'live',
+      spread_type: 'put_credit',
+      symbol: 'F',
+      expiration: '2026-10-16',
+      short_leg: { contract_symbol: 'F261016P00011000', strike: 11, side: 'sell' },
+      long_leg: { contract_symbol: 'F261016P00010000', strike: 10, side: 'buy' },
+      qty: 1,
+      limit_price: -0.25,
+      entry_grade: 'B',
+      entry_reasoning: 'x',
+      tags: [],
+    };
+    const req: any = { method: 'POST', query: { action: 'submit' }, body: spread };
     const res = mkRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(403);
+    expect(alpacaTradeMutation).not.toHaveBeenCalled();
   });
 
-  it('does NOT 403 paper accounts (gate is account=live only)', async () => {
+  it('does NOT 403 paper accounts even when the kill switch is on (gate is account=live only)', async () => {
+    process.env.LIVE_ENABLED = 'false';
     const handler = (await import('../../api/trades/[action]')).default;
-    const req: any = { method: 'POST', query: { action: 'submit' }, body: { ...liveDraft, account: 'conservative_paper' } };
+    const req: any = { method: 'POST', query: { action: 'submit' }, body: { ...liveDraft, account: 'manual_paper' } };
     const res = mkRes();
     await handler(req, res);
     expect(res.status).not.toHaveBeenCalledWith(403);
