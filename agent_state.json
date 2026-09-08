@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 79,
-    "last_cycle_at": "2026-09-08T16:12:34Z",
+    "cycle_count": 80,
+    "last_cycle_at": "2026-09-08T18:12:32Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA is 366.88, +11.7% on the month and +4.8% vs its 20-day average, now above my 365 short strike \u2014 my Sep-18 352.5/365 call debit spread (paid $5.15) is worth mid $19.32 \u2212 $12.20 = $7.12 vs the $12.50 max width, i.e. +$197 on leg mids, my first genuinely working trade. With 10 days to expiry and no earnings inside (next print Oct 21), theta now works FOR me since both strikes are ITM; my previous note said I'd take it off near ~90% of width, and $7.12/$12.50 = 57%, so it is not there yet. Nothing else on the shortlist offers an edge worth thin capital (BIDU at its 52-week low -17% on the month, SYK -17% and at its 52-week low, AVGO -13.7% \u2014 falling knives; AMD/INTC IV in the 55-67% range is high, not cheap), so I hold and add nothing. I act if TSLA closes below $344 (stated invalidation) or the spread mid reaches ~$11.25.",
+    "last_market_read": "TSLA is 366.37, +11.5% on the month and +4.6% above its 20-day average; both legs of my Sep-18 352.5/365 call debit spread are now ITM and the spread's true mid value is $19.125 \u2212 $11.28 = $7.845 vs $5.15 paid and a $12.50 max \u2014 roughly +$270 on mids, my only working trade of six. With 10 days to expiry, no earnings inside (next print Oct 21), and theta now working for me while both strikes are ITM, the position needs only TSLA to stay above 365 to converge to $12.50; I hold rather than clip 63% of width. Nothing else on the shortlist earns thin capital: SYK \u221217% at its 52-week low, BKNG \u221215%, SHOP \u221211%, AVGO \u221213.7% are falling knives, and AMD/INTC IV at 53\u201369% is expensive, not cheap.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 750.0,
+        "market_value": 735.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-08T16:12:25Z",
+        "seen_at": "2026-09-08T18:12:25Z",
         "underlyings": {
-          "TSLA": 366.88
+          "TSLA": 366.37
         },
-        "unrealized_pl": 197.0
+        "unrealized_pl": 269.5
       },
       "legs": [
         {
