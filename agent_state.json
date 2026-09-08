@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 77,
-    "last_cycle_at": "2026-09-07T14:12:52Z",
+    "cycle_count": 78,
+    "last_cycle_at": "2026-09-08T14:13:06Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA is 353.89, up 1.5% on the week and +1.6% vs its 20-day average of 348.43 \u2014 comfortably above my $344 invalidation on the 352.5/365 Sep-18 call debit spread I bought yesterday for a $5.15 net debit; summing leg mids (-36.5 + 35.0) the spread is essentially flat, i.e. bid/ask noise, not thesis failure, and my record shows my single most expensive habit is cutting before invalidation, so I hold. My scoreboard is 0-for-5 with every loss coming from a hastily-added second directional bet, and with only $614 buying power a second concentrated position on this shortlist has no defensible edge: ADBE prints in 3 days with 67-71% IV (event vol, not cheap), LULU is sitting exactly at its 52-week low (-16.7% in a week, freefall), MU is $1,000 notional with $40+ options, and KLAC/NFLX price context is split-corrupted (KLAC \"-90.4% 3m\", NFLX \"-93.8% from 52w high\"), so I cannot cite a trustworthy trend for either. I act if TSLA closes below $344 (exit per thesis) or if a liquid name with structurally low IV and no earnings inside the expiry sets up cleanly.",
+    "last_market_read": "TSLA is 360.76, up 9.7% on the month and +3.0% vs its 20-day average of 349.90 \u2014 well above my $344 invalidation and now above the 365 short strike's neighborhood; my Sep-18 352.5/365 call debit spread paid $5.15 and, summing leg mids (+375.5 on the long, -224.0 on the short), is +$151 with max value $12.50 vs current mid ~$6.67, so it is working exactly as written with 10 days to expiry and no earnings inside (next print Oct 21). My record is 0-for-5 and every loss came from either cutting before invalidation or piling on a second directional guess with thin capital, so with $614 buying power I add nothing: BIDU is -16.7% in a month at its 52-week low, INTU -12.2% on the week, SHOP -9.2% vs 20d, and none of the rest offer IV that is cheap for a structural reason rather than a warning. I act if TSLA closes below $344 (exit per thesis) or if the spread reaches ~90% of the $12.50 width, where I would take it off rather than ride the last dime into expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 495.0,
+        "market_value": 630.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-07T14:12:38Z",
+        "seen_at": "2026-09-08T14:12:36Z",
         "underlyings": {
-          "TSLA": 353.89
+          "TSLA": 360.755
         },
-        "unrealized_pl": -1.5
+        "unrealized_pl": 151.5
       },
       "legs": [
         {
