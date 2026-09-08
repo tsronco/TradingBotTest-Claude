@@ -25,7 +25,8 @@ export default function OrderNew() {
   const type = params.get('type');
   const action = params.get('action') as 'open' | 'close' | null;
   // Order forms never target the autonomous agent account — see
-  // OrderAccountId / TRADEABLE_PAPER_ACCOUNTS in account-utils.
+  // OrderAccountId / ORDERABLE_ACCOUNTS in account-utils. `live` (real
+  // money) is accepted from the URL as of 2026-09-08.
   const requested = params.get('account');
   const initialAccount: OrderAccountId =
     requested === 'live' ? 'live' : 'manual_paper';

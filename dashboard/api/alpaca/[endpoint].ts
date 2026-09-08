@@ -365,7 +365,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     if (endpoint === 'modify-order' && req.method === 'POST') {
-      // D1 — gate live money-moving writes behind LIVE_ENABLED.
+      // D1 — live money-moving writes honor the LIVE_ENABLED=false kill switch.
       // GET reads are intentionally left ungated so live monitoring works.
       if (liveGuard(mode, res)) return;
       const body = (req.body ?? {}) as { order_id?: string; qty?: number; limit_price?: number; stop_price?: number; tif?: string };
@@ -407,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ order: updated });
     }
     if (endpoint === 'cancel-order' && req.method === 'POST') {
-      // D1 — gate live money-moving writes behind LIVE_ENABLED.
+      // D1 — live money-moving writes honor the LIVE_ENABLED=false kill switch.
       // GET reads are intentionally left ungated so live monitoring works.
       if (liveGuard(mode, res)) return;
       const body = (req.body ?? {}) as { order_id?: string };

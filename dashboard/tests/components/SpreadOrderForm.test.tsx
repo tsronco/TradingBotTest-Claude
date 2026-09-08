@@ -77,7 +77,7 @@ describe('SpreadOrderForm', () => {
     expect(screen.getByLabelText(/reasoning/i)).toBeInTheDocument();
   });
 
-  it('renders account chips: manual_paper enabled; live disabled', async () => {
+  it('renders account chips: manual_paper and live both enabled (live orderable since 2026-09-08)', async () => {
     renderForm();
     await waitFor(() => screen.getByLabelText(/expiration/i));
 
@@ -86,10 +86,26 @@ describe('SpreadOrderForm', () => {
     expect(manualBtn).toBeInTheDocument();
     expect(manualBtn).not.toBeDisabled();
 
-    // live chip stays disabled (real-money/bot-only)
+    // live chip is a real (red) selectable chip — same TOTP-above-threshold
+    // flow as the single-leg forms.
     const liveBtn = screen.getByRole('button', { name: /\[live/i });
-    expect(liveBtn).toBeDisabled();
-    expect(liveBtn).toHaveAttribute('title', 'Live spreads are bot-managed only — not available for manual entry');
+    expect(liveBtn).not.toBeDisabled();
+    expect(liveBtn.className).toContain('text-red');
+    expect(liveBtn).toHaveAttribute('title', expect.stringMatching(/real money/i));
+  });
+
+  it('calls setAccount with live when the live chip is clicked', async () => {
+    const setAccount = vi.fn();
+    renderForm({ setAccount });
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    fireEvent.click(screen.getByRole('button', { name: /\[live/i }));
+    expect(setAccount).toHaveBeenCalledWith('live');
+  });
+
+  it('shows the not-auto-managed banner for a live put credit spread (bot spread_management is manual-only)', async () => {
+    renderForm({ account: 'live' });
+    await waitFor(() => screen.getByLabelText(/expiration/i));
+    expect(screen.getByText(/won't auto-close/i)).toBeInTheDocument();
   });
 
   it('calls setAccount with manual_paper when the manual_paper chip is clicked', async () => {

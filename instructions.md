@@ -900,10 +900,11 @@ Only if all of the above is genuinely true:
 6. **Never** connect `congress-copy` to the live account — a built-in safety
    (`paper_guard.py`) will refuse it, and copying scraped political trades with
    real money is a bad idea regardless.
-7. **Dashboard stays read-only for live by default.** The dashboard blocks
-   placing live orders unless you deliberately add a Vercel environment variable
-   `LIVE_ENABLED=true`. Leave it unset unless you specifically want to place
-   real-money orders from the website, and understand that risk.
+7. **Dashboard live trading is ON by default (since 2026-09-08).** You can
+   place real-money orders from the website; orders above the live TOTP
+   threshold (Settings → thresholds) require a fresh code. To take the
+   dashboard back to read-only on live, add the Vercel environment variable
+   `LIVE_ENABLED=false` — it's a kill switch, effective on the next request.
 
 **Start with the smallest amount of money you are 100% willing to lose
 entirely.** Treat anything above zero as already spent.

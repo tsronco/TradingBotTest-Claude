@@ -12,6 +12,7 @@ import {
   ALL_ACCOUNTS,
   ALL_PAPER_ACCOUNTS,
   TRADEABLE_PAPER_ACCOUNTS,
+  ORDERABLE_ACCOUNTS,
   ACCOUNT_LABEL,
   WHEEL_MODES,
   accountToMode,
@@ -78,6 +79,10 @@ describe('agent account registration', () => {
     expect(TRADEABLE_PAPER_ACCOUNTS).toEqual(['manual_paper']);
     expect(isTradeableAccount('agent_paper')).toBe(false);
     expect(isTradeableAccount('manual_paper')).toBe(true);
+    // live (real money) is hand-orderable since 2026-09-08 — the agent is not.
+    expect(isTradeableAccount('live')).toBe(true);
+    expect(ORDERABLE_ACCOUNTS).toEqual(['manual_paper', 'live']);
+    expect(ORDERABLE_ACCOUNTS).not.toContain('agent_paper');
   });
 
   it('is NOT dashboard-AI-gradeable — the agent grades its own decisions', () => {

@@ -41,7 +41,7 @@ export function ThresholdsTab() {
           <div key={k} className="flex justify-between py-1 border-b border-dashed border-border">
             <span className="text-mid">
               {k}
-              {k === 'live' ? <span className="text-dim"> (LIVE_ENABLED=false)</span> : null}
+              {k === 'live' ? <span className="text-red"> (real money)</span> : null}
             </span>
             <input
               type="number"
