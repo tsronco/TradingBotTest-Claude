@@ -693,6 +693,38 @@ def _available_qty(position: dict) -> int:
         return int(float(position.get("qty", 0)))
 
 
+def _held_qty(position: dict) -> int:
+    """Total shares in the position, including any reserved by open orders
+    or held as options collateral. Pair with _available_qty to explain a
+    "0 shares" seed: held − available = reserved."""
+    try:
+        return int(float(position.get("qty", 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _seed_description(held: int, free: int, entry_price: float, stop_price: float) -> str:
+    """Discord copy for the manual-seed embed. When Alpaca reserves some of
+    the shares (a resting GTC sell, covered-call collateral), say so — a bare
+    "managing 0 shares" reads like a failure when the user plainly holds
+    stock (WMT 2026-09-08: 1 held, 0 free under a $113 GTC sell)."""
+    reserved = max(held - free, 0)
+    if reserved == 0:
+        return f"Bot now managing {free} shares @ ${entry_price:.2f}. Stop ${stop_price:.2f}."
+    if free == 0:
+        return (
+            f"Holding {held} share{'s' if held != 1 else ''} @ ${entry_price:.2f} — "
+            f"all {reserved} reserved by an open order or options collateral, so the bot "
+            f"has 0 free shares to manage (no stop/trail/ladder until they free up). "
+            f"Stop would be ${stop_price:.2f}."
+        )
+    return (
+        f"Holding {held} shares @ ${entry_price:.2f} — {free} free for the bot to manage, "
+        f"{reserved} reserved by an open order or options collateral. "
+        f"Stop ${stop_price:.2f} (free shares only)."
+    )
+
+
 def _manual_seed_state(symbol: str, position: dict) -> dict:
     """Seed state for a newly-discovered manual-mode position.
 
@@ -716,7 +748,8 @@ def _manual_seed_state(symbol: str, position: dict) -> dict:
     }
 
 
-def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg_cost: float) -> dict:
+def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg_cost: float,
+                       held_qty: int | None = None) -> dict:
     """One cycle of trail/ladder/stop logic for a single manual-mode symbol.
 
     Reconciles bot state against Alpaca first (the user may have bought or
@@ -754,7 +787,14 @@ def _manual_run_symbol(symbol: str, sym_state: dict, alpaca_qty: int, alpaca_avg
             sym_state["initial_qty"] = alpaca_qty
 
     if sym_state["position_qty"] == 0:
-        sym_state["last_action"] = "Position empty — skipping cycle."
+        reserved = (held_qty or 0) - alpaca_qty
+        if reserved > 0:
+            sym_state["last_action"] = (
+                f"{held_qty} share{'s' if held_qty != 1 else ''} held, 0 free — "
+                f"reserved by an open order or options collateral. Skipping cycle."
+            )
+        else:
+            sym_state["last_action"] = "Position empty — skipping cycle."
         return sym_state
 
     # ── Local vars matching run_one_cycle's naming ────────────────────────
@@ -941,9 +981,11 @@ def run_one_cycle_manual():
                 send_embed(
                     TRADES_CH, f"{symbol} — manual position seeded",
                     color=Color.BLUE,
-                    description=(
-                        f"Bot now managing {state[symbol]['position_qty']} shares @ "
-                        f"${state[symbol]['entry_price']:.2f}. Stop ${state[symbol]['stop_price']:.2f}."
+                    description=_seed_description(
+                        _held_qty(position),
+                        state[symbol]["position_qty"],
+                        state[symbol]["entry_price"],
+                        state[symbol]["stop_price"],
                     ),
                     footer=f"strategy.py · {MODE}",
                     actions_channel=ACTIONS_CH,
@@ -951,7 +993,9 @@ def run_one_cycle_manual():
 
             alpaca_qty = _available_qty(position)  # free shares only (excl. CC collateral)
             alpaca_avg = float(position["avg_entry_price"])
-            state[symbol] = _manual_run_symbol(symbol, state[symbol], alpaca_qty, alpaca_avg)
+            state[symbol] = _manual_run_symbol(
+                symbol, state[symbol], alpaca_qty, alpaca_avg, held_qty=_held_qty(position),
+            )
         except Exception as e:
             detail = alpaca_err_detail(e)
             log(f"{symbol}: error in cycle: {detail}")
