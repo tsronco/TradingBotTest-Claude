@@ -1,16 +1,16 @@
 {
   "_meta": {
-    "last_checked": "2026-09-08T16:13:30.199634Z"
+    "last_checked": "2026-09-08T16:23:39.570180Z"
   },
-  "SNAP": {
-    "first_seen": "2026-06-24T18:53:33.856314Z",
-    "entry_price": 4.53,
-    "initial_qty": 5,
-    "avg_cost": 4.53,
+  "WMT": {
+    "first_seen": "2026-09-08T16:23:38.644754Z",
+    "entry_price": 105.88,
+    "initial_qty": 0,
+    "avg_cost": 105.88,
     "total_cost": 0.0,
     "position_qty": 0,
-    "stop_price": 4.08,
-    "high_water_mark": 4.53,
+    "stop_price": 95.29,
+    "high_water_mark": 105.88,
     "trailing_active": false,
     "ladder_done": [
       false,
