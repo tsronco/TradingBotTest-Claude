@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-09-09T13:23:35.342712Z"
+    "last_checked": "2026-09-09T13:33:38.894782Z"
   },
   "WMT": {
     "first_seen": "2026-09-08T16:23:38.644754Z",
@@ -18,5 +18,22 @@
       false
     ],
     "last_action": "1 share held, 0 free \u2014 reserved by an open order or options collateral. Skipping cycle."
+  },
+  "JMKE": {
+    "first_seen": "2026-09-09T13:33:36.744883Z",
+    "entry_price": 22.2,
+    "initial_qty": 0,
+    "avg_cost": 22.2,
+    "total_cost": 0.0,
+    "position_qty": 0,
+    "stop_price": 19.98,
+    "high_water_mark": 22.2,
+    "trailing_active": false,
+    "ladder_done": [
+      false,
+      false,
+      false
+    ],
+    "last_action": "2 shares held, 0 free \u2014 reserved by an open order or options collateral. Skipping cycle."
   }
 }
