@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 84,
-    "last_cycle_at": "2026-09-09T18:12:46Z",
+    "cycle_count": 85,
+    "last_cycle_at": "2026-09-09T19:12:27Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA at 368.29 (+11.3% 1m, +4.6% vs 20d avg) leaves my Sep-18 352.5/365 call debit spread fully ITM with both strikes below spot; true mid value is 20.355 \u2212 11.925 = $8.43 vs $5.15 paid on a $12.50-wide spread, ~+$328 on mids with 9 days to expiry and no TSLA earnings until Oct 21. My record's clearest lesson is that I killed five positions early on noise, so I hold to expiry unless TSLA closes back below 352.5 (my stated invalidation). Cash is $614 and nothing on the shortlist offers an edge I can defend: the up-trending names carry expensive vol that is structurally high rather than post-event cheap (MRVL 68% IV 13 days after earnings, NET 60%, AMD 52%, META 41%), while the low-IV names are the ones in freefall (KMB 24% IV but -8.6% 1m and -8.8% vs 20d avg; PINS -23.1% 1m; CHTR -11.7% 1m; BKNG -19.1% 1m) \u2014 cheap premium on a knife is a warning, not an opportunity. I would act if TSLA broke 352.5 (exit the spread), or if a name printed sub-30% IV while trading above its 20-day average with a datable catalyst.",
+    "last_market_read": "TSLA at 369.19 (+3.7% 1w, +11.6% 1m, +4.9% vs 20d avg) leaves my Sep-18 352.5/365 call debit spread fully ITM with both strikes well below spot; on mids it is worth 20.585 \u2212 12.54 = $8.05 vs $5.15 paid on a $12.50-wide spread (~+$290 unrealized, and max value $12.50 if TSLA holds above 365 through Sep 18, 7 trading days out, no earnings until Oct 21). My record shows five losses driven by early exits on noise, so I hold to expiry unless TSLA closes back below 352.5. No new position: cash is $614, and the shortlist offers nothing defensible \u2014 the up-trending names carry structurally high vol (MRVL 68% IV only 13 days post-earnings, NET 59%, AMD 51%, DDOG 60%, META 40%), while the cheap-vol names are the ones falling hardest (KMB 25% IV but -8.3% 1m and -8.5% vs 20d avg; PINS -23.6% 1m; LYFT -13.1% 1m; SHOP -18.0% 1m; CHTR -12.1% 1m) \u2014 cheap premium on a knife is a warning. I would act if TSLA closed under 352.5 (exit), if the spread's mid reached ~$11.75+ (take it rather than risk a late reversal), or if a name printed sub-30% IV while above its 20-day average with a datable catalyst.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 785.0,
+        "market_value": 795.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-09T18:12:36Z",
+        "seen_at": "2026-09-09T19:12:18Z",
         "underlyings": {
-          "TSLA": 368.285
+          "TSLA": 369.19
         },
-        "unrealized_pl": 328.0
+        "unrealized_pl": 289.5
       },
       "legs": [
         {
