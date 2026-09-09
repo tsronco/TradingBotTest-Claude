@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-09-09T13:53:32.459021Z"
+    "last_checked": "2026-09-09T14:03:33.502013Z"
   },
   "WMT": {
     "first_seen": "2026-09-08T16:23:38.644754Z",
@@ -22,10 +22,10 @@
   "JMKE": {
     "first_seen": "2026-09-09T13:33:36.744883Z",
     "entry_price": 22.2,
-    "initial_qty": 0,
+    "initial_qty": 2,
     "avg_cost": 22.2,
-    "total_cost": 0.0,
-    "position_qty": 0,
+    "total_cost": 44.4,
+    "position_qty": 2,
     "stop_price": 19.98,
     "high_water_mark": 22.2,
     "trailing_active": false,
@@ -34,6 +34,6 @@
       false,
       false
     ],
-    "last_action": "2 shares held, 0 free \u2014 reserved by an open order or options collateral. Skipping cycle."
+    "last_action": "Monitoring $22.00 vs avg $22.20 (PnL -0.90%). Stop $19.98, Trail OFF."
   }
 }
