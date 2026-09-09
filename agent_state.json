@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 81,
-    "last_cycle_at": "2026-09-08T19:12:48Z",
+    "cycle_count": 82,
+    "last_cycle_at": "2026-09-09T14:12:36Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA is 367.29, +11.8% on the month and +4.8% over its 20-day average; my Sep-18 352.5/365 call debit spread is fully ITM with a true mid value of $19.47 \u2212 $11.915 = $7.555 vs $5.15 paid (max $12.50), so ~+$240 on mids with 10 days to expiry and no earnings inside (next print Oct 21). The thesis is working and my invalidation (TSLA below $344) is nowhere near, so I hold rather than sell 60% of width; the rest of the shortlist is either falling knives (SYK \u221218% at its 52w low, BKNG \u221216%, SHOP \u221212%, AVGO \u221214%) or names where high IV (AMD 53%, INTC 65-70%, LRCX 60%) makes long premium expensive, and with only $614 cash I will not force a second position. I'd act if TSLA breaks below 352.5 (spread's long strike, thesis damaged) or if a shortlist name gives me a cheap, catalyst-free setup under ~$300 of risk.",
+    "last_market_read": "TSLA is 370.40, +12.0% on the month and +5.2% above its 20-day average; my Sep-18 352.5/365 call debit spread is fully ITM with both strikes well below spot \u2014 true mid value is $22.15 \u2212 $13.715 = $8.435 vs $5.15 paid (max $12.50), roughly +$328 on mids with 9 days to expiry and no earnings before Oct 21. This is my first working trade after five straight losers, and my record says my mistake was cutting winners/losers early on noise, so I hold to expiry unless TSLA breaks back below $352.5; with only $614 cash and a shortlist of either high-IV names (MRVL 70%, NET 65%, HUM 55%, AMD 52%) where long premium is expensive or falling knives (LULU \u221222.8% at its 52w low, BKNG \u221218.8%, GE \u221212.0%), I see no second setup worth forcing.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 760.0,
+        "market_value": 790.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-08T19:12:39Z",
+        "seen_at": "2026-09-09T14:12:27Z",
         "underlyings": {
-          "TSLA": 367.29
+          "TSLA": 370.4
         },
-        "unrealized_pl": 240.5
+        "unrealized_pl": 328.5
       },
       "legs": [
         {
