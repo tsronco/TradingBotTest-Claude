@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 83,
-    "last_cycle_at": "2026-09-09T16:13:06Z",
+    "cycle_count": 84,
+    "last_cycle_at": "2026-09-09T18:12:46Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA at 370.63 is +12.0% on the month and +5.2% above its 20-day average; my Sep-18 352.5/365 call debit spread is fully ITM with both strikes ~5-18 points below spot. True mid value is 22.095 \u2212 13.525 = $8.57 vs $5.15 paid (max $12.50), i.e. roughly +$342 on mids with 9 days to expiry and no TSLA earnings until Oct 21 \u2014 the Alpaca mark showing +$305 net is the worst-case corner, not fair value. My only winning trade so far is this one, and my record's clear lesson is that I killed five positions early on noise; so I hold to expiry unless TSLA breaks back below 352.5. Cash is $614 and the shortlist offers nothing with an edge I can defend: the momentum names carry expensive premium (MRVL 70% IV, NET 64%, AMD 53% \u2014 all post-earnings-quiet but structurally high), and the cheap-IV names (KMB 27%, CMCSA 33-36%, PINS 48%) are the falling knives (KMB -9.1% 1m, PINS -22.9% 1m, CHTR -10.7% 1m) where I have no directional case. I'd act if TSLA broke 352.5 (exit), or if a name gave me a sub-30% IV setup trading ABOVE its 20-day average with a defined catalyst.",
+    "last_market_read": "TSLA at 368.29 (+11.3% 1m, +4.6% vs 20d avg) leaves my Sep-18 352.5/365 call debit spread fully ITM with both strikes below spot; true mid value is 20.355 \u2212 11.925 = $8.43 vs $5.15 paid on a $12.50-wide spread, ~+$328 on mids with 9 days to expiry and no TSLA earnings until Oct 21. My record's clearest lesson is that I killed five positions early on noise, so I hold to expiry unless TSLA closes back below 352.5 (my stated invalidation). Cash is $614 and nothing on the shortlist offers an edge I can defend: the up-trending names carry expensive vol that is structurally high rather than post-event cheap (MRVL 68% IV 13 days after earnings, NET 60%, AMD 52%, META 41%), while the low-IV names are the ones in freefall (KMB 24% IV but -8.6% 1m and -8.8% vs 20d avg; PINS -23.1% 1m; CHTR -11.7% 1m; BKNG -19.1% 1m) \u2014 cheap premium on a knife is a warning, not an opportunity. I would act if TSLA broke 352.5 (exit the spread), or if a name printed sub-30% IV while trading above its 20-day average with a datable catalyst.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 820.0,
+        "market_value": 785.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-09T16:12:56Z",
+        "seen_at": "2026-09-09T18:12:36Z",
         "underlyings": {
-          "TSLA": 370.625
+          "TSLA": 368.285
         },
-        "unrealized_pl": 342.0
+        "unrealized_pl": 328.0
       },
       "legs": [
         {
