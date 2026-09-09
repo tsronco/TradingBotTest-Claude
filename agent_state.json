@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 82,
-    "last_cycle_at": "2026-09-09T14:12:36Z",
+    "cycle_count": 83,
+    "last_cycle_at": "2026-09-09T16:13:06Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA is 370.40, +12.0% on the month and +5.2% above its 20-day average; my Sep-18 352.5/365 call debit spread is fully ITM with both strikes well below spot \u2014 true mid value is $22.15 \u2212 $13.715 = $8.435 vs $5.15 paid (max $12.50), roughly +$328 on mids with 9 days to expiry and no earnings before Oct 21. This is my first working trade after five straight losers, and my record says my mistake was cutting winners/losers early on noise, so I hold to expiry unless TSLA breaks back below $352.5; with only $614 cash and a shortlist of either high-IV names (MRVL 70%, NET 65%, HUM 55%, AMD 52%) where long premium is expensive or falling knives (LULU \u221222.8% at its 52w low, BKNG \u221218.8%, GE \u221212.0%), I see no second setup worth forcing.",
+    "last_market_read": "TSLA at 370.63 is +12.0% on the month and +5.2% above its 20-day average; my Sep-18 352.5/365 call debit spread is fully ITM with both strikes ~5-18 points below spot. True mid value is 22.095 \u2212 13.525 = $8.57 vs $5.15 paid (max $12.50), i.e. roughly +$342 on mids with 9 days to expiry and no TSLA earnings until Oct 21 \u2014 the Alpaca mark showing +$305 net is the worst-case corner, not fair value. My only winning trade so far is this one, and my record's clear lesson is that I killed five positions early on noise; so I hold to expiry unless TSLA breaks back below 352.5. Cash is $614 and the shortlist offers nothing with an edge I can defend: the momentum names carry expensive premium (MRVL 70% IV, NET 64%, AMD 53% \u2014 all post-earnings-quiet but structurally high), and the cheap-IV names (KMB 27%, CMCSA 33-36%, PINS 48%) are the falling knives (KMB -9.1% 1m, PINS -22.9% 1m, CHTR -10.7% 1m) where I have no directional case. I'd act if TSLA broke 352.5 (exit), or if a name gave me a sub-30% IV setup trading ABOVE its 20-day average with a defined catalyst.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 790.0,
+        "market_value": 820.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-09T14:12:27Z",
+        "seen_at": "2026-09-09T16:12:56Z",
         "underlyings": {
-          "TSLA": 370.4
+          "TSLA": 370.625
         },
-        "unrealized_pl": 328.5
+        "unrealized_pl": 342.0
       },
       "legs": [
         {
