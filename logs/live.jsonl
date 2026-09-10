@@ -11328,3 +11328,4 @@
 {"timestamp": "2026-09-10T14:23:32.437006+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
 {"timestamp": "2026-09-10T14:33:31.213837+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-09-10T14:33:31.499590+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-09-10T14:35:11.918426+00:00", "script": "live_brief.py", "action": "brief_failed", "result": "error", "details": {"error": "BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': \"tools.0.custom: For 'integer' type, properties maximum, minimum are not supported\"}, 'request_id': 'req_011CeuvdjkH4jETyfyQR6PJB'}"}}
