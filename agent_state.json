@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 86,
-    "last_cycle_at": "2026-09-10T14:13:01Z",
+    "cycle_count": 87,
+    "last_cycle_at": "2026-09-10T19:12:38Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA at 366.22 (+2.7% 1w, +10.2% 1m, +3.6% above its 20-day avg of 354.01) keeps my Sep-18 352.5/365 call debit spread fully ITM; on mids it's worth 18.34 \u2212 10.30 = $8.04 vs the $5.15 paid on a $12.50-wide spread (+$289 true P&L), max value $12.50 if TSLA holds \u2265365 into Sep 18 (6 trading days, no earnings until Oct 21). My record is 0-for-5, and four of those losses came from bailing on noise before my invalidation \u2014 so I hold to my stated level (close below 352.50) rather than reacting to today's -$215 intraday mark. No new open: cash is $614 and nothing on the shortlist clears the bar \u2014 the up-trending names carry structurally elevated IV with no near catalyst (AMD 51% IV, +11.1% 1w and 12.7% off its high; INTC 62-65% IV; LRCX/KLAC/MDB all 55-60%), while every sub-40% IV name here is the one falling (BKR 37% IV but -6.7% 1w/-7.0% 1m; SLB 36% IV but -4.8% 1w and flat vs 20d avg; FCX 50% IV and -4.4% 1w). Cheap vol on a name below its 20-day average is a warning, not a discount. I would act if TSLA closed under 352.50 (exit for a partial gain), if the spread mid reached ~$11.75 (take it rather than risk a late reversal into expiry), or if a shortlist name printed sub-30% IV while trading above its 20-day average with a datable catalyst before the option's expiry.",
+    "last_market_read": "TSLA at 365.21 keeps my Sep-18 352.5/365 call debit spread essentially at max value territory: legs mid 17.125 \u2212 9.485 = $7.64 vs $5.15 paid on a $12.50-wide spread (+$249 true P&L on mids), with 6 sessions to expiry and no earnings until Oct 21. The stock is +2.3% 1w, +9.8% 1m, +3.3% above its 20-day avg of 353.95 \u2014 thesis intact and my invalidation (close under 352.50) is 3.5% away, so I hold rather than react to the -$335 intraday mark that is just the short leg's worst-case corner. No new open: cash is $614, and the shortlist offers no defensible edge \u2014 every up-trending name carries structurally high IV with no catalyst inside a near expiry (AMD 50% IV and +10.3% 1w, INTC 62-64% IV, LRCX 57-60%, MU 55% with earnings in 20 days already priced), while the cheaper-vol names (BKR 36% IV but -7.8% 1w/-8.1% 1m, FCX 49% IV and -3.1% below its 20d avg) are the ones falling \u2014 cheap vol under the 20-day average is a warning, not a discount. ORCL is printing earnings today with 114% front IV; buying that premium is paying for the event, not an edge.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 760.0,
+        "market_value": 750.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-10T14:12:50Z",
+        "seen_at": "2026-09-10T19:12:29Z",
         "underlyings": {
-          "TSLA": 366.22
+          "TSLA": 365.205
         },
-        "unrealized_pl": 289.0
+        "unrealized_pl": 249.0
       },
       "legs": [
         {
