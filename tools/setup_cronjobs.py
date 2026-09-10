@@ -130,6 +130,20 @@ JOBS = [
         "wdays": [1, 2, 3, 4, 5],
     },
     {
+        # Live-account READ-ONLY morning brief — Claude reads the market and
+        # the real-money account and SUGGESTS (nothing is placed). One fire per
+        # trading day at 9:40 ET = 13:40 UTC during EDT, ten minutes after the
+        # open so quotes + option chains are live (options don't trade
+        # pre-market). Holidays skip via Alpaca's /clock. cron-job.org is the
+        # ONLY scheduler (live-brief.yml has no native `schedule:` block).
+        # ⚠️ DST: shift to hour 14 when DST ends in November.
+        "title": "Live Brief (9:40 ET, read-only)",
+        "workflow": "live-brief.yml",
+        "hours": [13],
+        "minutes": [40],
+        "wdays": [1, 2, 3, 4, 5],
+    },
+    {
         # Dashboard auto-grading: polls open manual trades every 5 min during
         # market hours and fires AI hindsight grades on newly-closed trades.
         # Hits the Vercel webhook directly with a bearer token (not a GitHub

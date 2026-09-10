@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { isWheelMode, type Mode } from '../lib/account-utils';
 import type { AgentState } from '../lib/agent-state';
+import type { LiveBriefState } from '../lib/live-brief';
 
 interface BotStateResponse {
   key: string;
@@ -39,6 +40,22 @@ export function useAgentState() {
     queryFn: () =>
       api<{ key: string; payload: AgentState | null; lastUpdate: string | null }>(
         '/api/kv/bot-state?key=bot%3Aagent%3Astate',
+      ),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * The live account's read-only morning brief (`bot:live:brief`), pushed by
+ * live-brief.yml after the 9:40 ET run. `payload.last_brief` is today's brief
+ * (or a previous session's — see briefIsStale in lib/live-brief).
+ */
+export function useLiveBrief() {
+  return useQuery({
+    queryKey: ['bot-state', 'bot:live:brief'],
+    queryFn: () =>
+      api<{ key: string; payload: LiveBriefState | null; lastUpdate: string | null }>(
+        '/api/kv/bot-state?key=bot%3Alive%3Abrief',
       ),
     staleTime: 60_000,
   });

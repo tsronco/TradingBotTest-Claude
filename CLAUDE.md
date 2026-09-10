@@ -903,6 +903,7 @@ DISCORD_AGENT_ERRORS_WEBHOOK=...
 DISCORD_AGENT_ACTIONS_WEBHOOK=...
 # ANTHROPIC_API_KEY must be a GitHub Actions secret (not only a Vercel env var)
 # AGENT_MODEL / AGENT_GRADER_MODEL — optional model overrides
+# LIVE_BRIEF_MODEL — optional override for the live morning brief (default claude-opus-5)
 ```
 
 ## Runbook — when something breaks
@@ -1210,6 +1211,54 @@ Tests: `tests/api/live-enabled.test.ts` (the switch), plus the rewritten
 `trades-submit-live-guard`, `alpaca-live-guard`, `trades-import`,
 `SpreadOrderForm`, and `agent-account-registration` cases (default-on,
 kill-switch, paper-untouched, agent-excluded).
+
+### Live morning brief — read-only (shipped 2026-09-10)
+
+Once per trading day at **9:40 ET**, `live_brief.py` reads the REAL-MONEY live
+account and asks Claude for a **read-only** brief: a two-or-three-sentence
+market read, up to three ideas **sized to the account's actual buying power**
+(structure, exact legs, max loss in dollars, capital required, a checkable
+invalidation, key risk, 1–5 confidence, and a `fits_account` verdict), and a
+"what to watch" line per held name. It posts one embed to `#live-summary`
+(mirrored to `#live-actions`) and pushes the record to the dashboard as
+`bot:live:brief`, where the Home page's live card renders it (market read,
+expandable idea rows with the fit verdict, held lines, and a STALE tag when the
+brief isn't from today ET).
+
+**Nothing is executed — by construction.** The module imports only the agent
+harness's *gathering* helpers (`gather_breadth` / `request_focus` /
+`gather_depth`, run with `mode="live"`), never `place_order` /
+`build_order_payload` / `_cancel_order`, and `tests/test_live_brief.py`
+asserts that invariant plus "a full run issues no non-GET Alpaca request."
+The user places every trade by hand. The embed footer says "read-only,
+nothing is placed · ideas, not signals" every day, because the same model
+running autonomously on the agent paper account lost money before its
+raw-record feedback loop was added.
+
+Why 9:40 and not pre-market: options don't trade pre-market, so an 8:45 brief
+would be reading yesterday's chains; ten minutes after the open the quotes and
+chains are live. Holidays skip silently via Alpaca's `/clock` (no model call,
+no Discord). Yesterday's brief is fed back as `previous_brief` (continuity,
+not a rule). Open orders are included so a share reserved by a resting GTC
+sell (the WMT case) is never suggested as something to sell or write against.
+
+Models + cost: the brief itself runs on **Opus** (`LIVE_BRIEF_MODEL` env
+override, e.g. `claude-sonnet-5` to cut cost ~5×), the shortlist step reuses
+the agent's Sonnet focus call. One fire a day ≈ $5–7/month on Opus.
+
+Plumbing: `live-brief.yml` (dispatch-only, `bot-commits` concurrency, commits
+`live_brief_state.json` + `logs/live.jsonl`, pushes the state to KV) is fired
+by cron-job.org (`tools/setup_cronjobs.py` → "Live Brief (9:40 ET, read-only)",
+`40 13 * * 1-5` UTC during EDT; **shift to hour 14 when DST ends**). Needs the
+existing live Alpaca + Discord secrets, `ANTHROPIC_API_KEY`, and
+`BOT_PUSH_TOKEN` as GitHub Actions secrets. Dashboard side:
+`LIVE_BRIEF_KEY` in `api/_lib/kv-keys.ts`, `useLiveBrief()` in
+`src/hooks/useBotState.ts`, types + helpers in `src/lib/live-brief.ts`,
+`src/components/account/LiveBriefPanel.tsx` rendered by `AccountCard` for the
+live card. Live only — manual is paper, so no model spend there.
+
+Tests: 22 pytest in `tests/test_live_brief.py`; vitest `tests/lib/live-brief`,
+`tests/components/LiveBriefPanel`, and the kv-keys whitelist regression.
 
 ### Mobile responsiveness (shipped 2026-05-15)
 
