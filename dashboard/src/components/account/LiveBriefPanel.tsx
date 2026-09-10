@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveBrief } from '../../hooks/useBotState';
 import { fmtUsd } from '../../lib/format';
-import { briefDateLabel, briefIsStale, type BriefIdea } from '../../lib/live-brief';
+import { briefDateLabel, briefIsStale, briefTimeLabel, type BriefIdea } from '../../lib/live-brief';
 
 /**
  * Today's read-only morning brief for the live account, on the Home card.
@@ -23,7 +23,9 @@ export default function LiveBriefPanel() {
       <div className="flex items-baseline gap-2 flex-wrap mb-2">
         <span className="text-[10px] tracking-[0.25em] text-dim">MORNING BRIEF</span>
         {brief && (
-          <span className="text-[10px] text-mid tnum">{briefDateLabel(brief.date)} · 9:40 ET</span>
+          <span className="text-[10px] text-mid tnum">
+            {briefDateLabel(brief.date)}{briefTimeLabel(brief.generated_at) ? ` · ${briefTimeLabel(brief.generated_at)}` : ''}
+          </span>
         )}
         {brief && briefIsStale(brief) && (
           <span

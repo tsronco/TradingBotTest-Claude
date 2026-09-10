@@ -3,6 +3,7 @@ import {
   actionableIdeas,
   briefDateLabel,
   briefIsStale,
+  briefTimeLabel,
   easternDateKey,
   type LiveBriefRecord,
 } from '../../src/lib/live-brief';
@@ -42,6 +43,13 @@ describe('live-brief helpers', () => {
   it('briefDateLabel formats without timezone drift', () => {
     expect(briefDateLabel('2026-09-10')).toBe('Thu, Sep 10');
     expect(briefDateLabel('garbage')).toBe('garbage');
+  });
+
+  it('briefTimeLabel renders the generation time in ET, not a fixed 9:40', () => {
+    expect(briefTimeLabel('2026-09-10T14:42:07Z')).toBe('10:42 AM ET');
+    expect(briefTimeLabel('2026-09-10T13:40:00Z')).toBe('9:40 AM ET');
+    expect(briefTimeLabel(undefined)).toBe('');
+    expect(briefTimeLabel('nope')).toBe('');
   });
 
   it('actionableIdeas keeps only ideas the account can place', () => {

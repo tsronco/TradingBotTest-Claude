@@ -78,6 +78,14 @@ export function briefDateLabel(date: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
+/** "10:42 ET" from the brief's generated_at ISO timestamp; '' if unparseable. */
+export function briefTimeLabel(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' })} ET`;
+}
+
 /** Ideas the account can actually place right now, per the model's sizing. */
 export function actionableIdeas(brief: LiveBriefRecord | null | undefined): BriefIdea[] {
   return (brief?.ideas ?? []).filter((i) => i.fits_account);

@@ -54,6 +54,7 @@ describe('LiveBriefPanel', () => {
     mockFetch(state());
     renderPanel();
     expect(await screen.findByText('quiet open, small caps bid')).toBeInTheDocument();
+    expect(screen.getByText(/9:40 AM ET/)).toBeInTheDocument();
     expect(screen.getByText('F')).toBeInTheDocument();
     expect(screen.getByText('long stock')).toBeInTheDocument();
     expect(screen.getByText('✓ fits')).toBeInTheDocument();
