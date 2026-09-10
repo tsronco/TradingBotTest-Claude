@@ -161,14 +161,20 @@ def _trim_positions(positions: list) -> list:
     return out
 
 
-def previous_brief_context(state: dict) -> dict | None:
-    """Yesterday's brief, handed back so today's doesn't silently contradict it.
-    Framed to the model as continuity, not a rule."""
+def previous_brief_context(state: dict, today: str | None = None) -> dict | None:
+    """The prior brief, handed back so today's doesn't silently contradict it.
+    Framed to the model as continuity, not a rule. Labelled "earlier today"
+    when a second run lands on the same date (a manual re-fire) — otherwise the
+    model calls a four-minute-old brief "yesterday" (seen 2026-09-10)."""
     last = state.get("last_brief")
     if not isinstance(last, dict):
         return None
+    today = today or datetime.now(ET).strftime("%Y-%m-%d")
+    same_day = last.get("date") == today
+    when = "earlier TODAY (a re-run, not a prior session)" if same_day else "the previous trading day"
     return {
         "date": last.get("date"),
+        "when": when,
         "market_read": last.get("market_read"),
         "ideas": [
             {"symbol": i.get("symbol"), "structure": i.get("structure"),
@@ -176,9 +182,8 @@ def previous_brief_context(state: dict) -> dict | None:
             for i in (last.get("ideas") or [])
         ],
         "no_trade_reason": last.get("no_trade_reason"),
-        "note": ("Your brief from the previous trading day. Continuity, not a rule: "
-                 "you may change your mind, but say why rather than contradicting "
-                 "yourself silently."),
+        "note": (f"Your brief from {when}. Continuity, not a rule: you may change "
+                 "your mind, but say why rather than contradicting yourself silently."),
     }
 
 
