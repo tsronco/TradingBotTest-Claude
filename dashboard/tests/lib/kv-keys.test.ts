@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAllowedBotStateKey, BOT_STATE_KEYS, AGENT_STATE_KEY } from '../../api/_lib/kv-keys';
+import { isAllowedBotStateKey, BOT_STATE_KEYS, AGENT_STATE_KEY, LIVE_BRIEF_KEY } from '../../api/_lib/kv-keys';
 
 describe('kv-keys', () => {
   it('accepts every key in the whitelist', () => {
@@ -14,7 +14,7 @@ describe('kv-keys', () => {
     expect(isAllowedBotStateKey('')).toBe(false);
   });
 
-  it('exposes the expected keys (manual + live wheel state, plus agent state)', () => {
+  it('exposes the expected keys (manual + live wheel state, agent state, live brief)', () => {
     expect(BOT_STATE_KEYS).toEqual([
       'bot:state:manual',
       'bot:state:live',
@@ -23,7 +23,16 @@ describe('kv-keys', () => {
       'bot:rules:manual',
       'bot:rules:live',
       'bot:agent:state',
+      'bot:live:brief',
     ]);
+  });
+
+  // live-brief.yml pushes live_brief_state.json here after the 9:40 ET run. Same
+  // class of bug as the agent key above: a push to an un-whitelisted key fails
+  // silently (fire-and-forget) and the Home card never shows a brief.
+  it('accepts the live morning-brief key', () => {
+    expect(isAllowedBotStateKey('bot:live:brief')).toBe(true);
+    expect(LIVE_BRIEF_KEY).toBe('bot:live:brief');
   });
 
   // Regression: agent-trader.yml has pushed to this key since the agent

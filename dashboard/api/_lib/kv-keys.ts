@@ -11,10 +11,14 @@ export const BOT_STATE_KEYS = [
   'bot:rules:manual',
   'bot:rules:live',
   'bot:agent:state',
+  'bot:live:brief',
 ] as const;
 
 /** The single key holding the autonomous agent account's state document. */
 export const AGENT_STATE_KEY = 'bot:agent:state';
+
+/** The live account's read-only morning brief, pushed by live-brief.yml at 9:40 ET. */
+export const LIVE_BRIEF_KEY = 'bot:live:brief';
 
 export type BotStateKey = (typeof BOT_STATE_KEYS)[number];
 

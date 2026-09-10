@@ -1,0 +1,103 @@
+name: Live Brief (read-only morning brief)
+
+# Once per trading day at 9:40 ET, live_brief.py reads the REAL-MONEY live
+# account (equity, cash, options BP, positions, open orders), runs the agent's
+# two-phase market scan against it, and asks Claude for a READ-ONLY brief: a
+# market read, up to three ideas sized to the account's actual buying power,
+# and a watch line per held name. It posts one embed to #live-summary and
+# pushes the brief to the dashboard (bot:live:brief → Home live card).
+#
+# NOTHING IS EXECUTED. live_brief.py imports only the agent harness's
+# gathering helpers and has no order-placement path (asserted by
+# tests/test_live_brief.py). The user places every trade by hand.
+#
+# 9:40 ET (not pre-market) so quotes and option chains are live — options don't
+# trade pre-market, so an 8:45 brief would be reading yesterday's chains.
+# Holidays skip silently via Alpaca's /clock (no model call, no Discord).
+#
+# Triggered by cron-job.org via workflow_dispatch, like every other job here.
+# ‼️ Deliberately NO `schedule:` trigger — cron-job.org is the only scheduler;
+# a native one would double-fire (two briefs, two Opus calls).
+#
+# ⚠️ DST: the cron-job.org schedule (`40 13 * * 1-5` UTC = 9:40 ET during
+# EDT, Mar–Nov) must shift to 14:40 UTC when DST ends, same as the others.
+#
+# Requires (GitHub Actions secrets): ALPACA_LIVE_API_KEY / _API_SECRET /
+# _BASE_URL, DISCORD_LIVE_SUMMARY/ERRORS/ACTIONS_WEBHOOK, ANTHROPIC_API_KEY,
+# BOT_PUSH_TOKEN. Optional: LIVE_BRIEF_MODEL (default claude-opus-5).
+
+on:
+  workflow_dispatch: {}          # cron-job.org calls this; also allows manual trigger
+
+concurrency:
+  group: bot-commits
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run live brief (read-only — Claude suggests, never places)
+        env:
+          ALPACA_LIVE_API_KEY:          ${{ secrets.ALPACA_LIVE_API_KEY }}
+          ALPACA_LIVE_API_SECRET:       ${{ secrets.ALPACA_LIVE_API_SECRET }}
+          ALPACA_LIVE_BASE_URL:         ${{ secrets.ALPACA_LIVE_BASE_URL }}
+          ANTHROPIC_API_KEY:            ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional model override; defaults to claude-opus-5 (live_brief.py).
+          LIVE_BRIEF_MODEL:             ${{ secrets.LIVE_BRIEF_MODEL }}
+          DISCORD_LIVE_SUMMARY_WEBHOOK: ${{ secrets.DISCORD_LIVE_SUMMARY_WEBHOOK }}
+          DISCORD_LIVE_ERRORS_WEBHOOK:  ${{ secrets.DISCORD_LIVE_ERRORS_WEBHOOK }}
+          DISCORD_LIVE_ACTIONS_WEBHOOK: ${{ secrets.DISCORD_LIVE_ACTIONS_WEBHOOK }}
+        run: python live_brief.py
+
+      - name: Push brief to dashboard
+        if: always()
+        env:
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}
+        run: |
+          if [ -f live_brief_state.json ]; then
+            curl -fsS --max-time 10 \
+              -X POST https://tradingbot-dashboard-blue.vercel.app/api/bot-state \
+              -H "Authorization: Bearer $BOT_PUSH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --slurpfile p live_brief_state.json \
+                         '{key: "bot:live:brief", payload: $p[0]}')" \
+              || echo "Dashboard push for live brief failed (non-fatal)"
+          else
+            echo "live_brief_state.json not present — skipping dashboard push"
+          fi
+
+      - name: Commit state and logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add live_brief_state.json 2>/dev/null || true
+          git add logs/ 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "No state or log changes to commit."
+          else
+            git commit -m "live-brief: $(date -u +%Y-%m-%dT%H:%MZ)"
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt $attempt"
+                exit 0
+              fi
+              echo "Push attempt $attempt failed — rebasing and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 3 attempts" >&2
+            exit 1
+          fi

@@ -5,6 +5,7 @@ import { fmtUsd, fmtPct } from '../../lib/format';
 import EquityChart, { formatHoverDate } from '../EquityChart';
 import { usePeriod, useGranularity, alpacaPeriod, alpacaTimeframe, type Period, type Granularity } from '../../hooks/usePeriod';
 import FundingPanel from './FundingPanel';
+import LiveBriefPanel from './LiveBriefPanel';
 import { Link } from 'react-router-dom';
 import type { Mode } from '../../lib/account-utils';
 
@@ -310,6 +311,9 @@ export default function AccountCard({ mode, label, acctKey }: CardProps) {
       </div>
 
       {acctKey === 'LIVE' && mode === 'live' && <FundingPanel mode={mode} />}
+      {/* Read-only morning brief (live_brief.py, 9:40 ET) — ideas sized to this
+          account, never executed. */}
+      {acctKey === 'LIVE' && mode === 'live' && <LiveBriefPanel />}
 
       {/* The agent account's distinguishing artifact isn't a balance — it's the
           reasoning behind each trade. Point at it from the card. */}

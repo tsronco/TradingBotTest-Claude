@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-10',
+    category: 'feature',
+    title: 'Live morning brief — Claude suggests, you decide (9:40 ET, read-only)',
+    details:
+      'Once per trading day, ten minutes after the open, the live account gets a read-only brief in '
+      + '#live-summary and on the Home live card: a short market read, up to three ideas sized to the '
+      + "account's real buying power (exact legs, max loss in dollars, capital required, a checkable "
+      + 'invalidation, key risk, confidence, and a fits-account verdict), and a watch line for each '
+      + 'position you hold. Open orders are in the picture, so a share reserved by a resting GTC sell is '
+      + 'never suggested as something to sell or write against.\n\n'
+      + 'Nothing is executed. The script imports only the agent harness\'s data-gathering helpers and '
+      + 'has no order path (a test asserts it); you place every trade by hand. Yesterday\'s brief is fed '
+      + 'back for continuity, holidays skip silently, and a brief from a previous session shows a STALE '
+      + 'tag on the dashboard so old prices are never mistaken for today\'s.\n\n'
+      + 'Opus writes the brief (LIVE_BRIEF_MODEL env override to Sonnet cuts cost ~5x); the shortlist '
+      + 'step reuses the agent\'s Sonnet focus call. About $5–7/month. Live only — manual is paper.',
+  },
+  {
     date: '2026-09-08',
     category: 'fix',
     title: 'Seed embed says "held vs free" instead of "managing 0 shares"',
