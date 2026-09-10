@@ -30,6 +30,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-10',
+    category: 'fix',
+    title: 'Live brief: first fire failed on a strict-schema bound; fixed',
+    details:
+      'The first live brief (10:35 ET) died before the model call with "For integer type, properties '
+      + 'maximum, minimum are not supported" — the API\'s strict tool mode accepts only a subset of JSON '
+      + 'Schema, and the confidence field carried a 1–5 numeric bound. The range now lives in the field '
+      + 'description, matching how the agent\'s decision tool declares it. A regression test walks the '
+      + 'whole brief schema for any keyword strict mode rejects.',
+  },
+  {
+    date: '2026-09-10',
     category: 'feature',
     title: 'Live morning brief — Claude suggests, you decide (9:40 ET, read-only)',
     details:

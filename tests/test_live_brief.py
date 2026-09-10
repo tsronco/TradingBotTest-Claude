@@ -126,6 +126,33 @@ def test_full_run_never_writes_to_alpaca(_wire):
     assert out["posted"] is True and out["errors"] == 0
 
 
+# ── Tool schema is valid under strict mode ──────────────────────────────────
+
+_UNSUPPORTED_STRICT_KEYS = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+                            "minLength", "maxLength", "pattern", "format", "minItems", "maxItems"}
+
+
+def _walk(node, path="$"):
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield path, k
+            yield from _walk(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _walk(v, f"{path}[{i}]")
+
+
+def test_brief_tool_schema_uses_no_keywords_strict_mode_rejects():
+    """Regression: the first live fire (2026-09-10 10:35 ET) died with
+    `tools.0.custom: For 'integer' type, properties maximum, minimum are not
+    supported` — the API's strict tool mode accepts only a subset of JSON
+    Schema. Numeric/length bounds must be described in prose instead."""
+    bad = [(p, k) for p, k in _walk(lb.BRIEF_TOOL["input_schema"]) if k in _UNSUPPORTED_STRICT_KEYS]
+    assert bad == [], f"strict-mode-unsupported schema keywords: {bad}"
+    conf = lb.BRIEF_TOOL["input_schema"]["properties"]["ideas"]["items"]["properties"]["confidence"]
+    assert conf["type"] == "integer" and "1" in conf["description"] and "5" in conf["description"]
+
+
 # ── Context trimming ────────────────────────────────────────────────────────
 
 def test_trim_open_orders_keeps_commitment_fields():
