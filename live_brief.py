@@ -263,7 +263,7 @@ BRIEF_TOOL = {
                         "invalidation": {"type": "string", "description": "Concrete, checkable: 'wrong if X closes below $Y before <date>'."},
                         "key_risk": {"type": "string"},
                         "fits_account": {"type": "boolean", "description": "True only if capital_required_usd <= the account's actual buying power for that asset class right now."},
-                        "confidence": {"type": "integer", "minimum": 1, "maximum": 5},
+                        "confidence": {"type": "integer", "description": "1 (low) to 5 (high). Strict tool schemas reject minimum/maximum, so the range lives here."},
                     },
                     "required": ["symbol", "structure", "legs", "direction", "why", "getting_paid",
                                  "max_loss_usd", "capital_required_usd", "invalidation", "key_risk",
