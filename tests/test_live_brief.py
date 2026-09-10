@@ -187,6 +187,17 @@ def test_previous_brief_context_is_a_trimmed_continuity_feed():
     assert "not a rule" in ctx["note"]
 
 
+def test_previous_brief_context_labels_prior_day_vs_same_day():
+    state = {"last_brief": {"date": "2026-09-10", "market_read": "r", "ideas": []}}
+    prior = lb.previous_brief_context(state, today="2026-09-11")
+    assert prior["when"] == "the previous trading day"
+    assert "previous trading day" in prior["note"]
+    # A manual re-fire on the same date must not be presented as "yesterday".
+    same = lb.previous_brief_context(state, today="2026-09-10")
+    assert same["when"].startswith("earlier TODAY")
+    assert "earlier TODAY" in same["note"]
+
+
 def test_gather_live_context_shape(_wire):
     client = _FakeClient(focus=("F",))
     ctx = lb.gather_live_context(client=client)
