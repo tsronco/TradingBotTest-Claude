@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 87,
-    "last_cycle_at": "2026-09-10T19:12:38Z",
+    "cycle_count": 88,
+    "last_cycle_at": "2026-09-11T14:12:48Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA at 365.21 keeps my Sep-18 352.5/365 call debit spread essentially at max value territory: legs mid 17.125 \u2212 9.485 = $7.64 vs $5.15 paid on a $12.50-wide spread (+$249 true P&L on mids), with 6 sessions to expiry and no earnings until Oct 21. The stock is +2.3% 1w, +9.8% 1m, +3.3% above its 20-day avg of 353.95 \u2014 thesis intact and my invalidation (close under 352.50) is 3.5% away, so I hold rather than react to the -$335 intraday mark that is just the short leg's worst-case corner. No new open: cash is $614, and the shortlist offers no defensible edge \u2014 every up-trending name carries structurally high IV with no catalyst inside a near expiry (AMD 50% IV and +10.3% 1w, INTC 62-64% IV, LRCX 57-60%, MU 55% with earnings in 20 days already priced), while the cheaper-vol names (BKR 36% IV but -7.8% 1w/-8.1% 1m, FCX 49% IV and -3.1% below its 20d avg) are the ones falling \u2014 cheap vol under the 20-day average is a warning, not a discount. ORCL is printing earnings today with 114% front IV; buying that premium is paying for the event, not an edge.",
+    "last_market_read": "TSLA at 365.62 has my Sep-18 352.5/365 call debit spread at 16.65 \u2212 8.875 = $7.775 mid vs $5.15 paid on a $12.50-wide spread \u2014 true P&L +$262 on mids, with both legs ITM/at-the-money and 5 sessions to expiry; the scary \u2212$185 short-leg mark is the worst-case corner, not a loss. My record shows every closed trade was a directional debit/credit guess I abandoned or that mean-reverted (0/5, \u2212$729), and the one thing working now is the position I actually held through noise \u2014 so the lesson is to hold winners to the stated invalidation, not to add another marginal directional bet. Holding: no new open because cash is $614 and nothing on the shortlist offers a defensible edge \u2014 the up-trending names carry high structural IV with no catalyst inside a near expiry (MRVL 63-67%, COIN 67-71%, MRNA 70%+ after a +129% 1m squeeze, DELL 64% IV sitting exactly at its 52w high 10 days post-earnings), and the cheap-vol names (IBM 35%, BX 38%) are either directionless or \u221211.5% over a month and 6.8% below their 20-day average. I would act on a pullback in TSLA toward 352.50 (my invalidation, which would force an exit) or on a sub-30% IV name with a clear trend and no earnings inside the expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 750.0,
+        "market_value": 760.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-10T19:12:29Z",
+        "seen_at": "2026-09-11T14:12:37Z",
         "underlyings": {
-          "TSLA": 365.205
+          "TSLA": 365.615
         },
-        "unrealized_pl": 249.0
+        "unrealized_pl": 262.5
       },
       "legs": [
         {
