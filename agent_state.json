@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 88,
-    "last_cycle_at": "2026-09-11T14:12:48Z",
+    "cycle_count": 89,
+    "last_cycle_at": "2026-09-11T19:12:47Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA at 365.62 has my Sep-18 352.5/365 call debit spread at 16.65 \u2212 8.875 = $7.775 mid vs $5.15 paid on a $12.50-wide spread \u2014 true P&L +$262 on mids, with both legs ITM/at-the-money and 5 sessions to expiry; the scary \u2212$185 short-leg mark is the worst-case corner, not a loss. My record shows every closed trade was a directional debit/credit guess I abandoned or that mean-reverted (0/5, \u2212$729), and the one thing working now is the position I actually held through noise \u2014 so the lesson is to hold winners to the stated invalidation, not to add another marginal directional bet. Holding: no new open because cash is $614 and nothing on the shortlist offers a defensible edge \u2014 the up-trending names carry high structural IV with no catalyst inside a near expiry (MRVL 63-67%, COIN 67-71%, MRNA 70%+ after a +129% 1m squeeze, DELL 64% IV sitting exactly at its 52w high 10 days post-earnings), and the cheap-vol names (IBM 35%, BX 38%) are either directionless or \u221211.5% over a month and 6.8% below their 20-day average. I would act on a pullback in TSLA toward 352.50 (my invalidation, which would force an exit) or on a sub-30% IV name with a clear trend and no earnings inside the expiry.",
+    "last_market_read": "TSLA 364.45 leaves my Sep-18 352.5/365 call debit spread with both legs effectively at/above the money: mid value 15.41 \u2212 7.56 = $7.85 vs $5.15 paid on a $12.50-wide spread, i.e. +$270 true P&L (mids) with 5 sessions to expiry \u2014 max value $12.50 if TSLA holds \u2265365. My invalidation (a close below $344) is nowhere near hit, and my whole record (0/5, \u2212$729) is a series of directional debit bets I abandoned early, so the one discipline worth keeping is holding this to the stated level. No new open: cash is $614, and the shortlist offers no defensible edge \u2014 DELL sits exactly at its 52w high with 60% IV, MRVL 60-64% and ON 55-63% IV are structurally high with earnings 39-52 days out (outside a near expiry, so no catalyst to pay for), PANW is \u221215.3% over a month and 7.2% below its 20-day average (falling knife), and UNH at 22-33% IV is \u22125.9% on the week and below its 20-day average. I'd act on a TSLA close under $344 (forced exit) or on a sub-30% IV name trending up with no earnings inside the expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 760.0,
+        "market_value": 750.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-11T14:12:37Z",
+        "seen_at": "2026-09-11T19:12:38Z",
         "underlyings": {
-          "TSLA": 365.615
+          "TSLA": 364.45
         },
-        "unrealized_pl": 262.5
+        "unrealized_pl": 270.0
       },
       "legs": [
         {
