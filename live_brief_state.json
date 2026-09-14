@@ -1,48 +1,48 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-11T13:41:50Z",
-    "runs": 3
+    "last_run_at": "2026-09-14T13:42:12Z",
+    "runs": 4
   },
   "last_brief": {
     "account": {
       "buying_power": 0.2,
       "cash": 0.2,
-      "equity": 150.82,
+      "equity": 152.26,
       "options_buying_power": 0.2
     },
-    "date": "2026-09-11",
-    "generated_at": "2026-09-11T13:41:50Z",
+    "date": "2026-09-14",
+    "generated_at": "2026-09-14T13:42:12Z",
     "held": [
       {
-        "symbol": "JMKE",
-        "watch": "2 shares, both free ($44.28, -$0.12). Holding $22.05 area, +9.8% on the week and flat vs its 20d avg; earnings 2026-11-11, well outside any near window. Only 30 options listed and quotes are wide ($0.32/$0.58 on the Sep-18 22.5C) \u2014 with 2 shares you can't write a covered call anyway, so just hold."
+        "symbol": "WMT",
+        "watch": "108.69, +2.7% on the lot; all 1 share is reserved by your GTC sell limit at $113 (qty_available 0) \u2014 nothing to write or sell against it. $113 is ~4% away and above the 20d ($107); earnings 11/19 is well outside, so just let the order work."
       },
       {
-        "symbol": "WMT",
-        "watch": "1 share at $106.34 (+$0.46), but qty_available=0 \u2014 reserved by your resting GTC sell limit at $113. Stock is $106.27, -0.9% vs 20d and -8.4% on the month, so that limit is ~6.3% away and unlikely to fill soon; no covered call possible against a reserved share. Earnings 2026-11-19 is outside the window. Decide only whether $113 is still the right exit."
+        "symbol": "JMKE",
+        "watch": "21.685, -2.3% on 2 shares and sitting ~1% below its 20d ($21.90) after a +4.1% week; both shares are free. Thin name \u2014 only 14 listed options, Oct-16 $22.50 call is 0.93/1.13 but you need 100 shares to cover, so no call writing. Earnings 11/11."
       }
     ],
     "ideas": [],
-    "market_read": "Broad risk-on tape: semis and hardware leading (DELL +6% to a new 52w high, HPQ +4.6% also at highs, INTC +3.3%, MRVL +3.8%, QCOM +3.2%), gold miners strong (GOLD +5.4%), SHOP the laggard at -10% on the week and -9.5% vs its 20d. Elevated IV in the big movers (DELL ~62%, INTC ~62%, MRVL ~60%) makes premium selling the attractive style, exactly as yesterday \u2014 but the account still has $0.20 cash and $0.20 options buying power, so nothing is placeable. Today is housekeeping on the two share lots.",
+    "market_read": "Reversal from Friday: semis/AI are being sold hard (MU -10.9% on the week into 9/30 earnings, ORCL -10.5%, GEV -6.4%, AVGO -16.9% on the month) while software and consumer names hold up (NOW +10.7% 1m, ZS +3.6% 1w, ACN +3.1% 1w, WMT +1.5%). IV is rich in the wrecked semis (MU ~60%, MRVL ~68%, INTC ~65%), which favors premium selling \u2014 but this account has $0.20 cash and $0.20 options buying power, so none of it is placeable. Today is watch-only on the two share lots.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Cash and options buying power are both $0.20 against $150.82 equity \u2014 not one share or one contract can be placed, unchanged from the last two sessions. If funded, on this tape I'd want defined-risk premium selling into the IV left by today's big moves: an INTC Oct-02 $100/$95 put credit spread needs ~$500 of options buying power (Level 2/3 spread approval) with roughly $130-150 of credit, or a WMT Oct-02 $106 cash-secured put (~$2.06 mid, $206 credit) needs $10,600. Share-only route: ~$34 buys 1 HPQ, ~$110 buys 1 UAL \u2014 realistically $1,000-2,000 of funding is what makes any of this size-able rather than symbolic.",
+    "no_trade_reason": "Cash and options buying power are both $0.20 against $152.26 equity \u2014 a fourth straight session where not one share or one contract can be placed, so no idea can honestly be marked fits_account. If funded, on today's tape I'd sell into the semi IV with defined risk: an INTC Oct-02 $92/$87 put credit spread needs ~$500 of options buying power (Level 2/3 spread approval) for roughly $130-160 credit, or a WMT Oct-09 $108 cash-secured put (~$2.19 mid, $219 credit) needs $10,800. Share-only route: ~$96 buys 1 INTC, ~$108 adds a second WMT. Realistically $1,000-2,000 of funding is what turns any of this from symbolic into real.",
     "refused": false,
     "scan": {
       "focus": [
-        "DELL",
         "INTC",
-        "HPQ",
-        "QCOM",
-        "MRVL",
-        "GOLD",
-        "ETN",
-        "SHOP",
+        "MU",
         "AMD",
+        "MRVL",
+        "ORCL",
+        "NOW",
+        "INTU",
+        "ACN",
+        "ZS",
         "GEV",
-        "UAL",
-        "BA"
+        "ETN",
+        "AVGO"
       ],
-      "focus_read": "Broad market strength today with tech/semis leading; standout movers include DELL (+6%), HPQ (+4.6%), INTC (+3.3%), GOLD (+5.4%), QCOM (+3.2%), MRVL (+3.8%), ETN (+3.2%), SHOP (+3.4%) - strong momentum names worth checking for continuation or premium-selling setups given elevated IV from big moves. Given tiny account size (~$150 equity, $0.20 buying power), focus is mostly informational since no capital to deploy new positions this cycle.",
+      "focus_read": "Sharp semiconductor/AI selloff (INTC, AMD, MU, MRVL, AVGO, KLAC, LRCX, AMAT, ORCL, GEV, ETN) contrasts with strength in software/consumer names (NOW, INTU, ACN, ADBE, PANW, ZS) that gapped up on earnings-like moves. Focusing on the biggest movers with clear directional or mean-reversion setups.",
       "universe_scanned": 273
     }
   }
