@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 91,
-    "last_cycle_at": "2026-09-14T19:12:28Z",
+    "cycle_count": 92,
+    "last_cycle_at": "2026-09-15T14:12:37Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA 359.75 (+1.7% 1w, +5.8% 1m, +1.1% vs 20d avg) keeps my Sep-18 352.5/365 call debit spread at 11.115 \u2212 4.74 = $6.38 mid vs $5.15 paid \u2014 roughly +$122 true P&L (mids) with 4 calendar days to expiry; max value $12.50 requires TSLA \u2265365 (+1.5%). Underlying is far above my stated $344 invalidation, so the thesis is intact and my record's one repeated error is bailing on marks before invalidation \u2014 I hold. No new open: my $614 free cash can't buy anything meaningful in these names (all $190\u2013$990 underlyings with $8\u201340 premiums), and the shortlist splits into falling knives (AMAT \u221219.9%/1m and \u22129.0% vs 20d avg, AVGO \u221217.1%/1m, GEV \u221216.6%/1m) versus extended high-IV momentum names at 52-week highs (NET +19.3%/1w at its high with 60% IV, OKTA +21.2%/1m at its high with 61% IV, ZS 57-59% IV) where that vol is structurally high on volatile software rather than an event I can price \u2014 all have earnings 45\u201386 days out, so no catalyst inside a cheap near expiry. I'd act on a TSLA close under $344 (forced exit), on TSLA \u2265365 into Friday (ride to max value), or on a liquid name under 35% IV trending up with a debit under ~$250 and no earnings inside the expiry.",
+    "last_market_read": "TSLA 358.94 (-2.5% 1w, +4.8% 1m, +0.5% vs 20d avg) leaves my Sep-18 352.5/365 call debit spread at 10.405 \u2212 3.9895 = $6.42 mid vs $5.15 paid \u2014 about +$127 true P&L with 3 calendar days to expiry; max $12.50 needs TSLA \u2265365 (+1.7%). Underlying is 4.3% above my $344 invalidation, so the thesis holds and my one repeated error in the record is exiting on marks before invalidation \u2014 hold. No new open: $614 free cash buys nothing meaningful in these names (underlyings $35\u2013$508 with $4\u201328 near-money premiums), and the shortlist is either falling knives (ORCL -13.0% 1w/-26.6% 3m, ARM -11.3% 1m/-39.9% 3m, SNPS -11.9% 1m sitting exactly at its 52-week low) or extended high-IV names (QCOM +12.8% 1m, +10.8% vs 20d avg at 52% IV) where the vol is structurally high on semis, not a datable event \u2014 every name's earnings are 35\u201386 days out, so no catalyst fits a cheap near-dated debit.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 630.0,
+        "market_value": 605.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-14T19:12:19Z",
+        "seen_at": "2026-09-15T14:12:29Z",
         "underlyings": {
-          "TSLA": 359.75
+          "TSLA": 358.94
         },
-        "unrealized_pl": 122.5
+        "unrealized_pl": 126.55
       },
       "legs": [
         {
