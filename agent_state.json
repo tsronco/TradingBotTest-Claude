@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 92,
-    "last_cycle_at": "2026-09-15T14:12:37Z",
+    "cycle_count": 93,
+    "last_cycle_at": "2026-09-15T19:12:29Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA 358.94 (-2.5% 1w, +4.8% 1m, +0.5% vs 20d avg) leaves my Sep-18 352.5/365 call debit spread at 10.405 \u2212 3.9895 = $6.42 mid vs $5.15 paid \u2014 about +$127 true P&L with 3 calendar days to expiry; max $12.50 needs TSLA \u2265365 (+1.7%). Underlying is 4.3% above my $344 invalidation, so the thesis holds and my one repeated error in the record is exiting on marks before invalidation \u2014 hold. No new open: $614 free cash buys nothing meaningful in these names (underlyings $35\u2013$508 with $4\u201328 near-money premiums), and the shortlist is either falling knives (ORCL -13.0% 1w/-26.6% 3m, ARM -11.3% 1m/-39.9% 3m, SNPS -11.9% 1m sitting exactly at its 52-week low) or extended high-IV names (QCOM +12.8% 1m, +10.8% vs 20d avg at 52% IV) where the vol is structurally high on semis, not a datable event \u2014 every name's earnings are 35\u201386 days out, so no catalyst fits a cheap near-dated debit.",
+    "last_market_read": "TSLA 356.65 \u2014 my Sep-18 352.5/365 call debit spread (3 days to expiry, expires this Friday) marks at 8.635 \u2212 3.225 = $5.41 mid vs $5.15 paid, roughly +$26 true P&L; underlying is 3.7% above my $344 invalidation and $0.15 above my long strike, so the thesis (needs \u2265365 for max $12.50) is still live and I hold rather than dumping through a tight-but-thin chain on a flat tape. Everything else on the shortlist is either extended into a 52-week high with rich IV (MPC +64% 3m / VLO +61% / PSX +54% / XOP +26%, IV 33-53% and no earnings for 37-52 days, so premium is structurally high on refining margins, not a datable event) or a broken name I won't chase (GE -16.3% 1m, AZO -5.2% 1m with earnings in 7 days and a $2,869 underlying I cannot size), and my $614 of free cash cannot buy a near-money option in any of these $175-$411 underlyings without putting >30% of equity into one bet.\nTo act I'd need either TSLA to break $344 (exit) or a name where a ~$200-300 debit buys a defined structure with a datable catalyst inside 30 days \u2014 none of these qualify today.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 605.0,
+        "market_value": 545.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-15T14:12:29Z",
+        "seen_at": "2026-09-15T19:12:19Z",
         "underlyings": {
-          "TSLA": 358.94
+          "TSLA": 356.65
         },
-        "unrealized_pl": 126.55
+        "unrealized_pl": 26.0
       },
       "legs": [
         {
