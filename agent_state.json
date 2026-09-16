@@ -1,14 +1,19 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 94,
-    "last_cycle_at": "2026-09-16T14:12:43Z",
+    "cycle_count": 95,
+    "last_cycle_at": "2026-09-16T19:12:50Z",
     "last_cycle_outcome": {
-      "closed": [],
+      "closed": [
+        {
+          "legs": "sell 1 TSLA260918C00352500, buy 1 TSLA260918C00365000",
+          "order_id": "072d1c7f-6dcc-4e5a-b1de-4abf63055a67"
+        }
+      ],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA 361.64, up ~4.4% intraday; my Sep-18 352.5/365 call debit spread (expires Friday, 2 days) now marks 11.53 \u2212 4.465 = $7.07 mid vs $5.15 paid, roughly +$191 true P&L, with the underlying $9.14 above my long strike and 5.1% above my $344 invalidation \u2014 the thesis is working and max value ($12.50) needs only +0.9% more, so I hold rather than clip it early, which my record says has been my repeated mistake (CVS cut at 4 days, DIS cut early). Nothing else on the shortlist qualifies: DELL is pinned at its 52-week high with 65% IV (15 days post-earnings, so that vol is structural AI-server excitement, not a datable event) and a $568 underlying I cannot size with $614 cash; ORCL is -23% in 3m and -10% in a week (falling knife, 6 days after earnings); AMD/MRVL/IBM near-money premium runs $900-$2,000 per contract, far over my 30%-of-equity cap.",
+    "last_market_read": "Wait \u2014 my TSLA spread is the Sep-18 352.5/365 call debit spread, but the position data shows the legs are still open and TSLA is now 356.17, only ~$3.67 above my long strike (it was 361.64 last cycle, now down 1.5% intraday). The spread mid is 7.495 \u2212 2.17 = $5.33 vs $5.15 paid, so true P&L is ~+$18 \u2014 essentially flat, and this expires in 2 days (Sep 18). Intrinsic today is only $3.67, so if TSLA sits here I lose ~$150 at expiry; the mid still carries ~$1.66 of time value that decays to zero by Friday.",
     "seed_capital": 2000
   },
   "closed": [
@@ -221,6 +226,8 @@
   ],
   "positions": {
     "3371ff5a-282e-4e66-8704-f0d44602f113": {
+      "close_rationale": "TSLA 352.5/365 call debit spread expires in 2 days. Underlying at 356.17 gives intrinsic of only $3.67 vs the $5.33 mid I can sell now \u2014 roughly $1.66/share of remaining time value that theta will take by Friday. My stated invalidation ($344) has not triggered, but the THESIS itself has changed in a way I can state plainly: the trade needed TSLA above ~365 for max value and the stock has given back 1.5% today to 356.17, -0.5% vs its 20-day average of 357.79 and -3.2% on the week. With two sessions left, the probability-weighted value of holding is below the $5.33 the market will pay me now, and gamma is symmetric (long 352.5 delta vs short 365 delta) so I am no longer meaningfully long upside. This is not an early cut on a scary mark \u2014 it is closing at a small gain because the remaining payoff is now worse than the current bid. Selling the 352.5 long at/near bid 7.47 and buying back the 365 short at/near ask 2.19 nets ~$5.28 credit, versus $5.15 paid: ~+$13 realized on a 1-lot, and it frees $725 of capital and removes pin/assignment risk into Friday.",
+      "closed_market_read": "Wait \u2014 my TSLA spread is the Sep-18 352.5/365 call debit spread, but the position data shows the legs are still open and TSLA is now 356.17, only ~$3.67 above my long strike (it was 361.64 last cycle, now down 1.5% intraday). The spread mid is 7.495 \u2212 2.17 = $5.33 vs $5.15 paid, so true P&L is ~+$18 \u2014 essentially flat, and this expires in 2 days (Sep 18). Intrinsic today is only $3.67, so if TSLA sits here I lose ~$150 at expiry; the mid still carries ~$1.66 of time value that decays to zero by Friday.",
       "entry_context": {
         "underlyings": {
           "TSLA": 353.33
@@ -235,13 +242,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 715.0,
+        "market_value": 503.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-16T14:12:28Z",
+        "seen_at": "2026-09-16T19:12:35Z",
         "underlyings": {
-          "TSLA": 361.64
+          "TSLA": 356.17
         },
-        "unrealized_pl": 191.5
+        "unrealized_pl": 17.5
       },
       "legs": [
         {
