@@ -1,42 +1,48 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-15T13:41:47Z",
-    "runs": 5
+    "last_run_at": "2026-09-16T13:42:01Z",
+    "runs": 6
   },
   "last_brief": {
     "account": {
       "buying_power": 0.2,
       "cash": 0.2,
-      "equity": 152.2,
+      "equity": 149.13,
       "options_buying_power": 0.2
     },
-    "date": "2026-09-15",
-    "generated_at": "2026-09-15T13:41:47Z",
+    "date": "2026-09-16",
+    "generated_at": "2026-09-16T13:42:01Z",
     "held": [
       {
-        "symbol": "WMT",
-        "watch": "$108.60, +$2.68 open P/L; all 1 share is reserved by the GTC sell limit at $113, so no covered call or sale is available \u2014 WMT would need another +4.1% to fill. Earnings 11/19, outside any near-dated window."
+        "symbol": "JMKE",
+        "watch": "2 shares free (no resting order), $20.43 and -8.0% on cost; 1w -8.7%, 6% below its 20d line and 1.8% off the 34-session low of $20.07 \u2014 a close under $20.07 says the post-listing base has failed. Options exist but are one-expiry (Oct-16) and wide ($1.17/$2.11 on the 20c), so a covered call isn't sensible on 2 shares anyway."
       },
       {
-        "symbol": "JMKE",
-        "watch": "2 shares at $21.72 (-$0.96), sitting 0.7% under its 20d avg in a 21-22 range; both shares are free, but the option chain is thin (Oct-16 $22.5 call is 0.78/1.18 wide) and 2 shares can't cover a contract anyway. Earnings 11/11."
+        "symbol": "WMT",
+        "watch": "$108.08, +2.1% unrealized; all 1 share is reserved by the GTC sell limit at $113, so do not write calls or sell it elsewhere. Price is +2.1% on the week and back above the 20d ($106.32); $113 is ~4.6% away and earnings are 11/19, well outside. Leave the order be."
       }
     ],
     "ideas": [],
-    "market_read": "Tape is risk-on in the names we track: DELL +4.8% on the week and within 1.4% of its 52w high, QCOM +7.1% and 10% above its 20d average, COIN +21.8% on the month; HOOD is the laggard (-6.5% w/w) but holding its 20d line. IV is still fat (COIN ~70%, HOOD ~63%, DELL ~63%) which would favor premium selling \u2014 but the account has $0.20 cash and $0.20 options buying power, so nothing is placeable for a fifth straight session. Today is watch-only on the two share lots; WMT's $113 GTC sell is the only live decision point.",
+    "market_read": "Split tape: chips bid (INTC +6.6%, AMD/ARM/ANET firm) while the energy complex is being sold hard (FANG -6.8%, EOG -3.4%, COP -3.3%, OXY -3.3%, XLE -1.9%). None of that is actionable here \u2014 cash and options buying power are both $0.20 against $149 equity, a sixth straight session with nothing placeable. The only live decision is the WMT $113 GTC sell, and the only real loser is JMKE, now -8.7% on the week.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Options buying power and cash are both $0.20 against $152.20 equity \u2014 not one share or one contract can be placed, so no idea can honestly be marked fits_account. If funded today I'd sell the rich IV with defined risk: a HOOD Oct-09 $105/$100 put credit spread needs ~$500 of options buying power (Level 2/3 spread approval) for roughly $150-180 credit with HOOD holding its 20d line and earnings not until 11/4; or a WMT Oct-09 $109 cash-secured put at ~$2.56 mid ($256 credit) against $10,900 of collateral. Share-only route: ~$109 buys a second WMT, ~$22 adds a JMKE share. Roughly $1,000-2,000 of funding is what makes any of this real.",
+    "no_trade_reason": "Cash and options buying power are both $0.20 \u2014 not one share, not one contract. Nothing can be marked fits_account, and the correct answer is to do nothing but watch. Same conclusion as yesterday, for the same reason. If funded today, the setup I'd want is the energy washout, not the chip strength: an XLE Oct-23 $64.5/$62 put-side or a cash-secured OXY Oct-09 $61 put at ~$1.63 mid ($163 credit) against $6,100 collateral (Level 2 approval); cheaper entry, an XLE Oct-09 $64.5 put credit spread runs ~$250 of buying power for roughly $60-70 credit (Level 3). Share-only route: ~$108 buys a second WMT, ~$21 another JMKE. Roughly $1,000-2,000 of funding is what makes any of this real.",
     "refused": false,
     "scan": {
       "focus": [
-        "WMT",
-        "JMKE",
-        "COIN",
-        "HOOD",
-        "DELL",
-        "QCOM"
+        "INTC",
+        "FANG",
+        "AMD",
+        "COP",
+        "OXY",
+        "EOG",
+        "XLE",
+        "ARM",
+        "ANET",
+        "AXP",
+        "IBM",
+        "WMT"
       ],
-      "focus_read": "Account is tiny (~$152 equity, $0.20 buying power) so no new trades are actually feasible this cycle regardless of setups; focusing on a few names with notable moves (COIN, HOOD, DELL, QCOM, MO, CMG) just for informational tracking, plus existing positions WMT and JMKE.",
+      "focus_read": "Notable moves: INTC surging on strong momentum (+6.6%), energy complex broadly hit hard (FANG -6.8%, COP -3.3%, OXY -3.3%, EOG -3.4%, XLE -1.9%) suggesting oil-related weakness worth checking for mean-reversion or breakdown continuation plays, while chip/AI names (AMD, ARM, ANET, MRVL) show strength. Account has essentially no buying power though, so this cycle likely limited to observation.",
       "universe_scanned": 273
     }
   }
