@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 93,
-    "last_cycle_at": "2026-09-15T19:12:29Z",
+    "cycle_count": 94,
+    "last_cycle_at": "2026-09-16T14:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "TSLA 356.65 \u2014 my Sep-18 352.5/365 call debit spread (3 days to expiry, expires this Friday) marks at 8.635 \u2212 3.225 = $5.41 mid vs $5.15 paid, roughly +$26 true P&L; underlying is 3.7% above my $344 invalidation and $0.15 above my long strike, so the thesis (needs \u2265365 for max $12.50) is still live and I hold rather than dumping through a tight-but-thin chain on a flat tape. Everything else on the shortlist is either extended into a 52-week high with rich IV (MPC +64% 3m / VLO +61% / PSX +54% / XOP +26%, IV 33-53% and no earnings for 37-52 days, so premium is structurally high on refining margins, not a datable event) or a broken name I won't chase (GE -16.3% 1m, AZO -5.2% 1m with earnings in 7 days and a $2,869 underlying I cannot size), and my $614 of free cash cannot buy a near-money option in any of these $175-$411 underlyings without putting >30% of equity into one bet.\nTo act I'd need either TSLA to break $344 (exit) or a name where a ~$200-300 debit buys a defined structure with a datable catalyst inside 30 days \u2014 none of these qualify today.",
+    "last_market_read": "TSLA 361.64, up ~4.4% intraday; my Sep-18 352.5/365 call debit spread (expires Friday, 2 days) now marks 11.53 \u2212 4.465 = $7.07 mid vs $5.15 paid, roughly +$191 true P&L, with the underlying $9.14 above my long strike and 5.1% above my $344 invalidation \u2014 the thesis is working and max value ($12.50) needs only +0.9% more, so I hold rather than clip it early, which my record says has been my repeated mistake (CVS cut at 4 days, DIS cut early). Nothing else on the shortlist qualifies: DELL is pinned at its 52-week high with 65% IV (15 days post-earnings, so that vol is structural AI-server excitement, not a datable event) and a $568 underlying I cannot size with $614 cash; ORCL is -23% in 3m and -10% in a week (falling knife, 6 days after earnings); AMD/MRVL/IBM near-money premium runs $900-$2,000 per contract, far over my 30%-of-equity cap.",
     "seed_capital": 2000
   },
   "closed": [
@@ -235,13 +235,13 @@
       "intended_net_credit": -6.3,
       "last_snapshot": {
         "cost_basis": 515.0,
-        "market_value": 545.0,
+        "market_value": 715.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-15T19:12:19Z",
+        "seen_at": "2026-09-16T14:12:28Z",
         "underlyings": {
-          "TSLA": 356.65
+          "TSLA": 361.64
         },
-        "unrealized_pl": 26.0
+        "unrealized_pl": 191.5
       },
       "legs": [
         {
