@@ -1,20 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 96,
-    "last_cycle_at": "2026-09-17T14:13:20Z",
+    "cycle_count": 97,
+    "last_cycle_at": "2026-09-17T19:12:39Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": -3.33,
-          "legs": "buy 1 SLV261023C00059500",
-          "order_id": "4d717b1d-fdd2-44e9-9bfe-1273118af93d"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "Flat account, $1,115 equity, no positions. My record is 1-for-6 with -$712 cumulative; the single most expensive lesson is not structure choice but exits \u2014 I bailed on the TSLA call spread two days before expiry and left ~$1,200 of convexity on the table, and I cut the CVS spread after 4 days on noise. So the fix is: fewer, cheaper, longer-dated long-delta structures on names with actual documented momentum, and then actually hold to the written invalidation. Best candidate today is INTC: +7.4% 1w, +11.3% 1m, +13.3% above its 20-day average, 35 days to earnings (Oct 22) so the Oct-9 expiry is pre-earnings \u2014 IV ~65% is elevated because INTC has been making huge percentage moves, not because of an imminent print, so I'd rather buy a debit spread (short leg funds the vol I'm paying for) than an outright call.",
+    "last_market_read": "SLV is at 59.08, down slightly from my 59.56 entry; my Oct-23 59.5 call is -$44 on the mid (bid 2.84/ask 2.88, a tight chain), nowhere near my stated $57.00 invalidation, so I hold it \u2014 my record's biggest single error was closing intact theses on small marks. With $785 cash and a $1,064 equity base, I'm not adding a second full-premium long-delta position on top of an already-open one; that would put ~60% of equity in two directional premium bets. INTC (+9.9% 1w, +14.0% 1m, +15.9% above its 20-day avg) is the name I'd act on next, but its 62-71% IV is elevated precisely because it's making these outsized moves, and a debit spread there would cost ~$250-300 \u2014 I'd rather wait for either a pullback toward the 20-day average for a cheaper entry, or for the SLV call to resolve. I act if SLV closes below $57.00 (exit) or if INTC retraces to ~$100-103 while still above its 20-day average (open a defined-risk Oct call debit spread sized \u2264$250).",
     "seed_capital": 2000
   },
   "closed": [
@@ -281,8 +275,23 @@
           "SLV": 59.56
         }
       },
+      "fill": {
+        "actual_net_credit": -3.3,
+        "fill_available": true,
+        "intended_net_credit": -3.33,
+        "slippage": 0.03
+      },
       "intended_net_credit": -3.33,
-      "last_snapshot": null,
+      "last_snapshot": {
+        "cost_basis": 330.0,
+        "market_value": 279.0,
+        "pnl_basis": "mid-based, qty-scaled to this order's share",
+        "seen_at": "2026-09-17T19:12:31Z",
+        "underlyings": {
+          "SLV": 59.08
+        },
+        "unrealized_pl": -44.0
+      },
       "legs": [
         {
           "asset": "option",
