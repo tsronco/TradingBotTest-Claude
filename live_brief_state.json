@@ -1,49 +1,45 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-16T13:42:01Z",
-    "runs": 6
+    "last_run_at": "2026-09-17T13:42:23Z",
+    "runs": 7
   },
   "last_brief": {
     "account": {
-      "buying_power": 0.2,
-      "cash": 0.2,
-      "equity": 149.13,
-      "options_buying_power": 0.2
+      "buying_power": 39.88,
+      "cash": 39.88,
+      "equity": 146.6,
+      "options_buying_power": 39.88
     },
-    "date": "2026-09-16",
-    "generated_at": "2026-09-16T13:42:01Z",
+    "date": "2026-09-17",
+    "generated_at": "2026-09-17T13:42:23Z",
     "held": [
       {
-        "symbol": "JMKE",
-        "watch": "2 shares free (no resting order), $20.43 and -8.0% on cost; 1w -8.7%, 6% below its 20d line and 1.8% off the 34-session low of $20.07 \u2014 a close under $20.07 says the post-listing base has failed. Options exist but are one-expiry (Oct-16) and wide ($1.17/$2.11 on the 20c), so a covered call isn't sensible on 2 shares anyway."
-      },
-      {
         "symbol": "WMT",
-        "watch": "$108.08, +2.1% unrealized; all 1 share is reserved by the GTC sell limit at $113, so do not write calls or sell it elsewhere. Price is +2.1% on the week and back above the 20d ($106.32); $113 is ~4.6% away and earnings are 11/19, well outside. Leave the order be."
+        "watch": "1 share, qty_available 0 \u2014 fully reserved by the resting GTC sell at $113 (5.9% above the $106.67 quote), so no covered call or trim is possible; leave it. Holding $0.84 green, sitting +0.7% vs its 20d avg with earnings 63 days out (Nov 19), well outside this window."
       }
     ],
     "ideas": [],
-    "market_read": "Split tape: chips bid (INTC +6.6%, AMD/ARM/ANET firm) while the energy complex is being sold hard (FANG -6.8%, EOG -3.4%, COP -3.3%, OXY -3.3%, XLE -1.9%). None of that is actionable here \u2014 cash and options buying power are both $0.20 against $149 equity, a sixth straight session with nothing placeable. The only live decision is the WMT $113 GTC sell, and the only real loser is JMKE, now -8.7% on the week.",
+    "market_read": "Semis are leading again \u2014 INTC +5.6% on the week and +11.6% over its 20d, MRVL +6.6%, AMD +5.5% \u2014 while WMT just sits on its 20d average at $106.67 after a -7.4% month. Nothing in that momentum is reachable: cash and options buying power are $39.88 against $146.60 equity, so the cheapest liquid option in the focus list (SNAP Sep-25 $6 call at ~$0.16 mid, $16) is technically affordable but not a trade worth doing with the whole account. The one live decision remains the WMT $113 GTC sell, which is 5.9% above spot.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Cash and options buying power are both $0.20 \u2014 not one share, not one contract. Nothing can be marked fits_account, and the correct answer is to do nothing but watch. Same conclusion as yesterday, for the same reason. If funded today, the setup I'd want is the energy washout, not the chip strength: an XLE Oct-23 $64.5/$62 put-side or a cash-secured OXY Oct-09 $61 put at ~$1.63 mid ($163 credit) against $6,100 collateral (Level 2 approval); cheaper entry, an XLE Oct-09 $64.5 put credit spread runs ~$250 of buying power for roughly $60-70 credit (Level 3). Share-only route: ~$108 buys a second WMT, ~$21 another JMKE. Roughly $1,000-2,000 of funding is what makes any of this real.",
+    "no_trade_reason": "$39.88 of buying power buys no share in the focus list (cheapest is SNAP at $5.84, which would be 15% of equity in a single lottery ticket) and no option structure worth placing \u2014 a defined-risk spread needs $200-500 of collateral, a cash-secured put on even SOFI $17 needs $1,700. Seventh straight session with nothing placeable; cash has moved from $0.20 to $39.88 but that changes nothing structurally. If funded, the setup I'd want today is the chip strength rather than yesterday's energy washout \u2014 that trade has had a day to run and I'd rather own a defined-risk bull put in INTC (Oct-09 $100/$95 put credit spread, roughly $500 of options buying power for a ~$150 credit, Level 3 approval) with the name 11.6% above its 20d and earnings Oct 22 outside that expiry. Roughly $1,000-2,000 of funding makes that or a CSP route real.",
     "refused": false,
     "scan": {
       "focus": [
         "INTC",
-        "FANG",
         "AMD",
-        "COP",
-        "OXY",
-        "EOG",
-        "XLE",
+        "MU",
         "ARM",
-        "ANET",
-        "AXP",
-        "IBM",
-        "WMT"
+        "MRVL",
+        "ORCL",
+        "SOFI",
+        "F",
+        "GOLD",
+        "SNAP",
+        "RIVN",
+        "CCL"
       ],
-      "focus_read": "Notable moves: INTC surging on strong momentum (+6.6%), energy complex broadly hit hard (FANG -6.8%, COP -3.3%, OXY -3.3%, EOG -3.4%, XLE -1.9%) suggesting oil-related weakness worth checking for mean-reversion or breakdown continuation plays, while chip/AI names (AMD, ARM, ANET, MRVL) show strength. Account has essentially no buying power though, so this cycle likely limited to observation.",
-      "universe_scanned": 273
+      "focus_read": "Semis and mega-cap tech are showing strong momentum (ARM, MRVL, AMD, INTC, MU, ORCL, AVGO all up big on volume), while gold/silver miners and some growth names (MRNA, ETN, GEV) also show outsized moves worth checking for defined-risk plays. Small account size means I need cheap, liquid options with tight spreads.",
+      "universe_scanned": 272
     }
   }
 }
