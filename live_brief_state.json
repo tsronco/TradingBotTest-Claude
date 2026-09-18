@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-17T13:42:23Z",
-    "runs": 7
+    "last_run_at": "2026-09-18T13:41:59Z",
+    "runs": 8
   },
   "last_brief": {
     "account": {
       "buying_power": 39.88,
       "cash": 39.88,
-      "equity": 146.6,
+      "equity": 147.12,
       "options_buying_power": 39.88
     },
-    "date": "2026-09-17",
-    "generated_at": "2026-09-17T13:42:23Z",
+    "date": "2026-09-18",
+    "generated_at": "2026-09-18T13:41:59Z",
     "held": [
       {
         "symbol": "WMT",
-        "watch": "1 share, qty_available 0 \u2014 fully reserved by the resting GTC sell at $113 (5.9% above the $106.67 quote), so no covered call or trim is possible; leave it. Holding $0.84 green, sitting +0.7% vs its 20d avg with earnings 63 days out (Nov 19), well outside this window."
+        "watch": "1 share at $107.24 (+$1.36); qty_available is 0 because the GTC sell limit at $113 reserves it, so no covered call or sale to suggest. WMT sits 1.1% above its 20d ($106.08) with earnings Nov 19, outside anything near-dated \u2014 leave the $113 resting; it needs a 5.4% pop to fill."
       }
     ],
     "ideas": [],
-    "market_read": "Semis are leading again \u2014 INTC +5.6% on the week and +11.6% over its 20d, MRVL +6.6%, AMD +5.5% \u2014 while WMT just sits on its 20d average at $106.67 after a -7.4% month. Nothing in that momentum is reachable: cash and options buying power are $39.88 against $146.60 equity, so the cheapest liquid option in the focus list (SNAP Sep-25 $6 call at ~$0.16 mid, $16) is technically affordable but not a trade worth doing with the whole account. The one live decision remains the WMT $113 GTC sell, which is 5.9% above spot.",
+    "market_read": "Wide dispersion, mildly red tape: NFLX is broken (-7.7% week, -9.4% vs its 20d) after earnings, PANW (+10.6% wk) and GOOGL (+6.1% wk, 4.9% above 20d) are the momentum leaders, ORCL and AVGO still repairing 3-month damage. Nothing in that matters operationally here \u2014 buying power is $39.88 against $147.12 equity, so the only live decision is the resting WMT $113 sell, 5.4% above the $107.24 print.",
     "model": "claude-opus-5",
-    "no_trade_reason": "$39.88 of buying power buys no share in the focus list (cheapest is SNAP at $5.84, which would be 15% of equity in a single lottery ticket) and no option structure worth placing \u2014 a defined-risk spread needs $200-500 of collateral, a cash-secured put on even SOFI $17 needs $1,700. Seventh straight session with nothing placeable; cash has moved from $0.20 to $39.88 but that changes nothing structurally. If funded, the setup I'd want today is the chip strength rather than yesterday's energy washout \u2014 that trade has had a day to run and I'd rather own a defined-risk bull put in INTC (Oct-09 $100/$95 put credit spread, roughly $500 of options buying power for a ~$150 credit, Level 3 approval) with the name 11.6% above its 20d and earnings Oct 22 outside that expiry. Roughly $1,000-2,000 of funding makes that or a CSP route real.",
+    "no_trade_reason": "Eighth straight session with nothing placeable: $39.88 of buying power buys zero shares in the focus list (cheapest is SMCI at $39.23 \u2014 one share would be 27% of equity in a 67% IV name) and no option here is worth the whole account; the cheapest defined-risk spread in the chains provided needs $200\u2013500 of collateral and a cash-secured put needs $3,900+ (SMCI $39 strike) to $18,200 (GOOGL). Unchanged from yesterday except the specific trade I'd want: with ~$1,000\u20132,000 funded I'd rather sell a defined-risk put credit spread in GOOGL (Oct-09 $340/$330, ~$500 max risk, Level 3 approval) with the name 4.9% above its 20d and earnings Oct 28 just outside that expiry \u2014 that's a better base than yesterday's INTC idea because GOOGL's 29% IV is cleaner and the level is more defined. Roughly $500 gets one such spread on; $2,000 makes it repeatable without betting the account.",
     "refused": false,
     "scan": {
       "focus": [
-        "INTC",
-        "AMD",
-        "MU",
-        "ARM",
-        "MRVL",
+        "NFLX",
+        "NUE",
+        "AVGO",
+        "GOOGL",
+        "COIN",
+        "BABA",
+        "PLTR",
+        "SMCI",
         "ORCL",
-        "SOFI",
-        "F",
-        "GOLD",
-        "SNAP",
-        "RIVN",
-        "CCL"
+        "PANW",
+        "IBM",
+        "HOOD"
       ],
-      "focus_read": "Semis and mega-cap tech are showing strong momentum (ARM, MRVL, AMD, INTC, MU, ORCL, AVGO all up big on volume), while gold/silver miners and some growth names (MRNA, ETN, GEV) also show outsized moves worth checking for defined-risk plays. Small account size means I need cheap, liquid options with tight spreads.",
+      "focus_read": "Big dispersion today: NFLX cratered post-earnings (-5%), NUE and semis (AVGO, GOOGL, LRCX, COIN) had outsized moves either direction, while broad market is mildly red. Given tiny account size (~$40 buying power), I want cheap, liquid names with real IV/movement for small defined-risk plays.",
       "universe_scanned": 272
     }
   }
