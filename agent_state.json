@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 100,
-    "last_cycle_at": "2026-09-21T14:12:44Z",
+    "cycle_count": 101,
+    "last_cycle_at": "2026-09-21T19:13:08Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLV is 59.79, still above my 59.50 strike; the Oct-23 call mids at 2.925 vs 3.30 paid (-$37.50 on mid, pure theta/IV bleed, not a thesis break) and my stated $57.00 invalidation is nowhere near \u2014 my record's worst losses (CVS -$342, TSLA giving back convexity) all came from closing intact theses on small marks, so I hold exactly as written. No second position: every mover on this shortlist is stretched and expensive at the same time \u2014 AMD +30.4% 1m sitting exactly at its 52w high with 58% IV, ARM +29.6% 1w at 78-80% IV, INTC +29.7% 1m at 66-78% IV, MRNA +25.6% 1m at 78-92% IV \u2014 that IV is high precisely because these names just ran, so ATM premium is dear, and chasing a 1-week +24-30% move with half my remaining $785 cash is exactly the \"don't chase\" case. GLD/XLE IV is genuinely low (19-27%) but GLD is -4.3% 1m and drifting under its 20d and XLE -2.8% 1w with no catalyst I can cite. I would act on a pullback in SLV/GLD toward the 20-day with vol still ~20%, or on any of these names consolidating 3-5 sessions so I am not paying up for a vertical extension.",
+    "last_market_read": "SLV is 59.66, still above my 59.50 strike; the Oct-23 call mid is 2.74 vs 3.30 paid (-$56 on mid, theta/IV bleed with 32 DTE left) and my stated $57.00 invalidation has not been touched \u2014 my record shows every big loss came from closing intact theses on small marks (CVS -$342, TSLA giving up its convexity), so I hold exactly as written. No new position: the entire shortlist is simultaneously extended and expensive \u2014 AMD +24% 1w sitting exactly at its 52w high with 52-58% IV, ARM +34.7% 1w at 76-83% IV, INTC +24.8% 1w / +31.6% 1m at 65-71% IV, MRNA +18.7% 1w at 0.1% from its 52w high with 78-94% IV, MRVL +18.6% 1w at 69-74% IV \u2014 that IV is elevated precisely because these names just ran, so buying ATM premium here means paying top dollar for a move that already happened, and my one profitable trade came from a modest-IV name, not a chase. The only cheap-vol candidates are GE (31% IV but -7.0% 1m, -2.7% vs 20d, no direction I can cite) and NVDA (30-32% IV, +7.8% 1w, 3.6% above its 20d, 3.5% off its high) \u2014 NVDA is the closest to actionable and I'd buy an Oct-16 227.5 call on a pullback toward the 20-day (~219-222) while IV stays ~30%, or act on any of these semis consolidating 3-5 sessions so I'm not paying the vertical-extension premium. With $785 cash and one open long I'd rather wait for that entry than force a second position at the top of a one-week 20-30% run.",
     "seed_capital": 2000
   },
   "closed": [
@@ -284,13 +284,13 @@
       "intended_net_credit": -3.33,
       "last_snapshot": {
         "cost_basis": 330.0,
-        "market_value": 285.0,
+        "market_value": 267.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-21T14:12:29Z",
+        "seen_at": "2026-09-21T19:12:54Z",
         "underlyings": {
-          "SLV": 59.79
+          "SLV": 59.66
         },
-        "unrealized_pl": -37.5
+        "unrealized_pl": -56.0
       },
       "legs": [
         {
