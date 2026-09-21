@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-18T13:41:59Z",
-    "runs": 8
+    "last_run_at": "2026-09-21T13:42:02Z",
+    "runs": 9
   },
   "last_brief": {
     "account": {
       "buying_power": 39.88,
       "cash": 39.88,
-      "equity": 147.12,
+      "equity": 146.34,
       "options_buying_power": 39.88
     },
-    "date": "2026-09-18",
-    "generated_at": "2026-09-18T13:41:59Z",
+    "date": "2026-09-21",
+    "generated_at": "2026-09-21T13:42:02Z",
     "held": [
       {
         "symbol": "WMT",
-        "watch": "1 share at $107.24 (+$1.36); qty_available is 0 because the GTC sell limit at $113 reserves it, so no covered call or sale to suggest. WMT sits 1.1% above its 20d ($106.08) with earnings Nov 19, outside anything near-dated \u2014 leave the $113 resting; it needs a 5.4% pop to fill."
+        "watch": "1 share @ $105.88, now $106.54 (+$0.58); all of it reserved by the GTC sell limit at $113 (qty_available 0), so no covered call or sale to suggest. WMT is flat vs its 20d ($106.19) and -2.4% on the week; earnings Nov 19 is well outside. Leave the $113 resting \u2014 it's the only working order."
       }
     ],
     "ideas": [],
-    "market_read": "Wide dispersion, mildly red tape: NFLX is broken (-7.7% week, -9.4% vs its 20d) after earnings, PANW (+10.6% wk) and GOOGL (+6.1% wk, 4.9% above 20d) are the momentum leaders, ORCL and AVGO still repairing 3-month damage. Nothing in that matters operationally here \u2014 buying power is $39.88 against $147.12 equity, so the only live decision is the resting WMT $113 sell, 5.4% above the $107.24 print.",
+    "market_read": "Risk-on, semi-led tape: AMD +7% at a fresh 52-week high, ARM +8.8%, INTC +6.9%, META +5.1%, COIN +5.6%, with SMH +7.9% on the week \u2014 energy is the outlier (XOM -1.3% vs its 20d on crude weakness). None of it is actionable here: buying power is $39.88 against $146.34 equity, so the only live decision is the resting WMT $113 sell, ~6% above the $106.54 print. Note MU reports Sept 30 and ACN Oct 1 \u2014 both would be earnings trades, not swing trades, if this account were funded.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Eighth straight session with nothing placeable: $39.88 of buying power buys zero shares in the focus list (cheapest is SMCI at $39.23 \u2014 one share would be 27% of equity in a 67% IV name) and no option here is worth the whole account; the cheapest defined-risk spread in the chains provided needs $200\u2013500 of collateral and a cash-secured put needs $3,900+ (SMCI $39 strike) to $18,200 (GOOGL). Unchanged from yesterday except the specific trade I'd want: with ~$1,000\u20132,000 funded I'd rather sell a defined-risk put credit spread in GOOGL (Oct-09 $340/$330, ~$500 max risk, Level 3 approval) with the name 4.9% above its 20d and earnings Oct 28 just outside that expiry \u2014 that's a better base than yesterday's INTC idea because GOOGL's 29% IV is cleaner and the level is more defined. Roughly $500 gets one such spread on; $2,000 makes it repeatable without betting the account.",
+    "no_trade_reason": "Ninth straight session with nothing placeable: $39.88 buys zero shares in this focus list (cheapest is WBD at $29.84 \u2014 one share is 20% of equity, and the WBD put chain is 0-bid/untradeable), and every option structure in the chains needs far more collateral than the account has (cheapest cash-secured put here is WBD $30 = $3,000; a defined-risk credit spread in a liquid name like INTC Oct-16 $110/$105 still needs ~$500 of options buying power, Level 3 approval). If funded with ~$1,000\u20132,000 I'd sell one INTC Oct-16 put credit spread ($110/$105, ~$500 max risk) \u2014 the name is +19% on the week and 19% above its 20d with 67% IV to sell, and earnings Oct 22 falls just outside that expiry; that replaces yesterday's GOOGL idea only because GOOGL isn't in today's shortlist, not because the thesis changed. ~$500 gets one spread on, ~$2,000 makes it repeatable without betting the account.",
     "refused": false,
     "scan": {
       "focus": [
-        "NFLX",
-        "NUE",
-        "AVGO",
-        "GOOGL",
+        "AMD",
+        "INTC",
+        "META",
+        "ARM",
+        "ACN",
+        "MRNA",
+        "WBD",
         "COIN",
-        "BABA",
-        "PLTR",
-        "SMCI",
-        "ORCL",
-        "PANW",
-        "IBM",
-        "HOOD"
+        "MU",
+        "XOM",
+        "AMAT",
+        "SMH"
       ],
-      "focus_read": "Big dispersion today: NFLX cratered post-earnings (-5%), NUE and semis (AVGO, GOOGL, LRCX, COIN) had outsized moves either direction, while broad market is mildly red. Given tiny account size (~$40 buying power), I want cheap, liquid names with real IV/movement for small defined-risk plays.",
+      "focus_read": "Big semiconductor/AI-driven earnings reaction moves dominate today (AMD +7%, INTC +6.9%, META +5.1%, ACN +5.5%, ARM +8.8%, MRNA +5.7%, WBD +7.3%, COIN +5.6%), while energy names sell off broadly on crude weakness. Focusing on high-momentum earnings movers and energy weakness for defined-risk plays given small account size.",
       "universe_scanned": 272
     }
   }
