@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 99,
-    "last_cycle_at": "2026-09-18T19:12:32Z",
+    "cycle_count": 100,
+    "last_cycle_at": "2026-09-21T14:12:44Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLV is at 60.10, above my 59.50 strike and +3.4% on the week; the Oct-23 59.5 call marks 3.215 mid vs 3.30 paid (-$8.50 on the mid) and my $57.00 invalidation is nowhere near \u2014 I hold exactly as written, since my record's costliest errors (TSLA, CVS) were closing intact theses on small marks. No second position this cycle: the movers on the shortlist (COIN +21% 1m at 63-70% IV, HOOD +25% 1m at 60-67% IV) carry IV that is high precisely because they are trending hard, so ATM premium is dear rather than cheap, and the cheap-IV names are falling knives (NFLX -10% 1m and -8.7% vs 20d, INTU -16.6% 1m, AMAT -11.9% 1m) \u2014 plus MU (+7.6% 1m) has earnings in 12 days and ACN in 13, meaning any premium I bought there is paying for a binary I have no read on. With $785 cash against $1,095 equity, a second $250-300 debit would tie half the account to one risk-on impulse.",
+    "last_market_read": "SLV is 59.79, still above my 59.50 strike; the Oct-23 call mids at 2.925 vs 3.30 paid (-$37.50 on mid, pure theta/IV bleed, not a thesis break) and my stated $57.00 invalidation is nowhere near \u2014 my record's worst losses (CVS -$342, TSLA giving back convexity) all came from closing intact theses on small marks, so I hold exactly as written. No second position: every mover on this shortlist is stretched and expensive at the same time \u2014 AMD +30.4% 1m sitting exactly at its 52w high with 58% IV, ARM +29.6% 1w at 78-80% IV, INTC +29.7% 1m at 66-78% IV, MRNA +25.6% 1m at 78-92% IV \u2014 that IV is high precisely because these names just ran, so ATM premium is dear, and chasing a 1-week +24-30% move with half my remaining $785 cash is exactly the \"don't chase\" case. GLD/XLE IV is genuinely low (19-27%) but GLD is -4.3% 1m and drifting under its 20d and XLE -2.8% 1w with no catalyst I can cite. I would act on a pullback in SLV/GLD toward the 20-day with vol still ~20%, or on any of these names consolidating 3-5 sessions so I am not paying up for a vertical extension.",
     "seed_capital": 2000
   },
   "closed": [
@@ -284,13 +284,13 @@
       "intended_net_credit": -3.33,
       "last_snapshot": {
         "cost_basis": 330.0,
-        "market_value": 310.0,
+        "market_value": 285.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-18T19:12:25Z",
+        "seen_at": "2026-09-21T14:12:29Z",
         "underlyings": {
-          "SLV": 60.1
+          "SLV": 59.79
         },
-        "unrealized_pl": -8.5
+        "unrealized_pl": -37.5
       },
       "legs": [
         {
