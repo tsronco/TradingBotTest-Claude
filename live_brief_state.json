@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-21T13:42:02Z",
-    "runs": 9
+    "last_run_at": "2026-09-22T13:42:01Z",
+    "runs": 10
   },
   "last_brief": {
     "account": {
       "buying_power": 39.88,
       "cash": 39.88,
-      "equity": 146.34,
+      "equity": 147.89,
       "options_buying_power": 39.88
     },
-    "date": "2026-09-21",
-    "generated_at": "2026-09-21T13:42:02Z",
+    "date": "2026-09-22",
+    "generated_at": "2026-09-22T13:42:01Z",
     "held": [
       {
         "symbol": "WMT",
-        "watch": "1 share @ $105.88, now $106.54 (+$0.58); all of it reserved by the GTC sell limit at $113 (qty_available 0), so no covered call or sale to suggest. WMT is flat vs its 20d ($106.19) and -2.4% on the week; earnings Nov 19 is well outside. Leave the $113 resting \u2014 it's the only working order."
+        "watch": "1 share at $108.01 (+$2.13, +2.0%); all 1 share is reserved by the resting GTC sell limit at $113, so qty_available is 0 \u2014 do not write calls or sell elsewhere against it. WMT is +1.6% vs its 20d, flat on the week, earnings Nov 19 (well outside); $113 is ~4.6% away, leave the order as is."
       }
     ],
     "ideas": [],
-    "market_read": "Risk-on, semi-led tape: AMD +7% at a fresh 52-week high, ARM +8.8%, INTC +6.9%, META +5.1%, COIN +5.6%, with SMH +7.9% on the week \u2014 energy is the outlier (XOM -1.3% vs its 20d on crude weakness). None of it is actionable here: buying power is $39.88 against $146.34 equity, so the only live decision is the resting WMT $113 sell, ~6% above the $106.54 print. Note MU reports Sept 30 and ACN Oct 1 \u2014 both would be earnings trades, not swing trades, if this account were funded.",
+    "market_read": "Risk-on again in the beaten-up names: SHOP +7.7% (now +14.6% on the week, 6.9% above its 20d), TWLO +6.1% at a fresh 52-week high, cruise lines bouncing (CCL +4.9%, RCL +4%), BABA +3.4%, with SCHW -2.5% the notable loser. Nothing here changes the only live decision in this account: the resting WMT $113 GTC sell, ~4.6% above the $108.05 print. Buying power is $39.88 against $147.89 equity, so today is again an observation day.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Ninth straight session with nothing placeable: $39.88 buys zero shares in this focus list (cheapest is WBD at $29.84 \u2014 one share is 20% of equity, and the WBD put chain is 0-bid/untradeable), and every option structure in the chains needs far more collateral than the account has (cheapest cash-secured put here is WBD $30 = $3,000; a defined-risk credit spread in a liquid name like INTC Oct-16 $110/$105 still needs ~$500 of options buying power, Level 3 approval). If funded with ~$1,000\u20132,000 I'd sell one INTC Oct-16 put credit spread ($110/$105, ~$500 max risk) \u2014 the name is +19% on the week and 19% above its 20d with 67% IV to sell, and earnings Oct 22 falls just outside that expiry; that replaces yesterday's GOOGL idea only because GOOGL isn't in today's shortlist, not because the thesis changed. ~$500 gets one spread on, ~$2,000 makes it repeatable without betting the account.",
+    "no_trade_reason": "Tenth straight session with nothing placeable: $39.88 of cash/options buying power buys zero shares in this focus list (cheapest is AAL at $13.93 \u2014 one share is 9% of equity and adds nothing) and every option structure needs multiples of that. The cheapest cash-secured put in these chains is AAL Oct-2 $14 = $1,400 collateral for ~$45 credit; the cheapest defined-risk credit spread \u2014 e.g. SOFI Oct-16 $17.50/$17.00 puts \u2014 still needs ~$50 of options buying power per spread net of credit plus Level 3 approval, and even that is only marginally above what's here. If funded with ~$1,000\u20132,000 I'd sell a SOFI Oct-16 $17.50/$16.50 put credit spread (~$100 max risk each, ~45% IV, earnings Oct 27 outside the expiry) or a CCL put spread only after Sept 29 earnings clears \u2014 ~$500 gets a real position on, ~$2,000 makes it repeatable without betting the account.",
     "refused": false,
     "scan": {
       "focus": [
-        "AMD",
-        "INTC",
-        "META",
-        "ARM",
-        "ACN",
-        "MRNA",
-        "WBD",
-        "COIN",
-        "MU",
-        "XOM",
-        "AMAT",
-        "SMH"
+        "SHOP",
+        "TWLO",
+        "CCL",
+        "RCL",
+        "BABA",
+        "SOFI",
+        "AAL",
+        "NCLH",
+        "DASH",
+        "EL",
+        "ORCL",
+        "SCHW"
       ],
-      "focus_read": "Big semiconductor/AI-driven earnings reaction moves dominate today (AMD +7%, INTC +6.9%, META +5.1%, ACN +5.5%, ARM +8.8%, MRNA +5.7%, WBD +7.3%, COIN +5.6%), while energy names sell off broadly on crude weakness. Focusing on high-momentum earnings movers and energy weakness for defined-risk plays given small account size.",
+      "focus_read": "Notable earnings/news-driven movers today: SHOP +7.7%, TWLO +6.1%, CCL +4.9%, RCL +4%, AZO +3.9%, BABA +3.4%, plus weakness in ALL -3.8%, SCHW -2.5%, PGR -2.8%, CSCO -2.2%. With tiny account size (~$40 buying power), focusing on cheap/liquid names with clear directional moves for small defined-risk options plays.",
       "universe_scanned": 272
     }
   }
