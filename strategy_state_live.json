@@ -1,22 +1,22 @@
 {
   "_meta": {
-    "last_checked": "2026-09-23T18:33:25.605710Z"
+    "last_checked": "2026-09-23T18:43:31.758000Z"
   },
-  "WMT": {
-    "first_seen": "2026-09-08T16:23:38.644754Z",
-    "entry_price": 105.88,
-    "initial_qty": 0,
-    "avg_cost": 105.88,
-    "total_cost": 0.0,
-    "position_qty": 0,
-    "stop_price": 95.29,
-    "high_water_mark": 105.88,
+  "CMG": {
+    "first_seen": "2026-09-23T18:43:31.134840Z",
+    "entry_price": 32.86,
+    "initial_qty": 4,
+    "avg_cost": 32.86,
+    "total_cost": 131.44,
+    "position_qty": 4,
+    "stop_price": 29.57,
+    "high_water_mark": 32.86,
     "trailing_active": false,
     "ladder_done": [
       false,
       false,
       false
     ],
-    "last_action": "1 share held, 0 free \u2014 reserved by an open order or options collateral. Skipping cycle."
+    "last_action": "Monitoring $32.83 vs avg $32.86 (PnL -0.09%). Stop $29.57, Trail OFF."
   }
 }
