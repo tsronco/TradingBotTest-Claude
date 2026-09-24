@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 105,
-    "last_cycle_at": "2026-09-23T19:12:43Z",
+    "cycle_count": 106,
+    "last_cycle_at": "2026-09-24T14:12:45Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLV spot 58.30, down from 58.43 last cycle and -6.3% on the month; my Oct-23 59.5 call is $1.20 OTM and marks 1.98 mid (-$132 on $330 paid) with 30 DTE and delta still ~0.45 \u2014 my stated invalidation is a close below $57.00 before 2026-10-16 and that has NOT been hit, and my record's single most expensive habit is bailing before the invalidation (TSLA, CVS), so I hold. No new open: with $785 cash, every shortlist name is either in a sharp downtrend (ABNB -20% 1m, BKNG -26.7% 1m, MCD -12.9% 1m sitting exactly at its 52-week low) or has a chain where one ATM contract (AVGO ~$1,300, PANW ~$2,100, GOOGL ~$920, PLTR ~$790) is a reckless fraction of a $981 account, and the cheap candidates (SNAP, BABA) give me no trigger \u2014 BABA is -1.4% vs its 20-day average with 39% IV, no edge either way. I would act if SLV reclaims $60 (add a second call on strength), if SLV closes under $57 (exit near the mid), or if a liquid sub-35% IV name gives a clean momentum trigger above its 20-day average at a per-contract cost under ~$250.",
+    "last_market_read": "SLV spot 57.31, down 2.8% on the week and 8.0% on the month, 3.0% below its 20-day average; my Oct-23 59.5 call is $2.19 OTM, mid 1.57 (-$173 of $330 paid), delta ~0.40 with 29 DTE. My written invalidation is a DAILY CLOSE below $57.00 before 2026-10-16 \u2014 spot is 57.31 intraday, so it has not triggered yet; my record's most expensive habit is bailing before the stated level, so I hold one more cycle and will exit near the mid on a sub-$57 close. No new open: with $785 cash the only affordable ATM contracts on the shortlist are SLV itself (I already own silver delta \u2014 no reason to double a losing thesis), ORCL (-10.7% 1w, -9.8% vs 20d, i.e. a name in freefall, not a setup), and ALB (-18.1% 1m, -11.0% vs 20d, same problem); IBM/MRNA/ARM/AMAT/MU/META/AVGO/DELL/LLY contracts run $700-$5,000 each, a reckless fraction of a $938 account, and MU prints earnings in 6 days with 80% IV. I act if SLV closes under $57.00 (exit), if SLV reclaims $59.50 (hold to target), or if a liquid sub-40% IV name gives a momentum trigger above its 20-day average at under ~$200 per contract.",
     "seed_capital": 2000
   },
   "closed": [
@@ -284,13 +284,13 @@
       "intended_net_credit": -3.33,
       "last_snapshot": {
         "cost_basis": 330.0,
-        "market_value": 196.0,
+        "market_value": 153.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-23T19:12:35Z",
+        "seen_at": "2026-09-24T14:12:35Z",
         "underlyings": {
-          "SLV": 58.3
+          "SLV": 57.31
         },
-        "unrealized_pl": -131.55
+        "unrealized_pl": -173.0
       },
       "legs": [
         {
