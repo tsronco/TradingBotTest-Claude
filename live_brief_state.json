@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-23T13:41:56Z",
-    "runs": 11
+    "last_run_at": "2026-09-24T13:41:55Z",
+    "runs": 12
   },
   "last_brief": {
     "account": {
-      "buying_power": 39.88,
-      "cash": 39.88,
-      "equity": 150.81,
-      "options_buying_power": 39.88
+      "buying_power": 18.65,
+      "cash": 18.65,
+      "equity": 148.43,
+      "options_buying_power": 18.65
     },
-    "date": "2026-09-23",
-    "generated_at": "2026-09-23T13:41:56Z",
+    "date": "2026-09-24",
+    "generated_at": "2026-09-24T13:41:55Z",
     "held": [
       {
-        "symbol": "WMT",
-        "watch": "$110.90, +4.0% vs 20d, earnings Nov 19 (outside any near window). All 1 share is reserved by the GTC limit sell at $113 (qty_available 0) \u2014 no covered call or sale possible; either let it work into strength or cancel/lower it if WMT closes back under the $106.70 20d average."
+        "symbol": "CMG",
+        "watch": "4 shares @ $32.86 avg, now $32.44 (-$1.65, -1.3%); all 4 available, no resting order. Trend is weak (-8.9% vs 20d, -13.3% on the month) but it held the $32 area; 52w low is $28.18. Earnings Oct 28 falls inside any hold past next month. Too few shares to write a covered call (needs 100), so the only decisions are hold or sell \u2014 I'd hold unless it closes below $31.00, which would break the recent base."
       }
     ],
     "ideas": [],
-    "market_read": "Two-way tape: travel keeps bleeding (BKNG -8% on the week and -26% on the month, RCL sitting on a fresh 52-week low at $226), while MSFT (+3.7% wk, near highs), PLTR (+9% wk, 7% over its 20d) and CDNS (+11.7% wk) carry the momentum bid. WMT is firm at $110.90, +4% over its 20d and 3% under the resting $113 sell \u2014 that GTC order remains the only live decision in the account. Buying power is unchanged at $39.88, so again nothing in this universe is placeable.",
+    "market_read": "Split tape: semis/software soft (ORCL -8% on the week and 56% off its high, AMAT and MU choppy), while META (+11% wk, at 52w highs), JNJ and KR hold the bid. The only thing that matters for this account is arithmetic: $18.65 of cash and options buying power, one 4-share CMG lot worth $130, and no resting orders. CMG is the whole book and it is drifting \u2014 9% under its 20-day with earnings Oct 28.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Eleventh straight session with nothing actionable: $39.88 of cash/options buying power buys zero shares in this focus list (cheapest is GOLD at $42.60) and every option here needs multiples of that \u2014 the narrowest defined-risk structure in these chains, a WMT Oct-16 $111/$110 put credit spread, still needs ~$100 of options buying power per spread net of ~$0.20 credit, plus Level 3 approval. Cash-secured puts are far out of reach (cheapest, GOLD Oct-16 $40, is $4,000 of collateral for a ~$0.60 mid credit). If funded with ~$1,000\u20132,000 I'd want the WMT Oct-16 $110/$108 put spread (~$180 max risk, 23% IV, no earnings before expiry) or a SLV Oct-30 put spread \u2014 SLV quotes are penny-tight, the best liquidity on this list \u2014 sized at ~$200 risk each so one loss isn't the account.",
+    "no_trade_reason": "Twelfth straight session with nothing placeable: $18.65 of buying power buys zero shares in this focus list (cheapest is KR at $59.31) and every option here costs multiples of that \u2014 the cheapest single contract in these chains is the CMG Oct-16 $32 put at ~$0.82 mid, i.e. $82 of debit, and the narrowest credit spread (CMG Oct-16 $32/$32.50, $50 wide) still needs ~$40-45 of options buying power plus Level 3 approval. Buying power actually fell from $39.88 yesterday to $18.65, so the gap widened. If funded with ~$1,000-2,000 I'd want a defined-risk bullish spread in a liquid, penny-wide name \u2014 NVDA Oct-16 $222.50/$217.50 call debit spread (~$250 risk per spread, 31% IV, no earnings until Nov 17) \u2014 or a CMG Oct-16 $30/$28 put credit spread at ~$180 risk to get paid for the downside I'm already exposed to; either sized so one loser is under 15% of the account.",
     "refused": false,
     "scan": {
       "focus": [
-        "BKNG",
-        "RCL",
-        "ABNB",
-        "BABA",
-        "GOLD",
-        "FCX",
+        "ORCL",
+        "AMAT",
+        "MU",
+        "NVDA",
+        "META",
+        "JNJ",
+        "KR",
         "MSFT",
-        "PLTR",
-        "CDNS",
-        "NEM",
         "AVGO",
-        "SLV"
+        "CAT",
+        "GS",
+        "CMG"
       ],
-      "focus_read": "Small account with limited buying power (~$40), so I want liquid, moderately priced names with clear moves for defined-risk options plays. Notable movers: BKNG and RCL down sharply post-earnings-like drops, ABNB/BABA/GOLD/NEM/FCX showing big red days, while MSFT/CRM/PLTR/CDNS show strength - good for spreads either direction.",
+      "focus_read": "Broad tech/semi weakness (ORCL -4%, AMAT, KLAC, MU, NVDA, MSFT down) contrasting with strength in META, JNJ, MRK, KR \u2014 good setups for both bearish defined-risk plays on beaten-down semis/software and bullish continuation on strong movers. Also keeping CMG on watch since it's a current position.",
       "universe_scanned": 272
     }
   }
