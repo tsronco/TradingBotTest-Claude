@@ -29,6 +29,18 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-25',
+    category: 'ui',
+    title: 'Positions: current price reads green/red against your avg cost',
+    details:
+      'Avg cost and current price sat side by side in the same color, so "am I above or below my '
+      + 'cost?" took a second look across a row of numbers. The current-price cell is now colored by '
+      + "whether the move helps the position (green above cost for a long; for a short option it flips, "
+      + 'since you want the premium to fall), with the per-share delta and percent underneath; avg cost '
+      + 'drops to the quieter mid tone as the reference. Same sign convention as the P/L column, so a row '
+      + 'reads the same from either side. No arrows — the color already carries direction.',
+  },
+  {
     date: '2026-09-10',
     category: 'fix',
     title: 'Live brief: first fire failed on a strict-schema bound; fixed',
