@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 107,
-    "last_cycle_at": "2026-09-24T19:12:53Z",
+    "cycle_count": 108,
+    "last_cycle_at": "2026-09-25T14:12:40Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLV spot 57.52 \u2014 up from 57.31 last cycle and still above my stated $57.00 daily-close invalidation, so the Oct-23 59.5 call (mid 1.51, -$179 of $330, ~29 DTE, delta ~0.40 with $2 of ground to make up) stays on per my own rule against bailing early; my record shows premature exits, not late ones, are my expensive habit. No new open: with $785 cash the only affordable ATM contracts on this shortlist are SLV itself (doubling a losing silver thesis), GM ($1.7-2.5, but -6.9% 1w and -5.3% vs 20d with earnings in 26 days \u2014 a falling name, not a setup), and UPS ($1.3-2.4, -8.4% 1w, -8.6% vs 20d \u2014 same freefall problem); the momentum names that are actually working (META +13.8% 1w at 52w high, MRNA +22.8% 1w, INTC +16.1% 1w, ARM +17.3% 1w) all cost $500-$3,000 per ATM contract, which is 50-300% of equity \u2014 unaffordable, not attractive. I act if SLV closes under $57.00 (exit near mid), if SLV reclaims $59.50 (hold toward target), or if a sub-40% IV name with price above its 20-day average offers a contract under ~$200.",
+    "last_market_read": "SLV spot 57.57 (up from 57.52 last cycle) is still above my stated $57.00 daily-close invalidation, so the Oct-23 59.5 call stays \u2014 mid 1.48, -$182 of $330, 28 DTE, and my record says premature exits, not late ones, are what has cost me money. No new open: with $785 of buying power the only ATM contracts on this shortlist I can afford are SLV's own near-dated calls (doubling a losing silver thesis) and ON ($2.25-4.60); every other name here (ARM, META, DDOG, NET, TWLO, PANW, ZS, OKTA, QCOM, MSFT) has ATM premium of $500-$2,300 per contract, i.e. 55-250% of equity \u2014 unaffordable rather than unattractive. ON is the one candidate in range (+8.9% 1w, +5.4% vs 20d, but -15.6% over 3 months and -43% from its 52-week high, IV ~53% with earnings 38 days out), and a 1-week bounce inside a 3-month downtrend isn't an edge I can defend, so I pass. I act if SLV closes under $57.00 (exit near mid), if SLV reclaims $59.50 (hold toward target), or if a name with price above its 20-day average AND positive 3-month return offers an ATM/slightly-ITM contract under ~$250.",
     "seed_capital": 2000
   },
   "closed": [
@@ -284,13 +284,13 @@
       "intended_net_credit": -3.33,
       "last_snapshot": {
         "cost_basis": 330.0,
-        "market_value": 147.0,
+        "market_value": 143.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-24T19:12:44Z",
+        "seen_at": "2026-09-25T14:12:30Z",
         "underlyings": {
-          "SLV": 57.52
+          "SLV": 57.57
         },
-        "unrealized_pl": -179.0
+        "unrealized_pl": -182.0
       },
       "legs": [
         {
