@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { fmtUsd, fmtPct, fmtNum } from '../lib/format';
+import { priceVsCost, priceVsCostClass } from '../lib/price-vs-cost';
 import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
@@ -259,6 +260,7 @@ function LegRow({
     }
   }
 
+  const vsCost = priceVsCost(Number(p.current_price), Number(p.avg_entry_price), Number(p.qty));
   const lookupSymbol = parsed?.underlying ?? p.symbol;
   const lookupHref = `/lookup/${lookupSymbol}`;
 
@@ -303,11 +305,24 @@ function LegRow({
       <td data-label="qty" className={`px-4 py-1.5 text-right ${qtyNum < 0 ? 'text-red' : 'text-fg'}`}>
         {qtyNum > 0 ? '+' : ''}{fmtNum(qtyNum)}
       </td>
-      <td data-label="avg cost" className="px-4 py-1.5 text-right text-fg">
+      {/* Avg cost is the reference, so it sits in the quieter mid tone; the
+          current price carries the verdict — green/red by whether the move
+          helps THIS position (a short option wants price below the premium
+          collected), with the per-share delta underneath. Same sign as the
+          P/L column, so the row reads the same from either side. */}
+      <td data-label="avg cost" className="px-4 py-1.5 text-right text-mid">
         {fmtUsd(Number(p.avg_entry_price))}
         {isOption && <span className="text-dim text-[10px] ml-1">({fmtUsd(Number(p.avg_entry_price) * 100)})</span>}
       </td>
-      <td data-label="current" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.current_price))}</td>
+      <td data-label="current" className={`px-4 py-1.5 text-right ${priceVsCostClass(vsCost)}`}>
+        {fmtUsd(Number(p.current_price))}
+        {vsCost.direction !== 'flat' && (
+          <div className="text-[10px] text-dim leading-tight" title="current price vs your avg cost, per share">
+            {vsCost.delta > 0 ? '+' : '−'}{fmtUsd(Math.abs(vsCost.delta), { sign: false })}
+            {vsCost.deltaPct != null && <> ({vsCost.deltaPct > 0 ? '+' : '−'}{Math.abs(vsCost.deltaPct).toFixed(1)}%)</>}
+          </div>
+        )}
+      </td>
       <td data-label="mkt value" className="px-4 py-1.5 text-right text-fg">{fmtUsd(Number(p.market_value))}</td>
       <td data-label="unrealized P/L" className={`px-4 py-1.5 text-right ${klass}`}>
         {pl >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(pl), { sign: false }).replace('-$', '$')}{' '}
