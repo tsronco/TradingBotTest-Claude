@@ -31,6 +31,16 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-25',
     category: 'ui',
+    title: 'Positions: one percent per row — the per-share line is now "$/sh"',
+    details:
+      'The new per-share delta under the current price carried its own percent, which sat next to the '
+      + 'P/L column\'s percent as two near-identical numbers (−2.4% vs −2.36% — the same ratio, different '
+      + 'rounding). Dropped the duplicate; the per-share line now reads e.g. "−$0.78/sh" so the unit is '
+      + 'what separates it from the total dollar P/L, and the row carries a single percent.',
+  },
+  {
+    date: '2026-09-25',
+    category: 'ui',
     title: 'Positions: current price reads green/red against your avg cost',
     details:
       'Avg cost and current price sat side by side in the same color, so "am I above or below my '

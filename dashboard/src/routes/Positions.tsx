@@ -316,10 +316,13 @@ function LegRow({
       </td>
       <td data-label="current" className={`px-4 py-1.5 text-right ${priceVsCostClass(vsCost)}`}>
         {fmtUsd(Number(p.current_price))}
+        {/* Per-share dollars only. The percent was dropped on purpose: for a
+            stock it IS the P/L column's percent (same ratio, different
+            rounding), so showing both put two near-identical percents on one
+            row. The "/sh" unit is what separates this from the total P/L. */}
         {vsCost.direction !== 'flat' && (
-          <div className="text-[10px] text-dim leading-tight" title="current price vs your avg cost, per share">
-            {vsCost.delta > 0 ? '+' : '−'}{fmtUsd(Math.abs(vsCost.delta), { sign: false })}
-            {vsCost.deltaPct != null && <> ({vsCost.deltaPct > 0 ? '+' : '−'}{Math.abs(vsCost.deltaPct).toFixed(1)}%)</>}
+          <div className="text-[10px] text-dim leading-tight" title="current price minus your avg cost, per share">
+            {vsCost.delta > 0 ? '+' : '−'}{fmtUsd(Math.abs(vsCost.delta), { sign: false })}/sh
           </div>
         )}
       </td>
