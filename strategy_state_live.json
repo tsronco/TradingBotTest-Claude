@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "last_checked": "2026-09-28T17:53:33.730190Z"
+    "last_checked": "2026-09-28T18:03:32.098739Z"
   },
   "CMG": {
     "first_seen": "2026-09-23T18:43:31.134840Z",
@@ -17,6 +17,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $32.58 vs avg $32.86 (PnL -0.85%). Stop $29.57, Trail OFF."
+    "last_action": "Monitoring $32.53 vs avg $32.86 (PnL -1.00%). Stop $29.57, Trail OFF."
   }
 }
