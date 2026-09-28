@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-25T13:41:42Z",
-    "runs": 13
+    "last_run_at": "2026-09-28T13:41:54Z",
+    "runs": 14
   },
   "last_brief": {
     "account": {
       "buying_power": 18.65,
       "cash": 18.65,
-      "equity": 146.17,
+      "equity": 144.29,
       "options_buying_power": 18.65
     },
-    "date": "2026-09-25",
-    "generated_at": "2026-09-25T13:41:42Z",
+    "date": "2026-09-28",
+    "generated_at": "2026-09-28T13:41:54Z",
     "held": [
       {
         "symbol": "CMG",
-        "watch": "4 shares, all available (no resting orders), $31.88 vs $32.86 cost (-$3.91). Watch the 52-week low at $28.18 \u2014 a close under it before Oct 28 earnings means the downtrend has a second leg; 4 shares is too few to write a covered call against (needs 100)."
+        "watch": "4 shares, all available, no resting orders; $31.41 vs $32.86 cost (-4.4%). Down 15.5% on the month and 10% under the 20-day \u2014 watch the $31.00 area, a close under it puts the $28.18 52-week low back in play. Earnings Oct 28 falls inside any hold from here; 4 shares is too few to write a covered call against (needs 100)."
       }
     ],
     "ideas": [],
-    "market_read": "Divergent tape: INTC (+16% wk, +43% mo), DDOG (+17% wk) and QCOM (+12%) are ripping while CMG, DKNG and F keep bleeding \u2014 DKNG is printing a new 52-week low. For this account the only live variable is CMG, which sits 9.7% below its 20-day and 24.7% off its high with earnings Oct 28; buying power is $18.65, unchanged in spirit from yesterday.",
+    "market_read": "Risk-off in growth: MDB -22% on its earnings gap, ARM/INTU/CRM/ADBE/NOW all down hard on the week, with NVDA (+2.4% wk, 1.3% off its 52w high) the lone green outlier. IVs are fat across the shortlist (MDB ~73-84%, ARM ~72%, NOW ~55-62%), which is where the opportunity is \u2014 but not at $18.65 of buying power. The only live variable for this account is CMG at $31.41, 10% below its 20-day and with earnings Oct 28 inside any holding window.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Thirteenth straight session with nothing placeable: $18.65 buys zero shares of anything on the list (cheapest is F at $12.65 \u2014 one share would fit, but a single $12.65 lot is noise, not a position) and every option contract here costs multiples of that, the cheapest being the CMG Oct-2 $31.50 put at ~$0.45 mid = $45 debit; the narrowest CMG credit spread still needs ~$40\u201345 of options buying power plus Level 3 approval. Funded with ~$1,000\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk) to get paid for downside I already own, or a defined-risk bullish call debit spread in a liquid penny-wide name; either sized so one loser is under 15% of equity.",
+    "no_trade_reason": "Fourteenth straight session with nothing placeable: $18.65 of cash/options buying power buys no share on this list (cheapest is CMG at $31.41) and no contract \u2014 the cheapest option here is the CMG Oct-9 $31.00 put at ~$0.65 mid = $65 debit, and the tightest CMG credit spread still needs ~$40\u201350 of collateral plus Level 3 approval. Unchanged from Friday's read, just a new expiry ladder. Funded with ~$1,500\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk, expires before the Oct 28 print) to get paid for downside I already own, or a defined-risk NVDA Oct-16 $232.50/$240 call debit spread (~$350 risk) to lean on the one name holding its trend \u2014 each sized so a full loss is under 15% of equity.",
     "refused": false,
     "scan": {
       "focus": [
-        "CMG",
-        "META",
-        "MSFT",
-        "DDOG",
-        "ZS",
-        "PANW",
+        "MDB",
+        "ARM",
         "QCOM",
-        "DKNG",
-        "INTC",
-        "SOFI",
-        "F",
-        "PARA"
+        "NOW",
+        "CRM",
+        "ADBE",
+        "INTU",
+        "NVDA",
+        "DASH",
+        "META",
+        "BA",
+        "CMG"
       ],
-      "focus_read": "Big divergence day in mega-cap tech: MSFT and DELL/QCOM/ADI ripping higher post-earnings-like moves while META and ZS/PANW get hit hard on the downside; DDOG is up huge on a squeeze. Given tiny account size (~$18 buying power), focusing on cheap-underlying names with liquid options and CMG (existing position) for context.",
+      "focus_read": "Broad risk-off day with tech/growth leading declines; MDB collapsed -22% (earnings gap), ARM/QCOM/NOW/CRM/ADBE/INTU had sharp post-earnings-style drops offering elevated IV for defined-risk plays, while NVDA is a notable green outlier against a red tape. Also holding CMG position, so keeping it in focus.",
       "universe_scanned": 272
     }
   }
