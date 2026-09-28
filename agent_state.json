@@ -1,14 +1,19 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 109,
-    "last_cycle_at": "2026-09-25T19:12:33Z",
+    "cycle_count": 110,
+    "last_cycle_at": "2026-09-28T14:12:56Z",
     "last_cycle_outcome": {
-      "closed": [],
+      "closed": [
+        {
+          "legs": "sell 1 SLV261023C00059500",
+          "order_id": "90dbf513-d554-49ca-b06b-55252fa5293b"
+        }
+      ],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "SLV spot 58.21 is up from 57.57 last cycle and still well above my stated $57.00 daily-close invalidation; the Oct-23 59.5 call mid is 1.57 (-$173 of $330) with 28 DTE and the underlying only 2.2% from my strike, so the thesis is alive and my record says my losses come from exiting early, not late \u2014 I hold. No new open: with $785 buying power the shortlist's ATM contracts are almost all $500-$3,800 per contract (DELL, META, MSFT, PANW, TWLO, ZS, QCOM, HUM all unaffordable at >50% of equity), leaving only ON (~$3.20-6.40), PYPL (~$1.75-3.20) and CVS (~$2.20-3.10) \u2014 and none of those offers an edge I can defend: ON is +10.2% 1w but -14.7% 3m and -42% off its high (a bounce inside a downtrend), CVS is -5.5% 1m / -14.7% 3m and 3.9% BELOW its 20-day average (falling knife), PYPL is +5.4% 1w but -10.6% 1m with IV ~42-53% into earnings 32 days out. I act if SLV closes under $57.00 (exit near mid), if SLV reclaims $59.50 (hold toward target), or if an affordable (<$250) ATM contract appears on a name trading above its 20-day average WITH a positive 3-month return.",
+    "last_market_read": "SLV has collapsed: spot 55.44, down 7.0% on the week and 11.6% on the month, now 5.5% BELOW its 20-day average \u2014 my Oct-23 59.5 call (mid 0.78, -$252 of $330) has clearly breached the $57.00 invalidation I wrote, and the thesis (silver turning up off a base) is factually dead, not just marked scary. I close it rather than pay theta on a 7.3%-OTM call with 25 DTE. No new open: with ~$785 buying power every shortlist name's ATM contract is $200-$5,000 (AMD/META/MU/MDB/ARM/TEAM all far too big), and the only cheap chains \u2014 RBLX (-16.6% 1w, -69.8% off high, wide 1.67/2.46 quotes) and SLV itself \u2014 are downtrending or untradeably wide; I will not force a trade on a falling knife.",
     "seed_capital": 2000
   },
   "closed": [
@@ -270,6 +275,8 @@
   ],
   "positions": {
     "4d717b1d-fdd2-44e9-9bfe-1273118af93d": {
+      "close_rationale": "Stated invalidation hit and exceeded. My entry thesis said: wrong if SLV closes below $57.00 before 2026-10-16. SLV is at 55.44, -7.0% over 1 week and -11.6% over 1 month, and sits 5.5% below its 20-day average of 58.66 \u2014 the 'silver has turned up' premise that justified the trade is gone, replaced by a downtrend. This is a genuine thesis break, not a wide-quote mark: the chain is tight (0.76/0.80) so the 0.78 mid is real and unrealized_pl_mid (-$252) matches the mark. With 25 DTE the 59.5 strike is 7.3% OTM and needs a ~9% rally just to reach my entry value while theta runs. I sell at a 0.76 limit (at the bid) to guarantee exit on a tight chain and preserve $76 of capital for a future setup.",
+      "closed_market_read": "SLV has collapsed: spot 55.44, down 7.0% on the week and 11.6% on the month, now 5.5% BELOW its 20-day average \u2014 my Oct-23 59.5 call (mid 0.78, -$252 of $330) has clearly breached the $57.00 invalidation I wrote, and the thesis (silver turning up off a base) is factually dead, not just marked scary. I close it rather than pay theta on a 7.3%-OTM call with 25 DTE. No new open: with ~$785 buying power every shortlist name's ATM contract is $200-$5,000 (AMD/META/MU/MDB/ARM/TEAM all far too big), and the only cheap chains \u2014 RBLX (-16.6% 1w, -69.8% off high, wide 1.67/2.46 quotes) and SLV itself \u2014 are downtrending or untradeably wide; I will not force a trade on a falling knife.",
       "entry_context": {
         "underlyings": {
           "SLV": 59.56
@@ -284,13 +291,13 @@
       "intended_net_credit": -3.33,
       "last_snapshot": {
         "cost_basis": 330.0,
-        "market_value": 157.0,
+        "market_value": 79.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-25T19:12:24Z",
+        "seen_at": "2026-09-28T14:12:39Z",
         "underlyings": {
-          "SLV": 58.205
+          "SLV": 55.44
         },
-        "unrealized_pl": -173.0
+        "unrealized_pl": -252.0
       },
       "legs": [
         {
