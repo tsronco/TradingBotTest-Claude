@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-28T13:41:54Z",
-    "runs": 14
+    "last_run_at": "2026-09-29T13:41:49Z",
+    "runs": 15
   },
   "last_brief": {
     "account": {
       "buying_power": 18.65,
       "cash": 18.65,
-      "equity": 144.29,
+      "equity": 144.45,
       "options_buying_power": 18.65
     },
-    "date": "2026-09-28",
-    "generated_at": "2026-09-28T13:41:54Z",
+    "date": "2026-09-29",
+    "generated_at": "2026-09-29T13:41:49Z",
     "held": [
       {
         "symbol": "CMG",
-        "watch": "4 shares, all available, no resting orders; $31.41 vs $32.86 cost (-4.4%). Down 15.5% on the month and 10% under the 20-day \u2014 watch the $31.00 area, a close under it puts the $28.18 52-week low back in play. Earnings Oct 28 falls inside any hold from here; 4 shares is too few to write a covered call against (needs 100)."
+        "watch": "4 shares, all available (no resting orders), $31.43 vs $32.86 basis (-4.3%). Still 9.5% under the 20-day and -17.5% on the month; $28.18 is the 52w low and the line that matters. Earnings Oct 28 \u2014 a decision point before then, not today; 4 shares is too few to write a covered call against (needs 100)."
       }
     ],
     "ideas": [],
-    "market_read": "Risk-off in growth: MDB -22% on its earnings gap, ARM/INTU/CRM/ADBE/NOW all down hard on the week, with NVDA (+2.4% wk, 1.3% off its 52w high) the lone green outlier. IVs are fat across the shortlist (MDB ~73-84%, ARM ~72%, NOW ~55-62%), which is where the opportunity is \u2014 but not at $18.65 of buying power. The only live variable for this account is CMG at $31.41, 10% below its 20-day and with earnings Oct 28 inside any holding window.",
+    "market_read": "Semis are the strong tape this morning \u2014 AMAT +7.5% on the week, KLAC +4.1%, LRCX +4.7%, all well above their 20-day \u2014 while WMT and AAPL sag and cruise lines spike (CCL +11% wk, reporting earnings TODAY). Nothing in that rotation is reachable with $18.65 of buying power. The only live variable for this account remains CMG at $31.43, 9.5% below its 20-day, with earnings Oct 28 ahead of it.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Fourteenth straight session with nothing placeable: $18.65 of cash/options buying power buys no share on this list (cheapest is CMG at $31.41) and no contract \u2014 the cheapest option here is the CMG Oct-9 $31.00 put at ~$0.65 mid = $65 debit, and the tightest CMG credit spread still needs ~$40\u201350 of collateral plus Level 3 approval. Unchanged from Friday's read, just a new expiry ladder. Funded with ~$1,500\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk, expires before the Oct 28 print) to get paid for downside I already own, or a defined-risk NVDA Oct-16 $232.50/$240 call debit spread (~$350 risk) to lean on the one name holding its trend \u2014 each sized so a full loss is under 15% of equity.",
+    "no_trade_reason": "Fifteenth straight session with nothing placeable: $18.65 buys no share on this list (cheapest is NIO at $3.41 \u2014 one share is possible but a $3 lottery ticket in a downtrend is not an idea worth your commission slot) and no option contract (cheapest reasonable premium here is the CMG Oct-9 $31 put at ~$0.72 mid = $72 debit; the tightest CMG credit spread still needs ~$40\u201350 collateral plus Level 3). Unchanged thesis from yesterday, only the expiry ladder moved. Funded with ~$1,500\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk, expires before the Oct 28 print) to get paid on downside I already own, or a defined-risk LRCX/AMAT Oct-16 call debit spread (~$300\u2013400 risk) to lean on the semi trend that is actually working \u2014 each sized so a full loss is under 15% of equity.",
     "refused": false,
     "scan": {
       "focus": [
-        "MDB",
-        "ARM",
-        "QCOM",
-        "NOW",
-        "CRM",
-        "ADBE",
-        "INTU",
-        "NVDA",
-        "DASH",
-        "META",
-        "BA",
-        "CMG"
+        "CMG",
+        "AMAT",
+        "KLAC",
+        "LRCX",
+        "MRVL",
+        "RCL",
+        "CCL",
+        "WMT",
+        "AAPL",
+        "NIO",
+        "LI",
+        "MRNA"
       ],
-      "focus_read": "Broad risk-off day with tech/growth leading declines; MDB collapsed -22% (earnings gap), ARM/QCOM/NOW/CRM/ADBE/INTU had sharp post-earnings-style drops offering elevated IV for defined-risk plays, while NVDA is a notable green outlier against a red tape. Also holding CMG position, so keeping it in focus.",
+      "focus_read": "Semis are surging on AMAT/KLAC/LRCX/MRVL earnings-driven strength while broader market is soft; cruise lines (RCL/CCL/NCLH) are spiking on sector news, and WMT/AAPL are notably weak. Small account with CMG position already held, so focusing on liquid names with clear directional moves for defined-risk plays.",
       "universe_scanned": 272
     }
   }
