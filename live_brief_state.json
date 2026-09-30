@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-09-29T13:41:49Z",
-    "runs": 15
+    "last_run_at": "2026-09-30T13:41:44Z",
+    "runs": 16
   },
   "last_brief": {
     "account": {
       "buying_power": 18.65,
       "cash": 18.65,
-      "equity": 144.45,
+      "equity": 145.1,
       "options_buying_power": 18.65
     },
-    "date": "2026-09-29",
-    "generated_at": "2026-09-29T13:41:49Z",
+    "date": "2026-09-30",
+    "generated_at": "2026-09-30T13:41:44Z",
     "held": [
       {
         "symbol": "CMG",
-        "watch": "4 shares, all available (no resting orders), $31.43 vs $32.86 basis (-4.3%). Still 9.5% under the 20-day and -17.5% on the month; $28.18 is the 52w low and the line that matters. Earnings Oct 28 \u2014 a decision point before then, not today; 4 shares is too few to write a covered call against (needs 100)."
+        "watch": "4 shares, all available (no resting orders), $126 market value, -$4.98 open. Watch the $28.18 52-week low as the line that matters; 4 shares is too few to write a covered call (needs 100), so the only levers are hold or sell. Earnings Oct 28 is inside any hold from here."
       }
     ],
     "ideas": [],
-    "market_read": "Semis are the strong tape this morning \u2014 AMAT +7.5% on the week, KLAC +4.1%, LRCX +4.7%, all well above their 20-day \u2014 while WMT and AAPL sag and cruise lines spike (CCL +11% wk, reporting earnings TODAY). Nothing in that rotation is reachable with $18.65 of buying power. The only live variable for this account remains CMG at $31.43, 9.5% below its 20-day, with earnings Oct 28 ahead of it.",
+    "market_read": "Risk is coming off broadly: ORCL -6.4% on the week and 7.9% under its 20-day, NOC at a fresh 52-week low, MDB -15.5% on the week, F/SOFI/LCID/NIO all sliding, while MRNA (+40% 1m) and INTC (+32.8% 1m) are the only real uptrends. CMG at $31.62 is the only live variable here \u2014 it is -16.9% on the month, 8.1% below its 20-day, and 12% off the 52-week low, with earnings Oct 28. With $18.65 of buying power, none of today's setups are reachable.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Fifteenth straight session with nothing placeable: $18.65 buys no share on this list (cheapest is NIO at $3.41 \u2014 one share is possible but a $3 lottery ticket in a downtrend is not an idea worth your commission slot) and no option contract (cheapest reasonable premium here is the CMG Oct-9 $31 put at ~$0.72 mid = $72 debit; the tightest CMG credit spread still needs ~$40\u201350 collateral plus Level 3). Unchanged thesis from yesterday, only the expiry ladder moved. Funded with ~$1,500\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk, expires before the Oct 28 print) to get paid on downside I already own, or a defined-risk LRCX/AMAT Oct-16 call debit spread (~$300\u2013400 risk) to lean on the semi trend that is actually working \u2014 each sized so a full loss is under 15% of equity.",
+    "no_trade_reason": "Sixteenth straight session with nothing placeable: $18.65 buys no option contract on this list (cheapest sensible premium is the CMG Oct-9 $31.50 put at ~$0.79 mid = $79 debit, or SNAP Oct-9 $5.50 call at ~$0.155 = $16 but that is a coin-flip lottery ticket, not an idea) and no share worth owning \u2014 NIO at $3.41 and LCID at $4.02 are the only affordable ones and both are in 30\u201340% three-month downtrends at 52-week lows. Unchanged from yesterday; only the expiry ladder and the tape moved. Funded with ~$1,500\u20132,000 I'd want a CMG Oct-16 $30/$28 put credit spread (~$180 risk, expires before the Oct 28 print) to get paid on downside I already own, or an ORCL Oct-30 put credit spread around $120/$115 (~$350 risk) to lean on the broken trend with defined risk \u2014 each sized so a full loss stays under 15% of equity. Both would need options Level 3 (spreads).",
     "refused": false,
     "scan": {
       "focus": [
         "CMG",
-        "AMAT",
-        "KLAC",
-        "LRCX",
-        "MRVL",
-        "RCL",
-        "CCL",
-        "WMT",
-        "AAPL",
-        "NIO",
-        "LI",
-        "MRNA"
+        "MDB",
+        "NOC",
+        "MRNA",
+        "ORCL",
+        "HOOD",
+        "INTC",
+        "SNAP",
+        "F",
+        "SOFI",
+        "LCID",
+        "NIO"
       ],
-      "focus_read": "Semis are surging on AMAT/KLAC/LRCX/MRVL earnings-driven strength while broader market is soft; cruise lines (RCL/CCL/NCLH) are spiking on sector news, and WMT/AAPL are notably weak. Small account with CMG position already held, so focusing on liquid names with clear directional moves for defined-risk plays.",
+      "focus_read": "Tiny account (~$18 buying power) with CMG position already held. Notable movers: MDB huge earnings gap up (+7%), NOC big gap down (-4.2%), MRNA down sharply, ORCL down 2%, HOOD volatile after big move, INTC strong up move. Focusing on cheap/liquid names with real moves and affordable options given tiny buying power.",
       "universe_scanned": 272
     }
   }
