@@ -17759,3 +17759,6 @@
 {"timestamp": "2026-09-30T19:51:37.653549+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
 {"timestamp": "2026-09-30T19:51:37.938476+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
 {"timestamp": "2026-09-30T19:51:38.247992+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-09-30T20:01:36.440177+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-09-30T20:01:36.673208+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "manual"}}
+{"timestamp": "2026-09-30T20:01:36.912839+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
