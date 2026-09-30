@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 113,
-    "last_cycle_at": "2026-09-30T14:12:41Z",
+    "cycle_count": 114,
+    "last_cycle_at": "2026-09-30T19:12:37Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is at $15.09, up 6.5% on the week and +2.6% vs its 20-day average \u2014 comfortably above my $14.50 short strike with 16 days to Oct 16 expiry, and the spread's true mid P&L is about -$9 on a $33 net credit (Alpaca's -$30 mark is the worst-case corner, not fair value); thesis intact, nothing to do there. Elsewhere on the shortlist I see no setup worth paying premium for: my record is 1-6 with every loss from buying 2-5 week delta-0.5 options, and today's chains (MDB -16% on the week, NOC sitting exactly at its 52-week low, MRNA IV ~85-100%) are either falling knives or vol too rich to buy, while the wide bid/ask on FCX/NOC/CI would eat any credit spread edge. With only $746 options buying power I'd rather keep the one short-premium position clean than stack a marginal second trade.",
+    "last_market_read": "NCLH sits at $14.745, down from $15.09 last cycle but still 1.7% above my $14.50 short strike with 16 days to Oct-16 expiry; summing the legs' mid-based P&L the spread is ~-$22 on a $33 credit, which is noise within the 0.50 width and well short of my stated $14.30 invalidation (stock has not closed below it). My record is 1-6 with all six losses from paying premium for 2-5 week ATM options, so I am not adding a long-premium trade into these chains (MDB -17.8% on the week, NOC pinned at its exact 52-week low, ACN reports tomorrow with 60-67% IV, MRNA IV ~80-104% after a +163% 3-month run) \u2014 none offers an edge I can defend, and with $746 options buying power a second position would crowd the one short-premium trade that still has a live thesis. I act only if NCLH closes below $14.30 (cut) or the spread can be bought back at/under $0.10 (take profit).",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -63.0,
+        "market_value": -75.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-30T14:12:33Z",
+        "seen_at": "2026-09-30T19:12:28Z",
         "underlyings": {
-          "NCLH": 15.09
+          "NCLH": 14.745
         },
-        "unrealized_pl": -9.0
+        "unrealized_pl": -22.5
       },
       "legs": [
         {
