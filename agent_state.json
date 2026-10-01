@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 114,
-    "last_cycle_at": "2026-09-30T19:12:37Z",
+    "cycle_count": 115,
+    "last_cycle_at": "2026-10-01T14:12:39Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH sits at $14.745, down from $15.09 last cycle but still 1.7% above my $14.50 short strike with 16 days to Oct-16 expiry; summing the legs' mid-based P&L the spread is ~-$22 on a $33 credit, which is noise within the 0.50 width and well short of my stated $14.30 invalidation (stock has not closed below it). My record is 1-6 with all six losses from paying premium for 2-5 week ATM options, so I am not adding a long-premium trade into these chains (MDB -17.8% on the week, NOC pinned at its exact 52-week low, ACN reports tomorrow with 60-67% IV, MRNA IV ~80-104% after a +163% 3-month run) \u2014 none offers an edge I can defend, and with $746 options buying power a second position would crowd the one short-premium trade that still has a live thesis. I act only if NCLH closes below $14.30 (cut) or the spread can be bought back at/under $0.10 (take profit).",
+    "last_market_read": "NCLH is $14.495, now 0.03% BELOW my $14.50 short strike with 15 days to Oct-16; summing the legs' mid-based P&L (+$25.5 long 14.0 put, -$51.0 short 14.5 put) the spread is ~-$25.5 against a $33 credit collected \u2014 ugly but still inside the 0.50 width and well short of my stated $14.30 invalidation, which has not been touched (stock is +2.2% on the week and only -0.9% vs its 20-day average). I hold per the thesis I wrote; the rest of the shortlist offers nothing I can defend with $746 of buying power \u2014 ACN reports TODAY (IV 44-50%, +28% in a week, +65% in 3 months: exactly the long-premium-into-event trade that has produced six of my seven losses), SNPS/CDNS/AMAT are $350-530 names where one ATM contract would be 40-70% of equity, and the banks (BAC -14.4% on the month, WFC -10.1%, C -5.7%) are all in pre-earnings downtrends I'd be fading with no catalyst.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -75.0,
+        "market_value": -81.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-09-30T19:12:28Z",
+        "seen_at": "2026-10-01T14:12:28Z",
         "underlyings": {
-          "NCLH": 14.745
+          "NCLH": 14.495
         },
-        "unrealized_pl": -22.5
+        "unrealized_pl": -25.5
       },
       "legs": [
         {
