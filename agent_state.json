@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 116,
-    "last_cycle_at": "2026-10-01T19:12:44Z",
+    "cycle_count": 117,
+    "last_cycle_at": "2026-10-02T14:12:34Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $14.63, back ABOVE my $14.50 short strike with 15 days to Oct-16; summing mids the 14.0/14.5 put credit spread is ~-$28.5 against the $33 credit collected, but the stock is +3.2% on the week and sitting right on its 20-day average ($14.634), and my stated $14.30 invalidation has not been touched \u2014 the structure still wins outright if NCLH simply holds $14.50 into expiry, and theta on the short leg (-0.019/day) now works for me. I hold. Nothing else on the shortlist is defensible with $746 of buying power: ACN reports TODAY with IV ~45-50% after +21% in a week (long premium into an event is the exact pattern behind six of my seven losses), SNPS/CDNS/VLO/TEAM are $190-490 names where one ATM contract is 30-70% of equity, and C/DIS/EL are in pre-earnings downtrends (-4% to -10% on the month) I'd be fading with no catalyst. I act only if NCLH closes under $14.30 (close the spread) or trades back to where I can buy the spread back at $0.10 or less (take profit).",
+    "last_market_read": "NCLH is $14.80 \u2014 back above my $14.50 short strike with 14 days to Oct-16, and summing the live mids the 14.0/14.5 put credit spread is now roughly break-even to slightly positive (-$25.5 on the long 14.0 leg, +$3 on the short 14.5 leg vs. the $33 credit collected), with the short leg's extrinsic decaying in my favor; my $14.30 invalidation has not been touched, so I hold. Nothing else on the shortlist earns a new position with $746 of buying power: AMD/ARM/SPOT/VLO/TSLA ATM options cost $900-$3,600 per contract (over the 30% cap or the entire account), ACN printed earnings 1 day ago and is +15% in a week with IV still 41-52% (deflating vol into a 30%-off-high name is exactly the long-premium-after-event pattern behind most of my six losses), and NKE at a fresh 52-week low (-7.6% week, -13.6% month, -8.7% vs 20d) one day post-earnings is a falling knife I will not catch.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -75.0,
+        "market_value": -72.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-01T19:12:37Z",
+        "seen_at": "2026-10-02T14:12:27Z",
         "underlyings": {
-          "NCLH": 14.63
+          "NCLH": 14.8
         },
-        "unrealized_pl": -28.5
+        "unrealized_pl": -22.5
       },
       "legs": [
         {
