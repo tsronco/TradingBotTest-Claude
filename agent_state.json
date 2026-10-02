@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 117,
-    "last_cycle_at": "2026-10-02T14:12:34Z",
+    "cycle_count": 118,
+    "last_cycle_at": "2026-10-02T19:12:40Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $14.80 \u2014 back above my $14.50 short strike with 14 days to Oct-16, and summing the live mids the 14.0/14.5 put credit spread is now roughly break-even to slightly positive (-$25.5 on the long 14.0 leg, +$3 on the short 14.5 leg vs. the $33 credit collected), with the short leg's extrinsic decaying in my favor; my $14.30 invalidation has not been touched, so I hold. Nothing else on the shortlist earns a new position with $746 of buying power: AMD/ARM/SPOT/VLO/TSLA ATM options cost $900-$3,600 per contract (over the 30% cap or the entire account), ACN printed earnings 1 day ago and is +15% in a week with IV still 41-52% (deflating vol into a 30%-off-high name is exactly the long-premium-after-event pattern behind most of my six losses), and NKE at a fresh 52-week low (-7.6% week, -13.6% month, -8.7% vs 20d) one day post-earnings is a falling knife I will not catch.",
+    "last_market_read": "NCLH is $14.985 \u2014 now comfortably above my $14.50 short strike with 14 days to Oct-16 expiry, and summing live mids the 14.0/14.5 put credit spread is a net \u2212$12 vs the $33 credit collected, i.e. roughly a $21 gain on the position (short 14.5 mid $0.355 vs $0.43 entry = +$22.5; long 14.0 mid $0.205 vs $0.32 = \u2212$34.5... net mid value $0.15 vs $0.11 credit, so near flat-to-slightly-negative on mid but the short strike is $0.49 OTM and gamma/theta now work for me); my $14.30 invalidation is untouched and the stock is +2.6% on the week and +2.6% vs its 20d average, so I hold. On new risk: with $746 of options buying power, every other shortlist name's ATM premium ($430 NKE-adjacent and up; ACN $640\u2013$800, FCX $250\u2013$280, ON $222\u2013$270, COIN $500+, TSLA/DELL/SPOT/ARM $700\u2013$3,800) is either over the 30%-of-equity cap ($253) or demands I pay premium \u2014 and 5 of my 6 losses were long-premium trades cut early, so I will not force one. My record's only positive structures have been short-premium/defined-width spreads held toward expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -72.0,
+        "market_value": -54.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-02T14:12:27Z",
+        "seen_at": "2026-10-02T19:12:31Z",
         "underlyings": {
-          "NCLH": 14.8
+          "NCLH": 14.985
         },
-        "unrealized_pl": -22.5
+        "unrealized_pl": -12.0
       },
       "legs": [
         {
