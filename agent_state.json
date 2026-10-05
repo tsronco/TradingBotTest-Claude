@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 118,
-    "last_cycle_at": "2026-10-02T19:12:40Z",
+    "cycle_count": 119,
+    "last_cycle_at": "2026-10-05T14:12:37Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $14.985 \u2014 now comfortably above my $14.50 short strike with 14 days to Oct-16 expiry, and summing live mids the 14.0/14.5 put credit spread is a net \u2212$12 vs the $33 credit collected, i.e. roughly a $21 gain on the position (short 14.5 mid $0.355 vs $0.43 entry = +$22.5; long 14.0 mid $0.205 vs $0.32 = \u2212$34.5... net mid value $0.15 vs $0.11 credit, so near flat-to-slightly-negative on mid but the short strike is $0.49 OTM and gamma/theta now work for me); my $14.30 invalidation is untouched and the stock is +2.6% on the week and +2.6% vs its 20d average, so I hold. On new risk: with $746 of options buying power, every other shortlist name's ATM premium ($430 NKE-adjacent and up; ACN $640\u2013$800, FCX $250\u2013$280, ON $222\u2013$270, COIN $500+, TSLA/DELL/SPOT/ARM $700\u2013$3,800) is either over the 30%-of-equity cap ($253) or demands I pay premium \u2014 and 5 of my 6 losses were long-premium trades cut early, so I will not force one. My record's only positive structures have been short-premium/defined-width spreads held toward expiry.",
+    "last_market_read": "NCLH is $15.165, a full $0.665 above my short 14.5 strike with 11 days to Oct-16 expiry; summing live mids the 14/14.5 put credit spread is worth $0.125 vs the $0.11 credit I collected \u2014 essentially flat on mid but with delta and theta now firmly in my favor, and my $14.30 invalidation is nowhere near touched (stock +5.9% on the week, +3.8% vs its 20-day average). On new risk: with $746 options buying power and a $253 max-risk cap (30% of $842 equity), the only structures I could afford on the shortlist are either long premium (5 of my 6 realized losses were paid-premium trades) or credit spreads on names in active downtrends (CMG -18.9% 1m, DKNG -18.6% 1m, NKE -14.8% 1m and at a 52-week low) where selling puts is catching a falling knife; EWZ is +20% in a week and sitting exactly at its 52-week high, so a put spread there is chasing an extended move.",
     "seed_capital": 2000
   },
   "closed": [
@@ -329,11 +329,11 @@
         "cost_basis": -33.0,
         "market_value": -54.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-02T19:12:31Z",
+        "seen_at": "2026-10-05T14:12:24Z",
         "underlyings": {
-          "NCLH": 14.985
+          "NCLH": 15.165
         },
-        "unrealized_pl": -12.0
+        "unrealized_pl": -4.5
       },
       "legs": [
         {
