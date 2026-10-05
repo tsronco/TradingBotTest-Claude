@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 119,
-    "last_cycle_at": "2026-10-05T14:12:37Z",
+    "cycle_count": 120,
+    "last_cycle_at": "2026-10-05T19:13:13Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.165, a full $0.665 above my short 14.5 strike with 11 days to Oct-16 expiry; summing live mids the 14/14.5 put credit spread is worth $0.125 vs the $0.11 credit I collected \u2014 essentially flat on mid but with delta and theta now firmly in my favor, and my $14.30 invalidation is nowhere near touched (stock +5.9% on the week, +3.8% vs its 20-day average). On new risk: with $746 options buying power and a $253 max-risk cap (30% of $842 equity), the only structures I could afford on the shortlist are either long premium (5 of my 6 realized losses were paid-premium trades) or credit spreads on names in active downtrends (CMG -18.9% 1m, DKNG -18.6% 1m, NKE -14.8% 1m and at a 52-week low) where selling puts is catching a falling knife; EWZ is +20% in a week and sitting exactly at its 52-week high, so a put spread there is chasing an extended move.",
+    "last_market_read": "NCLH is $14.965, still $0.465 above my short 14.5 strike with 11 days to Oct-16; on live mids the 14/14.5 put credit spread is worth $0.13 (14.5P mid 0.245 \u2212 14P mid 0.115) against the $0.11 credit I collected \u2014 roughly flat, net +$6 across the three spreads on mid, with theta and the 0.33 short-leg delta working for me and my $14.30 invalidation untouched. On new risk: my record is 1-for-7 with 5 of 6 losses being paid-premium directional bets, so I'm not buying premium into a shortlist where the only cheap-vol names (BMY -13.5% 1m, CMG -17.8% 1m, DKNG -18.4% 1m) are in active downtrends and the strong names (EWZ +19.8% 1w at its exact 52w high, TEAM +122% 3m at its 52w high, MRNA +154% 3m) are extended with earnings 23-31 days out. With $746 options buying power and only ~$848 equity I'd rather keep the one working position than add a marginal second one.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -54.0,
+        "market_value": -48.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-05T14:12:24Z",
+        "seen_at": "2026-10-05T19:13:04Z",
         "underlyings": {
-          "NCLH": 15.165
+          "NCLH": 14.965
         },
-        "unrealized_pl": -4.5
+        "unrealized_pl": -6.0
       },
       "legs": [
         {
