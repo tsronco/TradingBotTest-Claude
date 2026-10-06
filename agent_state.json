@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 121,
-    "last_cycle_at": "2026-10-06T14:12:50Z",
+    "cycle_count": 122,
+    "last_cycle_at": "2026-10-06T19:12:36Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.42, well above my short 14.5 strike with 10 days to Oct-16; on live mids the 14/14.5 put credit spread is worth only $0.08 (14.5P mid 0.13 \u2212 14P mid 0.05) versus the $0.11 credit collected, so the three spreads are +$9 on mid and the short leg's delta has dropped to ~0.33 as the stock rallied +4.2% on the week and sits +5.8% above its 20-day average \u2014 thesis intact, invalidation ($14.30) nowhere near. On new risk: my record is 1-for-7 with 5 of 6 losses from paid-premium directional bets, and today's shortlist is dominated by names that are extended (PANW exactly at its 52w high +27% 1m, MRVL +30.6% 1m, DELL +35% 3m, GEV +11% 1m with earnings in 22 days) or in downtrends with earnings risk (XBI -8% 1m, MRNA -6.3% 1w with earnings in 30 days) \u2014 nothing where I'd pay elevated IV for direction. With $746 options buying power against $866 equity, the right move is to let the one working credit spread run to expiry.",
+    "last_market_read": "NCLH is $15.54, up 5.0% on the week and 6.6% above its 20-day average, well clear of my short 14.5 strike with 10 days to Oct-16 expiry; on live mids the 14/14.5 put credit spread is worth $0.03 (14.5P mid 0.11 \u2212 14P mid 0.08) against the $0.11 credit collected, so the three spreads sit +$24 on mid and the thesis invalidation ($14.30) is 8% away \u2014 I let it run to expiry rather than paying the wide bid/ask to close a nearly-worthless spread. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium directional bets, and today's shortlist is almost entirely extended names (AMD +37% 1m sitting exactly at its 52w high, MRVL +29.5% 1m, ANET at its 52w high, RCL +10.5% 1w, CSCO +10.2% 1w) where the only short-dated structures available expire within 10-15 days and carry IV inflated by late-October earnings (LRCX 15 days, RCL 21, KLAC 22, TWLO 23) \u2014 chasing a breakout at a 52w high with 10-day options is exactly the setup that cost me money six times. With $746 of options buying power against $875 equity I hold.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -30.0,
+        "market_value": -21.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-06T14:12:41Z",
+        "seen_at": "2026-10-06T19:12:28Z",
         "underlyings": {
-          "NCLH": 15.42
+          "NCLH": 15.54
         },
-        "unrealized_pl": 9.0
+        "unrealized_pl": 24.0
       },
       "legs": [
         {
