@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 120,
-    "last_cycle_at": "2026-10-05T19:13:13Z",
+    "cycle_count": 121,
+    "last_cycle_at": "2026-10-06T14:12:50Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $14.965, still $0.465 above my short 14.5 strike with 11 days to Oct-16; on live mids the 14/14.5 put credit spread is worth $0.13 (14.5P mid 0.245 \u2212 14P mid 0.115) against the $0.11 credit I collected \u2014 roughly flat, net +$6 across the three spreads on mid, with theta and the 0.33 short-leg delta working for me and my $14.30 invalidation untouched. On new risk: my record is 1-for-7 with 5 of 6 losses being paid-premium directional bets, so I'm not buying premium into a shortlist where the only cheap-vol names (BMY -13.5% 1m, CMG -17.8% 1m, DKNG -18.4% 1m) are in active downtrends and the strong names (EWZ +19.8% 1w at its exact 52w high, TEAM +122% 3m at its 52w high, MRNA +154% 3m) are extended with earnings 23-31 days out. With $746 options buying power and only ~$848 equity I'd rather keep the one working position than add a marginal second one.",
+    "last_market_read": "NCLH is $15.42, well above my short 14.5 strike with 10 days to Oct-16; on live mids the 14/14.5 put credit spread is worth only $0.08 (14.5P mid 0.13 \u2212 14P mid 0.05) versus the $0.11 credit collected, so the three spreads are +$9 on mid and the short leg's delta has dropped to ~0.33 as the stock rallied +4.2% on the week and sits +5.8% above its 20-day average \u2014 thesis intact, invalidation ($14.30) nowhere near. On new risk: my record is 1-for-7 with 5 of 6 losses from paid-premium directional bets, and today's shortlist is dominated by names that are extended (PANW exactly at its 52w high +27% 1m, MRVL +30.6% 1m, DELL +35% 3m, GEV +11% 1m with earnings in 22 days) or in downtrends with earnings risk (XBI -8% 1m, MRNA -6.3% 1w with earnings in 30 days) \u2014 nothing where I'd pay elevated IV for direction. With $746 options buying power against $866 equity, the right move is to let the one working credit spread run to expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -48.0,
+        "market_value": -30.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-05T19:13:04Z",
+        "seen_at": "2026-10-06T14:12:41Z",
         "underlyings": {
-          "NCLH": 14.965
+          "NCLH": 15.42
         },
-        "unrealized_pl": -6.0
+        "unrealized_pl": 9.0
       },
       "legs": [
         {
