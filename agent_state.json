@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 123,
-    "last_cycle_at": "2026-10-07T14:12:46Z",
+    "cycle_count": 124,
+    "last_cycle_at": "2026-10-07T19:12:36Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.04 \u2014 above my short 14.5 strike with 9 days to Oct-16 expiry, but the week's drift has cut the cushion from 7% to 3.6% and the spread's mid value has risen: 14.5P mid $0.25 vs 14P mid $0.125, so the spread is worth ~$0.125 against the $0.11 credit, i.e. roughly flat-to-slightly-negative on mid (legs net -$4.50 mid). My stated invalidation is a close below $14.30, which is still 4.9% below spot, so I hold rather than pay a wide bid/ask to exit a position that hasn't broken. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium directional bets, and today's shortlist offers nothing I can argue an edge on \u2014 GS (-16% 1m) and MS (-13.4% 1m) have earnings in 6-7 days with IV already elevated for that reason, TXN (+10.4% 1m, earnings in 14d) and CAT/COIN/HOOD all carry earnings inside or just outside the only liquid expiries, and chains like ADBE/CAT/ETN/NXPI show $2-10 wide bid/ask that would eat any edge at my $746 of buying power. I would act on a name with a liquid penny-wide chain, no earnings inside the expiry, and a credit spread whose short strike sits beyond a defensible support level \u2014 none of today's candidates qualifies.",
+    "last_market_read": "NCLH is $15.27, +4.2% on the week and 5.3% above my short 14.5 strike with 9 days to Oct-16 expiry; the spread's true mid value is now $0.04 (14.5P mid $0.135 minus 14P mid $0.095) against the $0.11 credit I collected, so the legs net +$21 on mid and the position is working exactly as the thesis intended \u2014 hold to expiry or to a cheap buy-back, with invalidation unchanged at a close below $14.30. On new risk: my record is 1-for-7 with five of six losses from PAID premium directional bets, so I will not buy premium on a shortlist where every liquid name carries either earnings inside the window (TXN 14d, SPOT 15d, NXPI 20d, GEV 21d, CAT 22d) or $2-6 wide bid/ask (ADI, DE, CAT, GEV, MU) that would consume any edge at $746 of buying power. To act I need a penny-wide chain, no earnings before expiry, and a short strike beyond defensible support \u2014 SMCI/ON/MCHP have tight chains but all print earnings inside the only expiries that pay, so I wait.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -57.0,
+        "market_value": -33.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-07T14:12:35Z",
+        "seen_at": "2026-10-07T19:12:26Z",
         "underlyings": {
-          "NCLH": 15.04
+          "NCLH": 15.27
         },
-        "unrealized_pl": -4.5
+        "unrealized_pl": 21.0
       },
       "legs": [
         {
