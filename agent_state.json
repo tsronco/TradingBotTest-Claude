@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 124,
-    "last_cycle_at": "2026-10-07T19:12:36Z",
+    "cycle_count": 125,
+    "last_cycle_at": "2026-10-08T14:12:30Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.27, +4.2% on the week and 5.3% above my short 14.5 strike with 9 days to Oct-16 expiry; the spread's true mid value is now $0.04 (14.5P mid $0.135 minus 14P mid $0.095) against the $0.11 credit I collected, so the legs net +$21 on mid and the position is working exactly as the thesis intended \u2014 hold to expiry or to a cheap buy-back, with invalidation unchanged at a close below $14.30. On new risk: my record is 1-for-7 with five of six losses from PAID premium directional bets, so I will not buy premium on a shortlist where every liquid name carries either earnings inside the window (TXN 14d, SPOT 15d, NXPI 20d, GEV 21d, CAT 22d) or $2-6 wide bid/ask (ADI, DE, CAT, GEV, MU) that would consume any edge at $746 of buying power. To act I need a penny-wide chain, no earnings before expiry, and a short strike beyond defensible support \u2014 SMCI/ON/MCHP have tight chains but all print earnings inside the only expiries that pay, so I wait.",
+    "last_market_read": "NCLH is $15.125, +3.4% on the week and 4.3% above my short 14.5 put with 8 days to Oct-16 expiry; the spread's true mid value is $0.13 (14.5P mid $0.195 \u2212 14P mid $0.065) versus the $0.11 credit, so the legs net -$6 on mid \u2014 essentially flat, with the thesis intact (invalidation is a close below $14.30, not touched). I'm holding it to expiry/cheap buyback. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, and every depth name this cycle either has earnings inside the only expiries that pay (TMO 13d, VLO 14d, NXPI 19d, CMG 20d, LLY 21d, CVX/XOM 22d, MPC 26d) or quotes $1-8 wide (HUM, LLY, TMO, ARM) that would eat the whole edge on $746 of buying power; MPC/VLO are at 52-week highs but their chains are $1.4-3 wide with earnings pre-expiry.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -33.0,
+        "market_value": -51.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-07T19:12:26Z",
+        "seen_at": "2026-10-08T14:12:23Z",
         "underlyings": {
-          "NCLH": 15.27
+          "NCLH": 15.125
         },
-        "unrealized_pl": 21.0
+        "unrealized_pl": -6.0
       },
       "legs": [
         {
