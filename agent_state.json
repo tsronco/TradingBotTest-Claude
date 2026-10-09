@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 127,
-    "last_cycle_at": "2026-10-09T14:12:41Z",
+    "cycle_count": 128,
+    "last_cycle_at": "2026-10-09T19:12:31Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.605 \u2014 7.6% above my short 14.5 put with 7 days to Oct-16 expiry; legs mid out at 14.5P $0.04 / 14P $0.03, so the spread is worth ~$0.01 against the $0.11 credit collected, i.e. essentially the full ~$30 profit is already banked and the thesis (stay above $14.50) is intact with a wide cushion. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, so I am not buying premium; the shortlist's credit-spread candidates all have earnings inside the only expiries that pay (CCI/T 12d, AMT/CMG/TMUS 18-19d, EL/SMCI/MRNA/HUM/NCLH 24-28d) or quote $1-3 wide (AMT, HUM, EL, MRNA) which consumes the entire edge at my $746 of buying power.",
+    "last_market_read": "NCLH is $15.47 \u2014 6.7% above my short $14.50 put with 7 days (5 sessions) to Oct-16 expiry; the legs mid at 14.5P $0.07 / 14P $0.015, so the spread is worth ~$0.055 against the $0.11 credit, and intrinsic risk is remote barring a >6% drop in a week. Thesis intact, so I hold rather than pay the wide ($0.03/$0.11) bid-ask to close a position whose remaining risk is a week of calendar. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, so I'm not buying premium here; every credit-spread candidate on this shortlist either has earnings inside the only expiries that pay (CCI/T Oct-21, AMT Oct-27, TMUS Oct-28, NET Oct-29, MRNA Nov-5, HUM Nov-6, NCLH Nov-4) or quotes $1-3 wide (AMT, HUM, MRNA, NET, ZS), which eats the entire edge at $746 of buying power.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -15.0,
+        "market_value": -21.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-09T14:12:35Z",
+        "seen_at": "2026-10-09T19:12:23Z",
         "underlyings": {
-          "NCLH": 15.605
+          "NCLH": 15.47
         },
-        "unrealized_pl": 30.0
+        "unrealized_pl": 16.5
       },
       "legs": [
         {
