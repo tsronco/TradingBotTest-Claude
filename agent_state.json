@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 128,
-    "last_cycle_at": "2026-10-09T19:12:31Z",
+    "cycle_count": 129,
+    "last_cycle_at": "2026-10-12T14:12:38Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.47 \u2014 6.7% above my short $14.50 put with 7 days (5 sessions) to Oct-16 expiry; the legs mid at 14.5P $0.07 / 14P $0.015, so the spread is worth ~$0.055 against the $0.11 credit, and intrinsic risk is remote barring a >6% drop in a week. Thesis intact, so I hold rather than pay the wide ($0.03/$0.11) bid-ask to close a position whose remaining risk is a week of calendar. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, so I'm not buying premium here; every credit-spread candidate on this shortlist either has earnings inside the only expiries that pay (CCI/T Oct-21, AMT Oct-27, TMUS Oct-28, NET Oct-29, MRNA Nov-5, HUM Nov-6, NCLH Nov-4) or quotes $1-3 wide (AMT, HUM, MRNA, NET, ZS), which eats the entire edge at $746 of buying power.",
+    "last_market_read": "NCLH is $15.48 \u2014 6.8% above my short $14.50 put with 4 days to the Oct-16 expiry; legs mid at 14.5P $0.085 / 14P $0.045, so the spread is worth ~$0.04 net against the $0.11 credit collected, and it needs a >6% drop in four sessions to hurt. Thesis intact and nearly expired, so I hold rather than pay a wide spread to close $0.04 of residual risk. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, and today's shortlist offers nothing I can defend \u2014 the only defined-risk credit candidates with real premium (BMY Oct-29, CMG/META Oct-28, CVX/XOM Oct-30, ALB Nov-4, SNAP Nov-4) all have earnings inside the expiries that pay, while the near-dated Oct-23 chains on ALB, MDT and BMY quote $0.30-$2.40 wide, which eats the whole edge at $746 of buying power. I'd act on a liquid (<$0.10 wide) out-of-the-money credit spread expiring before the issuer's earnings date, or once NCLH capital frees up Oct-16.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -21.0,
+        "market_value": -18.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-09T19:12:23Z",
+        "seen_at": "2026-10-12T14:12:28Z",
         "underlyings": {
-          "NCLH": 15.47
+          "NCLH": 15.48
         },
-        "unrealized_pl": 16.5
+        "unrealized_pl": 21.0
       },
       "legs": [
         {
