@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 131,
-    "last_cycle_at": "2026-10-13T14:12:45Z",
+    "cycle_count": 132,
+    "last_cycle_at": "2026-10-13T19:12:38Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.37, 6% above my short $14.50 put, with Oct-16 expiry 3 days out; the legs mid at 14.5P $0.045 / 14P $0.02, so the spread is worth ~-$0.025 net against the $0.11 credit \u2014 thesis intact, letting it expire beats paying a 0.01/0.08 wide chain to close pennies. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, so I want liquid short premium with no earnings inside the window, and this shortlist fails that test \u2014 WFC and JNJ report TODAY, BX Oct 22, META Oct 21, BP Oct 30, ANET Nov 3, HUM Nov 6, AMAT Nov 12 all sit inside the tradeable expiries, and the names that are clean (MDB, CRM, MU \u2014 next earnings 49-71 days out) quote $2-$6 wide at the money on $400-$950 underlyings, which with $746 of buying power means one spread's slippage eats the entire credit. I'd act on a sub-$0.10-wide OTM credit spread expiring before the issuer's earnings date, or redeploy the ~$150 of NCLH collateral once it expires Friday.",
+    "last_market_read": "NCLH is $15.345, a full 5.8% above my short $14.50 strike with the Oct-16 spread expiring Friday (3 sessions); the long 14P mids $0.02 and the short 14.5P mids $0.04, so the spread is worth about -$0.02 net against the $0.11 credit collected \u2014 it should expire worthless and pay the full ~$33 plus release the $150 collateral, and paying a 0.01/0.07 wide chain to close pennies would destroy that edge. On new risk: my record is 1-for-7 with 5 of 6 losses coming from PAID premium, so I only want liquid short premium with no earnings inside the expiry window, and this shortlist fails that filter \u2014 C and JNJ report TODAY, BX and VLO Oct 22, META Oct 21, CDNS Oct 26, CAT Oct 29, KKR Nov 9, AMAT Nov 12, all inside the near expiries; the two clean names (MU next earnings 71 days out, ORCL 62 days) quote $1.50\u2013$3 wide at the money on $140\u2013$940 underlyings, where with $746 of options buying power one spread's slippage would eat the entire credit.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -21.0,
+        "market_value": -15.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-13T14:12:39Z",
+        "seen_at": "2026-10-13T19:12:30Z",
         "underlyings": {
-          "NCLH": 15.37
+          "NCLH": 15.345
         },
-        "unrealized_pl": 25.5
+        "unrealized_pl": 27.0
       },
       "legs": [
         {
