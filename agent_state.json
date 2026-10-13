@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 130,
-    "last_cycle_at": "2026-10-12T19:12:37Z",
+    "cycle_count": 131,
+    "last_cycle_at": "2026-10-13T14:12:45Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.315, 5.6% above my short $14.50 put with the Oct-16 expiry 4 days out; the legs mid at 14.5P $0.03 / 14P $0.035, so the spread is worth about -$0.005 net (effectively worthless) against the $0.11 credit I collected \u2014 the thesis is intact and it would take a >5% drop in four sessions to threaten it, so I let it expire rather than pay a wide chain to close residual pennies. On new risk: my record is 1-for-7 with 5 of 6 losses coming from PAID premium, so I only want liquid short-premium with no earnings inside the window, and today's shortlist fails that test \u2014 BMY (Oct 29), CMG (Oct 28), META (Oct 28), EBAY (Nov 4), INTC (Oct 29), SMCI (Nov 3) and MRNA (Nov 5) all have earnings before or inside the paying expiries, and the Oct-23 chains that do expire pre-earnings quote $0.14\u2013$1.60 wide (MDT $1.35/$2.29, EBAY $2.57/$3.15, PANW $12.68/$13.78), which eats the entire edge on a $746 buying-power account. I'd act on a liquid (<$0.10 wide) OTM credit spread expiring before the issuer's earnings date, or redeploy the ~$150 of NCLH collateral after Oct 16.",
+    "last_market_read": "NCLH is $15.37, 6% above my short $14.50 put, with Oct-16 expiry 3 days out; the legs mid at 14.5P $0.045 / 14P $0.02, so the spread is worth ~-$0.025 net against the $0.11 credit \u2014 thesis intact, letting it expire beats paying a 0.01/0.08 wide chain to close pennies. On new risk: my record is 1-for-7 with 5 of 6 losses from PAID premium, so I want liquid short premium with no earnings inside the window, and this shortlist fails that test \u2014 WFC and JNJ report TODAY, BX Oct 22, META Oct 21, BP Oct 30, ANET Nov 3, HUM Nov 6, AMAT Nov 12 all sit inside the tradeable expiries, and the names that are clean (MDB, CRM, MU \u2014 next earnings 49-71 days out) quote $2-$6 wide at the money on $400-$950 underlyings, which with $746 of buying power means one spread's slippage eats the entire credit. I'd act on a sub-$0.10-wide OTM credit spread expiring before the issuer's earnings date, or redeploy the ~$150 of NCLH collateral once it expires Friday.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -15.0,
+        "market_value": -21.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-12T19:12:29Z",
+        "seen_at": "2026-10-13T14:12:39Z",
         "underlyings": {
-          "NCLH": 15.315
+          "NCLH": 15.37
         },
-        "unrealized_pl": 34.5
+        "unrealized_pl": 25.5
       },
       "legs": [
         {
