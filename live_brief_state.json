@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-10-12T13:41:57Z",
-    "runs": 24
+    "last_run_at": "2026-10-13T13:41:52Z",
+    "runs": 25
   },
   "last_brief": {
     "account": {
       "buying_power": 18.65,
       "cash": 18.65,
-      "equity": 141.01,
+      "equity": 140.25,
       "options_buying_power": 18.65
     },
-    "date": "2026-10-12",
-    "generated_at": "2026-10-12T13:41:57Z",
+    "date": "2026-10-13",
+    "generated_at": "2026-10-13T13:41:52Z",
     "held": [
       {
         "symbol": "CMG",
-        "watch": "4 shares, all available (no resting orders), avg $32.86 vs $30.61 \u2014 down $9. Watch the $30.00 area and the 52-week low at $28.18; a close under $30 means the downtrend is still in control. Note: no earnings date is in today's data (yesterday I cited Oct 28 from the prior feed) \u2014 confirm the date before assuming the position is clear of an earnings print. Too few shares to write a covered call (needs 100)."
+        "watch": "4 shares, all available (no resting orders), $30.38 vs $32.86 cost (-$9.8). Earnings Oct 28 is the event that decides this; 4 shares is too few to write a covered call (needs 100), so the only real choices are hold through the print or sell the 4 shares. Watch the 52-week low at $28.18 \u2014 a close below it is the thesis break."
       }
     ],
     "ideas": [],
-    "market_read": "Dispersion again: software/momentum names are bid (NOW +7.4% on the week, INTU +9.8%, SHOP +10.8% and within 1% of a 52-week high) while semis are being sold (LRCX -10.5%, KLAC -8.0%, MU -6.3% on the week). CMG, the only thing this account owns, is $30.61 \u2014 a fresh leg lower, -15.5% on the month, 5.2% under its 20-day and only 8.5% off the 52-week low. Buying power is $18.65, unchanged for a 24th session, so today is a watch-and-hold day.",
+    "market_read": "Dispersion again this morning: semis/AI hardware are being sold (MU -4%, AMAT -3.7%, ANET -4%, MRVL -3%) while software and beaten-up defensives bid (CRM +3%, MDB +4.4%, ZS +2.9%, IBM +2.1%, UNH +1.9%); JNJ is -3.8% on an earnings-day catalyst. CMG, the only position, is $30.38 \u2014 a new leg lower, -17.8% on the month, 5% under its 20-day and 8% off the 52-week low, with earnings Oct 28 inside any November holding window. Buying power is $18.65, unchanged for a 25th session, so this is again a watch-and-hold day.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Twenty-fourth straight session with nothing placeable: $18.65 of cash/options buying power buys no share in today's shortlist (cheapest is SMCI at $40.39) and no option contract in these chains (cheapest near-ATM is CMG Oct-23 $31 call at ~$0.74 mid = $74 per contract). Changed from yesterday only in that SNAP is not in today's universe, so the sub-$10 share idea isn't available. If funded with ~$1,500\u20132,000, what I'd want: a CMG Oct-30 $30.50/$29.50-type put credit spread (~$100 collateral per spread, ~$0.35\u20130.45 credit at these IVs) as paid-for downside on stock already owned, or a defined-risk SMCI Oct-30 put credit spread near $38 (~$100\u2013200 collateral) given 68% IV and a name still +46% over three months. Both need options Level 3 (spreads); a cash-secured put would need Level 2 and ~$3,000 of buying power at these strikes \u2014 confirm your approval level before either matters.",
+    "no_trade_reason": "Twenty-fifth straight session with nothing placeable: $18.65 of cash/options buying power buys no share in today's shortlist (cheapest is CMG itself at $30.38) and no contract in these chains \u2014 the cheapest near-ATM is the CMG Oct-23 $30.50 put at ~$0.87 mid, i.e. $87 per contract. Same conclusion as yesterday, for the same reason. If funded with ~$1,500\u20132,000, what I'd want today: a CMG Oct-30 $30.50/$29.50 put credit spread (~$100 collateral per spread, ~$0.35\u20130.45 credit at 57% IV) as paid-for downside against stock already owned but note it expires after the Oct 28 print, so it is an earnings trade; or a JNJ Nov-6 put credit spread into the -3.8% earnings-day flush (IV only ~26%, so credits are thin \u2014 size 2\u20133 spreads, ~$200\u2013300 collateral). Both need options Level 3 (spreads); a cash-secured put needs Level 2 and ~$3,000 at CMG strikes \u2014 confirm your approval level before any of it matters.",
     "refused": false,
     "scan": {
       "focus": [
-        "CMG",
-        "META",
-        "NOW",
-        "CRM",
-        "SHOP",
         "MU",
-        "SMCI",
-        "WDAY",
-        "INTU",
-        "MDT",
+        "AMAT",
+        "ANET",
+        "MRVL",
+        "CRM",
+        "MDB",
+        "ZS",
+        "JNJ",
+        "UNH",
+        "IBM",
         "KLAC",
-        "LRCX"
+        "CMG"
       ],
-      "focus_read": "Strong earnings-driven movers today: META, NOW, INTU, CRM, WDAY, SHOP surging on momentum, while MU, SMCI, KLAC, LRCX, AMAT selling off in semis giving reversal/premium plays. CMG (current position) continues to bleed, worth checking chain for a hedge/recovery play.",
+      "focus_read": "Semis and AI-adjacent names are seeing sharp moves (MU -4%, AMAT -3.7%, ANET -4%, MRVL -3%, KLAC/LRCX down) alongside strength in software/growth (CRM +3%, MDB +4.4%, ZS +2.9%, IBM +2.1%, UNH +1.9% post-selloff bounce). JNJ dropped sharply (-3.8%) on what looks like a specific catalyst. Also holding CMG which is flat near cost basis - worth checking for a defined-risk adjustment.",
       "universe_scanned": 272
     }
   }
