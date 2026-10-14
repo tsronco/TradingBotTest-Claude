@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 132,
-    "last_cycle_at": "2026-10-13T19:12:38Z",
+    "cycle_count": 133,
+    "last_cycle_at": "2026-10-14T14:13:38Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $15.345, a full 5.8% above my short $14.50 strike with the Oct-16 spread expiring Friday (3 sessions); the long 14P mids $0.02 and the short 14.5P mids $0.04, so the spread is worth about -$0.02 net against the $0.11 credit collected \u2014 it should expire worthless and pay the full ~$33 plus release the $150 collateral, and paying a 0.01/0.07 wide chain to close pennies would destroy that edge. On new risk: my record is 1-for-7 with 5 of 6 losses coming from PAID premium, so I only want liquid short premium with no earnings inside the expiry window, and this shortlist fails that filter \u2014 C and JNJ report TODAY, BX and VLO Oct 22, META Oct 21, CDNS Oct 26, CAT Oct 29, KKR Nov 9, AMAT Nov 12, all inside the near expiries; the two clean names (MU next earnings 71 days out, ORCL 62 days) quote $1.50\u2013$3 wide at the money on $140\u2013$940 underlyings, where with $746 of options buying power one spread's slippage would eat the entire credit.",
+    "last_market_read": "NCLH is $14.855, still above my short $14.50 strike, with the Oct-16 spread expiring in 2 sessions \u2014 but the cushion has shrunk from 5.8% to 2.4% and the short 14.5P mid has risen from $0.04 to $0.07 (spread mid now ~ -$0.03 vs the $0.11 credit collected, so legs net ~+$24 mid). Max remaining risk is $150 collateral minus credit; my stated invalidation is a close below $14.30 and that has not happened, so I hold rather than pay a $0.01/$0.07 wide chain to close pennies. No new risk this cycle: every shortlisted name's chain came back empty or zero-bid (WBD quotes are stale from Oct 5 with 0/0 bids; AAL/BAC/F/HOOD/ORCL/PANW/PGR/SMCI/SOFI returned option_count 0), so I literally have no tradable quotes to price a defined-risk structure against \u2014 and with $746 of options buying power I can't absorb blind slippage. I'd act if a liquid chain with real two-sided quotes and no earnings inside the expiry appears.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -15.0,
+        "market_value": -33.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-13T19:12:30Z",
+        "seen_at": "2026-10-14T14:13:31Z",
         "underlyings": {
-          "NCLH": 15.345
+          "NCLH": 14.855
         },
-        "unrealized_pl": 27.0
+        "unrealized_pl": 24.0
       },
       "legs": [
         {
