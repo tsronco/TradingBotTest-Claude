@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 134,
-    "last_cycle_at": "2026-10-14T19:12:29Z",
+    "cycle_count": 135,
+    "last_cycle_at": "2026-10-15T14:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH is $14.88, above my short $14.50 strike, with the Oct-16 put spread expiring in two sessions; the short leg mid is $0.11 and the long $0.035, so net mid is ~-$0.075 vs the $0.11 credit collected (legs net ~+$10 mid, and ~+$90 if it expires worthless). My stated invalidation (a close below $14.30) has not triggered, so I hold and let it expire. Elsewhere: every shortlisted chain is quoting only near-ATM strikes with no OTM wings priced, so I cannot construct a defined-risk vertical with a real credit/width at a price I can verify \u2014 and my record is unambiguous that paid-premium directional bets (6 of 7 closed trades losing, -$964 cumulative) on choppy names have been the money-loser, with AMD -11.6%/1w, HOOD -7.8%/1w, SOFI at its 52-week low and ORCL -9.6%/1w all being knife-catch setups I will not pay premium for. I'd act once a chain returns genuine OTM strikes with two-sided quotes on a name with no earnings inside the expiry.",
+    "last_market_read": "NCLH is $14.91, above my short $14.50 strike, and the Oct-16 put spread expires tomorrow \u2014 net mid on the two legs is roughly +$30 vs the $33 credit collected, and intrinsic goes to zero if NCLH holds above $14.50 for one more session; my stated invalidation (close below $14.30) never triggered, so I let it run to expiry rather than paying a wide bid/ask to close a position that is already nearly fully realized. Elsewhere the shortlist is a wall of semis in freefall (SMCI -22%/1w, DELL -19%/1w, AMAT -17%/1w, LRCX -16%/1w with earnings in 6 days) quoting only near-ATM strikes with $2-6 wide bid/asks \u2014 exactly the paid-premium knife-catch setup that produced 6 losses in 7 closed trades and -$964 cumulative, and with only $746 of options buying power a single ATM contract on any of these would exceed sensible sizing. I hold; I would act if a chain returns genuine OTM strikes with two-sided quotes on a name with no earnings inside the expiry, or if a beaten-down name stabilizes enough (positive 1w return, back above its 20-day average) to justify a put credit spread with real width.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -30.0,
+        "market_value": -21.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-14T19:12:21Z",
+        "seen_at": "2026-10-15T14:12:33Z",
         "underlyings": {
-          "NCLH": 14.88
+          "NCLH": 14.91
         },
-        "unrealized_pl": 10.5
+        "unrealized_pl": 30.0
       },
       "legs": [
         {
