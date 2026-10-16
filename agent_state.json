@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 137,
-    "last_cycle_at": "2026-10-16T14:12:52Z",
+    "cycle_count": 138,
+    "last_cycle_at": "2026-10-16T19:12:39Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "My NCLH Oct-16 14/14.5 put spread expires TODAY with NCLH at $15.605 \u2014 both strikes are ~7% out of the money, so the ~$33 credit is realized and there is nothing to do but let it expire (paying a spread to close hours before expiry is pure donation). On the shortlist, every depth name except JPM is a high-IV growth name down 10-17% in one week with earnings inside 12-21 days, and the chains supplied are only near-ATM strikes with $2-6 wide quotes \u2014 buying ATM premium into that is exactly the pattern that produced 6 losses in 7 closed trades (-$964), and with $746 of options buying power one contract would be 20-40% of equity on a coin flip. JPM is the only clean setup (+2.7% 1w, +1.9% vs 20d avg, earnings 3 days past so IV at 21% is deflated for a known reason), but the chain offers no OTM strikes to build a put credit spread with real width, only ATM straddle-adjacent strikes. I act when a chain returns genuine OTM strikes with two-sided quotes on a name with no earnings inside the expiry \u2014 then I sell a put spread with width rather than pay for ATM premium.",
+    "last_market_read": "My NCLH Oct-16 14/14.5 put spread expires today with NCLH at $15.03 \u2014 both strikes are well OTM (short 14.5 is 3.5% below spot), so the ~$33 credit is realized and the legs will expire worthless; paying $0.03-0.04 to buy back the short is a needless donation hours before expiry. Across the shortlist every name is a high-IV growth stock down 8-24% in a week (SMCI -24%, OKTA -20%, PANW -18.5%, TWLO -18%, MU -14%, AMD -12.6%) with ATM-only strikes quoted $2-6 wide, and most have earnings in 13-21 days; buying ATM premium on wide chains into falling knives is precisely the pattern that produced 6 losses in my 7 closed trades (-$964), and with $746 of options buying power one contract is 20-40% of equity. My one win and my only profitable realized trade both came from defined-risk positions held to their stated level, and the NCLH credit spread worked because the short strike was genuinely OTM with no earnings inside the window \u2014 that is the setup I want. I act when a chain returns real OTM strikes with two-sided quotes on a name with no earnings before expiry; today's chains return near-ATM strikes only, so I hold.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -180.0,
+        "market_value": -6.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-16T14:12:44Z",
+        "seen_at": "2026-10-16T19:12:30Z",
         "underlyings": {
-          "NCLH": 15.605
+          "NCLH": 15.03
         },
-        "unrealized_pl": -54.0
+        "unrealized_pl": 24.0
       },
       "legs": [
         {
