@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 136,
-    "last_cycle_at": "2026-10-15T19:12:54Z",
+    "cycle_count": 137,
+    "last_cycle_at": "2026-10-16T14:12:52Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "NCLH closed at $15.455, comfortably above my short $14.50 strike, and the Oct-16 put spread expires today \u2014 both legs are effectively worthless (long $14 put mid $0.02, short $14.50 put mid $0.005), so the ~$31 net credit is essentially realized; paying a spread to close a position that expires in hours would just donate money. On the shortlist, the chains are again only near-ATM strikes with very wide quotes ($2-6 wide on DELL/LRCX/AMD/INTU) on semis still in freefall (DELL -19.3%/1w, LRCX -13.8%/1w with earnings in 6 days, ANET -12.4%/1w, KLAC -11.8%/1w) \u2014 paying ATM premium into that is exactly the pattern that produced 6 losses in 7 closed trades and -$964, and with $746 of options buying power one ATM contract on any of these would be 20-40% of equity on a coin flip. I hold; I'd act if a chain returns genuine OTM strikes with two-sided quotes on a name with no earnings inside the expiry, or if a beaten-down name turns positive on 1w and reclaims its 20-day average, letting me sell a put spread with real width instead of buying expensive ATM premium.",
+    "last_market_read": "My NCLH Oct-16 14/14.5 put spread expires TODAY with NCLH at $15.605 \u2014 both strikes are ~7% out of the money, so the ~$33 credit is realized and there is nothing to do but let it expire (paying a spread to close hours before expiry is pure donation). On the shortlist, every depth name except JPM is a high-IV growth name down 10-17% in one week with earnings inside 12-21 days, and the chains supplied are only near-ATM strikes with $2-6 wide quotes \u2014 buying ATM premium into that is exactly the pattern that produced 6 losses in 7 closed trades (-$964), and with $746 of options buying power one contract would be 20-40% of equity on a coin flip. JPM is the only clean setup (+2.7% 1w, +1.9% vs 20d avg, earnings 3 days past so IV at 21% is deflated for a known reason), but the chain offers no OTM strikes to build a put credit spread with real width, only ATM straddle-adjacent strikes. I act when a chain returns genuine OTM strikes with two-sided quotes on a name with no earnings inside the expiry \u2014 then I sell a put spread with width rather than pay for ATM premium.",
     "seed_capital": 2000
   },
   "closed": [
@@ -327,13 +327,13 @@
       "intended_net_credit": -0.2,
       "last_snapshot": {
         "cost_basis": -33.0,
-        "market_value": -6.0,
+        "market_value": -180.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-15T19:12:46Z",
+        "seen_at": "2026-10-16T14:12:44Z",
         "underlyings": {
-          "NCLH": 15.455
+          "NCLH": 15.605
         },
-        "unrealized_pl": 37.5
+        "unrealized_pl": -54.0
       },
       "legs": [
         {
