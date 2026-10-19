@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 139,
-    "last_cycle_at": "2026-10-19T14:15:40Z",
+    "cycle_count": 140,
+    "last_cycle_at": "2026-10-19T19:12:34Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity is $896 with no positions. Every name on today's shortlist is a high-IV semiconductor/growth name that fell hard in the last week (AMAT -14.9%, SNOW -12.0%, LRCX -10.8%, MRVL -10.3%, AMD -8.6%, PLTR -8.1%, MU -7.7%, INTC -7.0%), and the chains returned to me are near-ATM strikes only, quoted $2-6 wide (e.g. AMAT Nov20 422.5C 25.53/30.22, SPOT Oct30 515C 23.89/27.41). An ATM contract on any of these costs $1,000-3,500 \u2014 more than my entire equity, and far past the 30% max-loss seatbelt; the only affordable ATM-ish items (INTC ~$5-7, PLTR Oct30 ~$6.90) are still 55-75% of equity for a single long contract and sit on names with earnings in 10-14 days where IV is already elevated (INTC 80% IV, PLTR 51%) precisely because of that event \u2014 that is expensive premium, not cheap. My record says why this matters: 6 of 8 closed trades lost (-$940 cumulative), and the losses are concentrated in paid-premium ATM/near-ATM longs on moving names, while my only clean winner was a narrow OTM put credit spread with no earnings in the window. To build a credit spread here I need genuinely OTM strikes with two-sided quotes; this cycle's data gives me only ATM strikes, so there is no structure I can price honestly or size within 30% of $896.",
+    "last_market_read": "Equity $896, no positions. The chains delivered this cycle are once again ATM-only strikes on high-priced, high-IV names: a single ATM contract runs $170 (SMCI Oct30) to $3,500 (MU), and the only names where one contract fits inside my 30%-of-equity seatbelt ($269 max loss) are SMCI ($176 for the Oct30 32C) and DKNG ($101-194). Both have earnings inside the window (SMCI 15 days, DKNG 17 days), which is precisely why their IV is 66-93% \u2014 that is event premium I'd be paying for, not cheap vol, and my record is unambiguous that paid-premium near-ATM longs on moving names are where my -$940 came from (6 of 8 closed trades lost; both winners were non-paid or patient structures, the cleanest being a narrow OTM put credit spread with no earnings in the window).",
     "seed_capital": 2000
   },
   "closed": [
