@@ -13956,3 +13956,6 @@
 {"timestamp": "2026-10-19T13:13:33.427912+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
 {"timestamp": "2026-10-19T13:23:31.749954+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-10-19T13:23:31.987135+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-10-19T13:33:32.617999+00:00", "script": "strategy.py", "action": "stop_hit", "result": "success", "symbol": "CMG", "details": {"exit_price": 29.565, "qty": 4, "realized_pnl": -13.179999999999993}}
+{"timestamp": "2026-10-19T13:33:32.890115+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-10-19T13:33:33.178621+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}

@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "last_checked": "2026-10-19T13:23:31.445487Z"
+    "last_checked": "2026-10-19T13:33:32.618559Z"
   },
   "CMG": {
     "first_seen": "2026-09-23T18:43:31.134840Z",
     "entry_price": 32.86,
     "initial_qty": 4,
     "avg_cost": 32.86,
-    "total_cost": 131.44,
-    "position_qty": 4,
+    "total_cost": 0,
+    "position_qty": 0,
     "stop_price": 29.57,
     "high_water_mark": 32.86,
     "trailing_active": false,
@@ -17,6 +17,6 @@
       false,
       false
     ],
-    "last_action": "Monitoring $29.87 vs avg $32.86 (PnL -9.10%). Stop $29.57, Trail OFF."
+    "last_action": "Stop hit at $29.57. Closed 4 shares. Realized $-13.18."
   }
 }
