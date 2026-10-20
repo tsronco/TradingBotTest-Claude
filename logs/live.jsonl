@@ -14193,3 +14193,8 @@
 {"timestamp": "2026-10-20T18:33:36.205605+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-10-20T18:33:36.789345+00:00", "script": "wheel_strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-10-20T18:33:37.382223+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 0, "closed": 0}}
+{"timestamp": "2026-10-20T18:43:32.730621+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-10-20T18:43:33.485570+00:00", "script": "wheel_strategy.py", "action": "adopted_spread", "result": "success", "symbol": "BAC", "details": {"spread_type": "put_credit", "short_occ": "BAC261120P00049000", "long_occ": "BAC261120P00048000", "short_strike": 49.0, "long_strike": 48.0, "expiration": "2026-11-20", "qty": 1, "net_credit": 0.23, "max_loss": 0.77}}
+{"timestamp": "2026-10-20T18:43:33.626448+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["BAC"]}}
+{"timestamp": "2026-10-20T18:43:33.950743+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "BAC261120P00048000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-10-20T18:43:33.950933+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}

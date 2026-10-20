@@ -1,5 +1,34 @@
 {
   "_meta": {
-    "last_checked": "2026-10-20T18:33:36.788961Z"
+    "last_checked": "2026-10-20T18:43:33.626111Z"
+  },
+  "BAC": {
+    "stage": "spread_active",
+    "spread_type": "put_credit",
+    "short_leg": {
+      "occ": "BAC261120P00049000",
+      "strike": 49.0,
+      "entry_premium": 0.71,
+      "qty": 1
+    },
+    "long_leg": {
+      "occ": "BAC261120P00048000",
+      "strike": 48.0,
+      "entry_premium": 0.48,
+      "qty": 1
+    },
+    "expiration": "2026-11-20",
+    "net_credit": 0.23,
+    "max_loss": 0.77,
+    "width": 1.0,
+    "opened_at": "2026-10-20T18:43:33.032263Z",
+    "tripwire_breach_since": null,
+    "open_order_id": null,
+    "open_client_order_id": null,
+    "open_limit_credit": null,
+    "total_premium_collected": 0.0,
+    "cycle_count": 0,
+    "cycle_history": [],
+    "last_action": "Adopted spread short=$49.00 long=$48.00 credit=$0.23"
   }
 }
