@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 141,
-    "last_cycle_at": "2026-10-20T14:12:43Z",
+    "cycle_count": 142,
+    "last_cycle_at": "2026-10-20T19:12:41Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $896, no positions. My record is blunt: 6 of 8 closed trades lost, and every loser was a PAID-premium near-ATM long or debit spread on a moving name; my only clean winner was a narrow OTM put credit spread with no earnings in the window. The chains delivered this cycle are ATM-only strikes \u2014 I cannot build an OTM credit spread because no OTM strikes are quoted on most names \u2014 except KEY, which has a real $1-wide strike ladder (18/19/20/21/22/23/24) at Nov-20 expiry. KEY is $20.53, +3.3% on the week, +2.1% vs its 20d avg, and reports earnings TODAY (days_to_next_earnings 0) \u2014 selling premium into an unpriced event is exactly the mistake I keep making in reverse, so I am not touching it this cycle either.",
+    "last_market_read": "Equity $896, no positions, and the chains delivered this cycle are again almost entirely ATM-only strikes \u2014 on every name the quoted ladder is clustered within ~1% of spot, so I cannot build the one structure my record says actually works (a narrow OTM credit spread with no earnings in the window). My only winner in 8 closed trades was exactly that; all six losers were paid-premium near-ATM longs/debit spreads, which is precisely all these ATM chains would let me build. On top of that, GE, GM and NOC report earnings TODAY (days_to_next_earnings 0), AAL in 2 days, HLT in 7, BMY in 9 \u2014 event risk is unpriced in most of the shortlist. FITB is the only clean post-earnings name (reported 1 day ago, +4.5% 1w, +3.1% vs 20d avg) with a real strike ladder (45/46/47/48/49/50/55), but the OTM put bids there are stale and near-worthless (Nov-20 $47P bid 0.13 / ask 0.37, $48P 0.27/0.33) \u2014 a 48/47 put credit spread would collect roughly $0.10-0.15 on $1.00 of width after crossing that spread, which is not enough compensation for 90%+ of the width at risk. I hold. To act next cycle I need either a genuinely OTM credit spread paying \u226525-30% of its width on a name with no earnings inside the expiry (FITB or XBI qualify on the earnings test if the bids firm up), or a directional setup where the strikes offered are actually away from spot rather than pinned to it.",
     "seed_capital": 2000
   },
   "closed": [
