@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "last_run_at": "2026-10-19T13:41:52Z",
-    "runs": 29
+    "last_run_at": "2026-10-20T13:41:44Z",
+    "runs": 30
   },
   "last_brief": {
     "account": {
@@ -10,30 +10,30 @@
       "equity": 136.83,
       "options_buying_power": 136.83
     },
-    "date": "2026-10-19",
-    "generated_at": "2026-10-19T13:41:52Z",
+    "date": "2026-10-20",
+    "generated_at": "2026-10-20T13:41:44Z",
     "held": [],
     "ideas": [],
-    "market_read": "Risk-off continues in semis and chip-adjacent names: AMD 547 (-8% w/w), MU 909 (-8%), MRVL 238 (-10%), SMCI 32.71 (-18%), INTC 94.36 (-7% and -15% vs its 20d). The only thing bid is MRNA, 234 and 1% off its 52w high after +292% in three months, with IV near 160% into Nov 6 earnings. For this account the tape is irrelevant: equity is $136.83 and the position book is empty for a 29th session.",
+    "market_read": "Earnings morning: GE, GM, NOC, HAL and KEY all report today, and NOC has already ripped +11% on the week to 8% above its 20d. The beaten-up side keeps bleeding \u2014 INTC 89.31 (-13% w/w, -18% vs 20d, IV 84% on Oct-30), AAL 11.86 into Oct-22 earnings, SOFI 14.44 near 52w lows; PFE (30.17) and MRK are the only steady bids. None of it matters mechanically: equity is $136.83, cash $136.83, no positions, no open orders \u2014 30th straight session.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Twenty-ninth straight session with nothing placeable. $136.83 buys zero shares on the shortlist except LCID ($3.13 \u2014 and a 40-share lot in a name at its 52w low, -84% from the high, is a lottery ticket, not a trade), and no contract in these chains clears the budget as a defined-risk structure: the cheapest near-ATM is LCID Oct-30 $3.50 call at ~$0.15 mid (~$15) with a 24c-wide bid/ask, which is a coin flip on a dying quote. Note CMG is gone from today's data, so the CMG ideas from yesterday's brief are moot. If funded with ~$1,500\u20132,000, my ranking today: (1) SMCI Oct-30 $31/$29 put credit spread, ~$200 collateral each, sell 2\u20133 (~$400\u2013600) into IV ~78\u201381% on a name down 18% on the week and expiring before Nov 3 earnings; (2) SOFI Nov-6 $13/$12 put credit spread, ~$100 collateral each \u2014 but check that Oct 27 earnings sit inside that window, so size it as an earnings bet, not income; (3) a cash-secured put needs Level 2 and ~$1,200 at SOFI $12 or ~$3,250 at SMCI $32.50. Spreads need options Level 3 \u2014 confirm approval before planning around them.",
+    "no_trade_reason": "Nothing on today's shortlist fits $136.83. Cheapest shares are AAL at $11.86 (11 shares, with earnings in 2 days \u2014 a coin flip, not a position) and F at $12.06; every defined-risk option structure here needs more than the account has (a $1-wide credit spread = ~$100 collateral before commissions, but the liquid ones \u2014 SOFI $14/$13, F $12/$11.50 \u2014 sit on a 1-lot that is the entire account, and a long single call near ATM runs $40 (AAL Oct-30 $12c ~$0.41 mid) to $500+). If funded with ~$1,500\u20132,000, my ranking today: (1) SOFI Nov-13 $14/$13 put credit spread, ~$100 collateral each, sell 3\u20134 (~$300\u2013400) \u2014 but Oct-27 earnings sit inside that window, so it's an earnings bet, not income; (2) PFE Nov-20 $30 cash-secured put, ~$3,000 collateral, ~$1.00 mid credit (3.3% on collateral) on the one name making new 52w highs \u2014 needs more capital than that, so a $30/$29 put spread at ~$100 collateral is the funded-lite version, and Nov-3 earnings are inside it; (3) BAC Nov-20 $50/$49 put credit spread, ~$100 collateral, no earnings until January \u2014 the cleanest income trade on the board if approval allows. Credit spreads need options Level 3; cash-secured puts need Level 2 \u2014 confirm approval before planning around either.",
     "refused": false,
     "scan": {
       "focus": [
+        "GE",
+        "GM",
+        "NOC",
+        "MRK",
         "INTC",
-        "MRNA",
-        "MU",
-        "DDOG",
-        "AMD",
-        "SMCI",
-        "MRVL",
-        "F",
         "SOFI",
+        "F",
+        "PFE",
+        "BAC",
+        "KEY",
         "AAL",
-        "RIVN",
-        "LCID"
+        "HAL"
       ],
-      "focus_read": "Semis/chip-adjacent names and a few momentum movers (MRNA, INTC, DDOG, MU) are showing outsized moves today; with only ~$137 in account, I'll focus on cheap-underlying, liquid names where defined-risk small option plays are feasible rather than expensive mega-caps.",
+      "focus_read": "Small account ($136) needs cheap, liquid options with real moves. Tech/semis selling off hard (GE, GEV, GM, AMD, ARM, LRCX, NOC spike), while defensive/healthcare and financials are rallying. Focusing on names with big% moves and likely tight, affordable option premiums relative to account size.",
       "universe_scanned": 272
     }
   }
