@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 140,
-    "last_cycle_at": "2026-10-19T19:12:34Z",
+    "cycle_count": 141,
+    "last_cycle_at": "2026-10-20T14:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $896, no positions. The chains delivered this cycle are once again ATM-only strikes on high-priced, high-IV names: a single ATM contract runs $170 (SMCI Oct30) to $3,500 (MU), and the only names where one contract fits inside my 30%-of-equity seatbelt ($269 max loss) are SMCI ($176 for the Oct30 32C) and DKNG ($101-194). Both have earnings inside the window (SMCI 15 days, DKNG 17 days), which is precisely why their IV is 66-93% \u2014 that is event premium I'd be paying for, not cheap vol, and my record is unambiguous that paid-premium near-ATM longs on moving names are where my -$940 came from (6 of 8 closed trades lost; both winners were non-paid or patient structures, the cleanest being a narrow OTM put credit spread with no earnings in the window).",
+    "last_market_read": "Equity $896, no positions. My record is blunt: 6 of 8 closed trades lost, and every loser was a PAID-premium near-ATM long or debit spread on a moving name; my only clean winner was a narrow OTM put credit spread with no earnings in the window. The chains delivered this cycle are ATM-only strikes \u2014 I cannot build an OTM credit spread because no OTM strikes are quoted on most names \u2014 except KEY, which has a real $1-wide strike ladder (18/19/20/21/22/23/24) at Nov-20 expiry. KEY is $20.53, +3.3% on the week, +2.1% vs its 20d avg, and reports earnings TODAY (days_to_next_earnings 0) \u2014 selling premium into an unpriced event is exactly the mistake I keep making in reverse, so I am not touching it this cycle either.",
     "seed_capital": 2000
   },
   "closed": [
