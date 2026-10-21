@@ -236,29 +236,70 @@ def _occ_strike(symbol: str) -> float | None:
     return int(tail) / 1000.0
 
 
+# Moneyness rungs (fraction of spot) the chain ladder keeps per expiration, on
+# each side of spot. 0 = at the money. Chosen so a credit spread can be built
+# genuinely OTM (short ~5-10% out, long one rung further) and a long option can
+# be picked near the money — the two structures the agent's own record says
+# differ most. Tune here, not in the model.
+_LADDER_RUNGS = (0.0, 0.025, 0.05, 0.10, 0.15)
+
+
+def _select_ladder(snaps: dict, spot: float, rungs: tuple = _LADDER_RUNGS,
+                   max_rows: int | None = None) -> list[str]:
+    """Pick OCC symbols forming a strike LADDER per expiration: for each expiry,
+    each option type, and each rung on each side of spot, the single contract
+    whose strike is nearest spot × (1 ± rung). Dedupes when rungs collapse onto
+    the same strike (cheap stocks with $1 strikes). Nearest expirations first so
+    a row cap drops the far-dated tail, never the near-dated ATM.
+
+    Replaces the old nearest-the-money sort, which with 4-5 expirations in the
+    7-45 DTE window handed the model the ATM strike repeated per expiry and
+    nothing beyond ~1% of spot — so an OTM credit spread was unbuildable from
+    the data it was given (observed 2026-10-21: "ATM-only ladders").
+    """
+    by_exp: dict[str, dict[str, list[tuple[float, str]]]] = {}
+    for occ in snaps:
+        parsed = _occ_parse(occ)
+        if not parsed:
+            continue
+        by_exp.setdefault(parsed["expiry"], {}).setdefault(parsed["type"], []).append((parsed["strike"], occ))
+    chosen: list[str] = []
+    for exp in sorted(by_exp):
+        for otype, rows in by_exp[exp].items():
+            if not rows:
+                continue
+            picked: set[str] = set()
+            for rung in rungs:
+                for sign in ((0,) if rung == 0 else (1, -1)):
+                    target = spot * (1 + sign * rung)
+                    strike, occ = min(rows, key=lambda r: abs(r[0] - target))
+                    if occ not in picked:
+                        picked.add(occ)
+                        chosen.append(occ)
+    if max_rows is not None:
+        chosen = chosen[:max_rows]
+    return chosen
+
+
 def _trim_chain(snaps: dict, spot: float | None = None, keep: int | None = None) -> dict:
     """Bound a chain snapshot to the rows worth reasoning about.
 
-    Selection is NEAREST THE MONEY, not the first N by dict order as it used to
-    be. That was both wasteful and wrong: an arbitrary slice can hand the model
-    forty far-OTM strikes while omitting the ones any real structure would use.
-    Sorting by distance from spot means a smaller payload is also a better one.
-
-    Falls back to the original leading slice when spot is unknown, so a missing
+    With a known spot, keep a strike LADDER per expiration (see _select_ladder)
+    so the model sees ATM through ~15% OTM on both sides, puts and calls, for
+    every expiry in the window. `keep` caps total rows (nearest expirations
+    survive the cap). Without spot, fall back to the leading slice so a missing
     quote costs relevance but never the whole chain.
     """
     if keep is None:
         keep = _CFG.get("chain_keep", 14)
-    items = list(snaps.items())
     if spot:
-        def distance(kv):
-            k = _occ_strike(kv[0])
-            # Unparseable strikes sort last rather than crashing the sort.
-            return abs(k - spot) if k is not None else float("inf")
-        items.sort(key=distance)
+        occs = _select_ladder(snaps, spot, max_rows=keep)
+    else:
+        occs = list(snaps)[:keep]
     trimmed = {}
-    for occ, snap in items[:keep]:
-        q = (snap or {}).get("latestQuote", {}) or {}
+    for occ in occs:
+        snap = snaps.get(occ) or {}
+        q = snap.get("latestQuote", {}) or {}
         trimmed[occ] = {
             "bid": q.get("bp"),
             "ask": q.get("ap"),
