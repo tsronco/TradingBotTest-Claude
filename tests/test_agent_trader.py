@@ -333,7 +333,7 @@ def _wire(monkeypatch, tmp_path):
         "focus": [], "market_read": "", "refused": False,
     })
     monkeypatch.setattr(at, "gather_depth",
-                        lambda focus, positions, account, mode="agent": {
+                        lambda focus, positions, account, mode="agent", **kw: {
                             "account": {"equity": 2000.0, "cash": 2000.0},
                             "positions": [], "market": {}, "equity_floor": 500,
                         })
@@ -518,7 +518,7 @@ def test_build_quote_pack_is_fail_soft(monkeypatch):
 def test_gather_depth_always_includes_held(monkeypatch):
     seen = {}
     monkeypatch.setattr(at, "build_market_pack",
-                        lambda syms, mode="agent": seen.setdefault("syms", syms) or {})
+                        lambda syms, mode="agent", **kw: seen.setdefault("syms", syms) or {})
     positions = [{"symbol": "TSLA260320C00300000"}]  # a held option
     at.gather_depth(["AAPL"], positions, {"equity": 2000}, mode="agent")
     # Focus name, the held OCC symbol, AND its parsed underlying are all fetched.
@@ -539,7 +539,7 @@ def test_run_cycle_falls_back_to_top_movers_on_empty_focus(monkeypatch, tmp_path
         "focus": [], "market_read": "", "refused": False})
     got = {}
     monkeypatch.setattr(at, "gather_depth",
-                        lambda focus, positions, account, mode="agent":
+                        lambda focus, positions, account, mode="agent", **kw:
                         got.setdefault("focus", focus) or {
                             "account": account, "positions": [], "market": {},
                             "equity_floor": 500})
@@ -1034,3 +1034,168 @@ def test_default_chain_keep_covers_several_expirations_of_ladder():
     # 18 rows per expiry (9 strikes × 2 types) at full rung coverage; the cap
     # must admit a few expirations or the fix is moot.
     assert at._CFG["chain_keep"] >= 54
+
+
+# ── Strike-request step (2026-10-21) ────────────────────────────────────────
+# The model names the chain windows it wants priced; the ladder is the
+# fallback. These cover the skeleton, window selection, the forced-tool call,
+# the strict-schema rule, and the assembled pack (requested slice vs fallback,
+# held legs always present, chain_keep cap).
+
+from datetime import date as _date
+
+_TODAY = _date(2026, 10, 21)
+
+
+def _chain(spot=100.0, expiries=("261030", "261120"), strikes=None):
+    return _fake_chain(spot=spot, expiries=expiries, strikes=strikes)
+
+
+def test_chain_skeleton_lists_expiries_dte_and_strike_grid():
+    sk = at.chain_skeleton(_chain(), spot=100.0, today=_TODAY)
+    assert sk["spot"] == 100.0
+    assert [e["expiry"] for e in sk["expiries"]] == ["2026-10-30", "2026-11-20"]
+    assert sk["expiries"][0]["dte"] == 9 and sk["expiries"][1]["dte"] == 30
+    puts = sk["expiries"][0]["puts"]
+    assert puts == {"min": 70.0, "max": 130.0, "step": 5.0, "n": 13}
+    assert sk["expiries"][0]["calls"]["n"] == 13
+    # No prices in the skeleton — that is the whole point.
+    assert "bid" not in json.dumps(sk)
+
+
+def test_select_window_otm_puts_at_a_dte_range():
+    win = {"types": ["P"], "dte_min": 20, "dte_max": 45, "moneyness_from_pct": -15, "moneyness_to_pct": -5}
+    occs = at._select_window(_chain(), 100.0, win, today=_TODAY)
+    parsed = [at._occ_parse(o) for o in occs]
+    assert parsed and all(p["type"] == "P" for p in parsed)
+    assert {p["expiry"] for p in parsed} == {"2026-11-20"}          # 30 DTE only; 9 DTE excluded
+    assert {p["strike"] for p in parsed} == {85.0, 90.0, 95.0}       # 85..95 inclusive
+    # Reversed bounds behave the same.
+    rev = dict(win, moneyness_from_pct=-5, moneyness_to_pct=-15)
+    assert at._select_window(_chain(), 100.0, rev, today=_TODAY) == occs
+
+
+def test_select_window_empty_when_nothing_matches_or_malformed():
+    assert at._select_window(_chain(), 100.0, {"types": ["C"], "dte_min": 60, "dte_max": 90,
+                                               "moneyness_from_pct": 0, "moneyness_to_pct": 5}, today=_TODAY) == []
+    assert at._select_window(_chain(), 100.0, {"dte_min": "x"}, today=_TODAY) == []
+
+
+def test_strikes_tool_schema_uses_no_keywords_strict_mode_rejects():
+    bad = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+           "minLength", "maxLength", "pattern", "format", "minItems", "maxItems"}
+    def walk(n):
+        if isinstance(n, dict):
+            for k, v in n.items():
+                yield k
+                yield from walk(v)
+        elif isinstance(n, list):
+            for v in n:
+                yield from walk(v)
+    assert not (set(walk(at.STRIKES_TOOL["input_schema"])) & bad)
+
+
+class _StrikesClient:
+    """Fake Anthropic client answering the select_strikes forced tool call.
+    (The module-level _FakeResp/_FakeBlock are hard-wired to submit_decisions.)"""
+
+    def __init__(self, requests, stop_reason="tool_use"):
+        self.requests, self.stop, self.calls, self.messages = requests, stop_reason, [], self
+
+    def create(self, **kw):
+        self.calls.append(kw)
+        block = type("B", (), {})()
+        block.type, block.name, block.input = "tool_use", "select_strikes", {"requests": self.requests}
+        resp = type("R", (), {})()
+        resp.content, resp.stop_reason, resp.usage = [block], self.stop, None
+        return resp
+
+
+def test_request_strikes_parses_and_drops_unknown_symbols():
+    client = _StrikesClient([
+        {"symbol": "xyz", "intent": "otm put credit spread", "types": ["P"], "dte_min": 20,
+         "dte_max": 45, "moneyness_from_pct": -15, "moneyness_to_pct": -5},
+        {"symbol": "NOPE", "intent": "x", "types": ["C"], "dte_min": 7, "dte_max": 45,
+         "moneyness_from_pct": 0, "moneyness_to_pct": 5},
+    ])
+    out = at.request_strikes({"XYZ": {"spot": 100.0, "expiries": []}}, client=client)
+    assert out["refused"] is False
+    assert list(out["requests"]) == ["XYZ"]                       # uppercased; NOPE dropped
+    assert out["requests"]["XYZ"][0]["intent"] == "otm put credit spread"
+    kw = client.calls[0]
+    assert kw["tool_choice"] == {"type": "tool", "name": "select_strikes"}
+    assert kw["output_config"]["effort"] == "low" and kw["thinking"]["type"] == "adaptive"
+
+
+def test_request_strikes_refusal_means_ladder_for_all():
+    out = at.request_strikes({"XYZ": {}}, client=_StrikesClient([], stop_reason="refusal"))
+    assert out == {"requests": {}, "refused": True}
+
+
+@pytest.fixture
+def _chains(monkeypatch):
+    """Stub the network: one chain for XYZ, quote at $100."""
+    monkeypatch.setattr(at.alpaca_data, "get_stock_quote", lambda sym, mode="agent": {"ap": 100.0, "bp": 99.9})
+    monkeypatch.setattr(at.alpaca_data, "get_option_chain_snapshots",
+                        lambda sym, exp_min_days=7, exp_max_days=45, mode="agent": _chain())
+    class _Pinned(_date):                       # a real date subclass: _occ_parse constructs date(...)
+        @classmethod
+        def today(cls):
+            return _TODAY
+    monkeypatch.setattr(at, "date", _Pinned)
+
+
+def test_build_market_pack_prices_the_requested_window(_chains):
+    client = _StrikesClient([{"symbol": "XYZ", "intent": "otm pcs", "types": ["P"], "dte_min": 20,
+                              "dte_max": 45, "moneyness_from_pct": -15, "moneyness_to_pct": -5}])
+    pack = at.build_market_pack(["XYZ"], client=client)
+    e = pack["XYZ"]
+    assert e["strike_request"]["fallback"] is False
+    assert e["strike_request"]["rows"] == 3
+    assert {at._occ_parse(o)["strike"] for o in e["options"]} == {85.0, 90.0, 95.0}
+    assert all(v["bid"] == 1.0 and v["ask"] == 1.2 for v in e["options"].values())
+    assert e["option_count"] == len(_chain())
+
+
+def test_build_market_pack_falls_back_to_ladder_when_window_is_empty(_chains):
+    client = _StrikesClient([{"symbol": "XYZ", "intent": "far out", "types": ["C"], "dte_min": 60,
+                              "dte_max": 90, "moneyness_from_pct": 0, "moneyness_to_pct": 5}])
+    e = at.build_market_pack(["XYZ"], client=client)["XYZ"]
+    assert e["strike_request"]["fallback"] is True
+    assert "matched no contracts" in e["strike_request"]["note"]
+    assert len(e["options"]) > 10                                   # ladder rows, not nothing
+
+
+def test_build_market_pack_falls_back_when_request_step_raises(_chains):
+    class Boom:
+        messages = property(lambda self: (_ for _ in ()).throw(RuntimeError("api down")))
+    e = at.build_market_pack(["XYZ"], client=Boom())["XYZ"]
+    assert e["strike_request"]["fallback"] is True
+    assert "failed" in e["strike_request"]["note"]
+
+
+def test_build_market_pack_always_includes_held_legs(_chains):
+    held = "XYZ261030C00130000"   # +30%, outside any sane window
+    client = _StrikesClient([{"symbol": "XYZ", "intent": "pcs", "types": ["P"], "dte_min": 20,
+                              "dte_max": 45, "moneyness_from_pct": -15, "moneyness_to_pct": -5}])
+    e = at.build_market_pack(["XYZ"], client=client, held_occs=[held])["XYZ"]
+    assert held in e["options"]
+
+
+def test_build_market_pack_can_skip_the_request_step(_chains):
+    class Never:
+        messages = property(lambda self: (_ for _ in ()).throw(AssertionError("must not be called")))
+    e = at.build_market_pack(["XYZ"], client=Never(), ask_strikes=False)["XYZ"]
+    assert e["strike_request"]["fallback"] is True and e["strike_request"]["windows"] == []
+
+
+def test_gather_depth_passes_client_to_market_pack(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(at, "build_market_pack",
+                        lambda syms, mode="agent", **kw: seen.update(kw) or {})
+    monkeypatch.setattr(at, "build_context_pack", lambda syms, mode="agent": {})
+    monkeypatch.setattr(at, "annotate_positions_fair_value", lambda pos, mode="agent": pos)
+    sentinel = object()
+    at.gather_depth(["AAPL"], [{"symbol": "TSLA260320C00300000"}], {"equity": 2000}, client=sentinel)
+    assert seen["client"] is sentinel
+    assert seen["held_occs"] == ["TSLA260320C00300000"]

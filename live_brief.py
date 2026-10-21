@@ -201,7 +201,7 @@ def gather_live_context(client=None) -> dict:
         focus_res = {"focus": [], "market_read": f"(focus step failed: {e})", "refused": False}
     focus = focus_res.get("focus") or _fallback_focus(breadth)
 
-    depth = gather_depth(focus, breadth["positions"], breadth["account"], mode=MODE)
+    depth = gather_depth(focus, breadth["positions"], breadth["account"], mode=MODE, client=client)
     depth.pop("equity_floor", None)
 
     try:

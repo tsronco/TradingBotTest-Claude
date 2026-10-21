@@ -122,6 +122,13 @@ AGENT_CONFIG = {
     # roughly doubles the chain payload vs the 2026-08-19 trim, which is still
     # well under the pre-trim 40-rows-x-24-names it was cut from.
     "chain_keep": 72,
+    # Strike-request step (2026-10-21): after the shortlist, the model is shown
+    # each chain's skeleton (expiries + strike grid, no prices) and names the
+    # windows it wants priced; the ladder above is the fallback. Same cheap
+    # model as the focus step. Set False to skip the call and ladder everything.
+    "strike_request_step": True,
+    "max_strike_tokens":   1500,
+    "strike_effort":       "low",
     # The focus step is a shortlist pick over quotes — a cheap judgment task
     # that does not need the decision model. Sonnet keeps the same request
     # shape (adaptive thinking + effort) at a fraction of the price.

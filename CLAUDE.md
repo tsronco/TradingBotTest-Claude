@@ -862,6 +862,37 @@ critical than it was — a pre-open or post-close fire now skips cheaply — tho
 keeping fires inside 13:30–20:00 UTC is still preferred so a live session isn't
 spent on a skip.
 
+**Strike-request step (2026-10-21).** Any code-chosen chain slice is wrong for
+some structure: nearest-the-money was ATM-only for two months (the agent said
+so on 2026-10-21 — "ATM-only ladders"), and a fixed ladder is still a guess.
+The scan is now three-phase: breadth → focus → **strikes** → decision.
+`build_market_pack` fetches each shortlisted chain once (`fetch_chains`), shows
+the model every chain's **skeleton** (`chain_skeleton`: spot, each expiry with
+DTE, the strike grid min/max/step/count per side — a few hundred tokens, no
+prices), and asks it to name the window(s) it wants priced (`request_strikes`,
+forced `select_strikes` tool on the Sonnet focus model, `strike_effort: low`;
+a window is `types` + `dte_min/max` + signed `moneyness_from/to_pct`, several
+per symbol allowed). `_select_window` prices exactly that slice from the
+already-fetched snaps — no second network round trip. The ladder is the
+**fallback** for a symbol the model omitted, a window that matched nothing, a
+refusal, or a failed call, and the pack says so in each symbol's
+`strike_request` (`windows`, `fallback`, `rows`, `note`); the mandate tells
+the decision model a thin slice means it asked for one. Held option legs are
+always included regardless of window so a close can always be priced; rows
+are capped at `chain_keep` per symbol. The step only chooses what to PRICE —
+the decision call still sees real quotes before committing. `live_brief.py`
+shares `gather_depth`, so the brief gets the same model-chosen slice (it
+passes its client through). Off switch: `agent_config.strike_request_step =
+False` → ladder for everything, no extra call. Cost: one more Sonnet call per
+cycle (~$0.05); the Opus payload gets smaller and more relevant, so net spend
+should be flat or lower. Tests: skeleton, window selection (DTE/type/
+moneyness, reversed bounds, empty), the forced-tool parse + refusal, the
+strict-schema rule, assembled pack (requested slice, empty-window fallback,
+request-step failure fallback, held legs, cap, skip switch), and
+`gather_depth` passing the client. Cost-control tests restated: `chain_keep`
+is now a cap on the fallback, with worst-case rows (12 × 72) still under the
+960 that caused the 2026-08 bill.
+
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
@@ -883,7 +914,9 @@ near-the-money chain selection capped at `chain_keep: 14` (was the first 40 by
 dict order — arbitrary, so this improved relevance too; **superseded 2026-10-21**:
 nearest-the-money across 4–5 expirations was ATM-only, so `_trim_chain` is now a
 per-expiration strike LADDER via `_select_ladder` — ATM + 2.5/5/10/15% out each
-side, puts and calls, nearest expiries first — under `chain_keep: 72`), `max_focus_symbols`
+side, puts and calls, nearest expiries first — under `chain_keep: 72`; and the
+same day a **strike-request step** was added so the model picks the slice itself,
+see below), `max_focus_symbols`
 24 → 12, the focus step moved to Sonnet via `agent_config.focus_model()`, and
 `output_config.effort` set explicitly (`low` on focus, where picking names off a
 quote table is genuinely simple). **Decision effort stays `high`** — it was

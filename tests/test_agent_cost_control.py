@@ -66,7 +66,14 @@ def test_keeps_the_fields_needed_to_price_a_structure():
 
 
 def test_defaults_to_the_configured_keep():
-    kept = agent_trader._trim_chain(chain(range(80, 130)), spot=100)
+    # The ladder keeps at most ~9 strikes per expiry per side, so a single
+    # expiry never reaches the cap; across many expiries the cap must bind.
+    big = {}
+    for exp in ("261030", "261106", "261113", "261120", "261127", "261204", "261211", "261218", "261224", "261231"):
+        for k in range(80, 130):
+            big[f"X{exp}C{int(k * 1000):08d}"] = {"latestQuote": {"bp": 1.0, "ap": 1.2},
+                                                   "greeks": {"delta": 0.3}, "impliedVolatility": 0.26}
+    kept = agent_trader._trim_chain(big, spot=100)
     assert len(kept) == agent_config.AGENT_CONFIG["chain_keep"]
 
 
@@ -79,11 +86,15 @@ def test_smaller_chain_than_keep_is_returned_whole():
 
 def test_payload_dials_are_below_the_settings_that_caused_the_bill():
     cfg = agent_config.AGENT_CONFIG
-    # Depth payload scales as focus_symbols x chain_keep; it was 24 x 40 = 960
-    # option rows per cycle.
+    # Depth payload scales as focus_symbols x chain rows; it was 24 x 40 = 960
+    # option rows per cycle. chain_keep is now a CAP on the ladder fallback
+    # (2026-10-21), not the typical payload: with the strike-request step on,
+    # the model names a window and a symbol usually carries a handful of rows.
+    # The worst case (every name falls back to the full ladder) must still sit
+    # under the payload that caused the bill.
     assert cfg["max_focus_symbols"] <= 12
-    assert cfg["chain_keep"] <= 20
-    assert cfg["max_focus_symbols"] * cfg["chain_keep"] < 960 / 2
+    assert cfg["strike_request_step"] is True
+    assert cfg["max_focus_symbols"] * cfg["chain_keep"] < 960
 
 
 def test_focus_runs_at_low_effort():

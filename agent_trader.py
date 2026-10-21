@@ -157,35 +157,165 @@ def build_context_pack(symbols: list[str], mode: str = "agent") -> dict:
     return pack
 
 
-def build_market_pack(symbols: list[str], mode: str = "agent") -> dict:
-    """Quotes + near-dated option chain snapshots for the candidate + held set.
-
-    Bounded to keep the decision prompt sane. Fetch failures on any single
-    symbol are swallowed (that name simply carries less context) so one bad
-    ticker never sinks the cycle.
-    """
-    pack: dict = {}
+def fetch_chains(symbols: list[str], mode: str = "agent") -> dict:
+    """One quote + one near-dated chain snapshot (7–45 DTE, puts and calls,
+    greeks/IV) per symbol. Returns {SYM: {"quote", "spot", "snaps"}}. Fetch
+    failures on any single symbol are swallowed (that name simply carries
+    less context) so one bad ticker never sinks the cycle."""
+    out: dict = {}
     for sym in sorted(set(s.upper() for s in symbols if s)):
-        entry: dict = {}
+        entry: dict = {"quote": None, "spot": None, "snaps": {}}
         try:
             entry["quote"] = alpaca_data.get_stock_quote(sym, mode=mode)
         except Exception:  # noqa: BLE001 — best-effort context, never fatal
-            entry["quote"] = None
+            pass
+        q = entry["quote"] or {}
+        entry["spot"] = q.get("ap") or q.get("bp") or q.get("p")
         try:
-            # Near-dated chain (both puts and calls, 7–45 DTE) with greeks/IV.
-            snaps = alpaca_data.get_option_chain_snapshots(
+            entry["snaps"] = alpaca_data.get_option_chain_snapshots(
                 sym, exp_min_days=7, exp_max_days=45, mode=mode
-            )
-            # Trim to keep the payload bounded — keep the OCC + core fields.
-            entry["option_count"] = len(snaps)
-            # Spot drives near-the-money selection; a quote failure degrades to
-            # the leading slice rather than dropping the chain.
-            q = entry.get("quote") or {}
-            spot = q.get("ap") or q.get("bp") or q.get("p")
-            entry["options"] = _trim_chain(snaps, spot=spot)
+            ) or {}
         except Exception:  # noqa: BLE001
-            entry["options"] = {}
-            entry["option_count"] = 0
+            entry["snaps"] = {}
+        out[sym] = entry
+    return out
+
+
+def chain_skeleton(snaps: dict, spot: float | None, today: date | None = None) -> dict:
+    """The chain's MENU without prices: per expiration, DTE and the strike grid
+    (min / max / step / count) for puts and calls. A few hundred tokens per
+    name, so the model can see every expiry and the full strike range before
+    choosing which window it wants priced — the point of the strike-request
+    step is that the model picks the slice, not the code."""
+    today = today or date.today()
+    by_exp: dict[str, dict[str, list[float]]] = {}
+    for occ in snaps:
+        parsed = _occ_parse(occ)
+        if not parsed:
+            continue
+        by_exp.setdefault(parsed["expiry"], {}).setdefault(parsed["type"], []).append(parsed["strike"])
+    expiries = []
+    for exp in sorted(by_exp):
+        try:
+            dte = (date.fromisoformat(exp) - today).days
+        except ValueError:
+            continue
+        row: dict = {"expiry": exp, "dte": dte}
+        for t, key in (("P", "puts"), ("C", "calls")):
+            ks = sorted(set(by_exp[exp].get(t, [])))
+            if not ks:
+                continue
+            steps = sorted({round(b - a, 4) for a, b in zip(ks, ks[1:]) if b > a})
+            row[key] = {"min": ks[0], "max": ks[-1], "step": steps[0] if steps else None, "n": len(ks)}
+        expiries.append(row)
+    return {"spot": spot, "expiries": expiries}
+
+
+def _select_window(snaps: dict, spot: float, window: dict, today: date | None = None) -> list[str]:
+    """OCC symbols inside one requested window: DTE in [dte_min, dte_max],
+    type in `types`, strike within spot × (1 + pct/100) for the signed
+    moneyness range (negative = below spot). Bounds are order-normalized so a
+    reversed range still works. Empty when nothing matches — the caller then
+    falls back to the ladder and says so."""
+    today = today or date.today()
+    try:
+        lo_pct, hi_pct = sorted((float(window.get("moneyness_from_pct", -15)), float(window.get("moneyness_to_pct", 15))))
+        dte_lo, dte_hi = sorted((int(window.get("dte_min", 7)), int(window.get("dte_max", 45))))
+    except (TypeError, ValueError):
+        return []
+    types = {str(t).upper()[:1] for t in (window.get("types") or ["P", "C"])} & {"P", "C"}
+    lo, hi = spot * (1 + lo_pct / 100), spot * (1 + hi_pct / 100)
+    out = []
+    for occ in snaps:
+        parsed = _occ_parse(occ)
+        if not parsed or parsed["type"] not in types:
+            continue
+        try:
+            dte = (date.fromisoformat(parsed["expiry"]) - today).days
+        except ValueError:
+            continue
+        if dte_lo <= dte <= dte_hi and lo <= parsed["strike"] <= hi:
+            out.append(occ)
+    # Nearest expiry first, then strike, so a row cap keeps the near end.
+    out.sort(key=lambda o: (_occ_parse(o)["expiry"], _occ_parse(o)["strike"]))
+    return out
+
+
+def _rows_from(snaps: dict, occs) -> dict:
+    trimmed = {}
+    for occ in occs:
+        snap = snaps.get(occ) or {}
+        q = snap.get("latestQuote", {}) or {}
+        trimmed[occ] = {
+            "bid": q.get("bp"),
+            "ask": q.get("ap"),
+            "greeks": snap.get("greeks"),
+            "iv": snap.get("impliedVolatility"),
+        }
+    return trimmed
+
+
+def build_market_pack(symbols: list[str], mode: str = "agent", client=None,
+                      held_occs=(), ask_strikes: bool | None = None) -> dict:
+    """Quotes + the option-chain slice the model ASKED for, per symbol.
+
+    Three steps: fetch every chain once (fetch_chains); show the model each
+    chain's skeleton and let it name the strike windows it wants priced
+    (request_strikes — a cheap Sonnet call); assemble the pack from those
+    windows. If the request step fails, refuses, or names a window the chain
+    can't satisfy, that symbol falls back to the strike ladder (_trim_chain)
+    and the pack says so in `strike_request.fallback`, so a thin slice is never
+    mistaken for a thin chain. Held option legs are always included so the
+    model can always price a close. Rows are capped at chain_keep per symbol.
+    """
+    fetched = fetch_chains(symbols, mode=mode)
+    keep = _CFG.get("chain_keep", 72)
+    if ask_strikes is None:
+        ask_strikes = bool(_CFG.get("strike_request_step", True))
+    skeletons = {sym: chain_skeleton(f["snaps"], f["spot"]) for sym, f in fetched.items()
+                 if f["snaps"] and f["spot"]}
+    requests_by_sym: dict = {}
+    req_note = None
+    if ask_strikes and skeletons:
+        try:
+            res = request_strikes(skeletons, client=client)
+            requests_by_sym = res.get("requests", {})
+            if res.get("refused"):
+                req_note = "strike-request step refused; ladder used for every name"
+        except Exception as e:  # noqa: BLE001 — the ladder is a fine fallback
+            log(f"strike request step failed, using ladder: {e}")
+            req_note = f"strike-request step failed ({type(e).__name__}); ladder used"
+    held = set(held_occs or ())
+    pack: dict = {}
+    for sym, f in fetched.items():
+        snaps, spot = f["snaps"], f["spot"]
+        entry: dict = {"quote": f["quote"], "option_count": len(snaps)}
+        reqs = requests_by_sym.get(sym) or []
+        chosen: list[str] = []
+        note = req_note
+        if reqs and spot:
+            seen = set()
+            for w in reqs:
+                for occ in _select_window(snaps, spot, w):
+                    if occ not in seen:
+                        seen.add(occ)
+                        chosen.append(occ)
+            if not chosen:
+                note = "requested window matched no contracts; ladder used"
+        fallback = not chosen
+        if fallback:
+            chosen = list(_trim_chain(snaps, spot=spot, keep=keep))
+        chosen = chosen[:keep]
+        for occ in held:
+            if occ in snaps and occ not in chosen:
+                chosen.append(occ)
+        entry["options"] = _rows_from(snaps, chosen)
+        entry["strike_request"] = {
+            "windows": reqs,
+            "fallback": fallback,
+            "rows": len(entry["options"]),
+            "note": note if fallback else None,
+        }
         pack[sym] = entry
     return pack
 
@@ -361,14 +491,16 @@ def gather_breadth(mode: str = "agent") -> dict:
 
 
 def gather_depth(focus_symbols: list[str], positions: list, account: dict,
-                 mode: str = "agent") -> dict:
-    """Phase 2: full option chains for the focus shortlist + everything currently
-    held (held names are always included so the model can always price a close).
+                 mode: str = "agent", client=None) -> dict:
+    """Phase 2: option chains for the focus shortlist + everything currently
+    held (held names are always included so the model can always price a close),
+    sliced to the strike windows the model requests (see build_market_pack).
     Same shape gather_breadth's account/positions carry through, plus `market`."""
     held_symbols = [p.get("symbol", "") for p in positions]
     held_underlyings = [_occ_underlying(s) for s in held_symbols]
     symbols = list(focus_symbols) + held_symbols + held_underlyings
-    market = build_market_pack(symbols, mode=mode)
+    held_occs = [s for s in held_symbols if _occ_parse(s)]
+    market = build_market_pack(symbols, mode=mode, client=client, held_occs=held_occs)
     # Trend + earnings context, keyed by underlying (an OCC leg has no chart of
     # its own). This is what makes a trend claim checkable — see
     # agent_market_context for why it exists.
@@ -739,6 +871,111 @@ def request_focus(breadth: dict, client=None, model: str | None = None) -> dict:
     return {"focus": [], "market_read": "", "refused": False}
 
 
+# ── The strike-request step (phase 1c) ─────────────────────────────────────
+# Between the shortlist and the decision: the model is shown each chain's
+# SKELETON (every expiry, the strike grid, no prices) and names the windows it
+# wants priced. The code used to guess this slice — nearest-the-money (ATM
+# only, 2026-08-19 → 2026-10-21), then a fixed ladder — and any fixed shape is
+# wrong for some structure. Letting the model ask means it never sees less
+# than it wanted; the ladder remains the fallback so a bad call degrades to
+# today's behavior, not to nothing. This step only chooses what to PRICE; the
+# decision call still sees real quotes before it commits anything.
+
+STRIKES_TOOL = {
+    "name": "select_strikes",
+    "description": (
+        "For each shortlisted symbol, name the option-chain window(s) you want "
+        "priced (quotes + greeks) before you decide. You are shown each chain's "
+        "skeleton: spot, every expiration with its DTE, and the strike grid. Ask "
+        "for exactly the slice your intended structure needs — e.g. an OTM put "
+        "credit spread wants puts 5–15% below spot at 25–45 DTE; a long call "
+        "wants calls −2% to +5% at 30–60 DTE. You may give several windows for "
+        "one symbol (both wings of a condor). A symbol you omit gets a default "
+        "ladder (ATM ±2.5/5/10/15%)."
+    ),
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "requests": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "symbol": {"type": "string"},
+                        "intent": {"type": "string", "description": "One line: the structure you have in mind for this name, so the window makes sense in review."},
+                        "types": {"type": "array", "items": {"type": "string", "enum": ["P", "C"]}, "description": "Option types to price in this window."},
+                        "dte_min": {"type": "integer", "description": "Days to expiration, lower bound (chains cover 7–45)."},
+                        "dte_max": {"type": "integer", "description": "Days to expiration, upper bound."},
+                        "moneyness_from_pct": {"type": "number", "description": "Strike range start as signed percent of spot: −10 means 10% below spot, +5 means 5% above."},
+                        "moneyness_to_pct": {"type": "number", "description": "Strike range end, same convention. Order does not matter."},
+                    },
+                    "required": ["symbol", "intent", "types", "dte_min", "dte_max",
+                                 "moneyness_from_pct", "moneyness_to_pct"],
+                },
+            },
+        },
+        "required": ["requests"],
+    },
+}
+
+
+STRIKES_SYSTEM = """\
+You are an autonomous trader midway through a cycle. You have already \
+shortlisted these names. Before deciding, say which part of each option chain \
+you want priced: you are shown every chain's skeleton (spot, each expiration \
+with DTE, and the strike grid per side) but no quotes yet, because pricing the \
+whole chain is expensive and most of it is irrelevant to any one structure. \
+Name the window(s) that fit the structure you are actually considering for \
+each name — tighter is better than wider, but never narrower than the trade \
+needs (a spread needs both legs inside the window). If you have no idea for a \
+name, omit it and it gets a default ladder. Call select_strikes once.\
+"""
+
+
+def request_strikes(skeletons: dict, client=None, model: str | None = None) -> dict:
+    """Phase-1c model call: from chain skeletons, name the windows to price.
+    Returns {"requests": {SYM: [window, ...]}, "refused": bool}. Unknown or
+    malformed entries are dropped; an empty result means ladder for all."""
+    if client is None:  # pragma: no cover — real client path, mocked in tests
+        client = agent_config.client()
+    model = model or agent_config.focus_model()
+    user_content = (
+        "Here are the chain skeletons for your shortlist. Name the window(s) to "
+        "price for each.\n\n" + json.dumps(skeletons, default=str)
+    )
+    resp = client.messages.create(
+        model=model,
+        max_tokens=_CFG.get("max_strike_tokens", 1500),
+        thinking={"type": "adaptive"},
+        output_config={"effort": _CFG.get("strike_effort", "low")},
+        system=STRIKES_SYSTEM,
+        tools=[STRIKES_TOOL],
+        tool_choice={"type": "tool", "name": "select_strikes"},
+        messages=[{"role": "user", "content": user_content}],
+    )
+    log_model_usage("strikes", model, resp)
+    if getattr(resp, "stop_reason", None) == "refusal":
+        return {"requests": {}, "refused": True}
+    out: dict = {}
+    for block in resp.content:
+        if getattr(block, "type", None) == "tool_use" and block.name == "select_strikes":
+            for w in block.input.get("requests", []) or []:
+                sym = str(w.get("symbol", "")).upper().strip()
+                if not sym or sym not in skeletons:
+                    continue
+                out.setdefault(sym, []).append({
+                    "intent": w.get("intent", ""),
+                    "types": w.get("types") or ["P", "C"],
+                    "dte_min": w.get("dte_min", 7), "dte_max": w.get("dte_max", 45),
+                    "moneyness_from_pct": w.get("moneyness_from_pct", -15),
+                    "moneyness_to_pct": w.get("moneyness_to_pct", 15),
+                })
+    return {"requests": out, "refused": False}
+
+
 # ── The decision tool (structured output via forced tool use) ──────────────
 
 DECISION_TOOL = {
@@ -850,7 +1087,7 @@ reported back to you, so do the arithmetic before you submit — this is a hard 
 seatbelt against a single catastrophic loss, not a view on what to trade.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
 OCC option symbols from the market data provided. Stocks trade in whole shares.
-- The market data below holds full option chains for the names you shortlisted \
+- The market data below holds, for each shortlisted name, the option-chain WINDOW you asked to have priced in the strike step (see each symbol's `strike_request`: the windows, and `fallback: true` if a window matched nothing and the default ladder was used instead). A thin slice means you asked for a thin slice, not that the chain is thin. The chains hold the names you shortlisted \
 this cycle plus everything you currently hold. Trade any of them, or hold. (You \
 already scanned the wider universe when you chose this shortlist.)
 
@@ -1691,7 +1928,7 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         universe_size = len(breadth.get("universe") or {})
 
         # Phase 2 (depth): full chains only for the shortlist + held names.
-        context = gather_depth(focus, breadth["positions"], breadth["account"])
+        context = gather_depth(focus, breadth["positions"], breadth["account"], client=client)
         market = context["market"]
 
         if not dry_run:
