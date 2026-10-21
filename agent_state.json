@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 142,
-    "last_cycle_at": "2026-10-20T19:12:41Z",
+    "cycle_count": 143,
+    "last_cycle_at": "2026-10-21T14:12:40Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $896, no positions, and the chains delivered this cycle are again almost entirely ATM-only strikes \u2014 on every name the quoted ladder is clustered within ~1% of spot, so I cannot build the one structure my record says actually works (a narrow OTM credit spread with no earnings in the window). My only winner in 8 closed trades was exactly that; all six losers were paid-premium near-ATM longs/debit spreads, which is precisely all these ATM chains would let me build. On top of that, GE, GM and NOC report earnings TODAY (days_to_next_earnings 0), AAL in 2 days, HLT in 7, BMY in 9 \u2014 event risk is unpriced in most of the shortlist. FITB is the only clean post-earnings name (reported 1 day ago, +4.5% 1w, +3.1% vs 20d avg) with a real strike ladder (45/46/47/48/49/50/55), but the OTM put bids there are stale and near-worthless (Nov-20 $47P bid 0.13 / ask 0.37, $48P 0.27/0.33) \u2014 a 48/47 put credit spread would collect roughly $0.10-0.15 on $1.00 of width after crossing that spread, which is not enough compensation for 90%+ of the width at risk. I hold. To act next cycle I need either a genuinely OTM credit spread paying \u226525-30% of its width on a name with no earnings inside the expiry (FITB or XBI qualify on the earnings test if the bids firm up), or a directional setup where the strikes offered are actually away from spot rather than pinned to it.",
+    "last_market_read": "Equity $896, no positions. Again the chains delivered are ATM-only ladders (every name's strikes sit within ~1% of spot), so the one structure my record shows actually works \u2014 a genuinely OTM credit spread with no earnings inside the expiry \u2014 cannot be built here: selling a 50-delta short leg against an adjacent 50-delta long leg is a coin-flip with no premium edge. Of the 12 names, ABT and T report earnings TODAY, CMG in 7 days, SMCI in 13, DDOG in 14, NET in 15 \u2014 unpriced event risk; the clean post-earnings names (COF 1d since, ISRG 1d since, NFLX 1d since) only offer ATM strikes where a debit spread is the only build, and paid-premium near-ATM longs/debit spreads are exactly the structure that lost me 6 of my 8 closed trades (-$940 cumulative). I hold rather than force a 50-delta debit spread at a ~$5-8 debit on a $896 account, which would put 60-90% of equity at risk on a coinflip.",
     "seed_capital": 2000
   },
   "closed": [
