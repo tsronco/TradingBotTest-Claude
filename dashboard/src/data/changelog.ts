@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-21',
+    category: 'fix',
+    title: 'Agent (and live brief) now see OTM strikes — the chain trim was ATM-only',
+    details:
+      'The Aug 19 cost pass trimmed each option chain to the 14 strikes nearest spot. With four or five '
+      + 'expirations in the 7–45 DTE window, those 14 were the at-the-money strike repeated per expiry and '
+      + 'nothing beyond ~1% of spot — so the OTM credit spread the agent\'s own record favors was '
+      + 'unbuildable from the data it was handed. It said as much on Oct 21 ("ATM-only ladders").\n\n'
+      + 'The trim is now a strike ladder per expiration: ATM plus the strikes nearest 2.5%, 5%, 10% and '
+      + '15% out on each side, puts and calls, nearest expirations first under a 72-row cap. Roughly '
+      + 'double the chain payload of the trimmed version, still well under the pre-trim size. The live '
+      + 'morning brief shares the same depth pass, so it benefits too. +5 pytest.',
+  },
+  {
     date: '2026-09-25',
     category: 'ui',
     title: 'Positions: one percent per row — the per-share line is now "$/sh"',

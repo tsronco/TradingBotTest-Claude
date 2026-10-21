@@ -971,3 +971,66 @@ def test_run_cycle_open_records_intended_net_credit(_wire):
     at.run_cycle(client=_FakeClient([intent]))
     oc = at.load_state()["_meta"]["last_cycle_outcome"]
     assert oc["opened"][0]["intended_net_credit"] == 0.40
+
+
+# ── Chain trim: strike ladder per expiration (2026-10-21) ───────────────────
+# The old nearest-the-money sort, with 4-5 expirations in the 7-45 DTE window,
+# handed the model the ATM strike repeated per expiry and nothing beyond ~1% of
+# spot — so the OTM credit spread its own record favors was unbuildable from
+# the data. The ladder keeps ATM + 2.5/5/10/15% out on each side per expiry.
+
+def _fake_chain(spot=100.0, expiries=("261030", "261120"), strikes=None):
+    strikes = strikes or [s for s in range(70, 131, 5)]  # $5 strikes, 70..130
+    snaps = {}
+    for e in expiries:
+        for k in strikes:
+            for t in ("C", "P"):
+                snaps[f"XYZ{e}{t}{int(k * 1000):08d}"] = {
+                    "latestQuote": {"bp": 1.0, "ap": 1.2}, "greeks": {"delta": 0.5}, "impliedVolatility": 0.3,
+                }
+    return snaps
+
+
+def test_ladder_reaches_otm_strikes_on_both_sides_every_expiry():
+    snaps = _fake_chain()
+    out = at._trim_chain(snaps, spot=100.0, keep=1000)
+    strikes_by = {}
+    for occ in out:
+        p = at._occ_parse(occ)
+        strikes_by.setdefault((p["expiry"], p["type"]), set()).add(p["strike"])
+    assert set(strikes_by) == {(e, t) for e in ("2026-10-30", "2026-11-20") for t in ("C", "P")}
+    for key, ks in strikes_by.items():
+        # ATM, ±2.5% (rounds to 100 or 105/95 at $5 spacing), ±5%, ±10%, ±15%
+        assert 100.0 in ks, key
+        assert 85.0 in ks and 115.0 in ks, key           # ~15% out, both sides
+        assert 90.0 in ks and 110.0 in ks, key           # ~10% out
+        assert min(ks) <= 85.0 and max(ks) >= 115.0, key
+
+
+def test_ladder_dedupes_when_rungs_collapse_onto_one_strike():
+    # $5 strikes on a $20 stock: 2.5% and 5% rungs both round to the $20 strike.
+    snaps = _fake_chain(spot=20.0, expiries=("261030",), strikes=[10, 15, 20, 25, 30])
+    out = at._trim_chain(snaps, spot=20.0, keep=1000)
+    assert len(out) == len(set(out))
+    # 5 unique strikes × 2 types — never more rows than distinct contracts.
+    assert len(out) <= 10
+
+
+def test_ladder_cap_drops_far_expirations_not_near_atm():
+    snaps = _fake_chain(expiries=("261030", "261120", "261218"))
+    out = at._trim_chain(snaps, spot=100.0, keep=20)
+    assert len(out) == 20
+    exps = {at._occ_parse(o)["expiry"] for o in out}
+    assert "2026-10-30" in exps and "2026-12-18" not in exps
+
+
+def test_trim_without_spot_falls_back_to_leading_slice():
+    snaps = _fake_chain()
+    out = at._trim_chain(snaps, spot=None, keep=5)
+    assert list(out) == list(snaps)[:5]
+
+
+def test_default_chain_keep_covers_several_expirations_of_ladder():
+    # 18 rows per expiry (9 strikes × 2 types) at full rung coverage; the cap
+    # must admit a few expirations or the fix is moot.
+    assert at._CFG["chain_keep"] >= 54

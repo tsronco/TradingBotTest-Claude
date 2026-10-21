@@ -115,7 +115,13 @@ AGENT_CONFIG = {
     # The decision call's option-chain payload dominates spend: it scales as
     # focus_symbols x chain_keep, and at 24 x 40 it was ~43k input tokens per
     # cycle on Opus. These two numbers are the main dial.
-    "chain_keep": 14,          # option rows per symbol, nearest the money
+    # Per-symbol row cap. The selector is a strike LADDER per expiration (ATM +
+    # 2.5/5/10/15% out each side, puts and calls — up to 18 rows per expiry),
+    # nearest expirations first. 14 rows under the old nearest-the-money sort
+    # was ATM-only across every expiry; 72 covers ~4 expirations of ladder and
+    # roughly doubles the chain payload vs the 2026-08-19 trim, which is still
+    # well under the pre-trim 40-rows-x-24-names it was cut from.
+    "chain_keep": 72,
     # The focus step is a shortlist pick over quotes — a cheap judgment task
     # that does not need the decision model. Sonnet keeps the same request
     # shape (adaptive thinking + effort) at a fraction of the price.

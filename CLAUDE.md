@@ -880,7 +880,10 @@ credits on a $2k paper account that was down $300 — ~$100/month. Measured
 payloads put the decision call at ~85% of it. Four changes cut it ~60% without
 touching the decision model (Opus still makes every call that matters):
 near-the-money chain selection capped at `chain_keep: 14` (was the first 40 by
-dict order — arbitrary, so this improved relevance too), `max_focus_symbols`
+dict order — arbitrary, so this improved relevance too; **superseded 2026-10-21**:
+nearest-the-money across 4–5 expirations was ATM-only, so `_trim_chain` is now a
+per-expiration strike LADDER via `_select_ladder` — ATM + 2.5/5/10/15% out each
+side, puts and calls, nearest expiries first — under `chain_keep: 72`), `max_focus_symbols`
 24 → 12, the focus step moved to Sonnet via `agent_config.focus_model()`, and
 `output_config.effort` set explicitly (`low` on focus, where picking names off a
 quote table is genuinely simple). **Decision effort stays `high`** — it was
