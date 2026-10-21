@@ -84,7 +84,7 @@ def _wire(monkeypatch, tmp_path):
         "universe": {"F": {"price": 11.2, "change_pct": 1.1}, "WMT": {"price": 106.1, "change_pct": 0.2}},
         "equity_floor": 500,
     })
-    monkeypatch.setattr(lb, "gather_depth", lambda focus, positions, account, mode="live": {
+    monkeypatch.setattr(lb, "gather_depth", lambda focus, positions, account, mode="live", **kw: {
         "account": account, "positions": positions,
         "market": {s: {"quote": {"ap": 1.0, "bp": 0.9}, "options": {}, "option_count": 0} for s in focus},
         "price_context": {}, "equity_floor": 500,

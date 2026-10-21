@@ -30,6 +30,23 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-21',
+    category: 'engine',
+    title: 'Agent picks its own strikes — the chain slice is no longer a code guess',
+    details:
+      'Every slice the code chose was wrong for some structure: nearest-the-money was ATM-only for two '
+      + 'months, and this morning\'s ladder is still a fixed shape. The scan is now three-phase. After '
+      + 'the shortlist, the model sees each chain\'s skeleton (every expiry with DTE and the strike grid, '
+      + 'no prices) and names the window it wants priced per name — e.g. puts 5–15% below spot at 25–45 '
+      + 'DTE for a credit spread — then the decision call gets exactly that slice with real quotes. '
+      + 'Several windows per name are allowed (both wings of a condor).\n\n'
+      + 'It never sees less than it asked for: a name it omits, a window that matches nothing, or a '
+      + 'failed call falls back to the ladder, and the data says so. Held legs are always priced so a '
+      + 'close is always possible. The live morning brief shares the depth pass and gets the same '
+      + 'model-chosen slice. One extra Sonnet call per cycle (~$0.05); the Opus payload shrinks, so net '
+      + 'spend should be flat or lower. Off switch: strike_request_step in agent_config. +13 pytest.',
+  },
+  {
+    date: '2026-10-21',
     category: 'fix',
     title: 'Agent (and live brief) now see OTM strikes — the chain trim was ATM-only',
     details:
