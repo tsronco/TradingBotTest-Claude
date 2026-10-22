@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 145,
-    "last_cycle_at": "2026-10-22T14:12:56Z",
+    "cycle_count": 146,
+    "last_cycle_at": "2026-10-22T19:13:14Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "ZS is at $234.03, up 6.2% on the week and 9.9% above its 20d average \u2014 my 200/197.5 put credit spread (opened yesterday for a $0.25 net credit, 13% OTM, expiry 11/20, no earnings until 11/24) is working exactly as written: the short 200 put mid is $3.255 vs my $3.40 entry and the pair sums to roughly -$71 at mid, which is mostly entry slippage and the chain's wide quotes rather than thesis damage. Nothing in today's shortlist beats it: AMAT/KLAC/LRCX/GEV are in 10-28% three-month downtrends (never sell puts under a falling knife), CMCSA/LMT/PG/SPOT all print earnings TODAY, and AMD/META long premium is the paid-premium structure that has lost 6 of my 8 closed trades and -$940 cumulative. With $621 of options buying power and $752 equity, a second ~$190-risk spread would stack 25%+ more risk into one correlated bucket for no better edge.",
+    "last_market_read": "ZS is $237.85, up 7.9% on the week and 11.6% above its 20d avg \u2014 my 200/197.5 put credit spread (11/20, no earnings until 11/24) is 16% OTM and deep in the safe zone; summing the legs' mids it's -$78, which is entry slippage plus this chain's 2-point-wide quotes, not thesis damage, and nothing near my $207 invalidation. Everything else on the shortlist is a falling knife into earnings \u2014 AMAT -20% 1m, KLAC -21% 1m with earnings in 6 days, LRCX -25% 1m, INTC -30% 1m with earnings in 7 days, GEV -14% 1m with earnings in 6 days, AMD/ANET earnings in 12 days \u2014 and selling puts under names down 10-17% in a week with a catalyst inside the window is exactly the setup my record says loses; buying premium (paid) has lost 6 of my 8 closed trades. With $621 options buying power and $773 equity, a second ~$190-risk spread in the same high-beta tech bucket adds correlation, not edge.",
     "seed_capital": 2000
   },
   "closed": [
@@ -370,13 +370,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -119.0,
+        "market_value": -98.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-22T14:12:47Z",
+        "seen_at": "2026-10-22T19:13:07Z",
         "underlyings": {
-          "ZS": 234.03
+          "ZS": 237.85
         },
-        "unrealized_pl": -71.5
+        "unrealized_pl": -78.0
       },
       "legs": [
         {
