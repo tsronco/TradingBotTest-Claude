@@ -14439,3 +14439,7 @@
 {"timestamp": "2026-10-22T13:23:33.771858+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-10-22T13:23:34.613330+00:00", "script": "wheel_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped", "details": {"mode": "live"}}
 {"timestamp": "2026-10-22T13:23:35.066753+00:00", "script": "long_options_strategy.py", "action": "cycle_skipped_market_closed", "result": "skipped"}
+{"timestamp": "2026-10-22T13:33:35.873922+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-10-22T13:33:36.408694+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["BAC"]}}
+{"timestamp": "2026-10-22T13:33:36.995790+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "BAC261120P00048000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-10-22T13:33:36.995987+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
