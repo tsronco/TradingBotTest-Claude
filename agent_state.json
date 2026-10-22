@@ -1,20 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 144,
-    "last_cycle_at": "2026-10-21T19:13:15Z",
+    "cycle_count": 145,
+    "last_cycle_at": "2026-10-22T14:12:56Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": -0.6,
-          "legs": "sell 1 ZS261120P00200000, buy 1 ZS261120P00197500",
-          "order_id": "0378d0a7-64ee-4876-89c9-390bbdd4aa50"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "Unlike the last few cycles, this chain delivery actually contains genuinely OTM strikes: ABT puts 5-14% below spot, CMG puts 8-20% below, DDOG/NET/MDB/ZS/OKTA put ladders 10-15% OTM. My record says the only structure that has made money is a narrow, low-delta OTM put credit spread with no earnings inside the window (+$24 on NCLH), while paid-premium near-ATM longs/debit spreads lost 6 of 8 trades and -$940 cumulative. ABT reports earnings TODAY (10/21) so its November window is post-event with vol that will deflate \u2014 but I can't price the gap before it prints, so I'm using the one name with a clean window: CMG puts are far OTM, but CMG prints in 7 days (inside expiry) \u2014 rejected. ZS (next earnings 11/24, after 11/20 expiry) 200/197.5 put spread sits 13% below a stock that is +9.1% over 1 month and +8.2% vs its 20d average; that is the only build with real OTM distance, an earnings-free expiry, and a credit worth the width, so I'm taking it small (1 contract, $185 max risk \u2248 21% of equity).",
+    "last_market_read": "ZS is at $234.03, up 6.2% on the week and 9.9% above its 20d average \u2014 my 200/197.5 put credit spread (opened yesterday for a $0.25 net credit, 13% OTM, expiry 11/20, no earnings until 11/24) is working exactly as written: the short 200 put mid is $3.255 vs my $3.40 entry and the pair sums to roughly -$71 at mid, which is mostly entry slippage and the chain's wide quotes rather than thesis damage. Nothing in today's shortlist beats it: AMAT/KLAC/LRCX/GEV are in 10-28% three-month downtrends (never sell puts under a falling knife), CMCSA/LMT/PG/SPOT all print earnings TODAY, and AMD/META long premium is the paid-premium structure that has lost 6 of my 8 closed trades and -$940 cumulative. With $621 of options buying power and $752 equity, a second ~$190-risk spread would stack 25%+ more risk into one correlated bucket for no better edge.",
     "seed_capital": 2000
   },
   "closed": [
@@ -367,8 +361,23 @@
           "ZS": 229.79
         }
       },
+      "fill": {
+        "actual_net_credit": -0.25,
+        "fill_available": true,
+        "intended_net_credit": -0.6,
+        "slippage": 0.35
+      },
       "intended_net_credit": -0.6,
-      "last_snapshot": null,
+      "last_snapshot": {
+        "cost_basis": 25.0,
+        "market_value": -119.0,
+        "pnl_basis": "mid-based, qty-scaled to this order's share",
+        "seen_at": "2026-10-22T14:12:47Z",
+        "underlyings": {
+          "ZS": 234.03
+        },
+        "unrealized_pl": -71.5
+      },
       "legs": [
         {
           "asset": "option",
