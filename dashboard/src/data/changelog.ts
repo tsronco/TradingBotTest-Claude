@@ -30,6 +30,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-23',
+    category: 'fix',
+    title: 'Lookup "YOUR POSITION" now counts options on the underlying',
+    details:
+      'The Lookup page said "you don\'t hold BAC" even when you held a BAC options spread — the panel only '
+      + 'matched a stock position named exactly BAC, so option legs (OCC symbols like BAC261120P00048000) '
+      + 'were invisible to it. It now also matches any option position whose underlying is the symbol, and '
+      + 'renders them: detected vertical spreads show the strategy name + net credit/debit, max loss and '
+      + 'live P&L (reusing the same grouping engine as the Positions screen, so the two panels agree), and '
+      + 'lone legs show a LONG/SHORT badge with type/strike. Stock positions render exactly as before.',
+  },
+  {
+    date: '2026-10-23',
     category: 'engine',
     title: 'Agent: strike windows on the Discord card, plus an observe-only run',
     details:
