@@ -893,6 +893,46 @@ request-step failure fallback, held legs, cap, skip switch), and
 is now a cap on the fallback, with worst-case rows (12 × 72) still under the
 960 that caused the 2026-08 bill.
 
+**Multi-leg limit sign bug — every credit spread was mispriced (fixed 2026-10-23).**
+Alpaca reads a multi-leg limit as a signed NET: **negative = credit received,
+positive = debit paid**. The harness code always knew this (`build_order_payload`,
+`_intent_net_credit`, `_intent_max_loss`, and the tests all use negative limits for
+credit spreads), but the model was never told — the decision tool's `limit_price`
+had no description and the mandate never stated the convention. So **every credit
+spread the agent opened went out with a positive limit** (DIS ×2 on 2026-08-14,
+NCLH 2026-09-29, ZS 2026-10-21). Alpaca treats a positive limit on a credit
+structure as "pay up to $X": a capped market order that fills at the full bid/ask
+cross. On a tight chain that cross is still a small credit (DIS filled at $0.24
+vs ~$0.33 mid); on a wide one it is a **debit** — ZS 200/197.5 filled at a $0.25
+debit, a short vertical whose max profit is −$25 and max loss $275, which the
+agent believed was a credit spread with "theta to run." Side effects: the
+size-cap math (`_intent_max_loss`) read those orders as small debit spreads, and
+the `fill.slippage` feedback reported "better than you asked" on each one. It
+also means the agent's own record — "credit spreads are the structure that
+loses small" — was learned partly from mispriced fills.
+
+Fix: (1) `_limit_sign_problem` in `check_feasibility` rejects an OPEN whose sign
+contradicts its structure (credit spread with limit ≥ 0, debit spread with limit
+≤ 0, single leg ≤ 0) with a reason naming the correct sign, which feeds back via
+`previous_cycle_outcome`. Closes are never blocked — a wrong-signed close at worst
+fills at the cross, and blocking an exit is worse. (2) The `limit_price` schema
+description and a mandate bullet state the rule up front. (3) Each held vertical
+in `open_position_theses` gains `payoff_at_fill` (width, net at fill, max
+profit/loss in $, and a "CANNOT finish profitable" note when max profit ≤ 0),
+computed from the actual fill, so the agent can see the truth of a position like
+ZS instead of trusting its own entry thesis. Same pass: `gather_depth` no longer
+fetches held OCC legs as if they were underlyings (that produced empty "ladder,
+0 rows" entries per leg); legs are guaranteed as rows via `held_occs`.
+
+**Observe mode + strike visibility (2026-10-23).** `run_cycle(observe=True)`
+(`--observe`, `AGENT_OBSERVE=1`, or the `observe` input on the Agent Trader
+workflow's Run button) does the full scan, strike request and decision, posts a
+yellow "Observe" card listing what it WOULD have placed, and sends no orders,
+writes no state, skips the stale-order sweep, and bypasses the market-closed
+guard. Every cycle now logs `strikes_selected`, and the hold card carries a
+"Strikes it asked to price" field. Scheduled dispatches send no inputs, so
+normal cycles are unchanged.
+
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
