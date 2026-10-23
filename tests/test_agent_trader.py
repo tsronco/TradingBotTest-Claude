@@ -518,13 +518,16 @@ def test_build_quote_pack_is_fail_soft(monkeypatch):
 def test_gather_depth_always_includes_held(monkeypatch):
     seen = {}
     monkeypatch.setattr(at, "build_market_pack",
-                        lambda syms, mode="agent", **kw: seen.setdefault("syms", syms) or {})
+                        lambda syms, mode="agent", **kw: (seen.setdefault("syms", syms), seen.update(kw)) and {})
     positions = [{"symbol": "TSLA260320C00300000"}]  # a held option
     at.gather_depth(["AAPL"], positions, {"equity": 2000}, mode="agent")
-    # Focus name, the held OCC symbol, AND its parsed underlying are all fetched.
+    # Focus name and the held leg's UNDERLYING are fetched as chains; the leg
+    # itself is not a chain symbol (that produced empty "ladder, 0 rows"
+    # entries) — it is guaranteed as a row via held_occs instead.
     assert "AAPL" in seen["syms"]
-    assert "TSLA260320C00300000" in seen["syms"]
     assert "TSLA" in seen["syms"]
+    assert "TSLA260320C00300000" not in seen["syms"]
+    assert seen["held_occs"] == ["TSLA260320C00300000"]
 
 
 def test_run_cycle_falls_back_to_top_movers_on_empty_focus(monkeypatch, tmp_path):
@@ -1245,3 +1248,73 @@ def test_run_cycle_logs_strikes_selected(_wire, monkeypatch):
     at.run_cycle(client=_FakeClient([]))
     sel = [kw for a, kw in events if a == "strikes_selected"]
     assert sel and sel[0]["details"]["XYZ"]["fallback"] is True
+
+
+# ── Multi-leg limit sign (2026-10-23) ───────────────────────────────────────
+# Every credit spread the agent opened went out with a POSITIVE limit, which
+# Alpaca reads as a debit cap — a capped market order filling at the cross.
+# ZS 200/197.5 filled at a $0.25 DEBIT: a short vertical that cannot profit.
+
+_PCS = [{"asset": "option", "symbol": "ZS261120P00200000", "side": "sell", "qty": 1},
+        {"asset": "option", "symbol": "ZS261120P00197500", "side": "buy", "qty": 1}]
+_CDS = [{"asset": "option", "symbol": "SLB260918C00059000", "side": "buy", "qty": 1},
+        {"asset": "option", "symbol": "SLB260918C00060000", "side": "sell", "qty": 1}]
+
+
+def test_credit_spread_with_positive_limit_is_rejected():
+    ok, reason = at.check_feasibility(_open_intent(legs=_PCS, limit_price=0.6), {"equity": 900})
+    assert not ok and "credit spread" in reason and "NEGATIVE" in reason and "-0.6" in reason
+
+
+def test_credit_spread_with_negative_limit_passes():
+    ok, reason = at.check_feasibility(_open_intent(legs=_PCS, limit_price=-0.6), {"equity": 900})
+    assert ok, reason
+
+
+def test_debit_spread_sign_rules():
+    ok, reason = at.check_feasibility(_open_intent(legs=_CDS, limit_price=-0.65), {"equity": 2000})
+    assert not ok and "debit spread" in reason
+    ok, reason = at.check_feasibility(_open_intent(legs=_CDS, limit_price=0.65), {"equity": 2000})
+    assert ok, reason
+
+
+def test_single_leg_limit_must_be_positive():
+    ok, reason = at.check_feasibility(_open_intent(limit_price=-1.25), {"equity": 2000})
+    assert not ok and "positive" in reason
+
+
+def test_sign_guard_never_blocks_a_close_or_a_market_order():
+    close = _open_intent(action="close", thesis=None, legs=_PCS, limit_price=-0.1)
+    assert at.check_feasibility(close, {"equity": 900})[0]
+    mkt = _open_intent(legs=_PCS, order_type="market", limit_price=None)
+    assert at._limit_sign_problem(mkt) is None
+
+
+def test_payoff_at_fill_flags_a_credit_spread_filled_as_a_debit():
+    fill = {"fill_available": True, "intended_net_credit": -0.6, "actual_net_credit": -0.25}
+    out = at._payoff_at_fill(_PCS, fill)
+    assert out["max_profit_usd"] == -25.0 and out["max_loss_usd"] == 275.0
+    assert "CANNOT finish profitable" in out["note"]
+
+
+def test_payoff_at_fill_normal_credit_and_debit_spreads():
+    good = at._payoff_at_fill(_PCS, {"fill_available": True, "actual_net_credit": 0.40})
+    assert good["max_profit_usd"] == 40.0 and good["max_loss_usd"] == 210.0 and "note" not in good
+    deb = at._payoff_at_fill(_CDS, {"fill_available": True, "actual_net_credit": -0.30})
+    assert deb["max_profit_usd"] == 70.0 and deb["max_loss_usd"] == 30.0 and "note" not in deb
+    assert at._payoff_at_fill(_PCS, {"fill_available": False}) is None
+    assert at._payoff_at_fill(_PCS, None) is None
+
+
+def test_self_context_carries_payoff_at_fill():
+    state = {"positions": {"o1": {"legs": _PCS, "thesis": {"thesis": "t"},
+                                  "fill": {"fill_available": True, "actual_net_credit": -0.25}}},
+             "closed": [], "_meta": {}}
+    ctx = at.build_self_context(state)
+    assert ctx["open_position_theses"][0]["payoff_at_fill"]["max_profit_usd"] == -25.0
+
+
+def test_mandate_and_schema_state_the_sign_rule():
+    assert "SIGNED NET" in at.SYSTEM_MANDATE and "limit_price -0.40" in at.SYSTEM_MANDATE
+    desc = at.DECISION_TOOL["input_schema"]["properties"]["intents"]["items"]["properties"]["limit_price"]["description"]
+    assert "NEGATIVE for a net credit" in desc

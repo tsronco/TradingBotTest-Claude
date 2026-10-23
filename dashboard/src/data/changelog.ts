@@ -31,6 +31,24 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-23',
     category: 'fix',
+    title: 'Agent: every credit spread was sent with the wrong price sign',
+    details:
+      'Alpaca reads a multi-leg limit as a signed net — negative is a credit you receive, positive a '
+      + 'debit you pay. The harness knew; the model was never told. All four credit spreads the agent '
+      + 'ever opened (DIS twice, NCLH, ZS) went out with a positive limit, which Alpaca treats as "pay up '
+      + 'to this much" — a capped market order filling at the worst bid/ask corner. DIS still filled as '
+      + 'a small credit; ZS 200/197.5 filled at a $0.25 debit, a short spread that can only lose (best '
+      + 'case −$25, worst −$275) while the agent believed it held a credit spread.\n\n'
+      + 'Fix: opens whose price sign contradicts the structure are now rejected with the correct sign in '
+      + 'the reason; the tool schema and mandate state the rule; and every held spread shows the payoff '
+      + 'its fill actually locked in, with a plain "cannot finish profitable" flag when that is true. '
+      + 'Closes are never blocked. Same pass: held option legs no longer show up as empty chain entries. '
+      + '+9 pytest. Note the agent\'s "credit spreads lose small" lesson was partly learned from these '
+      + 'mispriced fills.',
+  },
+  {
+    date: '2026-10-23',
+    category: 'fix',
     title: 'Lookup "YOUR POSITION" now counts options on the underlying',
     details:
       'The Lookup page said "you don\'t hold BAC" even when you held a BAC options spread — the panel only '
