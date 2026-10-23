@@ -1199,3 +1199,49 @@ def test_gather_depth_passes_client_to_market_pack(monkeypatch):
     at.gather_depth(["AAPL"], [{"symbol": "TSLA260320C00300000"}], {"equity": 2000}, client=sentinel)
     assert seen["client"] is sentinel
     assert seen["held_occs"] == ["TSLA260320C00300000"]
+
+
+# ── Observe mode + strikes visibility (2026-10-23) ──────────────────────────
+
+def test_strikes_field_formats_windows_and_fallbacks():
+    market = {
+        "FCX": {"strike_request": {"windows": [{"intent": "otm pcs", "types": ["P"], "dte_min": 25,
+                                                "dte_max": 45, "moneyness_from_pct": -15, "moneyness_to_pct": -5}],
+                                   "fallback": False, "rows": 6, "note": None}},
+        "ABT": {"strike_request": {"windows": [], "fallback": True, "rows": 72,
+                                   "note": "requested window matched no contracts; ladder used"}},
+    }
+    txt = at._strikes_field(market)
+    assert "`ABT` ladder (requested window matched no contracts; ladder used)" in txt
+    assert "`FCX` otm pcs · P -15..-5% 25–45d (6 rows)" in txt
+    assert at._strikes_field({}) == "(no chains priced)"
+
+
+def test_run_cycle_observe_bypasses_guard_places_nothing_and_saves_nothing(_wire, monkeypatch, tmp_path):
+    monkeypatch.setattr(at.alpaca_data, "is_market_open", lambda mode="agent": False)
+    cards = []
+    monkeypatch.setattr(at, "send_embed", lambda *a, **k: cards.append(k))
+    client = _FakeClient([_open_intent()], market_read="observing")
+    out = at.run_cycle(client=client, observe=True)
+    assert out["opened"] == 0 and out["observed"] == 1 and out["errors"] == 0
+    assert out.get("skipped") is None                         # guard bypassed
+    assert _wire == []                                         # nothing sent to Alpaca
+    assert not (tmp_path / "agent_state.json").exists()        # no state write
+    card = cards[-1]
+    assert card["title"].startswith("👁 Observe")
+    names = [f["name"] for f in card["fields"]]
+    assert any(n.startswith("Would have placed") for n in names)
+    would = [f for f in card["fields"] if f["name"].startswith("Would have placed")][0]["value"]
+    assert "open sell 1 AAPL260320P00150000" in would
+
+
+def test_run_cycle_logs_strikes_selected(_wire, monkeypatch):
+    events = []
+    monkeypatch.setattr(at, "log_event", lambda stream, script, action, **kw: events.append((action, kw)))
+    monkeypatch.setattr(at, "gather_depth", lambda focus, positions, account, mode="agent", **kw: {
+        "account": {"equity": 2000.0, "cash": 2000.0}, "positions": [], "equity_floor": 500,
+        "market": {"XYZ": {"strike_request": {"windows": [], "fallback": True, "rows": 3, "note": "x"}}},
+    })
+    at.run_cycle(client=_FakeClient([]))
+    sel = [kw for a, kw in events if a == "strikes_selected"]
+    assert sel and sel[0]["details"]["XYZ"]["fallback"] is True
