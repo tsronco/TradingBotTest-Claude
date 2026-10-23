@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-23',
+    category: 'engine',
+    title: 'Agent: strike windows on the Discord card, plus an observe-only run',
+    details:
+      'The strike-request step picked windows invisibly — they went into the decision payload and '
+      + 'nowhere else. Each cycle now logs a strikes_selected event and the hold card carries a "Strikes '
+      + 'it asked to price" field: one line per name with the stated intent, option types, moneyness '
+      + 'range, DTE range and row count, or "ladder" with the reason when it fell back.\n\n'
+      + 'New observe input on the Agent Trader workflow (Run workflow → observe): the full scan, strike '
+      + 'request and decision run and post a yellow "Observe" card listing what it WOULD have placed — '
+      + 'but no orders are sent, no state is written, no stale-order sweep runs, and the market-closed '
+      + 'guard is bypassed so it works after hours. Costs one normal cycle of model spend. The cron-job.org '
+      + 'dispatch sends no inputs, so scheduled cycles are unchanged.',
+  },
+  {
     date: '2026-10-21',
     category: 'engine',
     title: 'Agent picks its own strikes — the chain slice is no longer a code guess',

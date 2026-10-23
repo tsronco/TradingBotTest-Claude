@@ -32,7 +32,12 @@ name: Agent Trader (autonomous)
 # _BASE_URL, the four DISCORD_AGENT_*_WEBHOOK values, and ANTHROPIC_API_KEY.
 
 on:
-  workflow_dispatch: {}          # cron-job.org calls this; also allows manual trigger
+  workflow_dispatch:             # cron-job.org calls this (no inputs → a normal cycle)
+    inputs:
+      observe:
+        description: "Observe only: scan + strike request + decision posted to Discord, no orders, no state writes, market-closed guard bypassed"
+        type: boolean
+        default: false
 
 concurrency:
   group: bot-commits
@@ -63,6 +68,7 @@ jobs:
           ANTHROPIC_API_KEY:             ${{ secrets.ANTHROPIC_API_KEY }}
           # Optional model override; defaults to claude-opus-5 (agent_config.py).
           AGENT_MODEL:                   ${{ secrets.AGENT_MODEL }}
+          AGENT_OBSERVE:                 ${{ inputs.observe }}
           DISCORD_AGENT_TRADES_WEBHOOK:  ${{ secrets.DISCORD_AGENT_TRADES_WEBHOOK }}
           DISCORD_AGENT_SUMMARY_WEBHOOK: ${{ secrets.DISCORD_AGENT_SUMMARY_WEBHOOK }}
           DISCORD_AGENT_ERRORS_WEBHOOK:  ${{ secrets.DISCORD_AGENT_ERRORS_WEBHOOK }}

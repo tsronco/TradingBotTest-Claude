@@ -1456,21 +1456,52 @@ def _announce_open(intent: dict, order_id: str) -> None:
     )
 
 
+def _strikes_field(market: dict) -> str:
+    """One line per shortlisted name: what the model asked to have priced
+    (intent · types · moneyness · DTE · rows), or 'ladder' when it fell back.
+    This is the first place the model's INTENT is visible before its decision,
+    so it goes on the Discord card as well as into the log."""
+    lines = []
+    for sym in sorted(market):
+        sr = (market[sym] or {}).get("strike_request") or {}
+        wins = sr.get("windows") or []
+        if sr.get("fallback") or not wins:
+            why = sr.get("note") or "no window named"
+            lines.append(f"`{sym}` ladder ({why})")
+            continue
+        parts = []
+        for w in wins:
+            t = "".join(w.get("types") or [])
+            lo, hi = sorted((w.get("moneyness_from_pct", 0), w.get("moneyness_to_pct", 0)))
+            parts.append(f"{t} {lo:+.0f}..{hi:+.0f}% {w.get('dte_min')}–{w.get('dte_max')}d")
+        intent = (wins[0].get("intent") or "").strip()
+        lines.append(f"`{sym}` {intent + ' · ' if intent else ''}{' | '.join(parts)} ({sr.get('rows', 0)} rows)")
+    return "\n".join(lines)[:1024] if lines else "(no chains priced)"
+
+
 def _announce_hold(market_read: str, scanned: int | None = None,
-                   focused: int | None = None) -> None:
+                   focused: int | None = None, strikes: str | None = None,
+                   observed: list | None = None, observe: bool = False) -> None:
     """Post the agent's read to the firehose on a hold cycle, so a 'no trade'
     decision is visible and explained rather than silent. Shows how wide it
-    looked (universe scanned) and how many it drilled into."""
-    fields = None
+    looked (universe scanned), how many it drilled into, and — since the
+    strike-request step — which chain windows it asked to have priced. In
+    observe mode the card also lists the intents it WOULD have placed."""
+    fields = []
     if scanned is not None:
-        fields = [{"name": "Scan",
-                   "value": f"{scanned} names scanned · {focused or 0} analyzed in depth"}]
+        fields.append({"name": "Scan",
+                       "value": f"{scanned} names scanned · {focused or 0} analyzed in depth"})
+    if strikes:
+        fields.append({"name": "Strikes it asked to price", "value": strikes[:1024]})
+    if observe:
+        fields.append({"name": "Would have placed (observe mode — nothing sent)",
+                       "value": ("\n".join(observed)[:1024] if observed else "nothing — would hold")})
     send_embed(
         _CFG["actions_channel"],
-        title="🕐 Holding — no trade this cycle",
+        title="👁 Observe — no orders placed" if observe else "🕐 Holding — no trade this cycle",
         description=(market_read or "(no market read provided)")[:2048],
-        color=Color.BLUE,
-        fields=fields,
+        color=Color.YELLOW if observe else Color.BLUE,
+        fields=fields or None,
         also_to_actions=False,  # already posting directly to the actions channel
     )
 
@@ -1889,7 +1920,7 @@ def call_with_retry(fn, *, attempts: int, backoff: float, sleep=time.sleep,
     raise last  # type: ignore[misc]
 
 
-def run_cycle(client=None, dry_run: bool = False) -> dict:
+def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict:
     """One hourly cycle. Returns a summary dict (also useful for tests).
 
     Fail-soft: any unexpected error is logged to #agent-errors and the cycle
@@ -1909,7 +1940,7 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         # closed day. Skip silently with a heartbeat: no model call, no Discord.
         # (dry_run bypasses so tests/backfills still run; fail-open in
         # alpaca_data.is_market_open means a flaky clock never skips a real day.)
-        if not dry_run and not alpaca_data.is_market_open("agent"):
+        if not dry_run and not observe and not alpaca_data.is_market_open("agent"):
             log("market closed — skipping agent cycle (no model call, no notify)")
             log_event(_CFG["log_stream"], "agent_trader.py", "market_closed_skip")
             summary["skipped"] = "market_closed"
@@ -1931,17 +1962,24 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         context = gather_depth(focus, breadth["positions"], breadth["account"], client=client)
         market = context["market"]
 
+        strikes_field = _strikes_field(market)
         if not dry_run:
             log_event(_CFG["log_stream"], "agent_trader.py", "focus_selected",
                       details={"focus": focus, "scanned": universe_size,
                                "market_read": focus_res.get("market_read", "")})
+            # What the model asked to have priced, per name — the first record of
+            # its intent BEFORE the decision (strike-request step, 2026-10-21).
+            log_event(_CFG["log_stream"], "agent_trader.py", "strikes_selected",
+                      details={sym: (e or {}).get("strike_request") for sym, e in market.items()})
 
         # Education layer: reconcile tracked positions against Alpaca — snapshot
         # the still-open ones (for an approximate close P&L) and grade any that
         # have closed since last cycle. Runs before decisions so the model sees
         # a clean slate, and grading never blocks the trading cycle.
+        # Observe mode must not touch Alpaca or state: no stale-order sweep, no
+        # grading writes — it is a look, not a cycle.
         _reconcile_and_grade(state, context["positions"], market,
-                             client=client, summary=summary, dry_run=dry_run)
+                             client=client, summary=summary, dry_run=dry_run or observe)
 
         # Continuity feed: hand the model its own recent reasoning so a stateless
         # cycle isn't a total amnesiac. Built AFTER reconcile — which has already
@@ -1971,6 +2009,7 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         # cycle's `previous_cycle_outcome` so the agent learns from fills and,
         # crucially, from rejections (it never reads its own logs otherwise).
         cycle_outcome = {"opened": [], "closed": [], "rejected": []}
+        observed: list[str] = []
 
         for intent in decisions.get("intents", []):
             legs_str = _legs_summary(intent.get("legs"))
@@ -1982,8 +2021,9 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
                 log_event(_CFG["log_stream"], "agent_trader.py", "intent_rejected",
                           result="skipped", details={"reason": reason, "intent": intent})
                 continue
-            if dry_run:
-                log(f"[dry-run] would {intent['action']}: {reason}")
+            if dry_run or observe:
+                log(f"[{'observe' if observe else 'dry-run'}] would {intent['action']}: {legs_str}")
+                observed.append(f"{intent['action']} {legs_str}")
                 continue
             try:
                 resp = place_order(build_order_payload(intent))
@@ -2057,10 +2097,16 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
         # (a cycle where nothing was opened or closed) so you can see WHY it passed.
         if not dry_run:
             log_event(_CFG["log_stream"], "agent_trader.py", "market_read",
-                      details={"market_read": market_read, "summary": dict(summary)})
-            if summary["opened"] == 0 and summary["closed"] == 0:
-                _announce_hold(market_read, scanned=universe_size, focused=len(focus))
+                      details={"market_read": market_read, "summary": dict(summary),
+                               "observe": observe, "observed": observed})
+            if observe or (summary["opened"] == 0 and summary["closed"] == 0):
+                _announce_hold(market_read, scanned=universe_size, focused=len(focus),
+                               strikes=strikes_field, observed=observed, observe=observe)
 
+        if observe:
+            # A look, not a cycle: leave continuity + counters untouched.
+            summary["observed"] = len(observed)
+            return summary
         state["_meta"]["cycle_count"] = state["_meta"].get("cycle_count", 0) + 1
         state["_meta"]["last_cycle_at"] = _now_iso()
         if not dry_run:
@@ -2096,5 +2142,9 @@ def run_cycle(client=None, dry_run: bool = False) -> dict:
 if __name__ == "__main__":
     import sys
     _dry = "--dry-run" in sys.argv[1:] or "dry-run" in sys.argv[1:]
-    result = run_cycle(dry_run=_dry)
+    # Observe: full scan + strike request + decision, posted to Discord, but no
+    # orders, no state writes, and the market-closed guard is bypassed — for a
+    # manual after-hours look at what the model would ask for and do.
+    _obs = "--observe" in sys.argv[1:] or os.getenv("AGENT_OBSERVE", "").strip().lower() in ("1", "true", "yes")
+    result = run_cycle(dry_run=_dry, observe=_obs)
     log(f"cycle summary: {result}")
