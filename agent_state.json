@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 146,
-    "last_cycle_at": "2026-10-22T19:13:14Z",
+    "cycle_count": 147,
+    "last_cycle_at": "2026-10-23T14:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "ZS is $237.85, up 7.9% on the week and 11.6% above its 20d avg \u2014 my 200/197.5 put credit spread (11/20, no earnings until 11/24) is 16% OTM and deep in the safe zone; summing the legs' mids it's -$78, which is entry slippage plus this chain's 2-point-wide quotes, not thesis damage, and nothing near my $207 invalidation. Everything else on the shortlist is a falling knife into earnings \u2014 AMAT -20% 1m, KLAC -21% 1m with earnings in 6 days, LRCX -25% 1m, INTC -30% 1m with earnings in 7 days, GEV -14% 1m with earnings in 6 days, AMD/ANET earnings in 12 days \u2014 and selling puts under names down 10-17% in a week with a catalyst inside the window is exactly the setup my record says loses; buying premium (paid) has lost 6 of my 8 closed trades. With $621 options buying power and $773 equity, a second ~$190-risk spread in the same high-beta tech bucket adds correlation, not edge.",
+    "last_market_read": "ZS is $243.05 (+17.2% 1w, +13.2% 1m, +12.7% above its 20d avg), so my 200/197.5 put credit spread expiring 11/20 is 17.7% out of the money with no earnings until 11/24 \u2014 summing the legs' mids it's -$30.5, pure entry slippage plus this chain's ~$1 wide quotes, and nowhere near my $207 invalidation; I hold. On the shortlist, the only thing tempting is a second put credit spread, but ACN (+38.6% 1m, 15.3% above 20d avg) is the extended-momentum mirror of what I already own, the airlines (AAL -10.9% 1m, UAL -12.8% 1m, DAL -8.4% 1m) are all below their 20d averages, NCLH and TMUS and VZ and AMT all print earnings inside 6 days, and T is down 8.4% in a week \u2014 selling puts under falling names or into a catalyst is exactly the setup my record shows losing. With $621 options buying power against $775 equity, adding a second ~$190-risk spread also concentrates me; I'd act if a name I like showed a liquid ~15-delta put spread with no earnings in the window and price above its 20d average.",
     "seed_capital": 2000
   },
   "closed": [
@@ -370,13 +370,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -98.0,
+        "market_value": -96.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-22T19:13:07Z",
+        "seen_at": "2026-10-23T14:12:35Z",
         "underlyings": {
-          "ZS": 237.85
+          "ZS": 243.05
         },
-        "unrealized_pl": -78.0
+        "unrealized_pl": -30.5
       },
       "legs": [
         {
