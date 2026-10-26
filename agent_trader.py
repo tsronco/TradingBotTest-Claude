@@ -29,6 +29,7 @@ a forced tool call (`submit_decisions`) for guaranteed-shape structured output.
 A `stop_reason == "refusal"` is handled as a no-trade cycle.
 """
 import json
+import math
 import os
 import time
 from datetime import date, datetime, timezone
@@ -1057,7 +1058,10 @@ DECISION_TOOL = {
                                 "Multi-leg: the signed NET — NEGATIVE for a net "
                                 "credit you receive (credit spread: -0.40 = collect "
                                 "$0.40), POSITIVE for a net debit you pay (debit "
-                                "spread: 1.20 = pay up to $1.20). null for market."),
+                                "spread: 1.20 = pay up to $1.20). Closes follow the "
+                                "same rule: closing a credit spread is a debit "
+                                "(positive), closing a debit spread is a credit "
+                                "(negative). null for market (closes and stock only)."),
                         },
                         "legs": {
                             "type": "array",
@@ -1128,20 +1132,33 @@ adds cost and complexity for no benefit. Add a short leg only when it does real 
 work (collects meaningful premium, or genuinely caps a short position's risk).
 - Below the stated equity floor, opening new positions is blocked; you may still \
 close.
-- No single OPEN may put more than 30% of account equity at risk — its \
-defined-risk max loss (premium paid for a long option or debit spread; \
-width − credit for a credit spread) must be ≤ 30% of equity. Size accordingly: \
-fewer contracts, or a narrower spread. An over-sized order is REJECTED and \
-reported back to you, so do the arithmetic before you submit — this is a hard \
-seatbelt against a single catastrophic loss, not a view on what to trade.
+- No single OPEN may put more than 30% of account equity at risk — its max \
+loss at expiry, computed from your legs and limit price (premium paid for a long \
+option or debit spread; width − credit for a credit spread; the widest wing − \
+credit for an iron condor; the full share cost for long stock) must be ≤ 30% of \
+equity. Size accordingly: fewer contracts, or a narrower spread. An over-sized \
+order is REJECTED and reported back to you, so do the arithmetic before you \
+submit — this is a hard seatbelt against a single catastrophic loss, not a view \
+on what to trade.
+- Opening an option position must be a LIMIT order (a market option order has no \
+price bound and fills at the bid/ask cross). Market orders are fine for closes \
+and for stock. You may not open a short stock position.
+- Multi-leg quantities must be whole multiples of the smallest leg (1×2 is fine; \
+3 and 2 is not — Alpaca can't express it).
+- A CLOSE may only reduce what you hold: sell what you're long, buy back what \
+you're short, never more than the held quantity.
 - Options are U.S. equity options quoted per share (×100 per contract). Use real \
 OCC option symbols from the market data provided. Stocks trade in whole shares.
 - Multi-leg limit prices are a SIGNED NET: negative = a credit you receive, \
 positive = a debit you pay. A credit spread for $0.40 is limit_price -0.40. A \
 positive limit on a credit spread means "I'll PAY up to that much" — it fills at \
 the worst bid/ask corner and can open a short spread for a debit, which can never \
-finish profitable. A sign that doesn't match the structure is rejected. \
-Single-leg limits are always a positive price.
+finish profitable. A sign that doesn't match the structure is rejected. The same \
+rule applies to CLOSES, which reverse the structure: closing a credit spread \
+costs a debit (POSITIVE limit); closing a debit spread or long butterfly pays you \
+a credit (NEGATIVE limit). A wrong-signed close is flipped and sent anyway, and \
+`previous_cycle_outcome` tells you it happened. Single-leg limits are always a \
+positive price.
 - The market data below holds, for each shortlisted name, the option-chain WINDOW you asked to have priced in the strike step (see each symbol's `strike_request`: the windows, and `fallback: true` if a window matched nothing and the default ladder was used instead). A thin slice means you asked for a thin slice, not that the chain is thin. The chains hold the names you shortlisted \
 this cycle plus everything you currently hold. Trade any of them, or hold. (You \
 already scanned the wider universe when you chose this shortlist.)
@@ -1297,44 +1314,187 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
 
 # ── Feasibility (mechanics, not judgment) ──────────────────────────────────
 
-def _intent_max_loss(intent: dict) -> float | None:
-    """Best-effort max dollar loss of a DEFINED-RISK open, from the intent alone
-    (no network). None when it can't be bounded from the order — a market option
-    order (premium unknown), a lone short (naked, blocked elsewhere), or stock
-    (no zero-risk; Alpaca buying power gates it instead).
+# ── Structure economics (any leg combination) ──────────────────────────────
+#
+# The 2026-10-23 sign guard only understood a two-leg same-expiry vertical, so
+# an iron condor, butterfly, straddle or calendar skipped the sign check and got
+# a max loss computed from the outer strike span. These helpers replace the
+# shape-matching with arithmetic over the legs, so every structure the mandate
+# offers gets the same treatment.
 
-    Long option: premium paid. Debit spread (mleg limit > 0): the net debit.
-    Credit spread (mleg limit < 0): width − credit. Per contract ×100 × the
-    structure's base quantity."""
-    legs = intent.get("legs") or []
-    if not legs or any(l.get("asset") == "stock" for l in legs):
-        return None
-    lp = _f(intent.get("limit_price"))
-    if intent.get("order_type") != "limit" or lp is None:
-        return None
-    qty = min((l.get("qty", 1) for l in legs), default=1)
-    if len(legs) == 1:
-        return abs(lp) * 100 * qty if legs[0].get("side") == "buy" else None
-    if lp > 0:                                   # net debit paid
-        return lp * 100 * qty
-    strikes = [p["strike"] for p in (_occ_parse(l.get("symbol")) for l in legs) if p]
-    if len(strikes) >= 2:                        # credit spread: width − credit
-        return (abs(max(strikes) - min(strikes)) - abs(lp)) * 100 * qty
+# Flat vol for the theoretical fallback. Only the SIGN of the net matters there,
+# and for verticals, condors, butterflies and calendars that sign holds at any
+# vol and any spot (monotone in strike, convex, increasing in time).
+_CLASSIFY_VOL = 0.40
+
+
+def _norm_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _intrinsic(typ: str, spot: float, strike: float) -> float:
+    return max(spot - strike, 0.0) if typ == "C" else max(strike - spot, 0.0)
+
+
+def _bs_value(typ: str, spot: float, strike: float, years: float,
+              vol: float = _CLASSIFY_VOL) -> float:
+    """Black-Scholes value with r = 0. Used only to tell debit from credit when
+    the chain has no live quote for some leg."""
+    if years <= 0 or spot <= 0 or strike <= 0:
+        return _intrinsic(typ, spot, strike)
+    sd = vol * math.sqrt(years)
+    d1 = (math.log(spot / strike) + 0.5 * sd * sd) / sd
+    call = spot * _norm_cdf(d1) - strike * _norm_cdf(d1 - sd)
+    return call if typ == "C" else call - spot + strike
+
+
+def _spot_from(market: dict | None, underlying: str) -> float | None:
+    q = ((market or {}).get(underlying) or {}).get("quote") or {}
+    for k in ("ap", "bp", "p"):
+        v = _f(q.get(k))
+        if v and v > 0:
+            return v
     return None
 
 
-def _limit_sign_problem(intent: dict) -> str | None:
-    """Mechanical check that a limit OPEN's price sign matches its structure.
+def _leg_mid(market: dict | None, occ: str) -> float | None:
+    p = _occ_parse(occ)
+    if not p:
+        return None
+    row = (((market or {}).get(p["underlying"]) or {}).get("options") or {}).get(occ) or {}
+    bid, ask = _f(row.get("bid")), _f(row.get("ask"))
+    if bid is None or ask is None or ask <= 0 or ask < bid:
+        return None
+    return (bid + ask) / 2.0
+
+
+def _base_qty(legs: list) -> int:
+    return min((int(l.get("qty") or 1) for l in legs), default=1)
+
+
+def _net_direction(legs: list, market: dict | None = None,
+                   today: date | None = None) -> str:
+    """'debit', 'credit' or 'unknown' for an OPTION order exactly as written
+    (opens and closes alike — a close's legs are already the reversed sides).
+
+    Net = Σ (+1 buy / −1 sell) × ratio × leg value, in the units Alpaca's mleg
+    limit uses. The theoretical net (flat-vol Black-Scholes at the live spot,
+    or the strikes' midpoint) always decides; when the chain priced every leg
+    the live mids must agree, otherwise the call is 'unknown' and no sign is
+    enforced — a wide or stale quote never gets to reject a correct order."""
+    parsed = [(l, _occ_parse(l.get("symbol"))) for l in legs or []]
+    if not parsed or any(p is None for _, p in parsed):
+        return "unknown"
+    sides = {l.get("side") for l, _ in parsed}
+    if sides == {"buy"}:
+        return "debit"
+    if sides == {"sell"}:
+        return "credit"
+    base = _base_qty(legs)
+    weights = [(1 if l.get("side") == "buy" else -1) * int(l.get("qty") or 1) / base
+               for l, _ in parsed]
+    today = today or date.today()
+    mean_strike = sum(p["strike"] for _, p in parsed) / len(parsed)
+    theo = []
+    for _, p in parsed:
+        spot = _spot_from(market, p["underlying"]) or mean_strike
+        days = max((date.fromisoformat(p["expiry"]) - today).days, 1)
+        theo.append(_bs_value(p["type"], spot, p["strike"], days / 365.0))
+    net = sum(w * v for w, v in zip(weights, theo))
+    if abs(net) < 0.005:
+        return "unknown"
+    mids = [_leg_mid(market, l["symbol"]) for l, _ in parsed]
+    if all(m is not None for m in mids):
+        live = sum(w * v for w, v in zip(weights, mids))
+        if live * net <= 0:
+            return "unknown"
+    return "debit" if net > 0 else "credit"
+
+
+def _signed_net(intent: dict) -> float | None:
+    """The order's price as a signed NET per base unit: + = debit paid,
+    − = credit received. A single leg's limit is a positive price, so a sell is
+    a credit. None without a usable limit."""
+    lp = _f(intent.get("limit_price"))
+    legs = intent.get("legs") or []
+    if lp is None or not legs:
+        return None
+    if len(legs) == 1:
+        return abs(lp) if legs[0].get("side") == "buy" else -abs(lp)
+    return lp
+
+
+def _structure_max_loss(legs: list, signed_net: float) -> float | None:
+    """Dollar max loss at expiry for an option structure entered at a signed
+    net (+ debit, − credit), for ANY combination of legs. math.inf when the
+    loss is unbounded (a naked short call, or a short leg that outlives the
+    nearest expiry, which intrinsic value can't bound). None when not an
+    all-option structure.
+
+    P&L(S) = Σ side × ratio × intrinsic(S) − signed_net, piecewise linear in
+    the underlying S, so its minimum sits at 0, at a strike, or runs off to
+    infinity — checked via the slope above the top strike. Longer-dated LONG
+    legs are valued at intrinsic at the nearest expiry, a lower bound, so a
+    calendar's max loss comes out as its debit."""
+    parsed = [(l, _occ_parse(l.get("symbol"))) for l in legs or []]
+    if not parsed or any(p is None for _, p in parsed):
+        return None
+    if len({p["underlying"] for _, p in parsed}) > 1:
+        return math.inf
+    near = min(p["expiry"] for _, p in parsed)
+    if any(l.get("side") == "sell" and p["expiry"] > near for l, p in parsed):
+        return math.inf
+    base = _base_qty(legs)
+    terms = [((1 if l.get("side") == "buy" else -1) * int(l.get("qty") or 1) / base,
+              p["type"], p["strike"]) for l, p in parsed]
+    call_slope = sum(w for w, t, _ in terms if t == "C")
+    if call_slope < 0:
+        return math.inf
+    points = [0.0] + [k for _, _, k in terms]
+    worst = min(sum(w * _intrinsic(t, s, k) for w, t, k in terms) - signed_net
+                for s in points)
+    return round(max(0.0, -worst) * 100 * base, 2)
+
+
+def _intent_max_loss(intent: dict, market: dict | None = None) -> float | None:
+    """Dollar max loss of an OPEN from the order itself. Options: the expiry
+    payoff at the limit (see _structure_max_loss). Long stock: shares × price
+    (the limit, else the live quote). Short stock: unbounded. None when it
+    can't be bounded from what's known (a market option order, a mixed
+    stock+option order, or a stock market order with no quote)."""
+    legs = intent.get("legs") or []
+    if not legs:
+        return None
+    if all(l.get("asset") == "stock" for l in legs):
+        if len(legs) != 1:
+            return None
+        leg = legs[0]
+        if leg.get("side") == "sell":
+            return math.inf
+        price = _f(intent.get("limit_price")) if intent.get("order_type") == "limit" else None
+        price = price or _spot_from(market, str(leg.get("symbol", "")).upper())
+        return round(price * int(leg.get("qty") or 0), 2) if price else None
+    if any(l.get("asset") == "stock" for l in legs):
+        return None
+    if intent.get("order_type") != "limit":
+        return None
+    net = _signed_net(intent)
+    return None if net is None else _structure_max_loss(legs, net)
+
+
+def _limit_sign_problem(intent: dict, market: dict | None = None) -> str | None:
+    """Mechanical check that a limit order's price sign matches its structure.
 
     Alpaca reads a multi-leg limit as a signed NET: negative = credit you
-    receive, positive = debit you are willing to pay. A credit spread sent with
-    a positive limit is therefore "pay up to $X" — effectively a capped market
-    order that fills at the full bid/ask cross. On a wide chain that cross is a
-    DEBIT, opening a short vertical that cannot finish profitable (max profit
-    = minus the debit). Every credit spread this account opened before
-    2026-10-23 went out that way (DIS ×2, NCLH, ZS — the ZS 200/197.5 filled at
-    a $0.25 debit). Single-leg limits are always a positive per-share price.
-    Returns a reason string, or None when the sign is consistent."""
+    receive, positive = debit you are willing to pay. A credit structure sent
+    with a positive limit is therefore "pay up to $X" — effectively a capped
+    market order that fills at the full bid/ask cross; on a wide chain that
+    cross is a DEBIT. Every credit spread this account opened before 2026-10-23
+    went out that way (DIS ×2, NCLH, ZS — ZS 200/197.5 filled at a $0.25
+    debit), and so did two debit-spread CLOSES (SLB 09-04, TSLA 09-16), which
+    receive a credit. Single-leg limits are always a positive per-share price.
+    The direction comes from _net_direction, so it covers condors, butterflies,
+    straddles and calendars too. Returns a reason string, or None."""
     if intent.get("order_type") != "limit":
         return None
     lp = _f(intent.get("limit_price"))
@@ -1346,24 +1506,80 @@ def _limit_sign_problem(intent: dict) -> str | None:
             return (f"single-leg limit_price must be a positive per-share price; "
                     f"got {lp}")
         return None
-    _, premium = _classify_structure(legs)
-    if premium == "collected" and lp >= 0:
-        return (f"credit spread sent with limit_price {lp} — for a multi-leg order "
-                f"a POSITIVE limit is a debit you'd PAY (Alpaca would fill it at the "
-                f"bid/ask cross, possibly as a debit). Use a NEGATIVE limit for the "
-                f"credit you want to receive, e.g. {-abs(lp)}")
-    if premium == "paid" and lp <= 0:
-        return (f"debit spread sent with limit_price {lp} — for a multi-leg order "
-                f"a NEGATIVE limit is a credit you'd RECEIVE. Use a POSITIVE limit "
+    if any(l.get("asset") == "stock" for l in legs):
+        return None
+    direction = _net_direction(legs, market)
+    closing = intent.get("action") == "close"
+    if direction == "credit" and lp >= 0:
+        what = "this close receives a net credit" if closing else "this is a credit structure"
+        return (f"{what} but limit_price is {lp} — for a multi-leg order a "
+                f"POSITIVE limit is a debit you'd PAY (Alpaca fills it at the "
+                f"bid/ask cross). Use a NEGATIVE limit for the credit you want to "
+                f"receive, e.g. {-abs(lp)}")
+    if direction == "debit" and lp <= 0:
+        what = "this close costs a net debit" if closing else "this is a debit structure"
+        return (f"{what} but limit_price is {lp} — for a multi-leg order a "
+                f"NEGATIVE limit is a credit you'd RECEIVE. Use a POSITIVE limit "
                 f"for the debit you're willing to pay, e.g. {abs(lp)}")
     return None
 
 
-def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG) -> tuple[bool, str]:
-    """Return (ok, reason). Rejects things Alpaca physically can't place, the
-    equity-floor breaker, and the hard per-trade size cap (max loss > a fraction
-    of equity). It never vetoes WHAT is traded — only bounds order shape, account
-    floor, and how much rides on one trade."""
+def normalize_close_limit(intent: dict, market: dict | None = None) -> float | None:
+    """Fix a wrong-signed CLOSE in place instead of rejecting it — blocking an
+    exit for two hours is worse than trusting the magnitude the model wrote.
+    Returns the original limit when it was flipped, else None. Opens are never
+    touched (a wrong-signed open is rejected and reported back instead)."""
+    if intent.get("action") != "close" or not _limit_sign_problem(intent, market):
+        return None
+    lp = _f(intent.get("limit_price"))
+    if lp is None or lp == 0:
+        return None
+    intent["limit_price"] = abs(lp) if len(intent.get("legs") or []) == 1 else -lp
+    return lp
+
+
+def _held_qty_by_symbol(positions: list) -> dict:
+    """{symbol: signed qty} from Alpaca positions (short = negative)."""
+    out: dict = {}
+    for p in positions or []:
+        q = _f(p.get("qty"))
+        if q is None:
+            continue
+        if p.get("side") == "short" and q > 0:
+            q = -q
+        out[str(p.get("symbol"))] = q
+    return out
+
+
+def _close_leg_problem(intent: dict, positions: list) -> str | None:
+    """A close must only reduce what is actually held: every leg's symbol held,
+    the side opposite the holding (sell a long, buy back a short), and no more
+    than the held quantity. Otherwise a "close" opens a new, untracked,
+    uncapped position (e.g. "close: buy 3 TSLA calls" with none held)."""
+    held = _held_qty_by_symbol(positions)
+    for leg in intent.get("legs") or []:
+        sym = str(leg.get("symbol"))
+        q = held.get(sym)
+        if not q:
+            return f"close leg {sym} is not held — a close can only reduce a position you hold"
+        if (q > 0 and leg.get("side") != "sell") or (q < 0 and leg.get("side") != "buy"):
+            return (f"close leg {leg.get('side')} {sym} would ADD to the "
+                    f"{'long' if q > 0 else 'short'} position, not close it")
+        if int(leg.get("qty") or 0) > abs(q):
+            return f"close leg {sym} qty {leg.get('qty')} exceeds the {abs(q):g} held"
+    return None
+
+
+def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG,
+                      positions: list | None = None,
+                      market: dict | None = None) -> tuple[bool, str]:
+    """Return (ok, reason). Rejects things Alpaca physically can't place or that
+    would place something other than what was meant (wrong price sign, uneven
+    ratios, a "close" that opens), the equity-floor breaker, and the hard
+    per-trade size cap (max loss > a fraction of equity). It never vetoes WHAT
+    is traded — only order shape, account floor, and how much rides on one
+    trade. `positions` / `market` enable the held-leg and live-quote checks;
+    without them those checks are skipped."""
     action = intent.get("action")
     if action not in ("open", "close"):
         return False, f"unknown action {action!r}"
@@ -1382,17 +1598,39 @@ def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG) -> tuple[bo
         if not str(leg.get("symbol") or "").strip():
             return False, "missing symbol"
 
+    # Alpaca expresses a multi-leg order as a base qty × integer leg ratios.
+    # Sell 3 / buy 2 has no such form — it used to be sent silently as 2 / 2.
+    if len(legs) > 1:
+        base = _base_qty(legs)
+        if any(l["qty"] % base for l in legs):
+            return False, (f"leg quantities {[l['qty'] for l in legs]} are not whole "
+                           f"multiples of the smallest ({base}); Alpaca can only "
+                           f"place integer leg ratios — split it into separate orders")
+
     if intent.get("order_type") not in _ORDER_TYPES:
         return False, f"bad order_type {intent.get('order_type')!r}"
-    if intent.get("order_type") == "limit" and intent.get("limit_price") in (None, ""):
-        return False, "limit order without limit_price"
+    if intent.get("order_type") == "limit":
+        lp = _f(intent.get("limit_price"))
+        if lp is None:
+            return False, "limit order without limit_price"
+        if abs(lp) < 0.01:
+            return False, f"limit_price {lp} rounds to $0.00 — not a placeable price"
+
+    if action == "close" and positions is not None:
+        problem = _close_leg_problem(intent, positions)
+        if problem:
+            return False, problem
 
     if action == "open":
         if intent.get("thesis") is None:
             return False, "open intent missing thesis"
-        # Opens only: a wrong-signed CLOSE at worst fills at the cross; blocking
-        # an exit is worse than a poor fill, so closes are never rejected here.
-        sign_problem = _limit_sign_problem(intent)
+        has_option = any(l.get("asset") == "option" for l in legs)
+        if has_option and intent.get("order_type") != "limit":
+            return False, ("option opens must be LIMIT orders — a market option order "
+                           "has no price bound and fills at the bid/ask cross")
+        if len(legs) == 1 and legs[0].get("asset") == "stock" and legs[0].get("side") == "sell":
+            return False, "opening a short stock position is not allowed (unbounded risk)"
+        sign_problem = _limit_sign_problem(intent, market)
         if sign_problem:
             return False, sign_problem
         # Equity-floor circuit breaker: block opens (not closes) below the floor.
@@ -1401,13 +1639,16 @@ def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG) -> tuple[bo
         if equity is not None and equity < floor:
             return False, f"equity {equity} below floor {floor} — opens blocked"
 
-        # Hard per-trade size cap: one trade's defined-risk max loss may not
-        # exceed max_risk_pct_equity of equity. Mechanical seatbelt (the agent
-        # blew past its own soft limit by 4x). Only bites structures whose max
-        # loss is knowable from the order; stock/market orders fall through.
+        # Hard per-trade size cap: one trade's max loss may not exceed
+        # max_risk_pct_equity of equity. Mechanical seatbelt (the agent blew
+        # past its own soft limit by 4x).
         pct = cfg.get("max_risk_pct_equity") or 0
         if pct and equity:
-            max_loss = _intent_max_loss(intent)
+            max_loss = _intent_max_loss(intent, market)
+            if max_loss is not None and math.isinf(max_loss):
+                return False, ("max loss is unbounded or can't be bounded at the "
+                               "nearest expiry — pair every short leg with a long "
+                               "leg on the same underlying that expires no earlier")
             if max_loss is not None and max_loss > pct * equity:
                 return False, (
                     f"max loss ${max_loss:.0f} exceeds {int(pct * 100)}% of "
@@ -1438,12 +1679,17 @@ def build_order_payload(intent: dict) -> dict:
             "type": order_type,
             "time_in_force": tif,
         }
+        if leg.get("asset") == "option":
+            # Without it Alpaca infers the intent, so a "close" of a leg that
+            # isn't held quietly opens one. With it, Alpaca refuses instead.
+            payload["position_intent"] = _position_intent(leg["side"], intent["action"])
         if order_type == "limit":
             payload["limit_price"] = f"{float(intent['limit_price']):.2f}"
         return payload
 
-    # Multi-leg — ratio_qty from each leg's share of the smallest qty so a
-    # 1x2 or unequal structure still expresses correctly.
+    # Multi-leg — ratio_qty from each leg's share of the smallest qty, so a
+    # 1x2 expresses correctly. check_feasibility rejects quantities that aren't
+    # whole multiples of the smallest, so the division here is exact.
     base = min(l["qty"] for l in legs)
     mleg = {
         "order_class": "mleg",
@@ -2109,7 +2355,15 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
 
         for intent in decisions.get("intents", []):
             legs_str = _legs_summary(intent.get("legs"))
-            ok, reason = check_feasibility(intent, context["account"])
+            # A wrong-signed CLOSE is fixed rather than rejected (an exit
+            # shouldn't wait two hours); the flip is logged and reported back.
+            flipped_from = normalize_close_limit(intent, market)
+            if flipped_from is not None:
+                log_event(_CFG["log_stream"], "agent_trader.py", "close_sign_corrected",
+                          details={"from": flipped_from, "to": intent["limit_price"],
+                                   "legs": legs_str})
+            ok, reason = check_feasibility(intent, context["account"],
+                                           positions=context["positions"], market=market)
             if not ok:
                 summary["rejected"] += 1
                 cycle_outcome["rejected"].append(
@@ -2172,7 +2426,12 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                 _announce_open(intent, order_id)
             else:
                 summary["closed"] += 1
-                cycle_outcome["closed"].append({"legs": legs_str, "order_id": order_id})
+                closed_rec = {"legs": legs_str, "order_id": order_id}
+                if flipped_from is not None:
+                    closed_rec["limit_sign_corrected"] = (
+                        f"you sent limit {flipped_from}; the sign was wrong for this "
+                        f"close, so it went out as {intent['limit_price']}")
+                cycle_outcome["closed"].append(closed_rec)
                 # Stamp WHY it closed onto the matching tracked position(s), so the
                 # grader (which fires a cycle later, when the position vanishes)
                 # can judge the exit DECISION — thesis change vs mark noise — not

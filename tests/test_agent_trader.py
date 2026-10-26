@@ -21,7 +21,7 @@ def _open_intent(**over):
         "order_type": "limit",
         "limit_price": 1.25,
         "legs": [{"asset": "option", "symbol": "AAPL260320P00150000",
-                  "side": "sell", "qty": 1}],
+                  "side": "buy", "qty": 1}],
         "thesis": {
             "thesis": "t", "why_this_structure": "w", "getting_paid": "g",
             "key_risk": "k", "invalidation": "i", "confidence": 3, "rejected": "r",
@@ -123,18 +123,28 @@ def test_intent_max_loss_credit_spread_is_width_minus_credit():
     assert at._intent_max_loss(_credit_spread(-0.30)) == pytest.approx(1220.0)
 
 
-def test_intent_max_loss_none_for_stock_and_market_and_naked_short():
+def test_intent_max_loss_unknowable_cases_and_naked_shorts():
+    # Stock market order with no quote to price it → can't bound.
     stock = _open_intent(order_type="market", limit_price=None,
                          legs=[{"asset": "stock", "symbol": "TSLA",
                                 "side": "buy", "qty": 10}])
     assert at._intent_max_loss(stock) is None
-    # market option order → premium unknown
+    # ...but with a live quote it is the full share cost.
+    mkt_data = {"TSLA": {"quote": {"ap": 350.0}}}
+    assert at._intent_max_loss(stock, mkt_data) == pytest.approx(3500.0)
+    # market option order → premium unknown (and rejected as an open anyway)
     mkt = _long_call(3.00)
     mkt["order_type"] = "market"
     mkt["limit_price"] = None
     assert at._intent_max_loss(mkt) is None
-    # lone short leg → naked (blocked elsewhere), not size-bounded here
-    assert at._intent_max_loss(_open_intent()) is None
+    # A lone short put is bounded at strike − credit: 150 − 1.25 → $14,875.
+    naked_put = _open_intent(legs=[{"asset": "option", "symbol": "AAPL260320P00150000",
+                                    "side": "sell", "qty": 1}])
+    assert at._intent_max_loss(naked_put) == pytest.approx(14875.0)
+    # A lone short call is unbounded.
+    naked_call = _open_intent(legs=[{"asset": "option", "symbol": "AAPL260320C00150000",
+                                     "side": "sell", "qty": 1}])
+    assert at._intent_max_loss(naked_call) == float("inf")
 
 
 def test_feasibility_rejects_oversized_open():
@@ -161,13 +171,21 @@ def test_feasibility_size_cap_scales_with_equity():
     assert not ok and "max loss" in reason
 
 
-def test_feasibility_size_cap_ignores_stock():
-    # Stock max loss isn't bounded from the order — Alpaca BP gates it. Never
-    # rejected by the size cap even for a large notional.
+def test_feasibility_size_cap_applies_to_stock_notional_when_priced():
+    # Without a quote the stock order can't be priced, so only Alpaca's buying
+    # power gates it; with one, 100 TSLA ≈ $35k on a $600 account is rejected.
     stock = _open_intent(order_type="market", limit_price=None,
                          legs=[{"asset": "stock", "symbol": "TSLA",
                                 "side": "buy", "qty": 100}])
     ok, reason = at.check_feasibility(stock, {"equity": 600}, _CAP)
+    assert ok, reason
+    ok, reason = at.check_feasibility(stock, {"equity": 600}, _CAP,
+                                      market={"TSLA": {"quote": {"ap": 350.0}}})
+    assert not ok and "max loss" in reason
+    one = _open_intent(order_type="market", limit_price=None,
+                       legs=[{"asset": "stock", "symbol": "F", "side": "buy", "qty": 10}])
+    ok, reason = at.check_feasibility(one, {"equity": 600}, _CAP,
+                                      market={"F": {"quote": {"ap": 11.0}}})
     assert ok, reason
 
 
@@ -181,7 +199,7 @@ def test_mandate_states_the_size_cap():
     # The agent must be told the 30% cap upfront so it sizes correctly, not just
     # get rejected after the fact.
     assert "30%" in at.SYSTEM_MANDATE
-    assert "defined-risk max loss" in at.SYSTEM_MANDATE
+    assert "max loss at expiry" in at.SYSTEM_MANDATE
 
 
 # ── Order-payload translation ───────────────────────────────────────────────
@@ -1235,7 +1253,7 @@ def test_run_cycle_observe_bypasses_guard_places_nothing_and_saves_nothing(_wire
     names = [f["name"] for f in card["fields"]]
     assert any(n.startswith("Would have placed") for n in names)
     would = [f for f in card["fields"] if f["name"].startswith("Would have placed")][0]["value"]
-    assert "open sell 1 AAPL260320P00150000" in would
+    assert "open buy 1 AAPL260320P00150000" in would
 
 
 def test_run_cycle_logs_strikes_selected(_wire, monkeypatch):
@@ -1263,7 +1281,7 @@ _CDS = [{"asset": "option", "symbol": "SLB260918C00059000", "side": "buy", "qty"
 
 def test_credit_spread_with_positive_limit_is_rejected():
     ok, reason = at.check_feasibility(_open_intent(legs=_PCS, limit_price=0.6), {"equity": 900})
-    assert not ok and "credit spread" in reason and "NEGATIVE" in reason and "-0.6" in reason
+    assert not ok and "credit structure" in reason and "NEGATIVE" in reason and "-0.6" in reason
 
 
 def test_credit_spread_with_negative_limit_passes():
@@ -1273,7 +1291,7 @@ def test_credit_spread_with_negative_limit_passes():
 
 def test_debit_spread_sign_rules():
     ok, reason = at.check_feasibility(_open_intent(legs=_CDS, limit_price=-0.65), {"equity": 2000})
-    assert not ok and "debit spread" in reason
+    assert not ok and "debit structure" in reason
     ok, reason = at.check_feasibility(_open_intent(legs=_CDS, limit_price=0.65), {"equity": 2000})
     assert ok, reason
 
@@ -1283,11 +1301,177 @@ def test_single_leg_limit_must_be_positive():
     assert not ok and "positive" in reason
 
 
-def test_sign_guard_never_blocks_a_close_or_a_market_order():
-    close = _open_intent(action="close", thesis=None, legs=_PCS, limit_price=-0.1)
-    assert at.check_feasibility(close, {"equity": 900})[0]
+def _close(legs, limit):
+    return _open_intent(action="close", thesis=None, legs=legs, limit_price=limit)
+
+
+def test_wrong_signed_close_is_flipped_not_rejected():
+    # The real SLB 09-04 / TSLA 09-16 exits: closing a call DEBIT spread
+    # (sell the long, buy back the short) RECEIVES a credit → negative limit.
+    slb = _close([{"asset": "option", "symbol": "SLB260918C00059000", "side": "sell", "qty": 1},
+                  {"asset": "option", "symbol": "SLB260918C00060000", "side": "buy", "qty": 1}], 0.19)
+    assert at.normalize_close_limit(slb) == 0.19
+    assert slb["limit_price"] == -0.19
+    tsla = _close([{"asset": "option", "symbol": "TSLA260918C00352500", "side": "sell", "qty": 1},
+                   {"asset": "option", "symbol": "TSLA260918C00365000", "side": "buy", "qty": 1}], 5.25)
+    assert at.normalize_close_limit(tsla) == 5.25 and tsla["limit_price"] == -5.25
+    # Closing a credit spread costs a debit → a positive limit is already right.
+    zs = _close([{"asset": "option", "symbol": "ZS261120P00200000", "side": "buy", "qty": 1},
+                 {"asset": "option", "symbol": "ZS261120P00197500", "side": "sell", "qty": 1}], 0.40)
+    assert at.normalize_close_limit(zs) is None and zs["limit_price"] == 0.40
+    # A single-leg close with a negative price becomes positive.
+    one = _close([{"asset": "option", "symbol": "SLV261016C00059500", "side": "sell", "qty": 1}], -0.76)
+    assert at.normalize_close_limit(one) == -0.76 and one["limit_price"] == 0.76
+    # Opens are never rewritten — they are rejected and reported instead.
+    opn = _open_intent(legs=_PCS, limit_price=0.6)
+    assert at.normalize_close_limit(opn) is None and opn["limit_price"] == 0.6
+
+
+def test_market_option_open_is_rejected_but_market_close_and_stock_are_not():
     mkt = _open_intent(legs=_PCS, order_type="market", limit_price=None)
+    ok, reason = at.check_feasibility(mkt, {"equity": 900})
+    assert not ok and "LIMIT" in reason
     assert at._limit_sign_problem(mkt) is None
+    close = _close(_PCS_CLOSE, None)
+    close["order_type"] = "market"
+    assert at.check_feasibility(close, {"equity": 900})[0]
+    stock = _open_intent(order_type="market", limit_price=None,
+                         legs=[{"asset": "stock", "symbol": "F", "side": "buy", "qty": 1}])
+    assert at.check_feasibility(stock, {"equity": 900})[0]
+
+
+def test_short_stock_open_is_rejected():
+    short = _open_intent(order_type="market", limit_price=None,
+                         legs=[{"asset": "stock", "symbol": "F", "side": "sell", "qty": 1}])
+    ok, reason = at.check_feasibility(short, {"equity": 900})
+    assert not ok and "short stock" in reason
+
+
+_PCS_CLOSE = [{"asset": "option", "symbol": "ZS261120P00200000", "side": "buy", "qty": 1},
+              {"asset": "option", "symbol": "ZS261120P00197500", "side": "sell", "qty": 1}]
+_HELD_ZS = [{"symbol": "ZS261120P00200000", "qty": "-1", "side": "short"},
+            {"symbol": "ZS261120P00197500", "qty": "1", "side": "long"}]
+
+
+def test_close_must_reduce_a_held_position():
+    ok, reason = at.check_feasibility(_close(_PCS_CLOSE, 0.40), {"equity": 900},
+                                      positions=_HELD_ZS)
+    assert ok, reason
+    # Nothing held → the "close" would open something new.
+    ok, reason = at.check_feasibility(
+        _close([{"asset": "option", "symbol": "TSLA261120C00400000", "side": "buy", "qty": 3}], 2.0),
+        {"equity": 900}, positions=_HELD_ZS)
+    assert not ok and "not held" in reason
+    # Same side as the holding adds to it.
+    ok, reason = at.check_feasibility(_close(_PCS, -0.4), {"equity": 900}, positions=_HELD_ZS)
+    assert not ok and "ADD" in reason
+    # More than held.
+    big = [dict(l, qty=2) for l in _PCS_CLOSE]
+    ok, reason = at.check_feasibility(_close(big, 0.40), {"equity": 900}, positions=_HELD_ZS)
+    assert not ok and "exceeds" in reason
+
+
+def test_uneven_leg_ratio_is_rejected_but_whole_multiples_pass():
+    uneven = [dict(_PCS[0], qty=3), dict(_PCS[1], qty=2)]
+    ok, reason = at.check_feasibility(_open_intent(legs=uneven, limit_price=-0.6),
+                                      {"equity": 5000})
+    assert not ok and "multiples" in reason
+    # 1×2 put ratio (buy 1 higher, sell 2 lower) is a valid ratio — the sign/
+    # size rules then decide it; here it's simply not rejected for its ratio.
+    ratio = [{"asset": "option", "symbol": "ZS261120P00200000", "side": "buy", "qty": 1},
+             {"asset": "option", "symbol": "ZS261120P00197500", "side": "sell", "qty": 2}]
+    ok, reason = at.check_feasibility(_open_intent(legs=ratio, limit_price=0.10),
+                                      {"equity": 100000})
+    assert "multiples" not in reason
+
+
+def test_sub_penny_limit_is_rejected():
+    ok, reason = at.check_feasibility(_open_intent(legs=_PCS, limit_price=-0.004),
+                                      {"equity": 900})
+    assert not ok and "$0.00" in reason
+
+
+# ── Structure economics beyond verticals (2026-10-26 review: A2/A8) ─────────
+
+def _ic(limit):
+    # SPY 560/565 put credit + 600/605 call credit = short iron condor.
+    return _open_intent(limit_price=limit, legs=[
+        {"asset": "option", "symbol": "SPY261120P00560000", "side": "buy", "qty": 1},
+        {"asset": "option", "symbol": "SPY261120P00565000", "side": "sell", "qty": 1},
+        {"asset": "option", "symbol": "SPY261120C00600000", "side": "sell", "qty": 1},
+        {"asset": "option", "symbol": "SPY261120C00605000", "side": "buy", "qty": 1}])
+
+
+def test_iron_condor_sign_and_max_loss():
+    # Correct sign: credit 0.80 → max loss = widest wing (5) − 0.80 = $420,
+    # not the old outer-span $4,420.
+    good = _ic(-0.80)
+    assert at._intent_max_loss(good) == pytest.approx(420.0)
+    ok, reason = at.check_feasibility(good, {"equity": 2000})
+    assert ok, reason
+    # Wrong sign (the ZS bug, four legs wide) is now caught.
+    ok, reason = at.check_feasibility(_ic(0.80), {"equity": 2000})
+    assert not ok and "NEGATIVE" in reason
+
+
+def test_butterfly_straddle_and_calendar_directions():
+    fly = [{"asset": "option", "symbol": "SPY261120C00580000", "side": "buy", "qty": 1},
+           {"asset": "option", "symbol": "SPY261120C00590000", "side": "sell", "qty": 2},
+           {"asset": "option", "symbol": "SPY261120C00600000", "side": "buy", "qty": 1}]
+    assert at._net_direction(fly) == "debit"
+    assert at._intent_max_loss(_open_intent(legs=fly, limit_price=1.50)) == pytest.approx(150.0)
+    straddle = [{"asset": "option", "symbol": "SPY261120C00590000", "side": "buy", "qty": 1},
+                {"asset": "option", "symbol": "SPY261120P00590000", "side": "buy", "qty": 1}]
+    ok, reason = at.check_feasibility(_open_intent(legs=straddle, limit_price=-3.0), {"equity": 5000})
+    assert not ok and "POSITIVE" in reason
+    # Long calendar: sell near, buy far, same strike → a debit (the old
+    # strike-only classifier called it a credit spread and rejected +1.20).
+    cal = [{"asset": "option", "symbol": "SPY261120P00590000", "side": "sell", "qty": 1},
+           {"asset": "option", "symbol": "SPY261218P00590000", "side": "buy", "qty": 1}]
+    assert at._net_direction(cal) == "debit"
+    ok, reason = at.check_feasibility(_open_intent(legs=cal, limit_price=1.20), {"equity": 2000})
+    assert ok, reason
+    assert at._intent_max_loss(_open_intent(legs=cal, limit_price=1.20)) == pytest.approx(120.0)
+    # A short leg that outlives the long can't be bounded at the near expiry.
+    rev = [dict(cal[0], side="buy"), dict(cal[1], side="sell")]
+    ok, reason = at.check_feasibility(_open_intent(legs=rev, limit_price=-1.20), {"equity": 100000})
+    assert not ok and "unbounded" in reason
+
+
+def test_net_direction_uses_live_mids_when_every_leg_is_priced():
+    legs = [{"asset": "option", "symbol": "ZS261120P00200000", "side": "sell", "qty": 1},
+            {"asset": "option", "symbol": "ZS261120P00197500", "side": "buy", "qty": 1}]
+    market = {"ZS": {"quote": {"ap": 256.6},
+                     "options": {"ZS261120P00200000": {"bid": 3.42, "ask": 3.88},
+                                 "ZS261120P00197500": {"bid": 2.96, "ask": 3.63}}}}
+    assert at._net_direction(legs, market) == "credit"
+
+
+def test_single_option_leg_carries_position_intent_but_stock_does_not():
+    p = at.build_order_payload(_open_intent())
+    assert p["position_intent"] == "buy_to_open"
+    c = at.build_order_payload(_close([{"asset": "option", "symbol": "SLV261016C00059500",
+                                        "side": "sell", "qty": 1}], 0.76))
+    assert c["position_intent"] == "sell_to_close"
+    s_ = at.build_order_payload(_open_intent(order_type="market", limit_price=None,
+                                             legs=[{"asset": "stock", "symbol": "F",
+                                                    "side": "buy", "qty": 1}]))
+    assert "position_intent" not in s_
+
+
+def test_run_cycle_flips_a_wrong_signed_close_and_reports_it(_wire, monkeypatch, tmp_path):
+    held = _HELD_ZS
+    monkeypatch.setattr(at, "gather_depth", lambda focus, positions, account, mode="agent", **kw: {
+        "account": {"equity": 900.0, "cash": 900.0}, "positions": held,
+        "market": {}, "equity_floor": 500})
+    monkeypatch.setattr(at, "_reconcile_and_grade", lambda *a, **k: None)
+    # Model sends the ZS close with a NEGATIVE limit (it thinks "credit spread").
+    intent = _close(_PCS_CLOSE, -0.40)
+    at.run_cycle(client=_FakeClient([intent]))
+    assert _wire and _wire[-1]["limit_price"] == "0.40"
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    closed = st["_meta"]["last_cycle_outcome"]["closed"]
+    assert closed and "sign was wrong" in closed[0]["limit_sign_corrected"]
 
 
 def test_payoff_at_fill_flags_a_credit_spread_filled_as_a_debit():
