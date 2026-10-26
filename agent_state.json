@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 148,
-    "last_cycle_at": "2026-10-23T19:12:42Z",
+    "cycle_count": 149,
+    "last_cycle_at": "2026-10-26T14:13:14Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "ZS ripped to $253.68 (+22.3% 1w, +18.2% 1m, 17.3% above its 20d avg), so my 200/197.5 put credit spread expiring 11/20 is now 21% OTM with no earnings until 11/24; summing the legs' mids the position is -$48.5, almost entirely my entry slippage plus the ~$0.30 wide quotes, and price is miles above my $207 invalidation \u2014 I hold and let theta work. On the shortlist nothing clears the bar for a second position: SLB reports today (0 DTE to earnings), TMUS prints in 5 days and just made a 52-week low (-7.2% 1w, -33.5% from high), MET reports in 12 days, NET and PANW both have earnings inside the 11/20 window, T is -10.1% in a week and -10.5% below its 20d avg, DECK -6.5% 1w sitting 3% off its 52-week low, and AAL -10.4% 1m with 10-11c bids too thin to pay for the risk. I'd add a second ~15-delta put credit spread if a liquid name with no earnings before 11/20 were trading above its 20d avg with a credit of at least a third of the width; none is on offer, and with $621 options buying power against $823 equity a second $190-risk spread would also over-concentrate me.",
+    "last_market_read": "My ZS 200/197.5 put spread is now ~21% OTM (ZS $256.63, +20.9% 1w, +33.2% 1m, 17.2% above its 20d avg) with no earnings until 11/24 \u2014 but the fill math is brutal: I collected only $0.25 net on a $2.50 wide spread, so the position's best possible outcome is -$25 and the legs' mids today total -$40.5; holding costs nothing further of consequence and the chain is wide ($0.96/$1.57 on the long), so dumping it now just pays the spread \u2014 I hold to expiry/invalidation ($207 on ZS). My record says the real lesson is sizing and fills, not structure: 6 of 8 closed trades lost, mostly from paying up for debit premium or getting filled badly on wide chains. With $621 options buying power against $808 equity, a second position must be cheap and on a tight-quoted chain. HOOD ($92.43, -22.5% 1m but +42% off its 52w low) prints earnings TOMORROW and COIN/PYPL/CMG all report within 3 days \u2014 all disqualified. TSLA's Nov-13 puts are the one genuinely tight market here (bid/ask $0.04-0.09 wide, IV ~49% with earnings already behind it 5 days ago, so vol is still elevated for a known-deflated reason), TSLA is +28% 3m and +5.8% above its 20d avg, and the 330/325 put spread 16% OTM at 18 DTE pays $0.17 on $5 width \u2014 a credit that's only 3% of width, far below my own one-third-of-width bar. Nothing clears the bar, so I hold; I'd act on a liquid no-earnings name above its 20d avg where a ~15-delta spread pays at least a third of its width.",
     "seed_capital": 2000
   },
   "closed": [
@@ -370,13 +370,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -48.0,
+        "market_value": -63.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-23T19:12:34Z",
+        "seen_at": "2026-10-26T14:12:58Z",
         "underlyings": {
-          "ZS": 253.68
+          "ZS": 256.63
         },
-        "unrealized_pl": -48.5
+        "unrealized_pl": -40.5
       },
       "legs": [
         {
