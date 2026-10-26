@@ -29,6 +29,27 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-26',
+    category: 'fix',
+    title: 'Agent: money-loss review — order checks, true P&L, account-wide risk cap',
+    details:
+      'A two-model adversarial review of the agent found the Oct 23 sign fix covered only two-leg '
+      + 'opens. Fixed in three passes.\n\n'
+      + 'Orders: one leg-arithmetic engine now decides credit vs debit and max loss for any structure '
+      + '(iron condors, butterflies, straddles, calendars). Wrong-signed closes are flipped instead of '
+      + 'filling at the cross (SLB and TSLA closes went out that way). Option opens must be limits; '
+      + 'closes must reduce what is held; uneven leg ratios and short-stock opens are rejected.\n\n'
+      + 'Record: P&L is now realized from Alpaca\'s fill log instead of the last midpoint estimate '
+      + '(the scoreboard said -$940; the account was ~-$1,104), old trades backfilled once, and the '
+      + 'double-counted DIS loss split correctly. Fills are read from the order itself, so ZS now shows '
+      + 'it filled $0.85 worse than intended, not $0.35 better. Unfilled add-on orders are swept, the '
+      + 'model sees its resting orders, the stock move during each hold is no longer blank, and the '
+      + 'grader can no longer invent post-close prices.\n\n'
+      + 'Risk: all open positions together are capped at 60% of equity at risk (on top of the 30% '
+      + 'per-trade cap). Orders carry a client id so a timeout cannot double-submit; state is saved '
+      + 'after every placement; a corrupt state file stops the cycle instead of wiping history.',
+  },
+  {
     date: '2026-10-23',
     category: 'fix',
     title: 'Agent: every credit spread was sent with the wrong price sign',
