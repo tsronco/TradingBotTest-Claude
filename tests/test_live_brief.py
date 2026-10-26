@@ -104,6 +104,17 @@ def _wire(monkeypatch, tmp_path):
             raise AssertionError(f"live_brief issued a {method} to {url}")
         raise RuntimeError("network stubbed")
     monkeypatch.setattr(lb.alpaca_data, "_request_with_retry", _no_writes)
+    # agent_trader's order helpers call requests directly, bypassing the
+    # alpaca_data guard above — block every write verb at the source too.
+    import requests
+
+    def _blocked(verb):
+        def _f(url, *a, **k):
+            raise AssertionError(f"live_brief issued a {verb} to {url}")
+        return _f
+
+    for verb in ("post", "delete", "patch", "put"):
+        monkeypatch.setattr(requests, verb, _blocked(verb.upper()))
     return {"sent": sent, "events": events, "tmp": tmp_path}
 
 

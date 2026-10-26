@@ -55,6 +55,12 @@ def _silence_discord_and_alpaca(monkeypatch, tmp_path):
     # so this monkeypatch actually affects new log_event calls in tests.
     import notifications.jsonl_log as jsonl_mod
     monkeypatch.setattr(jsonl_mod, "LOG_DIR", tmp_path / "logs")
+    # The agent harness reads orders / fills / open orders through one GET
+    # helper; stub it so no test reaches Alpaca. Callers treat None as
+    # "unknown" and keep their previous behaviour. Tests that need data patch
+    # the higher-level helper (or this one) themselves.
+    import agent_trader
+    monkeypatch.setattr(agent_trader, "_agent_get", lambda path, params=None: None)
 
 
 @pytest.fixture

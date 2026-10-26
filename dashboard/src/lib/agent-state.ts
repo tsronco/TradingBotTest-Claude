@@ -80,7 +80,24 @@ export interface AgentOutcome {
   days_held?: number;
   estimated_pnl?: number;
   estimated_pnl_basis?: string;
+  /** From Alpaca's fill log (added 2026-10-26). null when it can't be computed. */
+  realized_pnl?: number | null;
+  realized_basis?: string;
+  closed_at_actual?: string;
   underlying_moves?: Record<string, unknown>;
+}
+
+/** Realized P&L when the bot has read it from Alpaca's fills, else the
+ *  last mid-based estimate — the same rule the agent's own scoreboard uses. */
+export function outcomePnl(o: AgentOutcome | null | undefined): number | null {
+  for (const v of [o?.realized_pnl, o?.estimated_pnl]) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+export function outcomePnlBasis(o: AgentOutcome | null | undefined): string | undefined {
+  return typeof o?.realized_pnl === 'number' ? o.realized_basis : o?.estimated_pnl_basis;
 }
 
 export interface AgentClosedTrade {
@@ -150,8 +167,7 @@ export interface AgentStats {
 }
 
 function pnlOf(t: AgentClosedTrade): number | null {
-  const v = t.outcome?.estimated_pnl;
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  return outcomePnl(t.outcome);
 }
 
 /**

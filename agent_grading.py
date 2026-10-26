@@ -113,6 +113,13 @@ it was exited early; only a loss for a reason the thesis never mentioned is \
 Finish with one plain-English sentence of what this trade teaches — aimed at the \
 REAL error (entry choice, exit decision, or exit execution), not a generic one.
 
+Use only the data you are given. The outcome carries realized_pnl (from the \
+broker's actual fills — the true result) when available, else an estimate; it \
+does NOT carry any price after the close. Never claim what the stock or option \
+did after the exit ("it rallied to X by expiry", "would have doubled") — you \
+cannot know that, and a lesson built on an invented counterfactual teaches the \
+wrong thing. Judge the exit by what was knowable when it was made.
+
 Be specific and fair. The goal is learning, not flattery. Call record_grade once.\
 """
 
@@ -141,6 +148,8 @@ def grade_position(record: dict, outcome: dict, client=None, model: str | None =
             "close_rationale": (record.get("close_rationale")
                                 or outcome.get("close_rationale")),
             "outcome": outcome,
+            # Entry price asked vs actually filled (per share, + credit / − debit).
+            "fill": record.get("fill"),
         }
         resp = client.messages.create(
             model=model,
@@ -171,7 +180,7 @@ def _default_grade() -> dict:
         "outcome_grade": None,
         "process_grade": None,
         "invalidation_fired": "unclear",
-        "loss_type": "breakeven",
+        "loss_type": None,
         "exit_quality": "unclear",
         "lesson": "(not graded)",
         "graded": False,

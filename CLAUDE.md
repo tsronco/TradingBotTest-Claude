@@ -933,6 +933,49 @@ guard. Every cycle now logs `strikes_selected`, and the hold card carries a
 "Strikes it asked to price" field. Scheduled dispatches send no inputs, so
 normal cycles are unchanged.
 
+**Money-loss review + remediation (2026-10-24 → 26).** A dual-model fresh-eyes
+review of the agent ([plan + tracker](docs/superpowers/plans/2026-10-24-agent-money-loss-remediation.md))
+found the Oct 23 sign fix covered only two-leg vertical OPENS. Fixed in three commits:
+1. **Order correctness.** `_net_direction` (debit/credit for ANY leg combination —
+   flat-vol Black-Scholes decides, live mids must agree or it's `unknown`) and
+   `_structure_max_loss` (expiry payoff min over 0 + strikes; ∞ for a naked call
+   or a short leg that outlives the nearest expiry) replace the vertical-only
+   shape match. Wrong-signed **closes** are flipped by `normalize_close_limit`
+   (SLB 09-04 / TSLA 09-16 closed debit spreads at +limits and filled at the
+   cross) and reported back as `limit_sign_corrected`; wrong-signed opens are
+   still rejected. Option opens must be limits; short-stock opens rejected; long
+   stock capped by notional when priced; closes must reduce held legs
+   (`_close_leg_problem`); single option legs send `position_intent`; uneven
+   leg ratios and sub-penny limits rejected.
+2. **Truthful record.** P&L is realized from Alpaca's activity log
+   (`_apply_realized`, FILL/OPEXP/OPASN/OPEXC), preferred everywhere via
+   `_outcome_pnl` (trade history, scoreboard, lesson card, retrospective,
+   dashboard `outcomePnl`). Lessons whose legs share a symbol AND whose holds
+   overlap are one group, split by contracts (fixes the DIS double-count); old
+   lessons are backfilled once (`realized_checked`). Fills come from the order
+   itself (`_order_fill_net`), intended prices are re-signed by structure
+   (`_corrected_intended` — ZS slippage +0.35 → −0.85), and `premium` follows
+   the actual fill. `_confirm_prior_orders` checks every unconfirmed tracked
+   order by status before a symbol match is trusted (an unfilled ADD used to
+   look open forever), cancels partial-fill remainders, and never sweeps an
+   order younger than `min_order_age_minutes` (60). The model sees
+   `open_orders` and `unfilled_orders_cancelled`; underlying moves use the
+   close-time snapshot price; the grader gets fill + realized P&L and is barred
+   from inventing post-close prices.
+3. **Risk + robustness.** `max_total_risk_pct_equity: 0.60` — the sum of every
+   tracked position's max loss plus the new open (`_open_risk`) — on top of the
+   30% per-trade cap. Every order carries a `client_order_id`; a timeout is
+   recovered via `/orders:by_client_order_id`. State saved after each
+   placement; per-intent exceptions isolated; a decision cut at `max_tokens`
+   holds; a corrupt state file now stops the cycle (was: silently reset and
+   overwrote history); saves are atomic. Held legs inside 7 DTE are priced
+   (`get_option_snapshot`) and each position shows `days_to_expiry`; chain
+   snapshots follow `next_page_token`; trend bars are split-adjusted.
+Not changed: option quotes still use Alpaca's free `indicative` feed (real NBBO
+needs an OPRA subscription). Owner actions still open: the 16:07/18:07 UTC
+agent fires have not run since 2026-09-10 (check cron-job.org), and the DST
+shift on 2026-11-01.
+
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
@@ -1051,7 +1094,7 @@ The congress-copy package has its own pytest setup under `congress-copy/tests/` 
 
 ## Fresh-eyes adversarial review process (how to find money-losing bugs)
 
-We periodically run a **dual-model, fresh-context adversarial review** to hunt for bugs that quietly lose money — especially before any live-money change. First run: 2026-06-16 on the Python bot (produced [docs/superpowers/plans/2026-06-16-bot-money-loss-remediation.md](docs/superpowers/plans/2026-06-16-bot-money-loss-remediation.md), 34 findings). Second run: 2026-06-17 on the `dashboard/` subproject (produced [docs/superpowers/plans/2026-06-17-dashboard-money-loss-remediation.md](docs/superpowers/plans/2026-06-17-dashboard-money-loss-remediation.md), 15 findings D1–D15 + a stale-test triage, all remediated; 705 vitest green, `tsc -b` clean). **No run is currently planned — re-run before any further live-money change or major new surface (e.g. flipping live trading on, a new account type, or a new order-mutation endpoint).** How to do it:
+We periodically run a **dual-model, fresh-context adversarial review** to hunt for bugs that quietly lose money — especially before any live-money change. First run: 2026-06-16 on the Python bot (produced [docs/superpowers/plans/2026-06-16-bot-money-loss-remediation.md](docs/superpowers/plans/2026-06-16-bot-money-loss-remediation.md), 34 findings). Second run: 2026-06-17 on the `dashboard/` subproject (produced [docs/superpowers/plans/2026-06-17-dashboard-money-loss-remediation.md](docs/superpowers/plans/2026-06-17-dashboard-money-loss-remediation.md), 15 findings D1–D15 + a stale-test triage, all remediated; 705 vitest green, `tsc -b` clean). Third run: 2026-10-24 on the agent subsystem (produced [docs/superpowers/plans/2026-10-24-agent-money-loss-remediation.md](docs/superpowers/plans/2026-10-24-agent-money-loss-remediation.md), ~25 findings, remediated 2026-10-26). **No run is currently planned — re-run before any further live-money change or major new surface (e.g. flipping live trading on, a new account type, or a new order-mutation endpoint).** How to do it:
 
 1. **Launch two independent review agents** via the `Agent` tool, `run_in_background: true`, with **different models** for genuinely independent perspectives — pass `model: "opus"` on one and `model: "sonnet"` on the other (we wanted Fable 5 as a third but it's **currently unavailable** — blocked/restricted as of 2026-06; don't rely on it). Each agent runs with a clean slate (it does NOT see the chat), so it isn't anchored to how the code was written.
 2. **Brief them adversarially and identically.** Single mission: "find every way this code throws away money / behaves incorrectly with real capital." Tell them to read the actual code (not infer from names or from CLAUDE.md prose), prioritize money-moving paths, and **return the COMPLETE findings report as their FINAL message** — explicitly forbid delegating to a sub-agent or ending on a "stand by" progress note (one Sonnet run stalled that way; relaunching with this instruction fixed it). Ask for: ranked findings (most money-dangerous first) with severity, `file:line`, a concrete failure scenario, why it costs money, and a fix direction; a "clearly-real vs. suspicious/needs-confirmation" split; and a "things that look solid" section.

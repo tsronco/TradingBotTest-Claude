@@ -195,3 +195,16 @@ describe('openUnrealizedPnl', () => {
     ])).toBe(-57);
   });
 });
+
+describe('outcomePnl (realized P&L, 2026-10-26)', () => {
+  it('prefers realized_pnl over the mid estimate, and falls back when realized is null', async () => {
+    const { outcomePnl, outcomePnlBasis, agentStats } = await import('../../src/lib/agent-state');
+    expect(outcomePnl({ estimated_pnl: -57, realized_pnl: -26, realized_basis: 'realized' })).toBe(-26);
+    expect(outcomePnl({ estimated_pnl: -40, realized_pnl: null })).toBe(-40);
+    expect(outcomePnl(null)).toBeNull();
+    expect(outcomePnlBasis({ estimated_pnl: -57, estimated_pnl_basis: 'est', realized_pnl: -26, realized_basis: 'realized' })).toBe('realized');
+    expect(outcomePnlBasis({ estimated_pnl: -57, estimated_pnl_basis: 'est' })).toBe('est');
+    const s = agentStats([{ outcome: { estimated_pnl: -57, realized_pnl: -26 } }, { outcome: { estimated_pnl: -57, realized_pnl: -26 } }]);
+    expect(s.totalPnl).toBe(-52);
+  });
+});

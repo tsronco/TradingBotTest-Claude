@@ -165,8 +165,10 @@ def get_stock_bars(
     days: int = 90,
     timeframe: str = "1Day",
     mode: str = "manual",
+    adjustment: str = "raw",
 ) -> list[dict]:
-    """Historical OHLCV bars going back `days` calendar days from today."""
+    """Historical OHLCV bars going back `days` calendar days from today.
+    `adjustment` is Alpaca's: raw (default), split, dividend or all."""
     end = date.today()
     start = end - timedelta(days=days)
     data = _get(
@@ -178,7 +180,7 @@ def get_stock_bars(
             "end": end.isoformat(),
             "feed": "iex",
             "limit": 1000,
-            "adjustment": "raw",
+            "adjustment": adjustment,
         },
     )
     return data.get("bars", [])
@@ -362,5 +364,15 @@ def get_option_chain_snapshots(
         params["expiration_date_gte"] = (date.today() + timedelta(days=exp_min_days)).isoformat()
     if exp_max_days is not None:
         params["expiration_date_lte"] = (date.today() + timedelta(days=exp_max_days)).isoformat()
-    data = _get(f"{OPT_DATA_URL}/options/snapshots/{underlying}", mode, params=params)
-    return data.get("snapshots", {})
+    # Alpaca caps a page at 1,000 contracts; SPY/QQQ/TSLA/NVDA chains run past
+    # that over a 7–45 DTE window, and an unpaged fetch silently dropped the
+    # rest. Follow next_page_token (bounded, so a bad token can't loop).
+    out: dict = {}
+    for _ in range(10):
+        data = _get(f"{OPT_DATA_URL}/options/snapshots/{underlying}", mode, params=params)
+        out.update(data.get("snapshots", {}) or {})
+        token = data.get("next_page_token")
+        if not token:
+            break
+        params = {**params, "page_token": token}
+    return out
