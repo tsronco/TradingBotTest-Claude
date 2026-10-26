@@ -25,8 +25,8 @@ _CFG = agent_config.get()
 # ── Deterministic stats (pure, testable) ───────────────────────────────────
 
 def _pnl(lesson: dict):
-    v = (lesson.get("outcome") or {}).get("estimated_pnl")
-    return v if isinstance(v, (int, float)) else None
+    # Realized from Alpaca's fills when known, else the last mid estimate.
+    return agent_trader._outcome_pnl(lesson.get("outcome"))
 
 
 def compute_stats(lessons: list) -> dict:

@@ -662,6 +662,12 @@ def _trade_record(lesson: dict) -> dict:
     The one-line grader note is kept as the agent's own prior reflection."""
     legs = lesson.get("legs") or []
     structure, premium = _classify_structure(legs)
+    fill = lesson.get("fill") or {}
+    net_at_fill = fill.get("actual_net_credit") if fill.get("fill_available") else None
+    if isinstance(net_at_fill, (int, float)) and net_at_fill != 0 and premium in ("paid", "collected"):
+        # What the fill actually did beats what the legs imply: ZS's "credit
+        # spread" filled as a debit, so it PAID premium.
+        premium = "collected" if net_at_fill > 0 else "paid"
     outcome = lesson.get("outcome") or {}
     moves = outcome.get("underlying_moves") or {}
     entry_u = move_pct = None
@@ -670,16 +676,19 @@ def _trade_record(lesson: dict) -> dict:
         entry_u, move_pct = first.get("entry"), first.get("pct")
     return {
         "opened_at": lesson.get("opened_at"),
-        "closed_at": lesson.get("closed_at"),
+        "closed_at": outcome.get("closed_at_actual") or lesson.get("closed_at"),
         "structure": structure,
         "premium": premium,                       # paid / collected / none
+        "net_at_fill": net_at_fill,               # per share, + credit / − debit
         "legs": _legs_summary(legs),
         "strikes": [p["strike"] for p in (_occ_parse(l.get("symbol")) for l in legs) if p],
         "entry_underlying": entry_u,
         "underlying_move_pct_during_hold": move_pct,
         "dte_at_entry": _dte_at_entry(legs, lesson.get("opened_at")),
         "days_held": outcome.get("days_held"),
-        "pnl": outcome.get("estimated_pnl"),      # the star — real dollars won/lost
+        "pnl": _outcome_pnl(outcome),             # the star — real dollars won/lost
+        "pnl_basis": "realized" if isinstance(outcome.get("realized_pnl"), (int, float))
+                     else "estimated (last mid before close)",
         "your_prior_note": (lesson.get("grade") or {}).get("lesson"),
     }
 
@@ -697,7 +706,7 @@ def _scoreboard(state: dict) -> dict:
     that grouping is the conclusion we want the model to reach ITSELF from the
     per-trade history, not one we hand it."""
     closed = state.get("closed", []) or []
-    vals = [p for p in ((l.get("outcome") or {}).get("estimated_pnl") for l in closed)
+    vals = [p for p in (_outcome_pnl(l.get("outcome")) for l in closed)
             if isinstance(p, (int, float))]
     wins = sum(1 for p in vals if p > 0)
     losses = sum(1 for p in vals if p < 0)
@@ -793,6 +802,9 @@ def build_self_context(state: dict) -> dict:
         # What ACTUALLY executed last cycle (code-generated, post-execution): opens
         # submitted, closes, and any orders REJECTED with the reason.
         "previous_cycle_outcome": meta.get("last_cycle_outcome"),
+        # Orders from an earlier cycle that never filled and were cancelled this
+        # cycle — "opened" in previous_cycle_outcome only means SUBMITTED.
+        "unfilled_orders_cancelled": meta.get("last_swept") or [],
         # The agent's OWN full raw track record + running scoreboard — the
         # education loop fed into every decision as unvarnished facts to learn from.
         "trade_history": _trade_history_digest(state, _CFG.get("max_history_in_context", 40)),
@@ -1180,14 +1192,19 @@ STILL hold (why you're in it, its invalidation, the confidence you assigned); \
 `previous_cycle_note`, the read you wrote last cycle (your INTENT — written \
 before any order was placed, so it is not proof of what happened); and \
 `previous_cycle_outcome`, the FACTUAL record of what actually executed last cycle \
-— opens submitted, closes, and any orders Alpaca REJECTED with the reason. \
-Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
+— orders SUBMITTED (submitted is not filled), closes, and any orders Alpaca \
+REJECTED with the reason. `unfilled_orders_cancelled` lists earlier orders that \
+never filled and were cancelled — a limit that keeps going unfilled was priced \
+past what the market would pay. `open_orders` (top level) is every order still \
+resting right now; don't resend one that is already working. Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
 the same thing — read the reason and adapt (e.g. a rejected naked short must \
 become a spread). Each still-held position also carries a `fill` block once it \
 fills — `intended_net_credit` vs `actual_net_credit` and the `slippage` between \
 them (per share; negative slippage = you got a worse price than you asked for). \
 If your fills keep coming in worse than intended, your limit prices are too \
-optimistic for that chain's liquidity — price more realistically next time. (If \
+optimistic for that chain's liquidity — price more realistically next time. \
+(Fills are read from the order itself; entries placed before 2026-10-23 had the \
+wrong limit sign, so their intended price is shown with the sign corrected.) (If \
 you added to an existing position, its blended average hides the per-order fill, \
 so `fill_available` will be false and no slippage is shown — that's expected, not \
 an error.) Use all of this so your decisions connect across time — when \
@@ -1204,7 +1221,9 @@ Learn from your own full record — draw your OWN conclusions. \
 `self_context.trade_history` is EVERY trade you have closed, as raw facts: the \
 `structure` you used, whether you PAID premium or COLLECTED it (`premium`), the \
 strikes, days-to-expiration at entry, how far the underlying actually moved while \
-you held, how long you held, and the real dollars you won or lost (`pnl`). \
+you held, how long you held, and the real dollars you won or lost (`pnl` — \
+realized from the broker's own fills when `pnl_basis` says so; `net_at_fill` is \
+the price you actually got, + credit / − debit). \
 `scoreboard` is your running win rate and cumulative P&L. Study this every cycle \
 and reach your own honest verdict: which structures, strikes, expirations, and \
 holding periods have actually MADE you money, and which have consistently LOST \
@@ -1727,18 +1746,66 @@ def place_order(payload: dict) -> requests.Response:
     )
 
 
+def _agent_get(path: str, params: dict | None = None):
+    """GET against the agent's trading API; parsed JSON or None. Fail-soft —
+    every caller treats None as "unknown" and keeps its previous behaviour.
+    (Tests replace this with a stub, so no test reaches the network.)"""
+    try:
+        r = requests.get(f"{_base_url()}{path}", headers=_headers(), params=params,
+                         timeout=DEFAULT_TIMEOUT)
+        if r.status_code >= 300:
+            return None
+        return r.json()
+    except (requests.RequestException, ValueError):
+        return None
+
+
+def _get_order(order_id: str | None) -> dict | None:
+    """The full order, legs included, or None."""
+    if not order_id:
+        return None
+    o = _agent_get(f"/orders/{order_id}", {"nested": "true"})
+    return o if isinstance(o, dict) else None
+
+
 def _order_status(order_id: str) -> str | None:
     """Alpaca order status (e.g. 'filled', 'accepted', 'canceled') or None if it
     can't be fetched. Used to tell a filled order from a still-resting one when
     sweeping stale unfilled orders."""
-    try:
-        r = requests.get(f"{_base_url()}/orders/{order_id}", headers=_headers(),
-                          timeout=DEFAULT_TIMEOUT)
-        if r.status_code >= 300:
+    o = _get_order(order_id)
+    return o.get("status") if o else None
+
+
+# Activity types that settle an option leg. FILL is a trade; OPEXP an expiry
+# (worthless — no cash); OPASN / OPEXC an assignment / exercise, which turns
+# the leg into stock, so the leg's own cash flows no longer tell the P&L.
+_SETTLE_ACTIVITIES = "FILL,OPEXP,OPASN,OPEXC"
+
+
+def _fetch_activities(after_iso: str) -> list | None:
+    """Every fill/expiry/assignment on the account since after_iso, oldest
+    first, all pages. None if any page fails (a partial log would misstate P&L)."""
+    out: list = []
+    token = None
+    for _ in range(50):  # 5,000 activities is far beyond this account's history
+        params = {"activity_types": _SETTLE_ACTIVITIES, "after": after_iso,
+                  "direction": "asc", "page_size": 100}
+        if token:
+            params["page_token"] = token
+        page = _agent_get("/account/activities", params)
+        if not isinstance(page, list):
             return None
-        return (r.json() or {}).get("status")
-    except requests.RequestException:
-        return None
+        out.extend(page)
+        if len(page) < 100:
+            return out
+        token = page[-1].get("id")
+    return out
+
+
+def _fetch_open_orders() -> list | None:
+    """Resting orders on the account (legs included), or None."""
+    orders = _agent_get("/orders", {"status": "open", "nested": "true", "limit": 100})
+    return orders if isinstance(orders, list) else None
 
 
 def _cancel_order(order_id: str) -> None:
@@ -1891,13 +1958,14 @@ def _announce_lesson(lesson: dict) -> None:
     legs = ", ".join(
         f"{l['side']} {l['qty']} {l['symbol']}" for l in lesson.get("legs", [])
     )
-    pnl = outcome.get("estimated_pnl")
+    pnl = _outcome_pnl(outcome)
+    pnl_label = "P&L" if isinstance(outcome.get("realized_pnl"), (int, float)) else "est P&L"
     won = isinstance(pnl, (int, float)) and pnl > 0
     fields = [
         {"name": "Thesis", "value": (thesis.get("thesis") or "—")[:1024]},
         {"name": "Outcome / Process",
          "value": f"{grade.get('outcome_grade') or '—'} / {grade.get('process_grade') or '—'}  "
-                  f"(est P&L {'$' + format(pnl, '.2f') if isinstance(pnl, (int, float)) else '—'})"},
+                  f"({pnl_label} {'$' + format(pnl, '.2f') if isinstance(pnl, (int, float)) else '—'})"},
         {"name": "Why", "value": _loss_type_label(grade.get("loss_type"))},
         {"name": "Lesson", "value": (grade.get("lesson") or "—")[:1024]},
     ]
@@ -2013,7 +2081,11 @@ def build_outcome(position: dict, market: dict) -> dict:
     the agent's own stated reason for closing, so the exit can be judged fairly."""
     snap = position.get("last_snapshot") or {}
     entry_u = (position.get("entry_context") or {}).get("underlyings", {}) or {}
-    now_u = _underlyings_now(position, market)
+    # The last snapshot's prices are from the cycle before the close — the
+    # closest thing to a close-time price. The current market only covers this
+    # cycle's shortlist, which usually no longer includes the closed name (6 of
+    # the first 8 closed trades recorded no move at all because of that).
+    now_u = {**_underlyings_now(position, market), **(snap.get("underlyings") or {})}
     moves = {}
     for sym, entry_px in entry_u.items():
         cur = now_u.get(sym)
@@ -2024,7 +2096,7 @@ def build_outcome(position: dict, market: dict) -> dict:
         "estimated_pnl": snap.get("unrealized_pl"),
         "estimated_pnl_basis": (
             "last mid-based mark before close, qty-scaled to this order's share "
-            "(approximate — not the realized close fill)"),
+            "(approximate — superseded by realized_pnl once Alpaca's fills are read)"),
         "days_held": _days_since(position.get("opened_at")),
         "underlying_moves": moves,
         # The agent's stated reason for exiting (None if it vanished without a
@@ -2094,67 +2166,315 @@ def _position_qty_is_isolated(position: dict, alpaca_positions: list) -> bool:
     return True
 
 
+# ── Truthful fills and realized P&L (2026-10-26 review: A4, A5, O1, S1) ────
+
+def _order_fill_net(order: dict | None) -> float | None:
+    """Signed net price actually filled, per base unit (+ credit received,
+    − debit paid), read from the ORDER itself — exact for this order alone,
+    unlike a position's avg_entry_price, which blends every order on the leg."""
+    if not order:
+        return None
+    legs = order.get("legs") or []
+    if legs:
+        total = 0.0
+        for leg in legs:
+            px = _f(leg.get("filled_avg_price"))
+            if px is None:
+                return None
+            ratio = _f(leg.get("ratio_qty")) or 1.0
+            total += (px if str(leg.get("side", "")).startswith("sell") else -px) * ratio
+        return round(total, 4)
+    px = _f(order.get("filled_avg_price"))
+    if px is None:
+        return None
+    return round(px if str(order.get("side", "")).startswith("sell") else -px, 4)
+
+
+def _corrected_intended(legs: list, intended: float | None) -> float | None:
+    """The net credit the agent MEANT, with the sign taken from the structure.
+    Before 2026-10-23 credit spreads went out with a positive (debit) limit, so
+    the stored intended price carried the wrong sign and the slippage read
+    "better than asked" on fills that were far worse (ZS: +0.35 recorded,
+    −0.85 real)."""
+    if intended is None:
+        return None
+    direction = _net_direction(legs or [])
+    if direction == "credit":
+        return abs(intended)
+    if direction == "debit":
+        return -abs(intended)
+    return intended
+
+
+def _refresh_fill(pos: dict, alpaca_positions: list, dry_run: bool) -> None:
+    """Attach (or repair) the `fill` block. Preferred source is the open order
+    itself; a block computed the old way (from position averages, with the
+    mis-signed intended price) is replaced once the order can be read. Falls
+    back to position averages only when the order can't be fetched."""
+    fill = pos.get("fill") or {}
+    if fill.get("source") == "order":
+        return
+    intended = _corrected_intended(pos.get("legs"), pos.get("intended_net_credit"))
+    order = None if dry_run else _get_order(pos.get("open_order_id"))
+    actual = _order_fill_net(order) if order and order.get("status") == "filled" else None
+    if actual is not None:
+        pos["fill"] = {
+            "fill_available": True,
+            "source": "order",
+            "intended_net_credit": intended,
+            "actual_net_credit": actual,
+            "slippage": None if intended is None else round(actual - intended, 4),
+        }
+        return
+    if "fill" in pos or pos.get("intended_net_credit") is None:
+        return
+    if not _position_qty_is_isolated(pos, alpaca_positions):
+        # Held qty is blended across multiple opens (or not fully filled), so
+        # avg_entry_price no longer isolates THIS order's fill — flag it rather
+        # than fabricate a slippage number.
+        pos["fill"] = {
+            "fill_available": False,
+            "note": ("this order's fill price can't be isolated — the position "
+                     "quantity is blended across multiple entries (or not fully "
+                     "filled), so no slippage is reported."),
+        }
+        return
+    actual = _actual_net_credit(pos.get("legs"), alpaca_positions)
+    if actual is not None:
+        pos["fill"] = {
+            "fill_available": True,
+            "source": "position_avg",
+            "intended_net_credit": intended,
+            "actual_net_credit": actual,
+            "slippage": round(actual - intended, 4),
+        }
+
+
+def _parse_ts(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _outcome_pnl(outcome: dict | None) -> float | None:
+    """The P&L to show and learn from: realized from Alpaca's fills when known,
+    else the last mid-based estimate."""
+    o = outcome or {}
+    for key in ("realized_pnl", "estimated_pnl"):
+        v = o.get(key)
+        if isinstance(v, (int, float)):
+            return v
+    return None
+
+
+def _lesson_window(lesson: dict) -> tuple:
+    o = lesson.get("outcome") or {}
+    return (_parse_ts(lesson.get("opened_at")),
+            _parse_ts(o.get("closed_at_actual") or lesson.get("closed_at")))
+
+
+def _apply_realized(lessons: list, activities: list, held_symbols: set) -> int:
+    """Write realized P&L into each closed lesson that lacks it, from Alpaca's
+    own fill log. Lessons whose legs share a symbol AND whose holds overlap are
+    one group (Alpaca blends them into one position — the two DIS units were
+    each booked at the pair's whole −$57); the group's cash flows are split by
+    each lesson's unit count. Skips a group while any of its legs is still
+    held. Marks a lesson `realized_checked` once settled, so this runs once per
+    trade. Returns the number of lessons written."""
+    cands = [i for i, l in enumerate(lessons)
+             if not (l.get("outcome") or {}).get("realized_checked")]
+    if not cands:
+        return 0
+    syms = {i: {str(x.get("symbol", "")).upper() for x in lessons[i].get("legs") or []}
+            for i in cands}
+    parent = {i: i for i in cands}
+
+    def root(i):
+        while parent[i] != i:
+            i = parent[i]
+        return i
+
+    for a_i, a in enumerate(cands):
+        for b in cands[a_i + 1:]:
+            if not (syms[a] & syms[b]):
+                continue
+            (ao, ac), (bo, bc) = _lesson_window(lessons[a]), _lesson_window(lessons[b])
+            if ao and ac and bo and bc and (ao > bc or bo > ac):
+                continue
+            parent[root(a)] = root(b)
+    groups: dict = {}
+    for i in cands:
+        groups.setdefault(root(i), []).append(i)
+
+    written = 0
+    for members in groups.values():
+        gsyms = set().union(*(syms[i] for i in members))
+        if gsyms & held_symbols:
+            continue
+        opens = [o for o in (_lesson_window(lessons[i])[0] for i in members) if o]
+        closes = [c for c in (_lesson_window(lessons[i])[1] for i in members) if c]
+        if not opens:
+            continue
+        # Bounded on both sides so a later trade in the same contract isn't
+        # folded into this one. A lesson's closed_at is when the close was
+        # detected, which is after the real closing fill.
+        since = min(opens).timestamp() - 120
+        until = max(closes).timestamp() + 120 if closes else float("inf")
+        acts = []
+        for a in activities:
+            ts = _parse_ts(a.get("transaction_time"))
+            if (str(a.get("symbol", "")).upper() in gsyms and ts
+                    and since <= ts.timestamp() <= until):
+                acts.append(a)
+        assigned = any(a.get("activity_type") in ("OPASN", "OPEXC") for a in acts)
+        fills = [a for a in acts if a.get("activity_type") == "FILL"]
+        realized = None
+        basis = None
+        if assigned:
+            basis = ("not computed: a leg was assigned or exercised into stock, so the "
+                     "option fills alone don't give the P&L")
+        elif not all(any(str(f.get("symbol", "")).upper() == s for f in fills) for s in gsyms):
+            basis = "not computed: no fill found for every leg in Alpaca's activity log"
+        else:
+            cash = 0.0
+            for f in fills:
+                px, q = _f(f.get("price")), _f(f.get("qty"))
+                if px is None or q is None:
+                    continue
+                mult = 100 if _occ_parse(f.get("symbol")) else 1
+                sign = 1 if str(f.get("side", "")).startswith("sell") else -1
+                cash += sign * px * abs(q) * mult
+            realized = cash
+            basis = "realized: every fill on these legs from Alpaca's activity log"
+            if len(members) > 1:
+                basis += f", split across {len(members)} overlapping orders by contracts"
+        close_ts = max((a.get("transaction_time") for a in acts), default=None)
+        units = {i: min((int(x.get("qty") or 1) for x in lessons[i].get("legs") or []),
+                        default=1) for i in members}
+        total_units = sum(units.values()) or 1
+        for i in members:
+            o = lessons[i].setdefault("outcome", {})
+            o["realized_pnl"] = (round(realized * units[i] / total_units, 2)
+                                 if realized is not None else None)
+            o["realized_basis"] = basis
+            o["realized_checked"] = True
+            if close_ts:
+                o["closed_at_actual"] = close_ts
+                opened, closed = _parse_ts(lessons[i].get("opened_at")), _parse_ts(close_ts)
+                if opened and closed:
+                    o["days_held"] = round((closed - opened).total_seconds() / 86400, 2)
+            written += 1
+    return written
+
+
+def _open_orders_summary(orders: list | None) -> list | None:
+    """Resting orders, compactly. None when they couldn't be read (so the model
+    is never told "no orders" when the answer is "unknown")."""
+    if orders is None:
+        return None
+    out = []
+    for o in orders:
+        legs = o.get("legs") or [o]
+        out.append({
+            "order_id": o.get("id"),
+            "legs": "; ".join(f"{l.get('side')} {l.get('ratio_qty') or l.get('qty')} "
+                              f"{l.get('symbol')}" for l in legs),
+            "type": o.get("type"),
+            "limit_price": o.get("limit_price"),
+            "status": o.get("status"),
+            "submitted_at": o.get("submitted_at"),
+        })
+    return out
+
+
+def _swept_record(pos: dict, status: str | None) -> dict:
+    return {"legs": _legs_summary(pos.get("legs")), "order_id": pos.get("open_order_id"),
+            "status": status, "placed_at": pos.get("opened_at"),
+            "note": "never filled; cancelled and dropped — your limit was not marketable"}
+
+
+def _confirm_prior_orders(tracked: dict, min_age_minutes: float) -> list:
+    """Check every tracked order that hasn't been confirmed filled. A symbol
+    match isn't proof: an unfilled ADD to a position already held shares its
+    legs, so it used to look "open", was never swept, and later double-counted
+    P&L. Unfilled orders older than min_age_minutes are cancelled and dropped
+    (the agent re-decides every cycle); a partial fill keeps the filled part
+    and cancels the rest. Returns the swept records. Unreachable orders are
+    left for the symbol-based logic."""
+    swept = []
+    for pid in list(tracked):
+        pos = tracked[pid]
+        if pos.get("order_confirmed") or (pos.get("fill") or {}).get("source") == "order":
+            continue
+        order = _get_order(pos.get("open_order_id"))
+        if not order:
+            continue
+        status = order.get("status")
+        filled = _f(order.get("filled_qty")) or 0.0
+        if status == "filled":
+            pos["order_confirmed"] = True
+            continue
+        age = (_days_since(pos.get("opened_at")) or 0) * 24 * 60
+        if age < min_age_minutes:
+            continue
+        if filled > 0:
+            if status in _LIVE_ORDER_STATUSES:
+                _cancel_order(pos.get("open_order_id"))
+            pos["order_confirmed"] = True
+            pos["partial_fill"] = {"filled_qty": filled, "ordered_qty": _f(order.get("qty"))}
+            continue
+        if status in _LIVE_ORDER_STATUSES:
+            _cancel_order(pos.get("open_order_id"))
+        swept.append(_swept_record(pos, status))
+        del tracked[pid]
+        log_event(_CFG["log_stream"], "agent_trader.py", "swept_unfilled_order",
+                  result="skipped",
+                  details={"status": status, "order_id": pos.get("open_order_id"),
+                           "position": pos})
+    return swept
+
+
+_LIVE_ORDER_STATUSES = {"new", "accepted", "pending_new", "accepted_for_bidding",
+                        "held", "partially_filled", "pending_replace", "calculated"}
+
+
 def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
                          client, summary: dict, dry_run: bool = False) -> None:
     tracked = state.get("positions", {})
+    swept: list = []
+    if not dry_run:
+        swept.extend(_confirm_prior_orders(
+            tracked, _CFG.get("min_order_age_minutes", 60)))
     still_open, absent = reconcile_positions(tracked, alpaca_positions)
 
-    # Snapshot the confirmed-open positions so a close next cycle has a mark.
+    # Snapshot the confirmed-open positions so a close next cycle has a mark,
+    # and attach the actual fill vs what the agent intended.
     for pid in still_open:
         snap = snapshot_position(tracked[pid], alpaca_positions)
         if snap:
             snap["underlyings"] = _underlyings_now(tracked[pid], market)
             tracked[pid]["last_snapshot"] = snap
-        # Now that the position is visible, compute the ACTUAL fill vs what the
-        # agent intended (slippage) — the fill price isn't known at placement
-        # time, only once the leg avg-entries land here. Compute once.
-        pos = tracked[pid]
-        if pos.get("intended_net_credit") is not None and "fill" not in pos:
-            if not _position_qty_is_isolated(pos, alpaca_positions):
-                # Held qty is blended across multiple opens (or not fully filled),
-                # so avg_entry_price no longer isolates THIS order's fill. A
-                # slippage number here would be arithmetically real but
-                # meaningless — flag it, don't fabricate it.
-                pos["fill"] = {
-                    "fill_available": False,
-                    "note": ("this order's fill price can't be isolated — the "
-                             "position quantity is blended across multiple entries "
-                             "(or not fully filled), so no slippage is reported."),
-                }
-            else:
-                actual = _actual_net_credit(pos.get("legs"), alpaca_positions)
-                if actual is not None:
-                    intended = pos["intended_net_credit"]
-                    pos["fill"] = {
-                        "fill_available": True,
-                        "intended_net_credit": intended,
-                        "actual_net_credit": actual,
-                        "slippage": round(actual - intended, 4),
-                    }
+        _refresh_fill(tracked[pid], alpaca_positions, dry_run)
 
+    new_lessons = []
     for pid in absent:
         pos = tracked[pid]
         if pos.get("last_snapshot"):
             # Was confirmed open on a prior cycle, now gone → a genuine close.
-            outcome = build_outcome(pos, market)
-            grade = (agent_grading.grade_position(pos, outcome, client=client)
-                     if not dry_run else agent_grading._default_grade())
             lesson = {
                 "closed_at": _now_iso(),
                 "opened_at": pos.get("opened_at"),
                 "legs": pos.get("legs"),
                 "thesis": pos.get("thesis"),
-                "outcome": outcome,
-                "grade": grade,
+                "outcome": build_outcome(pos, market),
+                "fill": pos.get("fill"),
+                "_position": pos,
             }
-            state.setdefault("closed", []).append(lesson)
-            summary["graded"] = summary.get("graded", 0) + 1
-            summary["closed"] += 1
+            new_lessons.append(lesson)
             del tracked[pid]
-            if not dry_run:
-                _announce_lesson(lesson)
-                log_event(_CFG["log_stream"], "agent_trader.py", "position_graded",
-                          details={"lesson": lesson})
             continue
 
         # No snapshot → this tracked order never became a held position, i.e. it
@@ -2177,10 +2497,42 @@ def _reconcile_and_grade(state: dict, alpaca_positions: list, market: dict,
         if oid and not dry_run:
             _cancel_order(oid)  # best-effort; harmless if already terminal
         del tracked[pid]
+        swept.append(_swept_record(pos, status))
         if not dry_run:
             log_event(_CFG["log_stream"], "agent_trader.py", "swept_unfilled_order",
                       result="skipped",
                       details={"status": status, "order_id": oid, "position": pos})
+
+    closed = state.setdefault("closed", [])
+    closed.extend(new_lessons)
+    # Realized P&L from Alpaca's fill log, for this cycle's closes and any older
+    # lesson that predates it (one-time backfill). Done BEFORE grading so the
+    # grader sees what the trade actually made or lost.
+    if not dry_run:
+        pending = [l for l in closed if not (l.get("outcome") or {}).get("realized_checked")]
+        opens = [t for t in (_parse_ts(l.get("opened_at")) for l in pending) if t]
+        if opens:
+            since = datetime.fromtimestamp(min(opens).timestamp() - 300, tz=timezone.utc)
+            acts = _fetch_activities(since.strftime("%Y-%m-%dT%H:%M:%SZ"))
+            if acts is not None:
+                held = {str(p.get("symbol", "")).upper() for p in alpaca_positions}
+                n = _apply_realized(closed, acts, held)
+                if n:
+                    log_event(_CFG["log_stream"], "agent_trader.py", "realized_pnl_recorded",
+                              details={"lessons": n})
+
+    for lesson in new_lessons:
+        pos = lesson.pop("_position")
+        lesson["grade"] = (agent_grading.grade_position(pos, lesson["outcome"], client=client)
+                           if not dry_run else agent_grading._default_grade())
+        summary["graded"] = summary.get("graded", 0) + 1
+        summary["closed"] += 1
+        if not dry_run:
+            _announce_lesson(lesson)
+            log_event(_CFG["log_stream"], "agent_trader.py", "position_graded",
+                      details={"lesson": lesson})
+
+    state.setdefault("_meta", {})["last_swept"] = swept
 
 
 def _entry_context(intent: dict, market: dict) -> dict:
@@ -2328,6 +2680,11 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
         # pruned any closed position — so only STILL-held theses carry forward
         # (a closed trade's thesis vanishes next cycle; nothing to hallucinate).
         context["self_context"] = build_self_context(state)
+        # Resting orders, read AFTER reconcile has cancelled the stale ones — so
+        # the model never re-sends a close that is already working, or forgets
+        # an open it placed. (Read-only, so observe mode reads it too.)
+        if not dry_run:
+            context["open_orders"] = _open_orders_summary(_fetch_open_orders())
 
         # The decision call is the one failure that costs the entire cycle —
         # everything above it is just gathering. Give it a wider retry than the

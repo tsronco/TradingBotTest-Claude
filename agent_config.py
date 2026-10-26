@@ -94,6 +94,10 @@ AGENT_CONFIG = {
     # from the order (long options, debit/credit spreads); stock is gated by
     # Alpaca buying power instead.
     "max_risk_pct_equity": 0.30,
+    # A tracked open order is only swept (cancelled) as unfilled once it is at
+    # least this old, so a manual run minutes after a scheduled one doesn't
+    # cancel orders the previous cycle just placed.
+    "min_order_age_minutes": 60,
 
     # ── Candidate universe (context only) ──────────────────────────────────
     # The wide field Claude scans each cycle. This does NOT explode cost: the

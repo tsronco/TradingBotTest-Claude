@@ -22,6 +22,8 @@ import {
   agentStats,
   confidenceCalibration,
   openUnrealizedPnl,
+  outcomePnl,
+  outcomePnlBasis,
   type AgentClosedTrade,
   type AgentLeg,
   type AgentPosition,
@@ -359,7 +361,7 @@ function OpenCard({ pos }: { pos: AgentPosition & { id: string } }) {
 function LessonCard({ trade }: { trade: AgentClosedTrade }) {
   const [expanded, setExpanded] = useState(false);
   const g = trade.grade;
-  const pnl = trade.outcome?.estimated_pnl;
+  const pnl = outcomePnl(trade.outcome);
   const tickers = underlyingsOf(trade.legs);
   const days = trade.outcome?.days_held;
   return (
@@ -413,8 +415,8 @@ function LessonCard({ trade }: { trade: AgentClosedTrade }) {
           <div className="text-[10px] text-dim flex flex-wrap gap-x-4 gap-y-1">
             {g?.invalidation_fired && <span>invalidation fired: <span className="text-fg">{g.invalidation_fired}</span></span>}
             {g?.exit_quality && <span>exit quality: <span className="text-fg">{g.exit_quality}</span></span>}
-            {trade.outcome?.estimated_pnl_basis && (
-              <span>P&amp;L basis: <span className="text-fg">{trade.outcome.estimated_pnl_basis}</span></span>
+            {outcomePnlBasis(trade.outcome) && (
+              <span>P&amp;L basis: <span className="text-fg">{outcomePnlBasis(trade.outcome)}</span></span>
             )}
           </div>
         </div>

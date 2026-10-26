@@ -8,6 +8,7 @@
 import { useAgentState } from '../../hooks/useBotState';
 import { linkAgentRecord, confidenceStars } from '../../lib/agent-trade-link';
 import { fmtUsd } from '../../lib/format';
+import { outcomePnl, outcomePnlBasis } from '../../lib/agent-state';
 import { ThesisBlock } from '../agent/ThesisBlock';
 import type { Trade } from '../../lib/trade-types';
 
@@ -68,9 +69,9 @@ export function AgentThesisPanel({ trade }: { trade: Trade }) {
               <span className="text-dim">outcome </span>
               <span className="text-fg font-bold">{g?.outcome_grade ?? '—'}</span>
             </span>
-            {typeof link.outcome?.estimated_pnl === 'number' && (
-              <span className={link.outcome.estimated_pnl >= 0 ? 'text-hi' : 'text-red'}>
-                {fmtUsd(link.outcome.estimated_pnl, { sign: true })}
+            {outcomePnl(link.outcome) !== null && (
+              <span className={outcomePnl(link.outcome)! >= 0 ? 'text-hi' : 'text-red'}>
+                {fmtUsd(outcomePnl(link.outcome)!, { sign: true })}
               </span>
             )}
             {typeof link.outcome?.days_held === 'number' && (
@@ -93,8 +94,8 @@ export function AgentThesisPanel({ trade }: { trade: Trade }) {
           <div className="mt-2 text-[10px] text-dim flex flex-wrap gap-x-4 gap-y-1">
             {g?.invalidation_fired && <span>invalidation fired: <span className="text-fg">{g.invalidation_fired}</span></span>}
             {g?.exit_quality && <span>exit quality: <span className="text-fg">{g.exit_quality}</span></span>}
-            {link.outcome?.estimated_pnl_basis && (
-              <span>P&amp;L basis: <span className="text-fg">{link.outcome.estimated_pnl_basis}</span></span>
+            {outcomePnlBasis(link.outcome) && (
+              <span>P&amp;L basis: <span className="text-fg">{outcomePnlBasis(link.outcome)}</span></span>
             )}
           </div>
         </div>
