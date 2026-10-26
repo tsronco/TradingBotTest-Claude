@@ -275,11 +275,30 @@ def test_state_round_trip(tmp_path, monkeypatch):
     assert reloaded["positions"]["O-1"]["thesis"]["confidence"] == 4
 
 
-def test_load_state_survives_corrupt_file(tmp_path, monkeypatch):
+def test_load_state_refuses_a_corrupt_file_instead_of_wiping_history(tmp_path, monkeypatch):
+    # Returning an empty state here used to mean the next save overwrote every
+    # closed trade and tracked position. Now the cycle stops and reports it.
     p = tmp_path / "agent_state.json"
     p.write_text("{ not valid json")
     monkeypatch.setattr(at, "_state_path", lambda: str(p))
-    assert at.load_state() == at._empty_state()
+    with pytest.raises(json.JSONDecodeError):
+        at.load_state()
+
+
+def test_run_cycle_with_corrupt_state_errors_and_leaves_the_file_alone(_wire, tmp_path):
+    p = tmp_path / "agent_state.json"
+    p.write_text("{ not valid json")
+    out = at.run_cycle(client=_FakeClient([]))
+    assert out["errors"] == 1
+    assert p.read_text() == "{ not valid json"
+
+
+def test_save_state_is_atomic(tmp_path, monkeypatch):
+    p = tmp_path / "agent_state.json"
+    monkeypatch.setattr(at, "_state_path", lambda: str(p))
+    at.save_state({"positions": {}, "closed": [], "_meta": {}})
+    assert json.loads(p.read_text())["positions"] == {}
+    assert not (tmp_path / "agent_state.json.tmp").exists()
 
 
 # ── request_decisions with a mocked Anthropic client ────────────────────────
@@ -1502,3 +1521,145 @@ def test_mandate_and_schema_state_the_sign_rule():
     assert "SIGNED NET" in at.SYSTEM_MANDATE and "limit_price -0.40" in at.SYSTEM_MANDATE
     desc = at.DECISION_TOOL["input_schema"]["properties"]["intents"]["items"]["properties"]["limit_price"]["description"]
     assert "NEGATIVE for a net credit" in desc
+
+
+# ── Robustness + account-wide risk (2026-10-26 review: A6, A7, A10, A11, O3, S5) ──
+
+def test_total_risk_cap_counts_what_is_already_open():
+    cap = {"equity_floor": 0, "max_risk_pct_equity": 0.30, "max_total_risk_pct_equity": 0.60}
+    # $250 debit spread on $1,000: 25% alone is fine...
+    ok, reason = at.check_feasibility(_debit_spread(2.50), {"equity": 1000}, cap, open_risk=300)
+    assert ok, reason
+    # ...but not on top of $400 already at risk (65% > 60%).
+    ok, reason = at.check_feasibility(_debit_spread(2.50), {"equity": 1000}, cap, open_risk=400)
+    assert not ok and "already at risk" in reason and "60%" in reason
+
+
+def test_open_risk_sums_tracked_positions_from_their_fills():
+    state = {"positions": {
+        # ZS: filled at a $0.25 debit on a $2.50 put spread → $275 at risk.
+        "zs": {"legs": _PCS, "fill": {"fill_available": True, "actual_net_credit": -0.25}},
+        # Not yet filled: intended −0.6 (mis-signed) is re-signed to a 0.60 credit → $190.
+        "pending": {"legs": _PCS, "intended_net_credit": -0.6},
+        "stock": {"legs": [{"asset": "stock", "symbol": "F", "side": "buy", "qty": 10}],
+                  "last_snapshot": {"cost_basis": 112.0}},
+    }}
+    assert at._open_risk(state) == pytest.approx(275 + 190 + 112)
+
+
+def test_run_cycle_enforces_the_total_cap_across_opens_in_one_cycle(_wire, monkeypatch):
+    monkeypatch.setattr(at, "gather_depth", lambda focus, positions, account, mode="agent", **kw: {
+        "account": {"equity": 1000.0, "cash": 1000.0}, "positions": [], "market": {},
+        "equity_floor": 500})
+    at.run_cycle(client=_FakeClient([_debit_spread(2.80), _debit_spread(2.80), _debit_spread(2.80)]))
+    assert len(_wire) == 2        # $280 + $280 = 56%; the third would make 84%
+
+
+def test_orders_carry_a_client_id_and_a_timeout_is_recovered(_wire, monkeypatch, tmp_path):
+    import requests as rq
+
+    def timeout(payload):
+        _wire.append(payload)
+        raise rq.ReadTimeout("read timed out")
+
+    monkeypatch.setattr(at, "place_order", timeout)
+    monkeypatch.setattr(at, "_get_order_by_client_id", lambda cid: {"id": "ORD-9", "client_order_id": cid})
+    out = at.run_cycle(client=_FakeClient([_open_intent()]))
+    assert _wire[0]["client_order_id"].startswith("agent-")
+    assert out["opened"] == 1 and out["errors"] == 0
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    assert "ORD-9" in st["positions"]
+
+
+def test_timeout_with_no_order_found_is_reported_not_tracked(_wire, monkeypatch, tmp_path):
+    import requests as rq
+    monkeypatch.setattr(at, "place_order", lambda p: (_ for _ in ()).throw(rq.ConnectionError("reset")))
+    out = at.run_cycle(client=_FakeClient([_open_intent()]))
+    assert out["opened"] == 0 and out["errors"] == 1
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    rej = st["_meta"]["last_cycle_outcome"]["rejected"][0]
+    assert rej["source"] == "network" and "open_orders" in rej["reason"]
+
+
+def test_one_bad_intent_does_not_lose_the_others(_wire, monkeypatch, tmp_path):
+    real = at.build_order_payload
+
+    def flaky(intent):
+        if intent.get("rationale") == "boom":
+            raise KeyError("legs")
+        return real(intent)
+
+    monkeypatch.setattr(at, "build_order_payload", flaky)
+    out = at.run_cycle(client=_FakeClient([_open_intent(rationale="boom"), _open_intent()]))
+    assert out["opened"] == 1 and out["errors"] == 1
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    assert st["_meta"]["last_cycle_outcome"]["rejected"][0]["source"] == "internal"
+
+
+def test_state_is_saved_right_after_each_placement(_wire, monkeypatch, tmp_path):
+    saves = []
+    real_save = at.save_state
+    monkeypatch.setattr(at, "save_state", lambda st: saves.append(len(st["positions"])) or real_save(st))
+    at.run_cycle(client=_FakeClient([_open_intent()]))
+    assert saves[0] == 1          # persisted before the cycle's final save
+
+
+def test_decision_cut_off_at_max_tokens_is_a_hold():
+    out = at.request_decisions({"account": {}}, client=_FakeClient([_open_intent()], stop_reason="max_tokens"))
+    assert out["intents"] == [] and "token limit" in out["market_read"]
+
+
+def test_held_leg_inside_seven_days_is_still_priced(monkeypatch):
+    near = "ZS261030P00200000"      # inside the 7–45 DTE chain fetch
+    monkeypatch.setattr(at, "fetch_chains", lambda symbols, mode="agent": {
+        "ZS": {"quote": {"p": 256.0}, "spot": 256.0, "snaps": {
+            "ZS261120P00230000": {"latestQuote": {"bp": 1.0, "ap": 1.2}}}}})
+    monkeypatch.setattr(at.alpaca_data, "get_option_snapshot",
+                        lambda occ, mode="agent": {"latestQuote": {"bp": 0.05, "ap": 0.15}})
+    pack = at.build_market_pack(["ZS"], held_occs=[near], ask_strikes=False)
+    assert pack["ZS"]["options"][near]["bid"] == 0.05
+
+
+def test_strike_window_truncation_is_flagged(monkeypatch):
+    snaps = {f"ZS261120P{int(k * 1000):08d}": {"latestQuote": {"bp": 1, "ap": 2}}
+             for k in range(150, 260, 1)}
+    monkeypatch.setattr(at, "fetch_chains", lambda symbols, mode="agent": {
+        "ZS": {"quote": {"p": 256.0}, "spot": 256.0, "snaps": snaps}})
+    monkeypatch.setattr(at, "request_strikes", lambda sk, client=None: {"requests": {"ZS": [
+        {"types": "P", "dte_min": 0, "dte_max": 60, "moneyness_from_pct": -40, "moneyness_to_pct": 0}]}})
+    monkeypatch.setitem(at._CFG, "chain_keep", 10)
+    pack = at.build_market_pack(["ZS"], ask_strikes=True)
+    assert pack["ZS"]["strike_request"]["truncated"] is True
+    assert pack["ZS"]["strike_request"]["rows"] == 10
+
+
+def test_chain_fetch_follows_pages(monkeypatch):
+    pages = [{"snapshots": {"A": 1}, "next_page_token": "t2"},
+             {"snapshots": {"B": 2}, "next_page_token": None}]
+    seen = []
+
+    def fake_get(url, mode, params=None):
+        seen.append(dict(params))
+        return pages[len(seen) - 1]
+
+    monkeypatch.setattr(at.alpaca_data, "_get", fake_get)
+    out = at.alpaca_data.get_option_chain_snapshots("SPY", mode="agent")
+    assert out == {"A": 1, "B": 2}
+    assert "page_token" not in seen[0] and seen[1]["page_token"] == "t2"
+
+
+def test_trend_context_uses_split_adjusted_bars(monkeypatch):
+    calls = []
+    monkeypatch.setattr(at.alpaca_data, "get_stock_bars",
+                        lambda sym, days=90, timeframe="1Day", mode="manual", adjustment="raw":
+                        calls.append(adjustment) or [])
+    monkeypatch.setattr(at.earnings_mod, "earnings_context", lambda sym: {})
+    at.build_context_pack(["NFLX"])
+    assert calls == ["split"]
+
+
+def test_days_to_expiry_uses_the_nearest_leg():
+    from datetime import date
+    legs = [{"symbol": "ZS261120P00200000"}, {"symbol": "ZS261218P00197500"}]
+    assert at._days_to_expiry(legs, today=date(2026, 11, 17)) == 3
+    assert at._days_to_expiry([{"symbol": "F"}]) is None

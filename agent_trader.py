@@ -108,11 +108,11 @@ def load_state() -> dict:
     path = _state_path()
     if not os.path.exists(path):
         return _empty_state()
-    try:
-        with open(path) as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return _empty_state()
+    # A corrupt or unreadable file must stop the cycle, not silently become an
+    # empty state — the next save would overwrite the whole trade history and
+    # every tracked position. run_cycle's fail-soft handler reports it.
+    with open(path) as f:
+        data = json.load(f)
     # Merge forward so older files gain new keys without crashing.
     base = _empty_state()
     base.update({k: v for k, v in data.items() if k in base})
@@ -121,8 +121,12 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    with open(_state_path(), "w") as f:
+    # Write-then-rename, so a crash mid-write can never leave a half file.
+    path = _state_path()
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
         json.dump(state, f, indent=2, sort_keys=True)
+    os.replace(tmp, path)
 
 
 # ── Context gathering (read-only) ──────────────────────────────────────────
@@ -143,7 +147,10 @@ def build_context_pack(symbols: list[str], mode: str = "agent") -> dict:
         entry: dict = {}
         try:
             # ~370 calendar days so the 52-week window is actually a year.
-            bars = alpaca_data.get_stock_bars(sym, days=370, mode=mode)
+            # Split-adjusted: a split inside the year (NFLX, NOW) otherwise
+            # reads as an −80–90% crash in the trend stats the model cites.
+            bars = alpaca_data.get_stock_bars(sym, days=370, mode=mode,
+                                              adjustment="split")
             entry["trend"] = agent_market_context.trailing_stats(bars)
             summary = agent_market_context.describe_trend(entry["trend"])
             if summary:
@@ -306,16 +313,33 @@ def build_market_pack(symbols: list[str], mode: str = "agent", client=None,
         fallback = not chosen
         if fallback:
             chosen = list(_trim_chain(snaps, spot=spot, keep=keep))
+        truncated = len(chosen) > keep
         chosen = chosen[:keep]
+        # Held legs are always priced. A leg inside 7 DTE is outside the chain
+        # fetch, so it is pulled on its own — expiry week is exactly when a
+        # close needs a price.
         for occ in held:
-            if occ in snaps and occ not in chosen:
-                chosen.append(occ)
+            if _occ_parse(occ)["underlying"] != sym or occ in chosen:
+                continue
+            if occ not in snaps:
+                try:
+                    snap = alpaca_data.get_option_snapshot(occ, mode=mode)
+                except Exception:  # noqa: BLE001 — best-effort
+                    snap = None
+                if not snap:
+                    continue
+                snaps[occ] = snap
+            chosen.append(occ)
         entry["options"] = _rows_from(snaps, chosen)
         entry["strike_request"] = {
             "windows": reqs,
             "fallback": fallback,
             "rows": len(entry["options"]),
             "note": note if fallback else None,
+            # The windows matched more contracts than the per-symbol cap, so
+            # the far end of the last window (e.g. a condor's other wing) was
+            # cut. Ask for narrower windows to see it.
+            "truncated": truncated,
         }
         pack[sym] = entry
     return pack
@@ -643,6 +667,13 @@ def _classify_structure(legs: list) -> tuple[str, str]:
     return ("other", "unknown")
 
 
+def _days_to_expiry(legs: list, today: date | None = None) -> int | None:
+    exps = [p["expiry"] for p in (_occ_parse(l.get("symbol")) for l in (legs or [])) if p]
+    if not exps:
+        return None
+    return (date.fromisoformat(min(exps)) - (today or date.today())).days
+
+
 def _dte_at_entry(legs: list, opened_at: str | None) -> int | None:
     """Calendar days from entry to the nearest option expiry (None for stock)."""
     exps = [p["expiry"] for p in (_occ_parse(l.get("symbol")) for l in (legs or [])) if p]
@@ -792,6 +823,9 @@ def build_self_context(state: dict) -> dict:
             # What the fill actually locked in for a vertical — catches a credit
             # spread that filled as a debit (max profit <= 0).
             "payoff_at_fill": _payoff_at_fill(pos.get("legs"), pos.get("fill")),
+            # Nearest leg expiry. Inside a few days, pin and assignment risk
+            # matter more than the thesis — nothing closes it automatically.
+            "days_to_expiry": _days_to_expiry(pos.get("legs")),
         })
     meta = state.get("_meta") or {}
     return {
@@ -1152,6 +1186,9 @@ equity. Size accordingly: fewer contracts, or a narrower spread. An over-sized \
 order is REJECTED and reported back to you, so do the arithmetic before you \
 submit — this is a hard seatbelt against a single catastrophic loss, not a view \
 on what to trade.
+- All your open positions together may not put more than 60% of equity at risk \
+(the sum of their max losses, including the one you're opening). An open that \
+would cross it is rejected.
 - Opening an option position must be a LIMIT order (a market option order has no \
 price bound and fills at the bid/ask cross). Market orders are fine for closes \
 and for stock. You may not open a short stock position.
@@ -1317,6 +1354,12 @@ def request_decisions(context: dict, client=None, model: str | None = None) -> d
         messages=[{"role": "user", "content": user_content}],
     )
     log_model_usage("decision", model, resp)
+    if getattr(resp, "stop_reason", None) == "max_tokens":
+        # A forced tool call cut off mid-JSON can't be trusted to be the whole
+        # decision (an intent list may be missing a close). Hold this cycle.
+        log("decision hit max_tokens — treating as no-trade cycle")
+        return {"intents": [], "market_read": "(decision was cut off at the token limit; held)",
+                "refused": False}
     if getattr(resp, "stop_reason", None) == "refusal":
         log("model refused — treating as no-trade cycle")
         return {"intents": [], "market_read": "(model refused this cycle)", "refused": True}
@@ -1570,6 +1613,34 @@ def _held_qty_by_symbol(positions: list) -> dict:
     return out
 
 
+def _position_max_loss(pos: dict) -> float | None:
+    """Max loss of a tracked position, from its legs and the net it actually
+    filled at (else the intended net, sign-corrected). Long stock: its cost."""
+    legs = pos.get("legs") or []
+    if not legs:
+        return None
+    if all(l.get("asset") == "stock" for l in legs):
+        cb = _f((pos.get("last_snapshot") or {}).get("cost_basis"))
+        return abs(cb) if cb else None
+    fill = pos.get("fill") or {}
+    net = fill.get("actual_net_credit") if fill.get("fill_available") else None
+    if net is None:
+        net = _corrected_intended(legs, pos.get("intended_net_credit"))
+    if net is None:
+        return None
+    return _structure_max_loss(legs, -net)
+
+
+def _open_risk(state: dict) -> float:
+    """Total max loss across every tracked position (finite values only)."""
+    total = 0.0
+    for pos in (state.get("positions") or {}).values():
+        ml = _position_max_loss(pos)
+        if ml is not None and not math.isinf(ml):
+            total += ml
+    return round(total, 2)
+
+
 def _close_leg_problem(intent: dict, positions: list) -> str | None:
     """A close must only reduce what is actually held: every leg's symbol held,
     the side opposite the holding (sell a long, buy back a short), and no more
@@ -1591,7 +1662,8 @@ def _close_leg_problem(intent: dict, positions: list) -> str | None:
 
 def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG,
                       positions: list | None = None,
-                      market: dict | None = None) -> tuple[bool, str]:
+                      market: dict | None = None,
+                      open_risk: float = 0.0) -> tuple[bool, str]:
     """Return (ok, reason). Rejects things Alpaca physically can't place or that
     would place something other than what was meant (wrong price sign, uneven
     ratios, a "close" that opens), the equity-floor breaker, and the hard
@@ -1673,6 +1745,13 @@ def check_feasibility(intent: dict, account: dict, cfg: dict = _CFG,
                     f"max loss ${max_loss:.0f} exceeds {int(pct * 100)}% of "
                     f"equity (${pct * equity:.0f}) — size the trade smaller "
                     f"(fewer contracts or a narrower spread)")
+            total_pct = cfg.get("max_total_risk_pct_equity") or 0
+            if (total_pct and max_loss is not None
+                    and open_risk + max_loss > total_pct * equity):
+                return False, (
+                    f"this open's max loss ${max_loss:.0f} plus ${open_risk:.0f} already "
+                    f"at risk in open positions exceeds {int(total_pct * 100)}% of equity "
+                    f"(${total_pct * equity:.0f}) — close something first or size smaller")
 
     return True, "ok"
 
@@ -1800,6 +1879,11 @@ def _fetch_activities(after_iso: str) -> list | None:
             return out
         token = page[-1].get("id")
     return out
+
+
+def _get_order_by_client_id(client_id: str) -> dict | None:
+    o = _agent_get("/orders:by_client_order_id", {"client_order_id": client_id})
+    return o if isinstance(o, dict) and o.get("id") else None
 
 
 def _fetch_open_orders() -> list | None:
@@ -2337,7 +2421,9 @@ def _apply_realized(lessons: list, activities: list, held_symbols: set) -> int:
             basis = ("not computed: a leg was assigned or exercised into stock, so the "
                      "option fills alone don't give the P&L")
         elif not all(any(str(f.get("symbol", "")).upper() == s for f in fills) for s in gsyms):
-            basis = "not computed: no fill found for every leg in Alpaca's activity log"
+            # Incomplete log (or a fill not yet posted): leave it unchecked and
+            # try again next cycle rather than settle on a wrong number.
+            continue
         else:
             cash = 0.0
             for f in fills:
@@ -2710,7 +2796,13 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
         cycle_outcome = {"opened": [], "closed": [], "rejected": []}
         observed: list[str] = []
 
-        for intent in decisions.get("intents", []):
+        # Account-wide risk already committed: every tracked position's max
+        # loss, plus each open this cycle places (A6 — the per-trade cap alone
+        # let three 29% opens through).
+        committed = {"usd": _open_risk(state)}
+        cycle_tag = str(int(time.time()))
+
+        def _execute_intent(idx: int, intent: dict) -> None:
             legs_str = _legs_summary(intent.get("legs"))
             # A wrong-signed CLOSE is fixed rather than rejected (an exit
             # shouldn't wait two hours); the flip is logged and reported back.
@@ -2720,58 +2812,77 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                           details={"from": flipped_from, "to": intent["limit_price"],
                                    "legs": legs_str})
             ok, reason = check_feasibility(intent, context["account"],
-                                           positions=context["positions"], market=market)
+                                           positions=context["positions"], market=market,
+                                           open_risk=committed["usd"])
             if not ok:
                 summary["rejected"] += 1
                 cycle_outcome["rejected"].append(
                     {"legs": legs_str, "source": "feasibility", "reason": reason})
                 log_event(_CFG["log_stream"], "agent_trader.py", "intent_rejected",
                           result="skipped", details={"reason": reason, "intent": intent})
-                continue
+                return
             if dry_run or observe:
                 log(f"[{'observe' if observe else 'dry-run'}] would {intent['action']}: {legs_str}")
                 observed.append(f"{intent['action']} {legs_str}")
-                continue
+                return
+            # A client order id makes a timeout recoverable: if the POST dies
+            # after Alpaca accepted it, the order is found by this id instead of
+            # being reported "not placed" and possibly sent twice.
+            client_id = f"agent-{cycle_tag}-{idx}"
+            payload = build_order_payload(intent)
+            payload["client_order_id"] = client_id
+            order = None
             try:
-                resp = place_order(build_order_payload(intent))
+                resp = place_order(payload)
             except requests.RequestException as e:
-                summary["errors"] += 1
-                cycle_outcome["rejected"].append(
-                    {"legs": legs_str, "source": "network", "reason": str(e)})
-                log_event(_CFG["log_stream"], "agent_trader.py", "order_error",
-                          result="failure", details={"error": str(e)})
-                continue
-            if resp.status_code >= 300:
-                summary["errors"] += 1
-                body = resp.text[:500]
-                cycle_outcome["rejected"].append(
-                    {"legs": legs_str, "source": "alpaca",
-                     "reason": f"Alpaca {resp.status_code}: {body}"})
-                log_event(_CFG["log_stream"], "agent_trader.py", "order_rejected",
-                          result="failure",
-                          details={"status": resp.status_code, "body": body,
-                                   "intent": intent})
-                # Surface a handled rejection to #agent-errors — it's silent
-                # otherwise (log-only), so a loop on an unplaceable structure
-                # would burn API calls unnoticed until someone reads the log.
-                _announce_rejection(intent, resp.status_code, body)
-                continue
-            order = resp.json()
-            order_id = order.get("id", "")
+                order = _get_order_by_client_id(client_id)
+                if not order:
+                    summary["errors"] += 1
+                    cycle_outcome["rejected"].append(
+                        {"legs": legs_str, "source": "network",
+                         "reason": (f"{e} — and no order with this client id was found "
+                                    f"on Alpaca afterwards; check open_orders next cycle")})
+                    log_event(_CFG["log_stream"], "agent_trader.py", "order_error",
+                              result="failure", details={"error": str(e), "client_order_id": client_id})
+                    return
+                log_event(_CFG["log_stream"], "agent_trader.py", "order_recovered_after_timeout",
+                          details={"error": str(e), "client_order_id": client_id})
+            if order is None:
+                if resp.status_code >= 300:
+                    summary["errors"] += 1
+                    body = resp.text[:500]
+                    cycle_outcome["rejected"].append(
+                        {"legs": legs_str, "source": "alpaca",
+                         "reason": f"Alpaca {resp.status_code}: {body}"})
+                    log_event(_CFG["log_stream"], "agent_trader.py", "order_rejected",
+                              result="failure",
+                              details={"status": resp.status_code, "body": body,
+                                       "intent": intent})
+                    # Surface a handled rejection to #agent-errors — it's silent
+                    # otherwise (log-only), so a loop on an unplaceable structure
+                    # would burn API calls unnoticed until someone reads the log.
+                    _announce_rejection(intent, resp.status_code, body)
+                    return
+                try:
+                    order = resp.json()
+                except ValueError:
+                    order = _get_order_by_client_id(client_id) or {}
+            order_id = order.get("id", "") or client_id
             if intent["action"] == "open":
                 summary["opened"] += 1
                 intended_nc = _intent_net_credit(intent)
                 cycle_outcome["opened"].append(
                     {"legs": legs_str, "order_id": order_id,
-                     "intended_net_credit": intended_nc})
+                     "intended_net_credit": intended_nc,
+                     "status": "submitted — fill confirmed next cycle"})
                 state["positions"][order_id] = {
                     "opened_at": _now_iso(),
                     "legs": intent["legs"],
                     "thesis": intent.get("thesis"),
                     "open_order_id": order_id,
                     # What we asked for, per share (+ = credit). The actual fill +
-                    # slippage get computed next cycle in reconcile, once the leg
-                    # avg-entries are visible on Alpaca, and stored as `fill`.
+                    # slippage get computed next cycle in reconcile, from the
+                    # order itself, and stored as `fill`.
                     "intended_net_credit": intended_nc,
                     # Snapshot of entry-time underlying prices so the grader can
                     # later check the thesis's invalidation condition and the
@@ -2780,6 +2891,9 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                     "entry_context": _entry_context(intent, market),
                     "last_snapshot": None,
                 }
+                ml = _intent_max_loss(intent, market)
+                if ml is not None and not math.isinf(ml):
+                    committed["usd"] += ml
                 _announce_open(intent, order_id)
             else:
                 summary["closed"] += 1
@@ -2795,10 +2909,25 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                 # just that it happened.
                 _stamp_close_reason(state, intent, market_read)
                 _announce_close(intent, order_id)
+            # Saved after every placement: a crash later in the cycle must not
+            # lose track of an order that is already live on Alpaca.
+            save_state(state)
             log_event(_CFG["log_stream"], "agent_trader.py",
                       f"{intent['action']}_placed",
                       alpaca_order_id=order_id,
                       details={"intent": intent})
+
+        for idx, intent in enumerate(decisions.get("intents", [])):
+            try:
+                _execute_intent(idx, intent)
+            except Exception as e:  # noqa: BLE001 — one bad intent never sinks the rest
+                summary["errors"] += 1
+                cycle_outcome["rejected"].append(
+                    {"legs": _legs_summary(intent.get("legs")), "source": "internal",
+                     "reason": f"{type(e).__name__}: {e}"})
+                log_event(_CFG["log_stream"], "agent_trader.py", "intent_error",
+                          result="failure", details={"error": f"{type(e).__name__}: {e}",
+                                                     "intent": intent})
 
         # Persist this cycle's factual outcome for next cycle's continuity feed
         # (overwritten every cycle, so it stays exactly one hour old like the note).

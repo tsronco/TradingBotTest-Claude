@@ -268,3 +268,10 @@ def test_reconcile_grades_with_realized_pnl_and_backfills_old_lessons(monkeypatc
 def test_grader_is_told_not_to_invent_post_close_prices():
     assert "Never claim what the stock or option" in agent_grading.GRADER_SYSTEM
     assert agent_grading._default_grade()["loss_type"] is None
+
+
+def test_missing_fills_leave_the_lesson_for_a_retry():
+    l = _lesson(ZS_LEGS, "2026-10-21T14:12:00Z", "2026-11-23T14:12:00Z", -40.0)
+    acts = [_fill(ZS_SHORT, "sell", 1, 3.38, "2026-10-21T14:12:30Z")]   # long leg missing
+    assert at._apply_realized([l], acts, set()) == 0
+    assert "realized_checked" not in l["outcome"]

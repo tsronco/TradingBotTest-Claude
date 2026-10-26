@@ -190,7 +190,7 @@ def test_client_factory_allows_per_call_overrides(monkeypatch):
 class _StubBars:
     """Deterministic rising series so trend numbers are predictable."""
     @staticmethod
-    def get_stock_bars(symbol, days=90, timeframe="1Day", mode="manual"):
+    def get_stock_bars(symbol, days=90, timeframe="1Day", mode="manual", adjustment="raw"):
         return [{"c": 100 + i * 0.1} for i in range(300)]
 
 
