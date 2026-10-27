@@ -1,42 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-10-26T13:41:52Z",
-    "runs": 34
+    "last_run_at": "2026-10-27T13:41:47Z",
+    "runs": 35
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 135.72,
+      "equity": 132.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-10-26",
-    "generated_at": "2026-10-26T13:41:52Z",
+    "date": "2026-10-27",
+    "generated_at": "2026-10-27T13:41:47Z",
     "held": [
       {
         "symbol": "BAC",
-        "watch": "Long Nov-20 48/49 put debit spread (long 48 @ mid 0.365, short 49 @ mid 0.52) \u2014 net mid ~$0.195, ~$19.50 value vs $23 cost, -$3.50 at mid (Alpaca's worst-case mark says -$1). BAC rallied to $51.21, pushing the spread $2.21 OTM with 25 DTE and no earnings until Jan 15; short-leg delta -0.24 vs long -0.17 means theta is now working slightly in your favor, so there is no urgency, but this needs BAC back under ~$49 by Nov 20 to pay. No resting orders; both legs fully available. Realistic exit: close the pair for ~$0.20 debit-credit net if BAC breaks $52.70 (the 20d avg) \u2014 the thesis is spent at that point."
+        "watch": "Held Nov-20 48/49 put debit spread (long 48 @ 0.40 mid, short 49 @ 0.58 mid = $0.18 net, -$0.05 vs the $0.23 paid; Alpaca's worst-case mark shows -$13, trust the mid). No resting orders, both legs fully available. BAC $50.74 means both strikes are OTM and the spread only pays if BAC falls through $49 by Nov 20; no earnings until Jan 15. Same call as yesterday: let it run, re-evaluate if BAC closes above $52.70 or below $49.50."
       }
     ],
     "ideas": [],
-    "market_read": "BAC is $51.21, up $0.63 from yesterday and +1.6% on the week \u2014 that's a direct hit to the held Nov-20 48/49 put debit spread, which is now $2.21 out of the money with 25 days left. VZ reports today and PYPL tomorrow, COIN Thursday; everything else on the board is quiet. Options buying power is still $59.72, which is below the cost of essentially any defined-risk structure here.",
+    "market_read": "Risk-on tape: SOFI +10%, RCL +8%, AVGO/AMD/INTC/ALB/GM all up 3-5%, with MRNA -5.6% and SHW -4% the only real red. BAC is $50.74, down 47c from yesterday \u2014 modestly helpful to the held Nov-20 48/49 put debit spread, which is now +$5 at mid vs entry but still $1.74 out of the money with 24 days left. Options buying power is unchanged at $59.72, which remains below the cost of essentially every defined-risk structure on this board.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Nothing fits $59.72 of options buying power \u2014 a BAC Nov-20 49/48 put credit spread needs ~$72 collateral, and the only sub-$60 structure on the board (VZ Nov-20 46/48 call spread, ~$0.49 debit) prices earnings that print today, which I won't pay for. Changed from yesterday in one respect: I'm no longer suggesting closing the BAC spread near-term, because the short 49 leg now decays faster than the long 48 and the position is only -$3.50 at mid \u2014 let it run unless BAC closes above $52.70. If the account were funded with ~$1,500\u20132,000, the ranking is (1) BAC Nov-20 49/48 put credit spread, ~$0.28 credit on $72 collateral, 4\u20135 lots \u2248 $350 risk, no earnings in the window; (2) a PYPL or COIN defined-risk spread only AFTER their Oct 27/29 prints; (3) roll the existing BAC 48/49 down a strike for a credit. Credit spreads need options Level 3, debit spreads Level 2 \u2014 confirm your approval level first.",
+    "no_trade_reason": "Nothing fits $59.72 of options buying power. The cheapest sensible structures today still clear the budget: a BAC Nov-20 49/48 put credit spread needs ~$72 collateral, a SOFI Nov-20 14/13 put credit spread needs ~$89, and today's big movers (SOFI, RCL, SHW all report today; INTC Oct 29, AMD Nov 3) are earnings-day names I won't pay up for on a $133 account. If the account were funded with ~$1,500-2,000, the ranking is (1) SOFI Nov-20 14/13 put credit spread for ~$0.11 credit on $89 collateral after today's print clears, 4-5 lots \u2248 $400 risk \u2014 the name just broke above its 20d average on volume; (2) BAC Nov-20 49/48 put credit spread, ~$0.27 credit on $73 collateral, 4-5 lots, no earnings in the window; (3) an INTC Nov-20 call debit spread only AFTER the Oct 29 print, since 70% IV makes anything through earnings expensive. Credit spreads need options Level 3, debit spreads Level 2 \u2014 confirm your approval level before placing any of these.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "TSLA",
+        "SOFI",
+        "RCL",
+        "AMD",
+        "INTC",
+        "AVGO",
         "MRNA",
-        "VZ",
-        "COIN",
-        "CMCSA",
-        "SNAP",
-        "EWZ",
-        "PYPL",
-        "NVDA"
+        "SHW",
+        "ORCL",
+        "VLO",
+        "GM",
+        "ALB"
       ],
-      "focus_read": "Account is tiny with low buying power and an existing BAC put spread position; focus on BAC to manage that trade, plus a few liquid high-movement names (TSLA, MRNA, VZ, COIN, CMCSA) offering cheap defined-risk options setups given the limited capital.",
+      "focus_read": "Small account with a BAC put spread already on, tight buying power ($59). Notable movers: SOFI +10%, RCL +8%, AVGO +4.4%, AMD +4.3%, INTC +3.8%, ORCL +3.6%, ALB +4.8%, GM +4.2%, MRNA -5.6%, SHW -4%, VLO -3.5% - looking for cheap defined-risk option setups in liquid high-beta names plus monitoring BAC for the existing position.",
       "universe_scanned": 272
     }
   }
