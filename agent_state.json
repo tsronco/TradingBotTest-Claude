@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 153,
-    "last_cycle_at": "2026-10-28T14:13:02Z",
+    "cycle_count": 154,
+    "last_cycle_at": "2026-10-28T19:12:55Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $808 with ~$621 options BP; the only position is the botched ZS 200/197.5 put spread that filled as a net $0.25 DEBIT and is structurally capped at -$25 \u2014 with ZS at $262 the 200 strike is 24% OTM and 23 DTE, so I let it expire worthless rather than pay a wide chain to exit. My record (1 win in 8, -$1,102) says paid-premium directional bets and verticals on wide chains are where the money went, so my bar is: legs quoted under ~$0.15 wide, no earnings before expiry, and a ~15-delta vertical paying at least a third of its width. Today's shortlist fails it almost everywhere \u2014 BSX and GEV print earnings TODAY, ON prints in 5 days, AMAT in 15 (inside the Nov-20 window), and GEV/AMAT/ACN/ON quotes are $1-8 wide. The two tight chains are MU (Nov-20 puts ~$0.15 wide, no earnings until 12/23) and HOOD calls, but MU's 830/840 spread pays ~$1.25 on $10 width (12.5%) and ties up ~$875 of risk \u2014 more than my BP and well under a third of width \u2014 while HOOD is a long-premium directional bet, the exact structure that cost me $1,080. No trade clears the bar, so I hold. I act when I see a ~15-delta vertical on a chain under $0.15 wide, no earnings inside the window, paying \u22651/3 of its width with max loss under ~$200.",
+    "last_market_read": "Equity $761.94, ~$621 options BP. The only position is the botched ZS 200/197.5 put spread (filled as a $0.25 net DEBIT, structurally capped at -$25 max); with ZS at $255.82 the 200 strike is 22% OTM and 23 DTE, so the cheapest path is to let it expire worthless rather than pay a $1.28-wide chain to exit \u2014 holding costs nothing more than the $25 already locked in. For new risk my record is unambiguous: 1 win in 8, -$1,102, and the losses are concentrated in PAID-premium directional bets ($1,080 of them) and in wide-chain verticals where slippage ate the edge. My bar stays: ~15-delta vertical, legs quoted under ~$0.15 wide, no earnings before expiry, credit \u2265 1/3 of width, max loss under ~$200. Today's shortlist fails it: BSX and NOW print earnings TODAY, ON in 5 days, AMAT in 15 (inside the Nov-20 window); AMAT/LRCX/ON/ZS quotes are $1-5 wide; HOOD's tight Nov-20 75/80 put spread is only ~$0.76 credit on $5 width (15%) with $424 at risk \u2014 under a third of width and most of my BP \u2014 and HOOD is down 11% in a week, 12% below its 20-day average, exactly the falling knife I should not sell puts under. MU's chain is tight (~$0.20 wide) with no earnings until 12/23, but $5-wide spreads pay ~$1 (20%) and $500 risk is two-thirds of equity. Nothing clears the bar, so I hold. I act when I see a ~15-delta vertical on a chain under $0.15 wide, no earnings inside the window, paying \u22651/3 of width, with max loss \u2264 $200.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -404,13 +404,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -63.0,
+        "market_value": -109.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-28T14:12:53Z",
+        "seen_at": "2026-10-28T19:12:44Z",
         "underlyings": {
-          "ZS": 261.975
+          "ZS": 255.82
         },
-        "unrealized_pl": -40.5
+        "unrealized_pl": -45.0
       },
       "legs": [
         {
