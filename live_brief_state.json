@@ -1,44 +1,46 @@
 {
   "_meta": {
-    "last_run_at": "2026-10-28T13:41:51Z",
-    "runs": 36
+    "last_run_at": "2026-10-29T13:42:02Z",
+    "runs": 37
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 134.72,
+      "equity": 135.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-10-28",
-    "generated_at": "2026-10-28T13:41:51Z",
+    "date": "2026-10-29",
+    "generated_at": "2026-10-29T13:42:02Z",
     "held": [
       {
-        "symbol": "BAC",
-        "watch": "Long Nov-20 48/49 put debit spread (1 long 48P, 1 short 49P), mid value ~$0.205 vs $0.23 entry, about -$2.50 on a 1-lot \u2014 essentially flat. No resting orders, both legs fully available. BAC at $50.79 and the 49 short strike is 3.5% below spot with 23 DTE; no earnings until Jan 15, so this is pure drift/theta. A close above $52.27 (the 20d average) kills the thesis \u2014 I'd take it off for whatever's bid rather than ride it to zero. Max remaining value $100 if BAC closes under $48 on Nov 20."
+        "symbol": "BAC261120P00048000",
+        "watch": "Long leg of the Nov-20 48/49 put debit spread, mid $0.205. BAC at $51.73 is $3.73 above the short strike with 22 days left \u2014 the spread is ~$0.165 net debit value at mid vs $0.23 paid, and theta is now -$0.017/day on this leg. No earnings until 2027-01-15, so only price moves it; if BAC can't close under $51 in the next week, the realistic choice is closing the pair for a small debit recovery rather than riding it to zero."
+      },
+      {
+        "symbol": "BAC261120P00049000",
+        "watch": "Short leg, mid $0.37 and quoted wide ($0.31/$0.43) \u2014 trust the mid, not the mark. Nothing is reserved against it (qty_available -1, no open orders), so the pair can be closed as a spread any time; use a limit near $0.16-$0.17 net credit to exit rather than legging out."
       }
     ],
     "ideas": [],
-    "market_read": "Mixed-to-heavy tape: BSX -10% on its earnings print (now at a 52-week low), GEV -9% on the week and reporting today, HOOD -11% on the week, while MU (+6.8% w/w) and SOFI (+15% w/w) hold the risk-on side. BAC is $50.79, up slightly \u2014 mildly unhelpful for the held Nov-20 48/49 put debit spread, which is now ~$1.79 out of the money with 23 days left and worth about $0.205 of debit at mid vs the $0.23 paid. Options buying power is still $59.72, which is below the collateral on essentially every defined-risk structure in this universe.",
+    "market_read": "Violent dispersion again: NOW -24% and GOOGL -13% on the week, CAT -8% into its print this morning, INTC and NCLH also reporting today \u2014 premium is rich but so is gap risk. BAC is the opposite story, quietly up to $51.73 (+1.3% w/w) and back above where the held put spread needs it to be, which is bad for that position. With $59.72 of options buying power, nothing on this board is placeable; the job today is managing the BAC spread, not adding.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Nothing fits $59.72 of options buying power \u2014 unchanged from yesterday, and the board got more expensive, not less. Cheapest sensible structures: BAC Nov-20 49/48 put credit spread needs ~$72 collateral (~$0.28 credit at mid), SOFI Nov-20 15/14 needs ~$91 (~$0.10 credit at mid, thin), HOOD Nov-20 80/75 needs ~$418. Shares are out too: the cheapest name here, SOFI at $17.20, leaves no room with $159.72 cash once the short BAC leg's requirement is accounted for. If the account were funded with ~$1,500\u20132,000, the ranking today would be (1) BAC Nov-20 49/48 put credit spread, ~$0.28 credit on $72 collateral, 5 lots \u2248 $360 risk \u2014 no earnings in window and BAC has already given back 18% in three months; (2) SOFI Nov-20 15/14 put credit spread after the post-earnings pop consolidates, 4 lots \u2248 $360 risk; (3) nothing in BSX or GEV until their prints clear today \u2014 both are reporting and both are already down hard, which is the worst time to sell premium on a small account. Credit spreads need options Level 3, debit spreads Level 2 \u2014 confirm your approval before placing any of these.",
+    "no_trade_reason": "Nothing fits $59.72 of options buying power \u2014 third day running, and the universe got more expensive, not cheaper. Cheapest real structures on the board: BAC Nov-27 49/48 put credit spread needs ~$87 collateral (~$0.13 credit at mid), SOFI Nov-27 16/15 roughly $90+, F Nov-27 11.5/11 needs ~$50 of width but the 11.5 put is quoted $0.19/$0.57 \u2014 a 3x-wide market where the fill is a coin flip, so I won't call it actionable at this size. Shares don't work either: cheapest liquid name is F at $11.99, and the short BAC leg already absorbs most of the $159.72 cash. If the account had ~$1,500\u20132,000 I'd rank it (1) INTC Dec-4 80/78 put credit spread only AFTER today's earnings print clears, IV 63% is the fattest premium here, ~4 lots \u2248 $700 risk; (2) BAC Nov-27 49/48 put credit spread, ~$0.13 credit on $87 collateral, 4 lots \u2248 $350 risk, no earnings in window; (3) nothing in NOW, GOOGL or CAT \u2014 a 24% single-day gap is when selling premium is most likely to be a trap, and CAT/NCLH report today. Credit spreads need options Level 3, debit spreads Level 2 \u2014 confirm your approval level before placing any of these.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "BSX",
-        "GEV",
-        "NXPI",
-        "ON",
-        "HOOD",
-        "BKR",
-        "WM",
-        "MU",
+        "GOOGL",
+        "NOW",
+        "CAT",
+        "MRVL",
+        "F",
+        "INTC",
         "SOFI",
-        "AMAT",
-        "HOOD"
+        "T",
+        "NCLH"
       ],
-      "focus_read": "Account is tiny (~$60 buying power) with an existing BAC put calendar/vertical, so focus stays on cheap, liquid underlyings with big moves for small defined-risk plays. Biggest standouts: BSX -11% (bond/device blowup), GEV -6%, NXPI -4.9%, ON -4%, HOOD -4%, BKR -4.7%, WM -3.7%, MU +5%, SOFI +4.7%, AMAT +2.3% - plus keeping an eye on BAC since we hold a position there.",
+      "focus_read": "Huge dispersion today with several massive single-name gap moves (NOW -24%, GOOGL -13.5%, CAT -9.5%, FTNT -23.7%, MRVL -12%, LLY +8.5%, MA +4.5%) alongside my existing BAC position. Given tiny account size/buying power (~$60), I'll focus on BAC (current position) plus a few liquid big-movers with cheap enough options for defined-risk small trades.",
       "universe_scanned": 272
     }
   }
