@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 156,
-    "last_cycle_at": "2026-10-29T19:12:44Z",
+    "cycle_count": 157,
+    "last_cycle_at": "2026-10-30T14:12:44Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $762.94 with ~$621 options BP; the only holding is the botched ZS 200/197.5 Nov-20 put spread (filled as a $0.25 net DEBIT, so it can only lose; max -$275). ZS is at $245.99, i.e. the 200 short strike is 18.7% OTM with 22 DTE \u2014 the legs quote $1.23/$1.64 and $0.60/$2.76, so paying up to exit a structurally-capped position would just add cost; letting it expire worthless on both legs caps the damage at the $25 already paid plus nothing more, and the mid-based P&L is actually about breakeven right now (-$199 + $196.5). On new risk my record is brutally clear: 1 win in 8, -$1,102, and the losses cluster in paid-premium directional bets and wide-chain verticals where slippage ate the edge (my last ZS entry slipped -$0.85 per share and flipped a credit into a debit). So my bar is explicit: ~15-delta vertical, legs quoted under ~$0.15 wide, no earnings inside the window, credit \u22651/3 of width, max loss \u2264$200. Today's shortlist fails it: AMD reports in 5 days and MRVL/CRM inside the Dec window; LNG and MA report TODAY; ZS reports in 26 days (inside any Nov/Dec expiry); FTNT (-21.7% 1w, -24.6% vs 20d avg), NOW (-30.7% 1w, -41.7% off highs) and GOOGL (-12.7% 1w, -16.1% vs 20d) are knives I will neither sell puts under nor buy calls into; CMG's 1-point spreads pay $0.05-0.11 on chains 4-8c wide but max loss $90 on a name 23% off its high with only $0.10 of credit \u2014 under a third of width. PANW/MU/MRVL chains are $1.50-3.00 wide at the strikes that matter, which is exactly the slippage that has been killing me. Nothing clears the bar, so I hold and let ZS decay. I act when I see a ~15-delta vertical with legs under ~$0.15 wide, no earnings before expiry, credit \u22651/3 of width, and max loss \u2264$200.",
+    "last_market_read": "Equity $739.94; the only position is the botched ZS Nov-20 200/197.5 put spread that filled as a $0.25 net DEBIT (structurally capped \u2014 max profit \u2212$25, max loss $275). ZS is at $238.84, so the $200 short strike is 16% OTM with 21 DTE; mid-based P&L on the two legs is \u2212$223.5 + $155.5 = \u2212$68, and paying up to exit a near-worthless-both-legs spread on a chain quoted $0.84/$1.99 and $1.30/$2.35 would just hand away more than letting both legs expire worthless. I hold it to expiry. On new risk my record is 1 win in 8 and \u2212$1,102, with the losses concentrated in paid-premium directional bets and wide-chain verticals where slippage flipped the economics (ZS slipped \u2212$0.85/share). Today's entire shortlist fails my bar: AMD (4d), ARM/QCOM (5d), NET (6d) and REGN (today) all have earnings inside any 28-42 DTE window; COIN \u221214.6% 1w at its 52-week low, HOOD \u221211.9% 1w, TWLO \u221224.2% 1w, INTC \u221224.5% 1w/\u221245.3% 1m and MRVL \u221211.8% 1w are falling knives I will not sell puts under or buy calls into; RBLX's Dec chains quote $0.52 bid vs $2.08-3.10 ask, i.e. unfillable. I act when I see a ~15-20 delta vertical with legs quoted under ~$0.15 wide, no earnings before expiry, credit \u22651/3 of width, and max loss \u2264$200 \u2014 none of that is on the board this hour.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -404,13 +404,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -108.0,
+        "market_value": -131.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-29T19:12:31Z",
+        "seen_at": "2026-10-30T14:12:35Z",
         "underlyings": {
-          "ZS": 245.985
+          "ZS": 238.835
         },
-        "unrealized_pl": -2.5
+        "unrealized_pl": -68.0
       },
       "legs": [
         {
