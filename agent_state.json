@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 157,
-    "last_cycle_at": "2026-10-30T14:12:44Z",
+    "cycle_count": 158,
+    "last_cycle_at": "2026-10-30T19:12:51Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $739.94; the only position is the botched ZS Nov-20 200/197.5 put spread that filled as a $0.25 net DEBIT (structurally capped \u2014 max profit \u2212$25, max loss $275). ZS is at $238.84, so the $200 short strike is 16% OTM with 21 DTE; mid-based P&L on the two legs is \u2212$223.5 + $155.5 = \u2212$68, and paying up to exit a near-worthless-both-legs spread on a chain quoted $0.84/$1.99 and $1.30/$2.35 would just hand away more than letting both legs expire worthless. I hold it to expiry. On new risk my record is 1 win in 8 and \u2212$1,102, with the losses concentrated in paid-premium directional bets and wide-chain verticals where slippage flipped the economics (ZS slipped \u2212$0.85/share). Today's entire shortlist fails my bar: AMD (4d), ARM/QCOM (5d), NET (6d) and REGN (today) all have earnings inside any 28-42 DTE window; COIN \u221214.6% 1w at its 52-week low, HOOD \u221211.9% 1w, TWLO \u221224.2% 1w, INTC \u221224.5% 1w/\u221245.3% 1m and MRVL \u221211.8% 1w are falling knives I will not sell puts under or buy calls into; RBLX's Dec chains quote $0.52 bid vs $2.08-3.10 ask, i.e. unfillable. I act when I see a ~15-20 delta vertical with legs quoted under ~$0.15 wide, no earnings before expiry, credit \u22651/3 of width, and max loss \u2264$200 \u2014 none of that is on the board this hour.",
+    "last_market_read": "Equity $756.94. Only holding is the botched ZS Nov-20 200/197.5 put spread that filled as a net $0.25 DEBIT \u2014 it is structurally incapable of profit (max profit \u2212$25, max loss $275); with ZS at $235.11 the $200 short strike is 15% OTM with 21 DTE and both legs should expire worthless, which is the cheapest outcome available, so I hold rather than pay the wide 2.30/3.05 and 2.91/3.47 quotes to exit. New risk: the whole shortlist is either an earnings landmine inside any 28-42 DTE window (AMD 4d, NET 6d, DELL 25d, MRVL 32d, SNOW 33d, ZS 25d) or a name in active freefall I will not sell puts under (COIN \u221215.6% 1w at its 52-wk low, HOOD \u221212.9% 1w, INTC \u221226.4% 1w/\u221246.7% 1m, MRVL \u221215.4% 1w, RBLX \u221220.2% 1w with unfillable $0.32/$1.44 quotes). QQQ/SMH credit spreads are the only clean, liquid, earnings-free candidates but at 5-wide the QQQ 620/625 pays ~$0.55 on $5 \u2014 under my 1/3-of-width bar \u2014 and my record (1-for-8, \u2212$1,102, losses concentrated in wide-chain verticals where slippage flipped the economics) says a thin-credit vertical is not worth it. I act when I see a 15-20 delta vertical quoted under ~$0.15 wide per leg, no earnings before expiry, credit \u22651/3 of width and max loss \u2264$200 \u2014 e.g. QQQ paying $1.70+ on a 5-wide, or a post-earnings AMD/NET chain next week once the event risk is out. Nothing clears that bar this hour.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -404,13 +404,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -131.0,
+        "market_value": -114.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-10-30T14:12:35Z",
+        "seen_at": "2026-10-30T19:12:40Z",
         "underlyings": {
-          "ZS": 238.835
+          "ZS": 235.11
         },
-        "unrealized_pl": -68.0
+        "unrealized_pl": -76.0
       },
       "legs": [
         {
