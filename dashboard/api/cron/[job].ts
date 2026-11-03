@@ -7,7 +7,7 @@ import { alpacaData, alpacaTrade } from '../_lib/data-api.js';
 import type { Mode } from '../_lib/alpaca.js';
 import { liveTradingEnabled } from '../_lib/live-enabled.js';
 import type { Trade, GradeRecord, ClosedBy } from '../_lib/trade-types.js';
-import { isGradeable } from '../_lib/trade-types.js';
+import { isGradeable, isActiveAccount } from '../_lib/trade-types.js';
 import {
   enqueueAssignmentPending,
   drainAssignments,
@@ -198,8 +198,7 @@ export async function runGradeOpenTrades(opts: {
     // budget, delaying real fills/closes by up to ~30 min. The trade record
     // itself is NOT written or deleted — history, /trades and /performance keep
     // it exactly as it was; it just stops being swept every 5 minutes.
-    const ACTIVE_ACCOUNTS = new Set(['manual_paper', 'live', 'agent_paper']);
-    if (!ACTIVE_ACCOUNTS.has(trade.account)) {
+    if (!isActiveAccount(trade.account)) {
       console.warn('[gradeOpenTrades] dropping retired-account trade from open index', trade.id, trade.account);
       await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
       remaining -= 1;
@@ -309,6 +308,8 @@ export async function runGradeOpenTrades(opts: {
 
     // Skip AI grading for canceled trades — entry never filled, nothing to grade.
     if (closeInfo.closed_by === 'canceled') continue;
+    // ...and for a bare sale record closed by Path 5 (no P&L to judge).
+    if (closeInfo.realized_pnl === null) continue;
 
     // AI grading is restricted to gradeable accounts (manual + live). A bot-account
     // trade closes normally with full P&L recorded above, but never gets an AI
@@ -540,7 +541,9 @@ async function drainAssignmentsAndSpawn(): Promise<{ spawned: number; skipped: n
 interface CloseInfo {
   closed_at: string;
   closed_avg_price: number;
-  realized_pnl: number;
+  // null only for a bare sale record (Path 5) whose cost basis was never
+  // recorded — unknown, not zero.
+  realized_pnl: number | null;
   closed_by: NonNullable<ClosedBy>;
   alpaca_close_order_id?: string | null;
 }
@@ -861,6 +864,18 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   if (trade.asset_class === 'option' && trade.expiration) {
     const expDate = new Date(trade.expiration + 'T20:00:00Z'); // 4 PM ET ~= 20:00 UTC during DST
     if (Date.now() > expDate.getTime()) {
+      // A REAL close before expiry is ground truth and must win over the
+      // settlement lookup below (2026-11-03). The settlement path only knows
+      // OPEXP/OPASN; for a leg that was bought/sold back early there is no such
+      // record, so it returned null forever and Path 3 (which finds the actual
+      // closing fill) was never reached — the agent's DIS + SLV short call legs
+      // sat "open" for months. Same ordering fix spreads got on 2026-06-20
+      // (Path 2b-pre). A genuine expiry has no closing fill → null → falls
+      // through to the settlement logic unchanged.
+      if (trade.contract_symbol) {
+        const realClose = await detectExternalOptionClose(mode, trade);
+        if (realClose) return realClose;
+      }
       // STO: a short option past expiry either expired worthless (OTM) or was
       // assigned (ITM). Both leave the same option-leg economics — full premium
       // kept, contract gone — but only an assignment delivers shares, so the
@@ -1117,6 +1132,19 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   // (spread external-close is handled in Path 2b-pre above — moved ahead of the
   // Path 2b expiry fabrication so a real close always wins over a spot guess.)
 
+  // Path 5 (checked BEFORE Path 4 so a later re-buy of the same size can't be
+  // misread as covering a short): a filled stock SALE recorded as its own trade (side 'sell') on an
+  // account with no short position in that symbol. That record is an EXIT,
+  // not a short sale — Path 4 would wait forever for a buy-to-cover that never
+  // comes (WMT sell 1 on live, SNAP sell 5). Close it at its own fill. P&L is
+  // null: the shares' cost basis was never a dashboard trade, so it is unknown,
+  // not zero. A real short (side 'sell_short', or a negative position) is left
+  // to Path 4.
+  if (trade.asset_class === 'stock' && trade.side === 'sell') {
+    const closeInfo = await detectSaleRecordClose(mode, trade);
+    if (closeInfo) return closeInfo;
+  }
+
   // Path 4: external stock close. A dashboard/imported stock trade that the user
   // later sold (on Alpaca's web UI, or that the bot sold) never had a close order
   // linked, and Path 1/2/3 don't cover stocks — so the record sat "open" forever,
@@ -1131,6 +1159,26 @@ async function detectClose(trade: Trade): Promise<CloseInfo | null> {
   }
 
   return null;
+}
+
+async function detectSaleRecordClose(mode: Mode, trade: Trade): Promise<CloseInfo | null> {
+  if (!trade.filled_at || trade.filled_avg_price == null) return null;
+  let qty = 0;
+  try {
+    const pos = await alpacaTrade<any>(mode, `/v2/positions/${encodeURIComponent(trade.symbol)}`);
+    qty = Number(pos?.qty ?? 0);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes(' 404 ')) return null; // transient — retry next tick
+    qty = 0; // no position at all
+  }
+  if (qty < 0) return null; // genuinely short — Path 4's job
+  return {
+    closed_at: trade.filled_at,
+    closed_avg_price: trade.filled_avg_price,
+    realized_pnl: null,
+    closed_by: 'manual',
+  };
 }
 
 /**

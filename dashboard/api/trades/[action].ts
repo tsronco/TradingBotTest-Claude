@@ -9,6 +9,7 @@ import {
   GRADE_LETTERS,
   classifyVertical,
   isGradeable,
+  isActiveAccount,
   type AccountId,
   type GradeLetter,
   type SpreadType,
@@ -1060,6 +1061,11 @@ async function list(req: VercelRequest, res: VercelResponse) {
     const t = await kv().get<Trade>(tradeKey(id));
     if (!t) continue;
     if (account && t.account !== account) continue;
+    // Retired accounts (conservative/aggressive/sm*, gone 2026-06-29) are
+    // history only — hidden unless that account is requested by name. ~150 of
+    // their records were never closed, so they padded the "open" list and
+    // dragged the win rate to 0%.
+    if (!account && !isActiveAccount(t.account)) continue;
     if (asset_class && t.asset_class !== asset_class) continue;
     if (tag && !t.tags.includes(tag)) continue;
     if (grade && t.entry_grade !== grade) continue;
@@ -1072,8 +1078,11 @@ async function list(req: VercelRequest, res: VercelResponse) {
 
   // summary
   const closed = records.filter((r) => r.closed_at);
-  const winRate = closed.length === 0 ? 0
-    : closed.filter((r) => (r.realized_pnl ?? 0) > 0).length / closed.length;
+  // Win rate counts only closes with a known P&L — a bare sale record
+  // (realized_pnl null, cost basis never recorded) is neither a win nor a loss.
+  const scored = closed.filter((r) => r.realized_pnl != null);
+  const winRate = scored.length === 0 ? 0
+    : scored.filter((r) => (r.realized_pnl ?? 0) > 0).length / scored.length;
   const cal = { matched: 0, over: 0, under: 0 };
   const recordById = new Map(records.map((r) => [r.id, r]));
   for (const g of grades) {

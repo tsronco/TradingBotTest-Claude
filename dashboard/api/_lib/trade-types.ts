@@ -26,6 +26,18 @@ export function isGradeable(account: string): boolean {
   return (GRADEABLE_ACCOUNTS as ReadonlySet<string>).has(account);
 }
 
+// Accounts that still exist. Trade records from retired accounts
+// (conservative_paper, aggressive_paper, sm*_paper) stay in KV as history but
+// are never synced (wrong creds), never kept on the open index, and are hidden
+// from /trades unless that account is asked for explicitly.
+export const ACTIVE_ACCOUNTS: ReadonlySet<AccountId> = new Set<AccountId>([
+  'manual_paper', 'live', 'agent_paper',
+]);
+
+export function isActiveAccount(account: string): boolean {
+  return (ACTIVE_ACCOUNTS as ReadonlySet<string>).has(account);
+}
+
 export type AssetClass = 'stock' | 'option' | 'spread';
 export type StockSide = 'buy' | 'sell' | 'sell_short';
 export type OptionSide = 'BTO' | 'STO' | 'BTC' | 'STC';

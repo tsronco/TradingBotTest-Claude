@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
     category: 'fix',
+    title: 'Trades: stuck "open" records — sale records, early-closed options, retired accounts hidden',
+    details:
+      'Three causes of trade records that could never close:\n\n'
+      + '• A stock SALE saved as its own trade (WMT sell 1, SNAP sell 5) was treated as a short sale '
+      + 'waiting to be bought back. It now closes at its own fill price. P&L is left blank because the '
+      + 'shares\' cost was never recorded, and it is left out of the win rate.\n'
+      + '• An option closed BEFORE expiry but only checked AFTER it waited forever for an expiry '
+      + 'record. The real closing fill is now checked first; a genuine expiry settles as before.\n'
+      + '• /trades hid nothing from the five retired accounts, so ~150 never-closed records showed as '
+      + 'open and the win rate read 0%. Retired accounts are now hidden unless asked for by name.',
+  },
+  {
+    date: '2026-11-03',
+    category: 'fix',
     title: 'Grade cron: retired-account trades leave the open list',
     details:
       'The grade-open-trades cron reported 158 open trades with only a handful of real open positions. '
