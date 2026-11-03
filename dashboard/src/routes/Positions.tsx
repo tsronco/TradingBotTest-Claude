@@ -11,6 +11,7 @@ import { accountsForSelection, ALL_MODES, type Mode } from '../lib/account-utils
 import { groupPositions, summarizeCollateral, type RawPosition, type SpreadMetrics } from '../lib/position-spreads';
 import { computeMarketStatus, type MarketStatus } from '../lib/market-status';
 import { useMarketClock } from '../hooks/useMarketClock';
+import { optionUnderlyings, parseUnderlyingQuotes, type UnderlyingQuote } from '../lib/underlying-quotes';
 import { useDisplayName } from '../hooks/useDisplayName';
 
 type WheelMap = Record<string, Record<string, unknown>>;
@@ -66,6 +67,18 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
   const wheelQ = useBotWheelState(mode);
   const { data: alpacaClock } = useMarketClock();
   const market = computeMarketStatus(new Date(), alpacaClock);
+  // Underlying prices for option rows — one batched call per card, refreshed
+  // every 60s. Saves a /lookup visit (and its AI summary) just to see spot.
+  const underlyings = optionUnderlyings(positionsQ.data?.positions ?? []);
+  const underlyingQ = useQuery({
+    queryKey: ['underlying-quotes', mode, underlyings.join(',')],
+    queryFn: () => api<{ snapshot: unknown }>(`/api/alpaca/quote?mode=${mode}&symbols=${underlyings.join(',')}`),
+    enabled: underlyings.length > 0,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    select: (r) => parseUnderlyingQuotes(r.snapshot),
+  });
+  const spot = underlyingQ.data ?? {};
 
   const accent = POS_ACCENT[acctKey];
   const colorAccent = accent.text;
@@ -201,10 +214,13 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
             <tbody>
               {groups.map((g) =>
                 g.kind === 'single' ? (
-                  <LegRow key={g.pos.symbol} p={g.pos} wheel={wheel} closeThreshold={closeThreshold} staleTag={staleTag} />
+                  <LegRow
+                    key={g.pos.symbol} p={g.pos} wheel={wheel} closeThreshold={closeThreshold} staleTag={staleTag}
+                    underlyingQuote={spot[parseOptionSymbol(g.pos.symbol)?.underlying ?? '']}
+                  />
                 ) : (
                   <Fragment key={`spread-${g.long.symbol}`}>
-                    <SpreadSummaryRow metrics={g.metrics} accent={colorAccent} />
+                    <SpreadSummaryRow metrics={g.metrics} accent={colorAccent} underlyingQuote={spot[g.metrics.underlying]} />
                     <LegRow p={g.long} wheel={wheel} closeThreshold={closeThreshold} grouped staleTag={staleTag} />
                     <LegRow p={g.short} wheel={wheel} closeThreshold={closeThreshold} grouped groupedLast staleTag={staleTag} />
                   </Fragment>
@@ -215,6 +231,23 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
         </div>
       )}
     </article>
+  );
+}
+
+// "BAC $49.57 ▼0.88%" — the underlying's live price on an option/spread row.
+function UnderlyingPrice({ symbol, q }: { symbol: string; q?: UnderlyingQuote }) {
+  if (!q) return null;
+  const up = q.changePct != null && q.changePct >= 0;
+  return (
+    <span className="tnum whitespace-nowrap" data-testid="underlying-price" title={`${symbol} last trade`}>
+      <span className="text-dim">{symbol}</span>{' '}
+      <span className="text-fg">{fmtUsd(q.last)}</span>
+      {q.changePct != null && (
+        <span className={`ml-1 ${up ? 'text-hi' : 'text-red'}`}>
+          {up ? '▲' : '▼'}{Math.abs(q.changePct).toFixed(2)}%
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -252,10 +285,11 @@ function ProgressBar({ pct }: { pct: number }) {
 // One position row — a stock, a lone option, or a leg of a spread. `grouped`
 // draws the left bracket that ties a spread's legs to their summary row above.
 function LegRow({
-  p, wheel, closeThreshold, grouped, groupedLast, staleTag,
+  p, wheel, closeThreshold, grouped, groupedLast, staleTag, underlyingQuote,
 }: {
   p: RawPosition;
   staleTag?: string | null;
+  underlyingQuote?: UnderlyingQuote;
   wheel: WheelMap;
   closeThreshold?: number;
   grouped?: boolean;
@@ -323,6 +357,12 @@ function LegRow({
             </span>
           )}
         </Link>
+        {isOption && parsed && underlyingQuote && (
+          <span className="ml-2 text-[10px]">
+            <span className="text-dim mr-1">·</span>
+            <UnderlyingPrice symbol={parsed.underlying} q={underlyingQuote} />
+          </span>
+        )}
       </td>
       <td data-label="qty" className={`px-4 py-1.5 text-right ${qtyNum < 0 ? 'text-red' : 'text-fg'}`}>
         {qtyNum > 0 ? '+' : ''}{fmtNum(qtyNum)}
@@ -374,7 +414,9 @@ function LegRow({
 // The header row above a spread's two legs: names the strategy and shows the
 // defined-risk numbers (net cost, max loss, max profit, breakeven) the way an
 // options builder does — computed once via the shared payoff engine.
-function SpreadSummaryRow({ metrics: m, accent }: { metrics: SpreadMetrics; accent: string }) {
+function SpreadSummaryRow({
+  metrics: m, accent, underlyingQuote,
+}: { metrics: SpreadMetrics; accent: string; underlyingQuote?: UnderlyingQuote }) {
   const dte = daysToExpiration(m.expiration);
   const money = (v: number | null) =>
     v == null ? '∞' : `${v < 0 ? '−' : ''}$${Math.abs(Math.round(v)).toLocaleString('en-US')}`;
@@ -396,6 +438,7 @@ function SpreadSummaryRow({ metrics: m, accent }: { metrics: SpreadMetrics; acce
             {fmtIsoDateMDY(m.expiration)}
             <span className={dte <= 7 ? 'text-amber ml-1' : 'ml-1'}>({dte}d)</span>
           </span>
+          <UnderlyingPrice symbol={m.underlying} q={underlyingQuote} />
 
           <span className="flex flex-wrap gap-x-4 gap-y-1 ml-auto tnum">
             <span>

@@ -31,7 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
     category: 'fix',
-    title: 'Positions: spread collateral, clamped spread value, stale-quote P/L',
+    title: 'Positions: spread collateral, stale-quote P/L, underlying price on option rows',
     details:
       'The live BAC 48/49 bull put spread showed "CSP collateral $4,900" and a −$287 P/L on a spread '
       + 'whose max loss is $77. Two causes: the short leg of a spread was counted as a cash-secured '
@@ -41,7 +41,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       + 'line; only uncovered short puts count as CSPs. Each spread shows a VALUE clamped to $0–width '
       + '(amber * when the raw marks fell outside). If the combined P/L is worse than max loss or '
       + 'better than max profit, it shows "stale quote" instead of the number. Outside 9:30–4:00 ET '
-      + 'the card shows a banner and each option mark is tagged pre-market / after-hours / market closed.',
+      + 'the card shows a banner and each option mark is tagged pre-market / after-hours / market closed.\n\n'
+      + 'Spread headers and single option rows now show the underlying\'s live price and day change '
+      + '(e.g. "BAC $49.57 ▼0.88%"), so checking spot no longer needs a /lookup visit and its AI summary. '
+      + 'One batched quote call per account card (new ?symbols= form of /api/alpaca/quote), refreshed every 60s.',
   },
   {
     date: '2026-10-26',

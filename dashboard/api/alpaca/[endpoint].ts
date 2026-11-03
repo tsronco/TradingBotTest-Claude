@@ -180,6 +180,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ mode, status, orders: enriched });
     }
     if (endpoint === 'quote') {
+      // Batch form: ?symbols=BAC,TSLA — one Alpaca snapshot call for many
+      // stock tickers (the Positions page's underlying prices). Same response
+      // shape as the single form: snapshot is Alpaca's { SYM: snap } map.
+      if (req.query.symbols != null) {
+        const list = [...new Set(
+          String(req.query.symbols).toUpperCase().split(',').map((s) => s.trim()).filter(Boolean),
+        )];
+        if (list.length === 0 || list.length > 50 || !list.every((s) => /^[A-Z][A-Z0-9.]{0,9}$/.test(s))) {
+          return res.status(400).json({ error: 'invalid_symbols' });
+        }
+        const snap = await alpacaData(mode, '/v2/stocks/snapshots', { symbols: list.join(',') });
+        return res.status(200).json({ mode, symbols: list, snapshot: snap });
+      }
       const symbol = String(req.query.symbol ?? '').toUpperCase();
       const kind = String(req.query.kind ?? 'stock');
 
