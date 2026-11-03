@@ -29,6 +29,21 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-03',
+    category: 'fix',
+    title: 'Positions: spread collateral, clamped spread value, stale-quote P/L',
+    details:
+      'The live BAC 48/49 bull put spread showed "CSP collateral $4,900" and a −$287 P/L on a spread '
+      + 'whose max loss is $77. Two causes: the short leg of a spread was counted as a cash-secured '
+      + 'put (strike × 100), and pre-market option marks were last-session/one-sided ($3.25 on a '
+      + '$1-wide spread).\n\n'
+      + 'Spreads now report collateral as width × 100 × contracts in a separate "spread collateral" '
+      + 'line; only uncovered short puts count as CSPs. Each spread shows a VALUE clamped to $0–width '
+      + '(amber * when the raw marks fell outside). If the combined P/L is worse than max loss or '
+      + 'better than max profit, it shows "stale quote" instead of the number. Outside 9:30–4:00 ET '
+      + 'the card shows a banner and each option mark is tagged pre-market / after-hours / market closed.',
+  },
+  {
     date: '2026-10-26',
     category: 'fix',
     title: 'Agent: money-loss review — order checks, true P&L, account-wide risk cap',

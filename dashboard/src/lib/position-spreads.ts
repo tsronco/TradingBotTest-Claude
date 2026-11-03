@@ -41,7 +41,26 @@ export interface SpreadMetrics {
   longStrike: number;
   shortStrike: number;
   groupPL: number;             // live: sum of both legs' unrealized_pl
+  // Defined-risk collateral: width × 100 × contracts. A spread's short leg is
+  // covered by its long leg, so it does NOT lock strike × 100 like a CSP.
+  collateral: number;
+  // Current per-share value of the spread (what it would cost to close a
+  // credit spread / what you'd get for closing a debit spread), from the legs'
+  // marks, clamped to [0, width] — a vertical can never be worth less than 0
+  // or more than its width, so anything outside that is a bad quote.
+  markValue: number;
+  rawMarkValue: number;         // the same, unclamped
+  markClamped: boolean;         // true when the raw marks fell outside [0, width]
+  // The live P/L is outside what this spread can possibly do (worse than max
+  // loss or better than max profit) — the leg marks are stale/one-sided, so
+  // the number is meaningless. Only judged when both legs hold the same count;
+  // with unequal legs the excess contracts legitimately move P/L past the
+  // paired spread's bounds.
+  staleQuote: boolean;
 }
+
+// $ slack before calling a P/L impossible — absorbs per-leg rounding.
+const STALE_TOLERANCE = 1;
 
 export type PositionGroup =
   | { kind: 'single'; pos: RawPosition }
@@ -91,7 +110,29 @@ function makeSpread(long: RawPosition, short: RawPosition, contracts: number): P
     longStrike: lp.strike,
     shortStrike: sp.strike,
     groupPL: Number(long.unrealized_pl) + Number(short.unrealized_pl),
+    collateral: 0,
+    markValue: 0,
+    rawMarkValue: 0,
+    markClamped: false,
+    staleQuote: false,
   };
+  const width = metrics.width;
+  metrics.collateral = width * 100 * contracts;
+
+  // Credit spread: you owe (short − long) to close. Debit: you own (long − short).
+  const longMark = Number(long.current_price);
+  const shortMark = Number(short.current_price);
+  const raw = isDebit ? longMark - shortMark : shortMark - longMark;
+  metrics.rawMarkValue = raw;
+  metrics.markValue = Math.min(width, Math.max(0, raw));
+  metrics.markClamped = raw < 0 || raw > width;
+
+  const evenLegs = Math.abs(Number(long.qty)) === Math.abs(Number(short.qty));
+  if (evenLegs && Number.isFinite(metrics.groupPL)) {
+    const tooLow = metrics.maxLoss != null && metrics.groupPL < metrics.maxLoss - STALE_TOLERANCE;
+    const tooHigh = metrics.maxProfit != null && metrics.groupPL > metrics.maxProfit + STALE_TOLERANCE;
+    metrics.staleQuote = tooLow || tooHigh;
+  }
   return { kind: 'spread', long, short, metrics };
 }
 
@@ -158,4 +199,37 @@ export function groupPositions(positions: RawPosition[]): PositionGroup[] {
     groups.push({ kind: 'single', pos: p });
   }
   return groups;
+}
+
+export interface CollateralSummary {
+  /** Short puts NOT covered by a spread's long leg — true cash-secured puts. */
+  cspCount: number;
+  cspCollateral: number;   // Σ strike × 100 × uncovered contracts
+  spreadCount: number;
+  spreadCollateral: number; // Σ width × 100 × paired contracts
+}
+
+/**
+ * Split option collateral into cash-secured puts vs defined-risk spreads.
+ * A short put paired into a spread is secured by width × 100, not strike ×
+ * 100; only its contracts beyond the paired count (if any) are naked CSPs.
+ */
+export function summarizeCollateral(groups: PositionGroup[]): CollateralSummary {
+  const out: CollateralSummary = { cspCount: 0, cspCollateral: 0, spreadCount: 0, spreadCollateral: 0 };
+  const addCsp = (p: RawPosition, contracts: number) => {
+    const parsed = parseOptionSymbol(p.symbol);
+    if (!parsed || parsed.type !== 'put' || contracts <= 0) return;
+    out.cspCount += 1;
+    out.cspCollateral += parsed.strike * 100 * contracts;
+  };
+  for (const g of groups) {
+    if (g.kind === 'spread') {
+      out.spreadCount += 1;
+      out.spreadCollateral += g.metrics.collateral;
+      addCsp(g.short, Math.abs(Number(g.short.qty)) - g.metrics.contracts);
+    } else if (g.pos.asset_class === 'us_option' && Number(g.pos.qty) < 0) {
+      addCsp(g.pos, Math.abs(Number(g.pos.qty)));
+    }
+  }
+  return out;
 }

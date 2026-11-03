@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupPositions, type RawPosition } from '../../src/lib/position-spreads';
+import { groupPositions, summarizeCollateral, type RawPosition } from '../../src/lib/position-spreads';
 
 // Minimal position factory — only the fields groupPositions reads.
 function pos(over: Partial<RawPosition> & { symbol: string }): RawPosition {
@@ -133,5 +133,97 @@ describe('groupPositions — vertical spread detection', () => {
     expect(spread.metrics.width).toBe(5);
     // the wider short falls through to a single
     expect(groups.some((g) => g.kind === 'single' && g.pos.symbol === far.symbol)).toBe(true);
+  });
+});
+
+// BAC 48/49 bull put spread on the live account, 2026-11-03 pre-market:
+// the short leg marked $3.25 (last-session/one-sided) on a $1-wide spread.
+const BAC_LONG = pos({
+  symbol: 'BAC261120P00048000', qty: '1', avg_entry_price: '0.48',
+  current_price: '0.15', market_value: '15', unrealized_pl: '-33',
+});
+const BAC_SHORT = pos({
+  symbol: 'BAC261120P00049000', qty: '-1', avg_entry_price: '0.71',
+  current_price: '3.25', market_value: '-325', unrealized_pl: '-254',
+});
+
+describe('spread collateral, clamped value, stale quote', () => {
+  it('BAC: collateral is width × 100, value clamps to width, P/L flagged stale', () => {
+    const [g] = groupPositions([BAC_LONG, BAC_SHORT]);
+    if (g.kind !== 'spread') throw new Error('expected spread');
+    const m = g.metrics;
+    expect(m.collateral).toBeCloseTo(100, 6);
+    expect(m.rawMarkValue).toBeCloseTo(3.10, 6);
+    expect(m.markValue).toBe(1);
+    expect(m.markClamped).toBe(true);
+    expect(m.maxLoss).toBeCloseTo(-77, 6);
+    expect(m.groupPL).toBe(-287);
+    expect(m.staleQuote).toBe(true);
+  });
+
+  it('a sane credit spread is neither clamped nor stale', () => {
+    const [g] = groupPositions([
+      { ...BAC_LONG, current_price: '0.30', unrealized_pl: '-18' },
+      { ...BAC_SHORT, current_price: '0.60', unrealized_pl: '11' },
+    ]);
+    if (g.kind !== 'spread') throw new Error('expected spread');
+    expect(g.metrics.markValue).toBeCloseTo(0.30, 6);
+    expect(g.metrics.markClamped).toBe(false);
+    expect(g.metrics.staleQuote).toBe(false);
+  });
+
+  it('clamps a negative value to 0 and flags P/L above max profit', () => {
+    const [g] = groupPositions([
+      { ...BAC_LONG, current_price: '0.50', unrealized_pl: '2' },
+      { ...BAC_SHORT, current_price: '0.05', unrealized_pl: '66' },
+    ]);
+    if (g.kind !== 'spread') throw new Error('expected spread');
+    expect(g.metrics.markValue).toBe(0);
+    expect(g.metrics.markClamped).toBe(true);
+    // max profit is $23; $68 is impossible
+    expect(g.metrics.staleQuote).toBe(true);
+  });
+
+  it('debit spread value = long − short, clamped', () => {
+    const [g] = groupPositions([TSLA_LONG, TSLA_SHORT]);
+    if (g.kind !== 'spread') throw new Error('expected spread');
+    expect(g.metrics.markValue).toBeCloseTo(4.95, 6);
+    expect(g.metrics.collateral).toBeCloseTo(1250, 6);
+    expect(g.metrics.staleQuote).toBe(false);
+  });
+
+  it('does not judge staleness when leg counts differ', () => {
+    const [g] = groupPositions([BAC_LONG, { ...BAC_SHORT, qty: '-2', unrealized_pl: '-508' }]);
+    if (g.kind !== 'spread') throw new Error('expected spread');
+    expect(g.metrics.staleQuote).toBe(false);
+  });
+});
+
+describe('summarizeCollateral', () => {
+  it('a spread short put is NOT counted as a CSP', () => {
+    const c = summarizeCollateral(groupPositions([BAC_LONG, BAC_SHORT]));
+    expect(c).toEqual({ cspCount: 0, cspCollateral: 0, spreadCount: 1, spreadCollateral: 100 });
+  });
+
+  it('a lone short put is a CSP at strike × 100 × qty', () => {
+    const c = summarizeCollateral(groupPositions([{ ...BAC_SHORT, qty: '-2' }]));
+    expect(c.cspCount).toBe(1);
+    expect(c.cspCollateral).toBeCloseTo(9800, 6);
+    expect(c.spreadCount).toBe(0);
+  });
+
+  it('short contracts beyond the paired count are CSPs', () => {
+    const c = summarizeCollateral(groupPositions([BAC_LONG, { ...BAC_SHORT, qty: '-3' }]));
+    expect(c.spreadCollateral).toBeCloseTo(100, 6);
+    expect(c.cspCount).toBe(1);
+    expect(c.cspCollateral).toBeCloseTo(49 * 100 * 2, 6);
+  });
+
+  it('short calls and stocks contribute nothing', () => {
+    const c = summarizeCollateral(groupPositions([
+      TSLA_SHORT,
+      pos({ symbol: 'BAC', asset_class: 'us_equity', qty: '100' }),
+    ]));
+    expect(c).toEqual({ cspCount: 0, cspCollateral: 0, spreadCount: 0, spreadCollateral: 0 });
   });
 });

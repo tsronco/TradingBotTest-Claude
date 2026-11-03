@@ -8,7 +8,9 @@ import { useAccount } from '../hooks/useAccount';
 import { useBotWheelState } from '../hooks/useBotState';
 import { parseOptionSymbol, daysToExpiration } from '../lib/option-symbol';
 import { accountsForSelection, ALL_MODES, type Mode } from '../lib/account-utils';
-import { groupPositions, type RawPosition, type SpreadMetrics } from '../lib/position-spreads';
+import { groupPositions, summarizeCollateral, type RawPosition, type SpreadMetrics } from '../lib/position-spreads';
+import { computeMarketStatus, type MarketStatus } from '../lib/market-status';
+import { useMarketClock } from '../hooks/useMarketClock';
 import { useDisplayName } from '../hooks/useDisplayName';
 
 type WheelMap = Record<string, Record<string, unknown>>;
@@ -62,6 +64,8 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
     staleTime: 30_000,
   });
   const wheelQ = useBotWheelState(mode);
+  const { data: alpacaClock } = useMarketClock();
+  const market = computeMarketStatus(new Date(), alpacaClock);
 
   const accent = POS_ACCENT[acctKey];
   const colorAccent = accent.text;
@@ -89,20 +93,14 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
   const optionCount = positions.filter((p) => p.asset_class === 'us_option').length;
   const stockCount = positions.length - optionCount;
 
-  // Cash-secured put collateral encumbering options BP — count and sum
-  // strike × 100 × qty for every short put. (Short calls also reduce BP via
-  // underlying-share collateral but don't lock cash, so we don't sum them
-  // here; covered-call exposure is visible on each row's mkt value already.)
-  const shortPuts = positions.filter((p) => {
-    if (p.asset_class !== 'us_option' || Number(p.qty) >= 0) return false;
-    const parsed = parseOptionSymbol(p.symbol);
-    return parsed?.type === 'put';
-  });
-  const cspCollateral = shortPuts.reduce((sum, p) => {
-    const parsed = parseOptionSymbol(p.symbol);
-    if (!parsed) return sum;
-    return sum + parsed.strike * 100 * Math.abs(Number(p.qty));
-  }, 0);
+  // Collateral split. A short put paired into a spread is secured by its long
+  // leg (width × 100), NOT strike × 100 like a cash-secured put — counting it
+  // as a CSP showed a $1-wide BAC spread "encumbering $4,900". Short calls
+  // still aren't summed (covered by shares, don't lock cash).
+  const groups = groupPositions(positions);
+  const coll = summarizeCollateral(groups);
+  // Options only trade 9:30–4:00 ET; outside that, marks are last-session.
+  const staleTag = optionCount > 0 && !market.isOpen ? staleMarkLabel(market) : null;
 
   const acct = acctQ.data?.account;
   const optionsBp = acct ? Number(acct.options_buying_power ?? acct.buying_power) : null;
@@ -154,14 +152,29 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
             <span className="text-dim tracking-[0.15em] uppercase mr-1.5">cash</span>
             <span className="text-fg">{fmtUsd(cash)}</span>
           </span>
-          {shortPuts.length > 0 && (
+          {coll.cspCount > 0 && (
             <span>
               <span className="text-dim tracking-[0.15em] uppercase mr-1.5">csp collateral</span>
-              <span className="text-fg">{shortPuts.length}</span>
-              <span className="text-dim"> short put{shortPuts.length === 1 ? '' : 's'} encumbering </span>
-              <span className="text-fg">{fmtUsd(cspCollateral)}</span>
+              <span className="text-fg">{coll.cspCount}</span>
+              <span className="text-dim"> short put{coll.cspCount === 1 ? '' : 's'} encumbering </span>
+              <span className="text-fg">{fmtUsd(coll.cspCollateral)}</span>
             </span>
           )}
+          {coll.spreadCount > 0 && (
+            <span>
+              <span className="text-dim tracking-[0.15em] uppercase mr-1.5">spread collateral</span>
+              <span className="text-fg">{coll.spreadCount}</span>
+              <span className="text-dim"> spread{coll.spreadCount === 1 ? '' : 's'} encumbering </span>
+              <span className="text-fg">{fmtUsd(coll.spreadCollateral)}</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {staleTag && (
+        <div className="px-5 py-2 text-[11px] text-amber border-b border-border/50" data-testid="stale-marks-banner">
+          ⚠ {staleTag} — option marks are from the last session and may be stale until the 9:30 AM ET
+          open; leg P/L can look far worse (or better) than it is.
         </div>
       )}
 
@@ -186,14 +199,14 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
               </tr>
             </thead>
             <tbody>
-              {groupPositions(positions).map((g) =>
+              {groups.map((g) =>
                 g.kind === 'single' ? (
-                  <LegRow key={g.pos.symbol} p={g.pos} wheel={wheel} closeThreshold={closeThreshold} />
+                  <LegRow key={g.pos.symbol} p={g.pos} wheel={wheel} closeThreshold={closeThreshold} staleTag={staleTag} />
                 ) : (
                   <Fragment key={`spread-${g.long.symbol}`}>
                     <SpreadSummaryRow metrics={g.metrics} accent={colorAccent} />
-                    <LegRow p={g.long} wheel={wheel} closeThreshold={closeThreshold} grouped />
-                    <LegRow p={g.short} wheel={wheel} closeThreshold={closeThreshold} grouped groupedLast />
+                    <LegRow p={g.long} wheel={wheel} closeThreshold={closeThreshold} grouped staleTag={staleTag} />
+                    <LegRow p={g.short} wheel={wheel} closeThreshold={closeThreshold} grouped groupedLast staleTag={staleTag} />
                   </Fragment>
                 ),
               )}
@@ -203,6 +216,14 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
       )}
     </article>
   );
+}
+
+// Short tag for why option marks aren't live: 'pre-market', 'after-hours',
+// or 'market closed' (weekend / holiday).
+function staleMarkLabel(m: MarketStatus): string {
+  if (m.reason.startsWith('Pre-market')) return 'pre-market';
+  if (m.reason.startsWith('After hours')) return 'after-hours';
+  return 'market closed';
 }
 
 function fmtIsoDateMDY(iso: string): string {
@@ -231,9 +252,10 @@ function ProgressBar({ pct }: { pct: number }) {
 // One position row — a stock, a lone option, or a leg of a spread. `grouped`
 // draws the left bracket that ties a spread's legs to their summary row above.
 function LegRow({
-  p, wheel, closeThreshold, grouped, groupedLast,
+  p, wheel, closeThreshold, grouped, groupedLast, staleTag,
 }: {
   p: RawPosition;
+  staleTag?: string | null;
   wheel: WheelMap;
   closeThreshold?: number;
   grouped?: boolean;
@@ -316,6 +338,14 @@ function LegRow({
       </td>
       <td data-label="current" className={`px-4 py-1.5 text-right ${priceVsCostClass(vsCost)}`}>
         {fmtUsd(Number(p.current_price))}
+        {isOption && staleTag && (
+          <span
+            className="ml-1 text-[9px] text-amber uppercase tracking-[0.1em]"
+            title="Options only trade 9:30–4:00 ET — this mark is from the last session"
+          >
+            {staleTag}
+          </span>
+        )}
         {/* Per-share dollars only. The percent was dropped on purpose: for a
             stock it IS the P/L column's percent (same ratio, different
             rounding), so showing both put two near-identical percents on one
@@ -385,10 +415,34 @@ function SpreadSummaryRow({ metrics: m, accent }: { metrics: SpreadMetrics; acce
               <span className="text-fg">{m.breakeven == null ? '—' : `$${m.breakeven.toFixed(2)}`}</span>
             </span>
             <span>
-              <span className="text-dim uppercase tracking-[0.12em] mr-1">P&amp;L</span>
-              <span className={m.groupPL >= 0 ? 'text-hi' : 'text-red'}>
-                {m.groupPL >= 0 ? '▲' : '▼'} {money(Math.abs(m.groupPL))}
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">collateral</span>
+              <span className="text-fg">{money(m.collateral)}</span>
+            </span>
+            <span
+              title={m.markClamped
+                ? `Leg marks put this spread at $${m.rawMarkValue.toFixed(2)}/sh, outside $0–$${m.width} — clamped`
+                : 'Current spread value per share, from the leg marks'}
+            >
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">value</span>
+              <span className={m.markClamped ? 'text-amber' : 'text-fg'} data-testid="spread-value">
+                ${m.markValue.toFixed(2)}{m.markClamped && '*'}
               </span>
+            </span>
+            <span>
+              <span className="text-dim uppercase tracking-[0.12em] mr-1">P&amp;L</span>
+              {m.staleQuote ? (
+                <span
+                  className="text-amber"
+                  data-testid="spread-stale-quote"
+                  title={`Leg marks imply ${m.groupPL < 0 ? '−' : ''}$${Math.abs(Math.round(m.groupPL))}, outside what this spread can do — quote is stale`}
+                >
+                  stale quote
+                </span>
+              ) : (
+                <span className={m.groupPL >= 0 ? 'text-hi' : 'text-red'}>
+                  {m.groupPL >= 0 ? '▲' : '▼'} {money(Math.abs(m.groupPL))}
+                </span>
+              )}
             </span>
           </span>
         </div>
