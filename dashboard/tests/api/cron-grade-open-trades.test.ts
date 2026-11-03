@@ -1347,9 +1347,13 @@ describe('POST /api/cron/grade-open-trades', () => {
     const calledPaths = alpacaTradeMock.mock.calls.map((c: any[]) => c[1] as string);
     expect(calledPaths.some((p) => p.includes('old-order'))).toBe(false);
 
-    // The retired trade must NOT have been written or removed from the open index.
+    // The retired trade record must NOT be written (history stays as-is)...
     expect(kvSet).not.toHaveBeenCalledWith(`trade:${retiredTrade.id}`, expect.anything());
-    expect(kvLrem).not.toHaveBeenCalledWith('trades:index:open', 0, retiredTrade.id);
+    // ...but it IS dropped from the open index, so it stops padding
+    // remaining_open and eating the per-tick sweep budget (2026-11-03).
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, retiredTrade.id);
+    // Neither trade remains open: retired one dropped, active one closed.
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ remaining_open: 0 }));
 
     // The active manual_paper trade IS still processed and closed.
     expect(kvSet).toHaveBeenCalledWith(`trade:${activeTrade.id}`, expect.objectContaining({

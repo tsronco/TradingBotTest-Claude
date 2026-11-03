@@ -191,9 +191,18 @@ export async function runGradeOpenTrades(opts: {
     // A stale open trade from a retired account (e.g. conservative_paper, sm500_paper)
     // would otherwise be routed through modeFromAccount → 'manual' and silently
     // sync against the wrong Alpaca credentials. Skip it rather than corrupt data.
+    //
+    // ...and take it off the OPEN index (2026-11-03). It can never be synced or
+    // closed, so leaving it there only padded the index (remaining_open was 158
+    // with a handful of real open positions) and ate the 30-per-tick sweep
+    // budget, delaying real fills/closes by up to ~30 min. The trade record
+    // itself is NOT written or deleted — history, /trades and /performance keep
+    // it exactly as it was; it just stops being swept every 5 minutes.
     const ACTIVE_ACCOUNTS = new Set(['manual_paper', 'live', 'agent_paper']);
     if (!ACTIVE_ACCOUNTS.has(trade.account)) {
-      console.warn('[gradeOpenTrades] skipping trade for retired account', trade.id, trade.account);
+      console.warn('[gradeOpenTrades] dropping retired-account trade from open index', trade.id, trade.account);
+      await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
+      remaining -= 1;
       continue;
     }
 

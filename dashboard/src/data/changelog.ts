@@ -30,6 +30,19 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
+    category: 'fix',
+    title: 'Grade cron: retired-account trades leave the open list',
+    details:
+      'The grade-open-trades cron reported 158 open trades with only a handful of real open positions. '
+      + 'Trades from the accounts retired on 2026-06-29 were skipped (correctly — they must not be '
+      + 'checked against the wrong Alpaca account) but never removed from the open list, so they padded '
+      + 'it forever and used up the 30-per-run sweep budget, delaying real fills and closes on /trades '
+      + 'by up to ~30 minutes.\n\n'
+      + 'They are now dropped from the open list the first time the sweep reaches them. The trade '
+      + 'records themselves are untouched, so history and performance pages are unchanged.',
+  },
+  {
+    date: '2026-11-03',
     category: 'infra',
     title: 'Cron jobs run on Eastern time — no more DST shifts',
     details:

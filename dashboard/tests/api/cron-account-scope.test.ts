@@ -66,7 +66,9 @@ vi.mock('../../api/trades/[action]', () => ({
 }));
 
 // ── Fixture trades ────────────────────────────────────────────────────────────
-// Two manual_paper trades and one conservative_paper trade.
+// Two manual_paper trades and one live trade (an ACTIVE second account —
+// a retired account like conservative_paper would now be dropped from the
+// open index by the retired-account guard, which is not what this tests).
 // All three are filled options whose position is still present on Alpaca so
 // detectClose returns null and nothing closes during this test.
 function makeTrade(id: string, account: string): any {
@@ -106,7 +108,7 @@ function makeTrade(id: string, account: string): any {
 
 const tradeM1 = makeTrade('m1', 'manual_paper');
 const tradeM2 = makeTrade('m2', 'manual_paper');
-const tradeC1 = makeTrade('c1', 'conservative_paper');
+const tradeC1 = makeTrade('c1', 'live');
 
 // ── KV setup helper ───────────────────────────────────────────────────────────
 // Sets up: open index = ['m1','m2','c1'], sweep cursor = 0,
