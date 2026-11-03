@@ -10,6 +10,7 @@ import { Timeline } from '../components/trade/Timeline';
 import { GradePanel } from '../components/trade/GradePanel';
 import { AgentThesisPanel } from '../components/trade/AgentThesisPanel';
 import { RuleViolationsPanel } from '../components/trade/RuleViolationsPanel';
+import { ExitPlanPanel } from '../components/trade/ExitPlanPanel';
 import AssignmentLink from '../components/trade/AssignmentLink';
 import { api } from '../lib/api';
 import type { Trade } from '../lib/trade-types';
@@ -47,6 +48,7 @@ export default function TradeDetail() {
       <ErrorBoundary><TradeChart trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><Timeline trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><AgentThesisPanel trade={data.trade} /></ErrorBoundary>
+      <ErrorBoundary><ExitPlanPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><RuleViolationsPanel trade={data.trade} /></ErrorBoundary>
       <ErrorBoundary><GradePanel trade={data.trade} grade={data.grade} /></ErrorBoundary>
       <ErrorBoundary><TagsJournal trade={data.trade} /></ErrorBoundary>

@@ -12,6 +12,7 @@ import FillHint from './FillHint';
 import CashSummary from './CashSummary';
 import type { Leg } from '../../lib/payoff';
 import { accountToMode, type Mode } from '../../lib/account-utils';
+import { botStopFor, BOT_STOP_PCT } from '../../lib/exit-plan';
 
 type StockAccount = 'manual_paper' | 'live';
 
@@ -32,6 +33,9 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
   const [tif, setTif] = useState<Tif>('day');
   const [grade, setGrade] = useState<GradeLetter | null>(null);
   const [reasoning, setReasoning] = useState('');
+  // Optional exit plan — recorded on the trade, never placed as an order.
+  const [plannedStop, setPlannedStop] = useState<number | ''>('');
+  const [plannedTarget, setPlannedTarget] = useState<number | ''>('');
   const [tags, setTags] = useState<string[]>([]);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +80,11 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
     tif,
     entry_grade: grade ?? '',
     entry_reasoning: reasoning,
+    // A closing sell has no exit plan of its own — don't send stale values.
+    planned_stop: side === 'sell' || plannedStop === '' ? null : Number(plannedStop),
+    planned_target: side === 'sell' || plannedTarget === '' ? null : Number(plannedTarget),
     tags,
-  }), [account, symbol, side, qty, orderType, limitPrice, stopPrice, trailPct, tif, grade, reasoning, tags]);
+  }), [account, symbol, side, qty, orderType, limitPrice, stopPrice, trailPct, tif, grade, reasoning, plannedStop, plannedTarget, tags]);
 
   async function review() {
     setPreviewing(true); setError(null);
@@ -213,6 +220,26 @@ export function StockOrderForm({ symbol, account, setAccount, onReview }: Props)
         />
       </Section>
 
+      {side !== 'sell' && (() => {
+        const entry = limitPrice !== '' ? Number(limitPrice) : (ask + bid) / 2 || last || 0;
+        const botStop = side === 'buy' ? botStopFor(entry) : null;
+        return (
+          <Section label="━━━ exit plan (optional) ──">
+            <div className="text-dim text-[10px] mb-1">
+              recorded on the trade only — no order is placed at these prices
+            </div>
+            <Row label="your stop"><NumInput value={plannedStop} onChange={setPlannedStop} step={0.01} ariaLabel="your stop" /></Row>
+            <Row label="your target"><NumInput value={plannedTarget} onChange={setPlannedTarget} step={0.01} ariaLabel="your target" /></Row>
+            {botStop != null && (
+              <div className="text-dim text-[10px] mt-1" data-testid="bot-stop-hint">
+                bot's stop on this account ≈ <span className="text-mid">{fmtUsd(botStop)}</span>{' '}
+                ({Math.round(BOT_STOP_PCT * 100)}% below entry — it sells there regardless of your plan)
+              </div>
+            )}
+          </Section>
+        );
+      })()}
+
       <Section label="━━━ tags ──────────────">
         <TagPicker value={tags} onChange={setTags} />
       </Section>
@@ -260,11 +287,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     </div>
   );
 }
-function NumInput({ value, onChange, step = 1 }: { value: number | ''; onChange: (n: number | '') => void; step?: number }) {
+function NumInput({ value, onChange, step = 1, ariaLabel }: { value: number | ''; onChange: (n: number | '') => void; step?: number; ariaLabel?: string }) {
   return (
     <input
       type="number"
       step={step}
+      aria-label={ariaLabel}
       value={value}
       onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
       className="bg-panel-2 border border-border px-2 py-0.5 text-fg text-[12px] tnum w-full md:w-28 text-right max-md:min-h-[44px]"

@@ -231,6 +231,13 @@ export interface Trade {
   tags: string[];
   entry_grade: GradeLetter;
   entry_reasoning: string;
+  /**
+   * Your own exit plan, typed on the stock order form (optional, 2026-11-03).
+   * Not an order — nothing is placed at these prices. Recorded so we can later
+   * compare your exits against the bot's 10% stop. Undefined on older trades.
+   */
+  planned_stop?: number | null;
+  planned_target?: number | null;
   journal: string;
   exposure_at_submit: number;
   rule_warnings_at_entry: RuleWarning[];

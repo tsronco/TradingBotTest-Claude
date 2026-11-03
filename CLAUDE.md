@@ -1280,6 +1280,8 @@ Lifecycle states (no explicit status field — derived from timestamps):
 
 `modify_history: ModifyEvent[]` — undefined on legacy trades, `[]` on new submits with no modifies, populated array if modified. The grade-open-trades cron walks Alpaca's `replaces`/`replaced_by` chain to backfill missing entries (tagged `source: 'backfill'` vs `'dashboard'` for live captures).
 
+`planned_stop` / `planned_target` (2026-11-03) — **optional** exit plan typed on the stock order form ("exit plan (optional)" section, opening orders only). Recorded on the trade, **never placed as an order**. Undefined on older trades, `null` when left blank. Validated only when present (positive; on a buy the stop must be below the target). The form and the `/trade/:id` EXIT PLAN panel show the bot's own stop next to it (`botStopFor` in `api/_lib/exit-plan.ts` = entry × 0.90, kept in sync with `STOP_PCT` in `strategy.py`). Purpose: collect data to compare your exits against the bot's 10% stop before deciding whether either should change — nothing reads these fields to make decisions yet.
+
 ### Phase 3 deliverable (shipped 2026-05-09, awaiting end-to-end smoke validation on Alpaca paper)
 
 - `/rules` page with seven sections (Bot · My rules · Patterns · Tendencies · Proposals · Cheatsheets · Goals); `/rules/edit` section dispatcher with a no-JSON dropdown trigger builder

@@ -30,6 +30,19 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
+    category: 'feature',
+    title: 'Optional exit plan (stop + target) on stock orders',
+    details:
+      'The stock order form has a new "exit plan (optional)" section for opening orders: your stop and '
+      + 'your target. They are saved on the trade but never placed as orders. The form also shows where '
+      + 'the bot\'s own stop would sit (10% below entry). It sells there regardless of your plan, as it '
+      + 'did on CMG at $29.57 against a planned $29.\n\n'
+      + 'The trade page has a new EXIT PLAN panel: your stop, your target, the bot\'s stop and the actual '
+      + 'exit. Nothing acts on these yet. The point is to collect data so we can later compare your exits '
+      + 'against the bot\'s before deciding whether either should change.',
+  },
+  {
+    date: '2026-11-03',
     category: 'fix',
     title: 'Stock closes: match the whole sell order, not one execution',
     details:

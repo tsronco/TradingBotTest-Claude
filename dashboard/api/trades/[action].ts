@@ -18,6 +18,7 @@ import {
 } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
 import { heldLongBefore } from '../_lib/option-history.js';
+import { exitPlanProblems } from '../_lib/exit-plan.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey, importCursorKey,
   idemKey, IDEM_INDEX_TTL_SECONDS,
@@ -47,6 +48,9 @@ interface OrderDraft {
   contract_type?: 'put' | 'call' | null;
   entry_grade: string;
   entry_reasoning: string;
+  // Optional exit plan (stock only) — recorded, never placed as an order.
+  planned_stop?: number | null;
+  planned_target?: number | null;
   tags: string[];
   totp_code?: string;
   // D2 — idempotency key. Generated once by ConfirmModal and reused on
@@ -242,6 +246,7 @@ function validate(draft: OrderDraft): string[] {
   if (!draft.symbol) errs.push('symbol_required');
   if (!Number.isFinite(draft.qty) || draft.qty <= 0) errs.push('qty_invalid');
   if (!draft.entry_reasoning?.trim()) errs.push('entry_reasoning_required');
+  if (draft.asset_class === 'stock') errs.push(...exitPlanProblems(draft.side, draft.planned_stop, draft.planned_target));
   if (!GRADE_LETTERS.includes(draft.entry_grade as GradeLetter)) errs.push('entry_grade_invalid');
   if (draft.order_type === 'limit' && !Number.isFinite(draft.limit_price)) errs.push('limit_price_required');
   if (draft.order_type === 'stop' && !Number.isFinite(draft.stop_price ?? NaN)) errs.push('stop_price_required');
@@ -1001,6 +1006,10 @@ async function submit(req: VercelRequest, res: VercelResponse) {
     tags: draft.tags ?? [],
     entry_grade: draft.entry_grade as GradeLetter,
     entry_reasoning: draft.entry_reasoning,
+    ...(draft.asset_class === 'stock' ? {
+      planned_stop: draft.planned_stop ?? null,
+      planned_target: draft.planned_target ?? null,
+    } : {}),
     journal: '',
     exposure_at_submit: exposure,
     rule_warnings_at_entry: rule_warnings,
