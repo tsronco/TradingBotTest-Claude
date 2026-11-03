@@ -1450,6 +1450,31 @@ async function detectExternalStockClose(mode: Mode, trade: Trade): Promise<Close
 
   // FIFO guard — only auto-close on an exact-qty match.
   const fillQty = Math.abs(Number(fill.qty ?? NaN));
+
+  // A FILL activity is one EXECUTION, not one order: a single 4-share market
+  // sell can post as 3 + 1 (live CMG, 2026-10-19, avg 29.550175). Judge the
+  // whole ORDER instead — if that one order filled exactly this trade's qty,
+  // it closed this lot, priced at the order's average.
+  if (fillQty !== trade.qty && fill.order_id) {
+    try {
+      const order = await alpacaTrade<any>(mode, `/v2/orders/${fill.order_id}`);
+      const orderQty = Math.abs(Number(order?.filled_qty ?? NaN));
+      const orderPx = Number(order?.filled_avg_price);
+      if (order?.status === 'filled' && orderQty === trade.qty && Number.isFinite(orderPx)) {
+        return {
+          closed_at: order.filled_at ?? fill.transaction_time ?? new Date().toISOString(),
+          closed_avg_price: orderPx,
+          realized_pnl: realizedPnl(trade, orderPx),
+          closed_by: 'bot_external',
+          alpaca_close_order_id: fill.order_id,
+        };
+      }
+    } catch (e) {
+      console.error('detectExternalStockClose order fetch failed', trade.id, fill.order_id, e);
+      return null; // transient — retry next tick
+    }
+  }
+
   if (!Number.isFinite(fillQty) || fillQty !== trade.qty) {
     console.log(
       'detectExternalStockClose qty mismatch — leaving open for manual review',

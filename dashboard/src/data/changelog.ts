@@ -31,6 +31,18 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
     category: 'fix',
+    title: 'Stock closes: match the whole sell order, not one execution',
+    details:
+      'A stock sold outside the dashboard only closed when a single fill matched the lot size. But '
+      + 'Alpaca records each EXECUTION as its own fill, so one 4-share market sell can show up as 3 + 1 '
+      + '(live CMG, 2026-10-19, avg $29.550175) and the record stayed open for two weeks. Now, when a '
+      + 'fill is smaller than the lot, the whole order is checked: if that one order filled exactly '
+      + 'the lot size, the trade closes at the order\'s average price. An order that sold more than '
+      + 'the lot (another lot mixed in) is still left for manual review.',
+  },
+  {
+    date: '2026-11-03',
+    category: 'fix',
     title: 'Import: an option sale that closes a long is no longer booked as a new short',
     details:
       'The importer booked every option sell as a new short (STO) unless Alpaca marked the fill '

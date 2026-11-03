@@ -321,3 +321,69 @@ describe('phantom sell-to-close records', () => {
     expect(activityCalls.some((p) => p?.after === '2026-05-31')).toBe(false);
   });
 });
+
+// One market order, several executions: live CMG, bought 4 @ 32.8567 on
+// 2026-09-23, sold 4 at market on 2026-10-19 (avg 29.550175) as 3 + 1.
+function cmgLot(over: any = {}): any {
+  return {
+    id: 'T-2026-09-23-001', account: 'live',
+    asset_class: 'stock', symbol: 'CMG', side: 'buy', qty: 4,
+    contract_symbol: null, strike: null, expiration: null, contract_type: null,
+    filled_avg_price: 32.8567, filled_at: '2026-09-23T18:37:18Z',
+    alpaca_order_id: 'cmg-buy', alpaca_close_order_id: null,
+    submitted_at: '2026-09-23T18:37:00Z', closed_at: null,
+    realized_pnl: null, closed_avg_price: null, closed_by: null,
+    entry_grade: 'C+', entry_reasoning: 'r', tags: ['gut_feel'], rule_warnings_at_entry: [],
+    fill_confirmed: true, schema: 1, ...over,
+  };
+}
+const CMG_FILLS = [
+  { id: 'e1', activity_type: 'FILL', transaction_time: '2026-10-19T13:33:32Z',
+    symbol: 'CMG', side: 'sell', price: '29.55', qty: '3', order_id: 'cmg-sell' },
+  { id: 'e2', activity_type: 'FILL', transaction_time: '2026-10-19T13:33:32Z',
+    symbol: 'CMG', side: 'sell', price: '29.5507', qty: '1', order_id: 'cmg-sell' },
+];
+
+describe('stock lot sold by one order that filled in several executions', () => {
+  it('closes at the order average when the ORDER matches the lot size', async () => {
+    const trade = cmgLot();
+    seed(trade);
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error(`alpaca trade 404 on ${path}: not found`));
+      if (path.includes('/v2/account/activities')) return Promise.resolve(CMG_FILLS);
+      if (path.endsWith('/v2/orders/cmg-sell')) return Promise.resolve({
+        id: 'cmg-sell', status: 'filled', filled_qty: '4', filled_avg_price: '29.550175',
+        filled_at: '2026-10-19T13:33:32Z',
+      });
+      return Promise.resolve(null);
+    });
+
+    await run();
+
+    // (29.550175 − 32.8567) × 4 = −13.2261
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({
+      closed_at: '2026-10-19T13:33:32Z',
+      closed_avg_price: 29.550175,
+      realized_pnl: expect.closeTo(-13.2261, 3),
+      closed_by: 'bot_external',
+      alpaca_close_order_id: 'cmg-sell',
+    }));
+  });
+
+  it('stays open when that order sold MORE than this lot (another lot mixed in)', async () => {
+    const trade = cmgLot({ id: 'T-2026-09-23-002' });
+    seed(trade);
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/v2/positions/')) return Promise.reject(new Error(`alpaca trade 404 on ${path}: not found`));
+      if (path.includes('/v2/account/activities')) return Promise.resolve(CMG_FILLS);
+      if (path.endsWith('/v2/orders/cmg-sell')) return Promise.resolve({
+        id: 'cmg-sell', status: 'filled', filled_qty: '6', filled_avg_price: '29.55',
+      });
+      return Promise.resolve(null);
+    });
+
+    await run();
+
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ closed_at: expect.anything() }));
+  });
+});
