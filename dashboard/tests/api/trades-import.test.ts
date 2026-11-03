@@ -633,3 +633,69 @@ describe('D15 — cross-month-boundary dedup: fill already imported in prior mon
     expect(tradeSetCalls).toHaveLength(0);
   });
 });
+
+describe('import — option sell that closes an existing long (2026-11-03)', () => {
+  const SLV = 'SLV261023C00059500';
+  const buy = { id: 'f-buy', activity_type: 'FILL', transaction_time: '2026-09-17T13:13:00Z',
+    symbol: SLV, side: 'buy', price: '3.33', qty: '1', order_id: 'slv-buy' };
+  const sell = { id: 'f-sell', activity_type: 'FILL', transaction_time: '2026-09-28T13:12:00Z',
+    symbol: SLV, side: 'sell', price: '0.78', qty: '1', order_id: 'slv-sell' };
+
+  function noExisting() {
+    kvGet.mockImplementation((k: string) =>
+      k.startsWith('trades:index:') ? Promise.resolve([]) : Promise.resolve(null));
+  }
+
+  it('skips a sell-to-close when the account already held the contract (no phantom STO)', async () => {
+    // Import window only sees the sale; the opening buy is in the fill history.
+    alpacaTradeMock.mockImplementation((_m: any, _p: string, params: any) =>
+      Promise.resolve(params?.after === '2026-09-25' ? [sell] : [buy, sell]));
+    noExisting();
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'agent_paper', since: '2026-09-25T00:00:00Z' }), res);
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(0);
+    expect(body.imported.skipped_closing).toBe(1);
+    expect(kvSet).not.toHaveBeenCalledWith(expect.stringMatching(/^trade:/), expect.anything());
+  });
+
+  it('still imports a genuine opening sale (no prior long)', async () => {
+    alpacaTradeMock.mockResolvedValue([sell]);
+    noExisting();
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'manual_paper', since: '2026-09-25T00:00:00Z' }), res);
+
+    const body = (res.json as any).mock.calls[0][0];
+    expect(body.imported.imported).toBe(1);
+    expect(kvSet).toHaveBeenCalledWith(expect.stringMatching(/^trade:/), expect.objectContaining({ side: 'STO' }));
+  });
+
+  it('a partial close (sold 1 of 2 held) is also a close', async () => {
+    alpacaTradeMock.mockImplementation((_m: any, _p: string, params: any) =>
+      Promise.resolve(params?.after === '2026-09-25' ? [sell] : [{ ...buy, qty: '2' }, sell]));
+    noExisting();
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'agent_paper', since: '2026-09-25T00:00:00Z' }), res);
+
+    expect((res.json as any).mock.calls[0][0].imported.imported).toBe(0);
+  });
+
+  it('if the history lookup fails, keeps the old default (imports as STO)', async () => {
+    alpacaTradeMock.mockImplementation((_m: any, _p: string, params: any) =>
+      params?.after === '2026-09-25' ? Promise.resolve([sell]) : Promise.reject(new Error('boom')));
+    noExisting();
+
+    const handler = (await import('../../api/trades/[action]')).default;
+    const res = mockRes();
+    await handler(mockReq({ account: 'agent_paper', since: '2026-09-25T00:00:00Z' }), res);
+
+    expect((res.json as any).mock.calls[0][0].imported.imported).toBe(1);
+  });
+});

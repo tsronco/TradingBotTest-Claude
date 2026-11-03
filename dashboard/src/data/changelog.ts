@@ -31,6 +31,20 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
     category: 'fix',
+    title: 'Import: an option sale that closes a long is no longer booked as a new short',
+    details:
+      'The importer booked every option sell as a new short (STO) unless Alpaca marked the fill '
+      + '"closing", which it often doesn\'t. So the agent\'s closing sale of its SLV 59.5 call on '
+      + '2026-09-28 became a phantom open "STO 1 SLV" record that could never close.\n\n'
+      + 'Now a plain option sell is checked against Alpaca\'s fill history: if the account already '
+      + 'held that contract long just before the sale, it is a close and is skipped. Existing phantom '
+      + 'records are found the same way by the grade cron and deleted (they were never trades, so '
+      + 'they are not "closed" with a made-up P&L). Each imported short is checked once; genuine '
+      + 'opening sales are flagged and left alone.',
+  },
+  {
+    date: '2026-11-03',
+    category: 'fix',
     title: 'Trades: stuck "open" records — sale records, early-closed options, retired accounts hidden',
     details:
       'Three causes of trade records that could never close:\n\n'

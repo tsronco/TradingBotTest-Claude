@@ -11,10 +11,11 @@ const kvGet = vi.fn();
 const kvSet = vi.fn();
 const kvLrange = vi.fn();
 const kvLrem = vi.fn();
+const kvDel = vi.fn();
 const gradeMock = vi.fn();
 const dataMock = vi.fn();
 const alpacaTradeMock = vi.fn();
-vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem }) }));
+vi.mock('../../api/_lib/kv', () => ({ kv: () => ({ get: kvGet, set: kvSet, lrange: kvLrange, lrem: kvLrem, del: kvDel }) }));
 vi.mock('../../api/_lib/grading', () => ({ gradeTrade: (...a: any[]) => gradeMock(...a) }));
 vi.mock('../../api/_lib/data-api', () => ({
   alpacaData: (...a: any[]) => dataMock(...a),
@@ -32,7 +33,7 @@ vi.mock('../../api/trades/[action]', () => ({
 // past. Freeze time before all expirations so detectClose Path 2 (option past
 // expiry / backstop) never fires and Path 3 (external close) is what gets tested.
 beforeEach(() => {
-  kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset();
+  kvGet.mockReset(); kvSet.mockReset(); kvLrange.mockReset(); kvLrem.mockReset(); kvDel.mockReset();
   gradeMock.mockReset(); dataMock.mockReset(); alpacaTradeMock.mockReset();
   process.env.CRON_TOKEN = 'cron-token';
   vi.useFakeTimers();
@@ -237,5 +238,86 @@ describe('stock sale recorded as its own trade', () => {
       closed_by: 'manual', realized_pnl: null, closed_avg_price: 110.23,
     }));
     expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ alpaca_close_order_id: 'wmt-rebuy' }));
+  });
+});
+
+// Phantom cleanup: an imported "STO" that was really the sale closing a long.
+const SLV_OCC = 'SLV261023C00059500';
+function slvPhantom(over: any = {}): any {
+  return {
+    id: 'T-2026-11-03-003', account: 'agent_paper',
+    asset_class: 'option', symbol: 'SLV', side: 'STO', qty: 1,
+    contract_symbol: SLV_OCC, strike: 59.5, expiration: '2026-10-23', contract_type: 'call',
+    filled_avg_price: 0.78, filled_at: '2026-09-28T14:12:00Z',
+    alpaca_order_id: 'slv-sell', alpaca_close_order_id: null,
+    submitted_at: '2026-09-28T14:12:00Z', closed_at: null,
+    realized_pnl: null, closed_avg_price: null, closed_by: null,
+    entry_grade: 'B', entry_reasoning: 'r', tags: ['imported', 'agent'], rule_warnings_at_entry: [],
+    fill_confirmed: true, schema: 1, ...over,
+  };
+}
+
+describe('phantom sell-to-close records', () => {
+  it('deletes the record when Alpaca shows the account was long the contract before the sale', async () => {
+    const trade = slvPhantom();
+    seed(trade);
+    kvDel.mockResolvedValue(1);
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 'b', symbol: SLV_OCC, side: 'buy', qty: '1', transaction_time: '2026-09-17T13:13:00Z' },
+        { id: 's', symbol: SLV_OCC, side: 'sell', qty: '1', transaction_time: '2026-09-28T14:12:00Z' },
+      ]);
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    const res = mockRes();
+    await handler(mockReq(), res);
+
+    expect(kvDel).toHaveBeenCalledWith(`trade:${trade.id}`);
+    expect(kvDel).toHaveBeenCalledWith(`grade:${trade.id}`);
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:open', 0, trade.id);
+    // filed under the FILL month (2026-09) as well as the id month (2026-11)
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:2026-09', 0, trade.id);
+    expect(kvLrem).toHaveBeenCalledWith('trades:index:2026-11', 0, trade.id);
+    // never "closed" with a fabricated P&L — it was never a trade
+    expect(kvSet).not.toHaveBeenCalledWith(`trade:${trade.id}`, expect.anything());
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ phantoms_removed: 1, remaining_open: 0 }));
+  });
+
+  it('keeps a genuine opening sale, flags it checked, and does not re-check it', async () => {
+    const trade = slvPhantom({ id: 'T-2026-09-28-009' });
+    seed(trade);
+    alpacaTradeMock.mockImplementation((_m: any, path: string) => {
+      if (path.includes('/v2/account/activities')) return Promise.resolve([
+        { id: 's', symbol: SLV_OCC, side: 'sell', qty: '1', transaction_time: '2026-09-28T14:12:00Z' },
+      ]);
+      if (path.includes('/v2/positions/')) return Promise.resolve({ symbol: SLV_OCC, qty: '-1' });
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvDel).not.toHaveBeenCalled();
+    expect(kvSet).toHaveBeenCalledWith(`trade:${trade.id}`, expect.objectContaining({ phantom_checked: true }));
+  });
+
+  it('skips the check for a record already flagged phantom_checked', async () => {
+    const trade = slvPhantom({ id: 'T-2026-09-28-010', phantom_checked: true });
+    seed(trade);
+    const activityCalls: any[] = [];
+    alpacaTradeMock.mockImplementation((_m: any, path: string, params: any) => {
+      if (path.includes('/v2/account/activities')) { activityCalls.push(params); return Promise.resolve([]); }
+      if (path.includes('/v2/positions/')) return Promise.resolve({ symbol: SLV_OCC, qty: '-1' });
+      return Promise.resolve(null);
+    });
+
+    const handler = (await import('../../api/cron/[job]')).default;
+    await handler(mockReq(), mockRes());
+
+    expect(kvDel).not.toHaveBeenCalled();
+    // no 120-day history walk (that query starts ~4 months before the fill)
+    expect(activityCalls.some((p) => p?.after === '2026-05-31')).toBe(false);
   });
 });

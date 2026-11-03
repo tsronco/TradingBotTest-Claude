@@ -249,6 +249,12 @@ export interface Trade {
    * Undefined on legacy trades (treat as not-yet-confirmed).
    */
   fill_confirmed?: boolean;
+  /**
+   * Set once the grade cron has confirmed an imported single-option STO is a
+   * genuine opening sale (not a sell-to-close the importer misread). Stops the
+   * Alpaca fill-history check from re-running every tick.
+   */
+  phantom_checked?: boolean;
 }
 
 export interface GradeEntry {
@@ -288,6 +294,8 @@ export interface TradeImportSummary {
   spread_pairs_found: number;
   errors: string[];
   created_trade_ids: string[];
+  /** Option sells skipped because they closed a long the account already held. */
+  skipped_closing?: number;
 }
 
 export const GRADE_LETTERS: GradeLetter[] = [

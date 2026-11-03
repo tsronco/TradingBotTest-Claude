@@ -17,6 +17,7 @@ import {
   type TradeImportSummary,
 } from '../_lib/trade-types.js';
 import { allocateTradeId, currentMonth } from '../_lib/trade-ids.js';
+import { heldLongBefore } from '../_lib/option-history.js';
 import {
   KV_KEYS, tradeKey, gradeKey, tradesIndexMonthKey, assignmentChildKey, importCursorKey,
   idemKey, IDEM_INDEX_TTL_SECONDS,
@@ -1784,6 +1785,18 @@ export async function runImport({
       if (orderId && await orderIdAlreadyImported(orderId, fillTime)) {
         summary.skipped_existing += 1;
         continue;
+      }
+      // A plain 'sell' with no position_effect may be a sell-to-CLOSE of a long
+      // the account already held (the agent's SLV call, 2026-09-28). Ask
+      // Alpaca's fill history before booking it as a new short. 'sell_short'
+      // is unambiguous and skips the check; an unknown answer (null) keeps the
+      // old STO default.
+      if (sideRaw === 'sell' && !f.position_effect && f.transaction_time) {
+        const held = await heldLongBefore(mode as any, f.symbol!, f.transaction_time, Math.abs(Number(f.qty ?? '1')));
+        if (held === true) {
+          summary.skipped_closing = (summary.skipped_closing ?? 0) + 1;
+          continue;
+        }
       }
       const qty = Number(f.qty ?? '1');
       const price = Number(f.price ?? '0');

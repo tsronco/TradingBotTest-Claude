@@ -20,6 +20,7 @@ import { proposeNewRule, proposeDemote } from '../_lib/proposal-prompts.js';
 import type { Tendency, Proposal, ManualRule } from '../_lib/rules-types.js';
 import { newId } from '../_lib/rules-types.js';
 import { fetchEarningsDates, earningsInWindow } from '../_lib/fundamentals-fetch.js';
+import { heldLongBefore } from '../_lib/option-history.js';
 
 // AI hindsight grades to run per tick. Small because gradeTrade is a Sonnet
 // call (seconds + tokens); closes beyond this land on the needs-grade queue
@@ -122,6 +123,7 @@ export async function runGradeOpenTrades(opts: {
   assignments_spawned: number;
   assignments_skipped: number;
   auto_imported: Record<string, number | string>;
+  phantoms_removed: number;
 }> {
   const startedAt = Date.now();
   const sweepBudget = opts.sweepBudget ?? SWEEP_BUDGET;
@@ -152,6 +154,7 @@ export async function runGradeOpenTrades(opts: {
   let synced = 0;
   let aiGrades = 0;      // expensive Sonnet grade calls used this tick
   let remaining = openIds.length;
+  let phantoms = 0;
 
   // Rotating sweep window: process at most sweepBudget trades starting from a
   // stored cursor, wrapping around. This guarantees every open trade is
@@ -203,6 +206,30 @@ export async function runGradeOpenTrades(opts: {
       await kv().lrem(KV_KEYS.tradesIndexOpen, 0, id);
       remaining -= 1;
       continue;
+    }
+
+    // Phantom cleanup (2026-11-03): an imported single-option "STO" that was
+    // really a sell-to-CLOSE of a long the account already held (the importer
+    // booked every option sell as a new short until today). It can never
+    // close — there is nothing to buy back — so it sat "open" forever (agent
+    // SLV 59.5 call, sold 2026-09-28). Checked once per record against
+    // Alpaca's fill history; a genuine opening sale is flagged and left alone.
+    if (isPhantomCandidate(trade)) {
+      const held = await heldLongBefore(
+        modeFromAccount(trade.account), trade.contract_symbol!, trade.filled_at!, trade.qty,
+      );
+      if (held === true) {
+        console.warn('[gradeOpenTrades] removing phantom sell-to-close record', trade.id, trade.contract_symbol);
+        await removePhantomTrade(trade);
+        phantoms += 1;
+        remaining -= 1;
+        continue;
+      }
+      if (held === false) {
+        trade = { ...trade, phantom_checked: true };
+        await kv().set(tradeKey(id), trade);
+      }
+      // null → couldn't tell; try again next tick
     }
 
     // Sync delayed fills back to the trade record. Limit orders may submit
@@ -356,6 +383,7 @@ export async function runGradeOpenTrades(opts: {
   return {
     graded,
     synced,
+    phantoms_removed: phantoms,
     remaining_open: remaining,
     ai_graded: aiGrades,
     grade_queue_remaining,
@@ -811,6 +839,34 @@ async function resolveOptionSettlement(
   // hindsight grading context.
   if (match.some((a) => a.activity_type === 'OPASN')) return 'assigned';
   return 'expired';
+}
+
+function isPhantomCandidate(trade: Trade): boolean {
+  return trade.asset_class === 'option'
+    && trade.side === 'STO'
+    && !trade.spread
+    && (trade.tags ?? []).includes('imported')
+    && !!trade.contract_symbol
+    && !!trade.filled_at
+    && !trade.closed_at
+    && trade.phantom_checked !== true;
+}
+
+/**
+ * Delete a phantom record entirely — it was never a trade, so it must not
+ * linger in P&L, win rate or calibration. Same cleanup as the /trades delete
+ * action, plus the FILL-month index: an imported record's id is dated the day
+ * it was imported but it is filed under the month it filled.
+ */
+async function removePhantomTrade(trade: Trade): Promise<void> {
+  const months = new Set([trade.id.slice(2, 9)]);
+  if (trade.filled_at) months.add(trade.filled_at.slice(0, 7));
+  await kv().lrem(KV_KEYS.tradesIndexOpen, 0, trade.id);
+  for (const m of months) await kv().lrem(tradesIndexMonthKey(m), 0, trade.id);
+  const nq = (await kv().get<string[]>(KV_KEYS.tradesIndexNeedsGrade)) ?? [];
+  if (nq.includes(trade.id)) await kv().set(KV_KEYS.tradesIndexNeedsGrade, nq.filter((x) => x !== trade.id));
+  await kv().del(tradeKey(trade.id));
+  await kv().del(gradeKey(trade.id));
 }
 
 async function detectClose(trade: Trade): Promise<CloseInfo | null> {
