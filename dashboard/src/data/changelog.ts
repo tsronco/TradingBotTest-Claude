@@ -30,6 +30,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-03',
+    category: 'infra',
+    title: 'Cron jobs run on Eastern time — no more DST shifts',
+    details:
+      'The Nov 1 fall-back moved every UTC-scheduled cron-job.org job an hour early in ET: the daily '
+      + 'summary fired at 3:12 PM ET (before the close), the live brief at 8:40 AM ET (pre-open quotes), '
+      + 'and the monitors stopped before the last minutes of the session.\n\n'
+      + 'tools/setup_cronjobs.py now sets each job\'s timezone to America/New_York and writes the hours '
+      + 'in ET, so cron-job.org follows DST itself. It also refuses to run without DASHBOARD_CRON_TOKEN '
+      + 'rather than overwriting the dashboard webhooks with a blank bearer token.',
+  },
+  {
+    date: '2026-11-03',
     category: 'fix',
     title: 'Positions: spread collateral, stale-quote P/L, underlying price on option rows',
     details:

@@ -236,7 +236,7 @@ NYSE regular hours: 9:30 AM–4:00 PM ET = 13:30–20:00 UTC. Cron fires that fa
 - **Strategy** runs anyway — it's just monitoring price, no order placement on heartbeat cycles.
 - **Congress monitor** has a built-in market-closed early return.
 
-⚠️ **DST changes**: cron values above are correct for **CDT** (March–November). When DST ends in early November, shift each UTC hour value +1.
+**DST is automatic as of 2026-11-03.** `tools/setup_cronjobs.py` now sets every job's cron-job.org timezone to `America/New_York` and writes the hours in ET (monitors 9–16 ET, daily summary 4:12 PM, live brief 9:40 AM, agent 10:07/12:07/2:07/3:07 PM, grade-open-trades 9:00–4:55 PM, Sunday jobs ~6 PM), so nothing needs shifting at DST changes. The UTC values in the table above are the summer (EDT) equivalents. The script refuses to run without `DASHBOARD_CRON_TOKEN` in `.env`, so a re-run can't blank the dashboard webhooks' bearer token.
 
 ## Discord channels
 
@@ -973,8 +973,8 @@ found the Oct 23 sign fix covered only two-leg vertical OPENS. Fixed in three co
    snapshots follow `next_page_token`; trend bars are split-adjusted.
 Not changed: option quotes still use Alpaca's free `indicative` feed (real NBBO
 needs an OPRA subscription). Owner actions still open: the 16:07/18:07 UTC
-agent fires have not run since 2026-09-10 (check cron-job.org), and the DST
-shift on 2026-11-01.
+agent fires have not run since 2026-09-10 (check cron-job.org). (The DST
+shift is moot: cron jobs run on America/New_York since 2026-11-03.)
 
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
@@ -1372,7 +1372,7 @@ the agent's Sonnet focus call. One fire a day ≈ $5–7/month on Opus.
 Plumbing: `live-brief.yml` (dispatch-only, `bot-commits` concurrency, commits
 `live_brief_state.json` + `logs/live.jsonl`, pushes the state to KV) is fired
 by cron-job.org (`tools/setup_cronjobs.py` → "Live Brief (9:40 ET, read-only)",
-`40 13 * * 1-5` UTC during EDT; **shift to hour 14 when DST ends**). Needs the
+9:40 AM `America/New_York`, so DST is automatic). Needs the
 existing live Alpaca + Discord secrets, `ANTHROPIC_API_KEY`, and
 `BOT_PUSH_TOKEN` as GitHub Actions secrets. Dashboard side:
 `LIVE_BRIEF_KEY` in `api/_lib/kv-keys.ts`, `useLiveBrief()` in
