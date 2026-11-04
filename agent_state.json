@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 160,
-    "last_cycle_at": "2026-11-03T19:13:03Z",
+    "cycle_count": 161,
+    "last_cycle_at": "2026-11-04T15:12:52Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $765.94. Only position is the botched ZS Nov-20 200/197.5 put spread that filled as a net $0.25 DEBIT \u2014 it structurally cannot profit (max profit \u2212$25, max loss $275), so the only decision is whether to pay to unwind. ZS at $224.65 is 12.3% above the $200 short strike with 17 DTE and no earnings until 11/24 (after expiry); both legs should expire worthless, costing me only the $25 already paid, whereas unwinding at the mids (sell 197.5P at 3.52, buy back 200P at 3.99) costs another ~$47 \u2014 holding is cheaper. On new trades: my record is 1-for-8, \u2212$1,102, with losses concentrated in wide-quoted verticals where slippage flipped the economics, so the bar is a leg-level quote width under ~$0.15 and no earnings inside the window. Today's shortlist fails that: AMD, ETN, SHOP and KDP all print earnings TODAY (days_to_next_earnings = 0), ZS prints 11/24, TGT 11/18, and the wide names (GEV $785 put 7.24/13.21, VRTX 490 put 2.37/8.60, ETN 335 put 1.52/4.06, COIN/ACN 1+ wide) would hand back any credit in slippage. COIN is also \u221222.4% in a month and \u221212.7% vs its 20-day average \u2014 a falling knife I won't sell puts under. I act when I find a 15-20 delta vertical with each leg quoted under ~$0.15 wide, no earnings before expiry, credit \u22651/3 of width and max loss \u2264$200 \u2014 e.g. AMD or SHOP next week once tonight's prints clear and their chains (AMD legs are already only ~$0.30-0.50 wide at 395-415) reprice with vol crushed.",
+    "last_market_read": "Equity $671.94 with only the botched ZS Nov-20 200/197.5 put spread (filled as a $0.25 net DEBIT, so it structurally cannot profit \u2014 max loss $275, max \"profit\" \u2212$25); ZS at $227.64 sits 13.8% above the $200 short strike with 16 DTE and earnings not until 11/24, after expiry, so the cheapest path is letting both legs expire worthless and eating the $25 already paid rather than paying ~$0.47+ of mid-to-mid slippage to unwind (worst-case mark says \u2212$224 but the leg mids sum to only \u2212$47.50). On new trades: my record is 1-for-8, \u2212$1,102, and essentially every loss came from wide-quoted multi-leg structures where slippage flipped the economics or from a name printing earnings inside the window; today's shortlist fails that bar \u2014 CVS and DDOG report TODAY (days_to_next_earnings=0), CAT (\u221231.5% in a month, \u221244% off its 52w high), MRVL (\u221243.4% in a month), DDOG (\u221229.5%) and ETN (\u221218.7%) are falling knives I won't sell puts under, and GEV/LMT/CAT/ETN quotes are $3-8 wide per leg, which is a guaranteed donation. The only tight chains are AAPL (legs ~$0.04-0.14 wide, at its 52-week high, +5.5% 1m, no earnings for 85 days) and AMZN, but a 5-wide AAPL 320/315 put spread only pays ~$0.30 against $4.70 of risk \u2014 under my 1/3-of-width rule \u2014 so I hold and wait. I act when I see a 15-20 delta vertical with each leg quoted under ~$0.15 wide, no earnings before expiry, credit \u22651/3 of width and max loss \u2264$200.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -404,13 +404,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -105.0,
+        "market_value": -199.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-11-03T19:12:49Z",
+        "seen_at": "2026-11-04T15:12:40Z",
         "underlyings": {
-          "ZS": 224.65
+          "ZS": 227.64
         },
-        "unrealized_pl": -72.0
+        "unrealized_pl": -47.5
       },
       "legs": [
         {
