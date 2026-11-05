@@ -1303,7 +1303,9 @@ before any order was placed, so it is not proof of what happened); and \
 REJECTED with the reason. `unfilled_orders_cancelled` lists earlier orders that \
 never filled and were cancelled — a limit that keeps going unfilled was priced \
 past what the market would pay. `open_orders` (top level) is every order still \
-resting right now; don't resend one that is already working. Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
+resting right now; don't resend one that is already working. To RE-PRICE a \
+close that is resting unfilled, just send a new close for the same legs: it \
+replaces (cancels) the resting order on those contracts first. Reconcile the two: if an order you intended was rejected, do NOT blindly resubmit \
 the same thing — read the reason and adapt (e.g. a rejected naked short must \
 become a spread). Each still-held position also carries a `fill` block once it \
 fills — `intended_net_credit` vs `actual_net_credit` and the `slippage` between \
@@ -1970,6 +1972,52 @@ def _cancel_order(order_id: str) -> None:
                         timeout=DEFAULT_TIMEOUT)
     except requests.RequestException:
         pass
+
+
+_TERMINAL = {"canceled", "cancelled", "filled", "expired", "rejected", "replaced", "done_for_day"}
+
+
+def _clear_resting_orders_for_close(intent: dict, wait_s: float = 6.0,
+                                    poll_s: float = 0.5) -> dict:
+    """Before a CLOSE goes in, cancel any resting order on the same contracts.
+
+    Added 2026-11-05: the agent's 10:12 ET ZS close rested at an unmarketable
+    $0.60 debit and held the contract, so its re-priced $1.35 close at 15:12 was
+    refused ("insufficient qty available … held_for_orders 1"). The model can't
+    cancel, and the stale-order sweep only clears unfilled OPENS, so a close
+    could never be re-priced the same day. A new close replaces the old one.
+
+    Returns {"cancelled": [ids], "filled": [ids], "unknown": [ids]}. "filled"
+    means an old order executed before it could be cancelled — the position
+    has changed under us, so the caller must NOT place the new close.
+    Fail-soft: if open orders can't be read, nothing is cancelled and the
+    close is sent as before (Alpaca still refuses an over-close)."""
+    out = {"cancelled": [], "filled": [], "unknown": []}
+    syms = {str(l.get("symbol")) for l in intent.get("legs") or [] if l.get("symbol")}
+    orders = _fetch_open_orders()
+    if not syms or not orders:
+        return out
+    hits = []
+    for o in orders:
+        legs = o.get("legs") or [o]
+        if syms & {str(l.get("symbol")) for l in legs}:
+            hits.append(o.get("id"))
+    for oid in [h for h in hits if h]:
+        _cancel_order(oid)
+        status, waited = None, 0.0
+        while waited <= wait_s:
+            status = (_order_status(oid) or "").lower()
+            if status in _TERMINAL:
+                break
+            time.sleep(poll_s)
+            waited += poll_s
+        if status == "filled":
+            out["filled"].append(oid)
+        elif status in _TERMINAL:
+            out["cancelled"].append(oid)
+        else:
+            out["unknown"].append(oid)
+    return out
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -2895,6 +2943,26 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                 log(f"[{'observe' if observe else 'dry-run'}] would {intent['action']}: {legs_str}")
                 observed.append(f"{intent['action']} {legs_str}")
                 return
+            # A close REPLACES any resting order on the same contracts: otherwise
+            # the old one holds the qty and Alpaca refuses the re-priced close.
+            replaced = None
+            if intent["action"] == "close":
+                replaced = _clear_resting_orders_for_close(intent)
+                if replaced["cancelled"] or replaced["filled"] or replaced["unknown"]:
+                    log_event(_CFG["log_stream"], "agent_trader.py",
+                              "close_replaced_resting_order",
+                              details={"legs": legs_str, **replaced})
+                if replaced["filled"]:
+                    # The old close executed before it could be cancelled —
+                    # the position is (at least partly) gone. Don't stack a
+                    # second close on top; next cycle sees the new position.
+                    cycle_outcome["rejected"].append(
+                        {"legs": legs_str, "source": "harness",
+                         "reason": (f"an earlier order on these contracts "
+                                    f"({', '.join(replaced['filled'])}) FILLED before it "
+                                    f"could be replaced, so this close was not sent — "
+                                    f"check positions next cycle")})
+                    return
             # A client order id makes a timeout recoverable: if the POST dies
             # after Alpaca accepted it, the order is found by this id instead of
             # being reported "not placed" and possibly sent twice.
@@ -2967,7 +3035,10 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
                 _announce_open(intent, order_id)
             else:
                 summary["closed"] += 1
-                closed_rec = {"legs": legs_str, "order_id": order_id}
+                closed_rec = {"legs": legs_str, "order_id": order_id,
+                              "status": "submitted — a close is not done until it fills"}
+                if replaced and replaced["cancelled"]:
+                    closed_rec["replaced_resting_orders"] = replaced["cancelled"]
                 if flipped_from is not None:
                     closed_rec["limit_sign_corrected"] = (
                         f"you sent limit {flipped_from}; the sign was wrong for this "

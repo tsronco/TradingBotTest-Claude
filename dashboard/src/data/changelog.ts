@@ -30,6 +30,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-05',
+    category: 'fix',
+    title: 'Agent: a new close order replaces a resting one instead of being refused',
+    details:
+      'The agent\'s morning ZS close rested unfilled at $0.60 and held the contract, so Alpaca refused its '
+      + 're-priced $1.35 close in the afternoon ("insufficient qty available"). The agent can\'t cancel '
+      + 'orders and the stale-order sweep only clears unfilled opens, so it was stuck until the day order '
+      + 'expired. Now every close first cancels any resting order on the same contracts, confirms the '
+      + 'cancel, then places the new one. If the old order filled first, the new close is skipped so the '
+      + 'position is never closed twice.',
+  },
+  {
+    date: '2026-11-05',
     category: 'engine',
     title: 'Agent: each open position shows what it costs to close right now',
     details:

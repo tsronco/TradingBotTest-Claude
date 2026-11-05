@@ -1734,3 +1734,87 @@ def test_build_self_context_attaches_close_now_from_live_positions():
 
 def test_mandate_points_the_model_at_close_now():
     assert "close_now" in at.SYSTEM_MANDATE
+
+
+# --- a new close replaces a resting close (2026-11-05) -------------------------
+# The 10:12 ET ZS close rested at an unmarketable $0.60 debit and held the
+# contract, so the re-priced $1.35 close at 15:12 was refused by Alpaca with
+# "insufficient qty available … held_for_orders 1".
+
+_RESTING_ZS_CLOSE = {"id": "78cbd3d5", "status": "new", "type": "limit", "limit_price": "0.60",
+                     "legs": [{"symbol": "ZS261120P00200000", "side": "buy", "ratio_qty": "1"},
+                              {"symbol": "ZS261120P00197500", "side": "sell", "ratio_qty": "1"}]}
+
+
+def _patch_orders(monkeypatch, open_orders, status_after_cancel="canceled"):
+    cancelled = []
+    monkeypatch.setattr(at, "_fetch_open_orders", lambda: open_orders)
+    monkeypatch.setattr(at, "_cancel_order", lambda oid: cancelled.append(oid))
+    monkeypatch.setattr(at, "_order_status",
+                        lambda oid: status_after_cancel if oid in cancelled else "new")
+    monkeypatch.setattr(at.time, "sleep", lambda s: None)
+    return cancelled
+
+
+def test_clear_resting_orders_cancels_the_old_close_on_the_same_legs(monkeypatch):
+    other = {"id": "other", "status": "new", "symbol": "AAPL", "side": "buy"}
+    cancelled = _patch_orders(monkeypatch, [_RESTING_ZS_CLOSE, other])
+    out = at._clear_resting_orders_for_close(_close(_PCS_CLOSE, 1.35))
+    assert cancelled == ["78cbd3d5"]                 # unrelated order untouched
+    assert out == {"cancelled": ["78cbd3d5"], "filled": [], "unknown": []}
+
+
+def test_clear_resting_orders_reports_a_fill_that_beat_the_cancel(monkeypatch):
+    _patch_orders(monkeypatch, [_RESTING_ZS_CLOSE], status_after_cancel="filled")
+    out = at._clear_resting_orders_for_close(_close(_PCS_CLOSE, 1.35))
+    assert out["filled"] == ["78cbd3d5"] and not out["cancelled"]
+
+
+def test_clear_resting_orders_unknown_when_cancel_never_confirms(monkeypatch):
+    cancelled = []
+    monkeypatch.setattr(at, "_fetch_open_orders", lambda: [_RESTING_ZS_CLOSE])
+    monkeypatch.setattr(at, "_cancel_order", lambda oid: cancelled.append(oid))
+    monkeypatch.setattr(at, "_order_status", lambda oid: "pending_cancel")
+    monkeypatch.setattr(at.time, "sleep", lambda s: None)
+    out = at._clear_resting_orders_for_close(_close(_PCS_CLOSE, 1.35))
+    assert out["unknown"] == ["78cbd3d5"]
+
+
+def test_clear_resting_orders_is_a_noop_when_orders_unreadable(monkeypatch):
+    cancelled = _patch_orders(monkeypatch, None)
+    assert at._clear_resting_orders_for_close(_close(_PCS_CLOSE, 1.35)) == \
+        {"cancelled": [], "filled": [], "unknown": []}
+    assert cancelled == []
+
+
+def _held_zs_cycle(monkeypatch):
+    monkeypatch.setattr(at, "gather_depth", lambda focus, positions, account, mode="agent", **kw: {
+        "account": {"equity": 600.0, "cash": 600.0}, "positions": _HELD_ZS,
+        "market": {}, "equity_floor": 500})
+    monkeypatch.setattr(at, "_reconcile_and_grade", lambda *a, **k: None)
+
+
+def test_run_cycle_close_replaces_resting_close_then_places(_wire, monkeypatch, tmp_path):
+    _held_zs_cycle(monkeypatch)
+    cancelled = _patch_orders(monkeypatch, [_RESTING_ZS_CLOSE])
+    at.run_cycle(client=_FakeClient([_close(_PCS_CLOSE, 1.35)]))
+    assert cancelled == ["78cbd3d5"]
+    assert _wire and _wire[-1]["limit_price"] == "1.35"      # new close sent after the cancel
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    rec = st["_meta"]["last_cycle_outcome"]["closed"][0]
+    assert rec["replaced_resting_orders"] == ["78cbd3d5"]
+    assert rec["status"].startswith("submitted")
+
+
+def test_run_cycle_close_not_sent_when_old_close_filled_first(_wire, monkeypatch, tmp_path):
+    _held_zs_cycle(monkeypatch)
+    _patch_orders(monkeypatch, [_RESTING_ZS_CLOSE], status_after_cancel="filled")
+    at.run_cycle(client=_FakeClient([_close(_PCS_CLOSE, 1.35)]))
+    assert not any(p.get("limit_price") == "1.35" for p in _wire)
+    st = json.loads((tmp_path / "agent_state.json").read_text())
+    rej = st["_meta"]["last_cycle_outcome"]["rejected"]
+    assert rej and "FILLED before it could be replaced" in rej[0]["reason"]
+
+
+def test_mandate_explains_how_to_reprice_a_resting_close():
+    assert "RE-PRICE" in at.SYSTEM_MANDATE and "replaces" in at.SYSTEM_MANDATE

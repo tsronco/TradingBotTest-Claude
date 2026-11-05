@@ -990,6 +990,20 @@ staler than its own data; a leg without a live quote yields
 `available: false` rather than a guess. A mandate bullet points the model at
 it. Data, not a rule.
 
+**A new close replaces a resting close (2026-11-05, same day).** The 10:12 ET
+ZS close rested unfilled at $0.60 and held the contract; at 15:12 the agent sent
+a re-priced $1.35 close and Alpaca refused it (`403 insufficient qty available
+… held_for_orders 1`). The agent has no cancel action and the stale-order sweep
+only clears unfilled OPENS, so a close could never be re-priced intraday (it
+only cleared when the day order expired). `_clear_resting_orders_for_close`
+now runs before every close: it cancels any resting order on the same
+contracts, polls up to ~6s for a terminal status, and places the new close.
+If the old order FILLED before the cancel landed, the new close is not sent
+(reported in `previous_cycle_outcome.rejected`, source `harness`) so a position
+is never double-closed. A close's `previous_cycle_outcome` record now says
+"submitted — a close is not done until it fills" plus `replaced_resting_orders`,
+and the mandate tells the model that sending a new close is how to re-price one.
+
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
