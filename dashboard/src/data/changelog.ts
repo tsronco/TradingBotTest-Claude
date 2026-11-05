@@ -30,6 +30,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-05',
+    category: 'engine',
+    title: 'Agent: each open position shows what it costs to close right now',
+    details:
+      'Closing ZS, the agent read the leg prices right and then called buying the spread back a $0.93 '
+      + 'credit. It was a $0.93 debit, so it set a $0.60 limit that is unlikely to fill. Each open position '
+      + 'it sees now carries close_now: the net to close at the mid and at the worst bid/ask, already '
+      + 'signed ("you PAY" / "you RECEIVE"), plus the Alpaca limit sign for that close. Same live quotes '
+      + 'it already had; it just no longer has to do the subtraction.',
+  },
+  {
+    date: '2026-11-05',
     category: 'fix',
     title: 'Positions: account total P/L also reads "stale quote" when a spread\'s marks are impossible',
     details:

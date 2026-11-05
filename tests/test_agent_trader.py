@@ -1463,7 +1463,11 @@ def test_net_direction_uses_live_mids_when_every_leg_is_priced():
     market = {"ZS": {"quote": {"ap": 256.6},
                      "options": {"ZS261120P00200000": {"bid": 3.42, "ask": 3.88},
                                  "ZS261120P00197500": {"bid": 2.96, "ask": 3.63}}}}
-    assert at._net_direction(legs, market) == "credit"
+    # Pinned to the quote's date: with the real clock the 11/20 expiry draws
+    # near, the flat-vol theoretical value of these far-OTM legs decays to ~0,
+    # and the (correct) answer becomes "unknown" — the test started failing
+    # 2026-11-05 for that reason alone.
+    assert at._net_direction(legs, market, today=_date(2026, 10, 21)) == "credit"
 
 
 def test_single_option_leg_carries_position_intent_but_stock_does_not():
@@ -1663,3 +1667,70 @@ def test_days_to_expiry_uses_the_nearest_leg():
     legs = [{"symbol": "ZS261120P00200000"}, {"symbol": "ZS261218P00197500"}]
     assert at._days_to_expiry(legs, today=date(2026, 11, 17)) == 3
     assert at._days_to_expiry([{"symbol": "F"}]) is None
+
+
+# --- close_now: net to close a held position, computed (2026-11-05) -----------
+# ZS 200/197.5 short put spread on 2026-11-05: the model read the mids (8.18 /
+# 7.25) and called buying it back a "$0.93 credit". It is a $0.93 DEBIT.
+
+def _live(sym, bid, ask, qty):
+    return {"symbol": sym, "qty": str(qty),
+            "fair_value": {"fair_value_available": True, "leg_bid": bid, "leg_ask": ask,
+                           "leg_mid": round((bid + ask) / 2, 4)}}
+
+
+_ZS_LIVE = [_live("ZS261120P00200000", 7.20, 9.16, -1),
+            _live("ZS261120P00197500", 6.30, 8.20, 1)]
+
+
+def test_close_now_zs_short_spread_is_a_debit():
+    out = at._close_at_mid(_PCS, _ZS_LIVE)
+    assert out["available"] is True
+    assert out["at_mid_usd"] == pytest.approx(-93.0)          # pay ~$93
+    assert out["at_mid_per_share"] == pytest.approx(-0.93)
+    assert out["at_worst_bid_ask_usd"] == pytest.approx(-286.0)  # buy 200 @ ask, sell 197.5 @ bid
+    assert "PAY" in out["direction"]
+    assert out["alpaca_limit_for_this_close"].startswith("POSITIVE (debit), around 0.93")
+
+
+def test_close_now_debit_spread_pays_you():
+    legs = [{"symbol": "SLB260918C00059000", "side": "buy", "qty": 1},
+            {"symbol": "SLB260918C00062000", "side": "sell", "qty": 1}]
+    live = [_live("SLB260918C00059000", 2.00, 2.20, 1), _live("SLB260918C00062000", 0.80, 1.00, -1)]
+    out = at._close_at_mid(legs, live)
+    assert out["at_mid_usd"] == pytest.approx(120.0)           # 2.10 − 0.90
+    assert "RECEIVE" in out["direction"]
+    assert out["alpaca_limit_for_this_close"].startswith("NEGATIVE (credit), around -1.20")
+
+
+def test_close_now_single_long_call_has_no_mleg_sign():
+    legs = [{"symbol": "SLV261023C00059500", "side": "buy", "qty": 1}]
+    out = at._close_at_mid(legs, [_live("SLV261023C00059500", 0.76, 0.80, 1)])
+    assert out["at_mid_usd"] == pytest.approx(78.0)
+    assert out["at_worst_bid_ask_usd"] == pytest.approx(76.0)
+    assert "alpaca_limit_for_this_close" not in out
+
+
+def test_close_now_flags_a_missing_quote_instead_of_guessing():
+    live = [_ZS_LIVE[0], {"symbol": "ZS261120P00197500", "qty": "1",
+                          "fair_value": {"fair_value_available": False}}]
+    out = at._close_at_mid(_PCS, live)
+    assert out["available"] is False
+    assert "ZS261120P00197500" in out["note"]
+
+
+def test_close_now_none_without_live_positions():
+    assert at._close_at_mid(_PCS, None) is None
+    assert at._close_at_mid([], _ZS_LIVE) is None
+
+
+def test_build_self_context_attaches_close_now_from_live_positions():
+    state = {"positions": {"o1": {"legs": _PCS, "thesis": {"thesis": "x"}}}, "_meta": {}}
+    ctx = at.build_self_context(state, _ZS_LIVE)
+    assert ctx["open_position_theses"][0]["close_now"]["at_mid_usd"] == pytest.approx(-93.0)
+    # still works without live data (older callers)
+    assert at.build_self_context(state)["open_position_theses"][0]["close_now"] is None
+
+
+def test_mandate_points_the_model_at_close_now():
+    assert "close_now" in at.SYSTEM_MANDATE

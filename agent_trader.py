@@ -786,7 +786,70 @@ def _payoff_at_fill(legs: list, fill: dict | None) -> dict | None:
     return out
 
 
-def build_self_context(state: dict) -> dict:
+def _close_at_mid(legs: list, live_positions: list | None) -> dict | None:
+    """What it costs (or pays) to close a held position RIGHT NOW, from the live
+    leg quotes this cycle — computed so the model doesn't have to.
+
+    Added 2026-11-05: closing the ZS 200/197.5 short put spread, the model read
+    the legs' mids (8.18 / 7.25) correctly and then called buying the spread
+    back a "$0.93 credit" — it was a $0.93 DEBIT. Closing reverses every leg:
+    a long leg is SOLD (you receive), a short leg is BOUGHT back (you pay). This
+    nets that out once, signed, at the mid and at the worst bid/ask corner, and
+    names the Alpaca limit sign for the close. Same snapshot the model already
+    sees — no fresher or staler than its own leg quotes.
+
+    None when nothing to compute; {"available": False, ...} when a leg has no
+    usable live quote."""
+    legs = [l for l in (legs or []) if l.get("symbol")]
+    if not legs or not live_positions:
+        return None
+    by_sym = {str(p.get("symbol")): p for p in live_positions}
+    mid_total = worst_total = 0.0
+    option_units = []
+    for leg in legs:
+        sym = str(leg.get("symbol"))
+        qty = abs(_f(leg.get("qty")) or 0)
+        held_long = leg.get("side") == "buy"
+        live = by_sym.get(sym) or {}
+        if _occ_parse(sym):
+            fv = live.get("fair_value") or {}
+            mid, bid, ask = fv.get("leg_mid"), fv.get("leg_bid"), fv.get("leg_ask")
+            if mid is None or bid is None or ask is None:
+                return {"available": False,
+                        "note": f"no live quote for {sym} this cycle — cost to close unknown"}
+            mult = 100
+            option_units.append(qty)
+            exit_worst = bid if held_long else ask   # sell at the bid / buy back at the ask
+        else:
+            px = _f(live.get("current_price"))
+            if px is None:
+                return {"available": False, "note": f"no live price for {sym} this cycle"}
+            mid = exit_worst = px
+            mult = 1
+        sign = 1 if held_long else -1               # +: you receive, -: you pay
+        mid_total += sign * mid * qty * mult
+        worst_total += sign * exit_worst * qty * mult
+    unit = min(option_units) if option_units else None
+    out = {
+        "available": True,
+        "at_mid_usd": round(mid_total, 2),
+        "at_worst_bid_ask_usd": round(worst_total, 2),
+        "direction": ("you RECEIVE money to close (a credit)" if mid_total > 0
+                      else "you PAY to close (a debit)" if mid_total < 0
+                      else "closes for ~$0 at the mid"),
+    }
+    if unit:
+        per = mid_total / (unit * 100)
+        out["at_mid_per_share"] = round(per, 2)
+        if len([l for l in legs if _occ_parse(l.get("symbol"))]) > 1:
+            out["alpaca_limit_for_this_close"] = (
+                f"NEGATIVE (credit), around {-abs(per):.2f}" if per > 0
+                else f"POSITIVE (debit), around {abs(per):.2f}" if per < 0
+                else "about 0.00")
+    return out
+
+
+def build_self_context(state: dict, live_positions: list | None = None) -> dict:
     """Continuity feed: the model's OWN recent reasoning + full raw track record,
     so each stateless cycle isn't a total amnesiac.
 
@@ -826,6 +889,9 @@ def build_self_context(state: dict) -> dict:
             # Nearest leg expiry. Inside a few days, pin and assignment risk
             # matter more than the thesis — nothing closes it automatically.
             "days_to_expiry": _days_to_expiry(pos.get("legs")),
+            # Net to close NOW, signed, from this cycle's live leg quotes (mid
+            # and worst bid/ask) + the Alpaca limit sign for the close.
+            "close_now": _close_at_mid(pos.get("legs"), live_positions),
         })
     meta = state.get("_meta") or {}
     return {
@@ -1208,6 +1274,10 @@ costs a debit (POSITIVE limit); closing a debit spread or long butterfly pays yo
 a credit (NEGATIVE limit). A wrong-signed close is flipped and sent anyway, and \
 `previous_cycle_outcome` tells you it happened. Single-leg limits are always a \
 positive price.
+- Each open position in `self_context.open_position_theses` carries `close_now`: \
+the net to close it this cycle at the mid and at the worst bid/ask, already \
+signed (positive = you receive, negative = you pay), plus the Alpaca limit sign \
+for that close. Use it rather than re-deriving the net from leg quotes.
 - The market data below holds, for each shortlisted name, the option-chain WINDOW you asked to have priced in the strike step (see each symbol's `strike_request`: the windows, and `fallback: true` if a window matched nothing and the default ladder was used instead). A thin slice means you asked for a thin slice, not that the chain is thin. The chains hold the names you shortlisted \
 this cycle plus everything you currently hold. Trade any of them, or hold. (You \
 already scanned the wider universe when you chose this shortlist.)
@@ -2765,7 +2835,7 @@ def run_cycle(client=None, dry_run: bool = False, observe: bool = False) -> dict
         # cycle isn't a total amnesiac. Built AFTER reconcile — which has already
         # pruned any closed position — so only STILL-held theses carry forward
         # (a closed trade's thesis vanishes next cycle; nothing to hallucinate).
-        context["self_context"] = build_self_context(state)
+        context["self_context"] = build_self_context(state, context.get("positions"))
         # Resting orders, read AFTER reconcile has cancelled the stale ones — so
         # the model never re-sends a close that is already working, or forgets
         # an open it placed. (Read-only, so observe mode reads it too.)

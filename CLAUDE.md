@@ -976,6 +976,20 @@ needs an OPRA subscription). Owner actions still open: the 16:07/18:07 UTC
 agent fires have not run since 2026-09-10 (check cron-job.org). (The DST
 shift is moot: cron jobs run on America/New_York since 2026-11-03.)
 
+**`close_now` on every open position (2026-11-05).** Closing the ZS 200/197.5
+short put spread, the agent read the legs' mids correctly (8.18 / 7.25) and
+then called buying it back a "$0.93 **credit** … recovers more than the $25 I
+paid". It was a $0.93 **debit** (total loss ≈ −$118). The 10/26 sign guard
+flipped its −0.60 limit to +0.60, but $0.60 sat well under the ~$0.93 mid. Now
+each entry in `open_position_theses` carries `close_now` (`_close_at_mid`):
+the net to close at the mid and at the worst bid/ask, signed (+ receive /
+− pay), a plain "you PAY / you RECEIVE" line, and the Alpaca limit sign for
+that close. Built from the same live leg quotes the model already sees
+(`fair_value` from `annotate_positions_fair_value`), so it's no fresher or
+staler than its own data; a leg without a live quote yields
+`available: false` rather than a guess. A mandate bullet points the model at
+it. Data, not a rule.
+
 **Status (2026-08-13):** code complete + tested (agent suite ~75 pytest, all
 green; Alpaca + Anthropic mocked). **To go live (owner):** merge to `main`; add
 `ALPACA_AGENT_API_KEY`/`_SECRET`/`_BASE_URL`, `ANTHROPIC_API_KEY`, and the four
