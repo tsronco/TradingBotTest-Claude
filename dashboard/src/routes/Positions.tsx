@@ -114,6 +114,9 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
   const coll = summarizeCollateral(groups);
   // Options only trade 9:30–4:00 ET; outside that, marks are last-session.
   const staleTag = optionCount > 0 && !market.isOpen ? staleMarkLabel(market) : null;
+  // If any spread's leg marks add up to an impossible P/L, the account total
+  // built from those same marks is just as wrong — don't print it.
+  const totalStale = groups.some((g) => g.kind === 'spread' && g.metrics.staleQuote);
 
   const acct = acctQ.data?.account;
   const optionsBp = acct ? Number(acct.options_buying_power ?? acct.buying_power) : null;
@@ -146,9 +149,19 @@ function PositionsTable({ mode, label, acctKey }: { mode: PosMode; label: string
           <span className="text-dim">options</span> {optionCount}
           <span className="text-dim mx-1.5">·</span>
           <span className="text-dim">total P/L</span>{' '}
-          <span className={totalPL >= 0 ? 'text-hi' : 'text-red'}>
-            {totalPL >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(totalPL), { sign: false }).replace('-$', '$')}
-          </span>
+          {totalStale ? (
+            <span
+              className="text-amber"
+              data-testid="total-pl-stale"
+              title={`Leg marks add up to ${totalPL < 0 ? '−' : ''}$${Math.abs(totalPL).toFixed(2)}, but at least one spread's legs are outside what it can be worth — quote is stale`}
+            >
+              stale quote
+            </span>
+          ) : (
+            <span className={totalPL >= 0 ? 'text-hi' : 'text-red'}>
+              {totalPL >= 0 ? '▲' : '▼'} {fmtUsd(Math.abs(totalPL), { sign: false }).replace('-$', '$')}
+            </span>
+          )}
         </span>
       </header>
 

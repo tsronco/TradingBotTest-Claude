@@ -29,6 +29,16 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-05',
+    category: 'fix',
+    title: 'Positions: account total P/L also reads "stale quote" when a spread\'s marks are impossible',
+    details:
+      'The spread row already replaced an impossible P/L with "stale quote", but the account header '
+      + 'still added up the same leg marks (BAC pre-market: ▼ $93 on a spread that can lose at most $77). '
+      + 'The header now shows "stale quote" too whenever any spread in the account is flagged; hover for '
+      + 'the raw sum.',
+  },
+  {
     date: '2026-11-03',
     category: 'feature',
     title: 'Optional exit plan (stop + target) on stock orders',
