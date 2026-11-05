@@ -1,20 +1,20 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 163,
-    "last_cycle_at": "2026-11-05T15:13:00Z",
+    "cycle_count": 164,
+    "last_cycle_at": "2026-11-05T20:12:52Z",
     "last_cycle_outcome": {
-      "closed": [
+      "closed": [],
+      "opened": [],
+      "rejected": [
         {
           "legs": "buy 1 ZS261120P00200000, sell 1 ZS261120P00197500",
-          "limit_sign_corrected": "you sent limit -0.6; the sign was wrong for this close, so it went out as 0.6",
-          "order_id": "7c348ec7-242b-4b10-b7cf-b233ae9acd2a"
+          "reason": "Alpaca 403: {\"available\":\"0\",\"code\":40310000,\"existing_qty\":\"1\",\"held_for_orders\":\"1\",\"message\":\"insufficient qty available for order (requested: 1, available: 0)\",\"related_orders\":[\"78cbd3d5-b3aa-4476-b7b7-1a1a5fcff845\"],\"symbol\":\"ZS261120P00200000\"}",
+          "source": "alpaca"
         }
-      ],
-      "opened": [],
-      "rejected": []
+      ]
     },
-    "last_market_read": "Equity $580.94, down from $751.94 last cycle \u2014 the damage is the ZS Nov-20 200/197.5 put spread: ZS has collapsed from $227 to $207.78 (-16.1% in 1w), and the short $200 strike is now only 3.7% above spot with 15 DTE. My own stated invalidation (\"wrong if ZS closes below $207 before 11/20\") is effectively triggered \u2014 spot 207.78 is right at it, and the structure was a $0.25 net DEBIT at fill (max profit \u2212$25, max loss $275), so holding can only lose; theta does nothing for me here. The whole shortlist is a wall of falling knives (AMD \u221234.5% 1m, ARM \u221242.6%, DELL \u221243.2%, MU \u221236%, SMH \u221225.8%, QQQ \u221212.7% 1m) with $2\u20136 wide option quotes \u2014 selling puts under a semiconductor de-rating of this violence at my size is exactly the pattern that produced my 1-for-8, \u2212$1,102 record, and with $620 of options buying power I have no business adding risk into it.",
+    "last_market_read": "The ZS Nov-20 200/197.5 put spread is my only position and it is a structural loser \u2014 it filled as a $0.25 NET DEBIT (max profit \u2212$25, max loss $275), so no amount of theta can make it profitable; ZS at $204.21 has the short $200 strike just 2% away with 15 DTE and my stated invalidation ($207) is already breached. A close order is already resting at a 0.60 debit limit from this morning and has not filled; mid-to-close is now ~1.21 debit, so that resting limit is far too optimistic and is why nothing printed. I am cancelling nothing I can't (the system will re-price via a new close) \u2014 I submit a close at a realistic 1.35 debit limit to actually get out. No new risk: every name on the shortlist is in a violent de-rating (AMD \u221236% 1m, ARM \u221243%, MRVL \u221252%, DELL \u221244%, MU \u221238%, SMH \u221227.5%, QQQ \u221214%) with $2\u20136 wide quotes, and my record (1-for-8, \u2212$1,102) says selling puts into a falling-knife tape at this account size is exactly how I lost it. With $560 of options buying power and a $500 floor, capital preservation is the trade; I'd need to see QQQ reclaim its 20-day average or IV compress with price stabilizing before I open anything new.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -412,13 +412,13 @@
       "intended_net_credit": -0.6,
       "last_snapshot": {
         "cost_basis": 25.0,
-        "market_value": -290.0,
+        "market_value": -210.0,
         "pnl_basis": "mid-based, qty-scaled to this order's share",
-        "seen_at": "2026-11-05T15:12:43Z",
+        "seen_at": "2026-11-05T20:12:32Z",
         "underlyings": {
-          "ZS": 207.775
+          "ZS": 204.21
         },
-        "unrealized_pl": -118.0
+        "unrealized_pl": -146.5
       },
       "legs": [
         {
