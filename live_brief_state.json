@@ -1,44 +1,44 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-05T14:42:00Z",
-    "runs": 40
+    "last_run_at": "2026-11-06T14:42:00Z",
+    "runs": 41
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 149.72,
+      "equity": 123.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-11-05",
-    "generated_at": "2026-11-05T14:42:00Z",
+    "date": "2026-11-06",
+    "generated_at": "2026-11-06T14:42:00Z",
     "held": [
       {
         "symbol": "BAC",
-        "watch": "Nov-20 49/48 put credit spread (short 49 @ $0.19 mid, long 48 @ $0.12 mid = ~$0.07 net debit to close, +$16 net unrealized at mid vs +$13 at Alpaca's mark). Underlying $52.52, both legs deep OTM with 15 days left and no earnings until Jan 15 \u2014 closing costs ~$7 plus fees to capture the last ~$7 of value, so the honest call is to let it expire unless BAC closes below $50; no resting orders, 1 contract each leg fully available."
+        "watch": "Short Nov-20 49 put is now ~at-the-money (spot $49.91, 36-delta) after BAC gave back $2.60 in a day; spread mid is -$0.295 net ($0.49 long \u2212 $0.785 short) vs the $0.23 credit taken, so it's ~-$6.50 and no longer the near-free roll-off I described yesterday. Max remaining loss is $77 if BAC closes under $48 on Nov 20; no resting orders, both legs fully available. Decision point: closing for ~$0.30 debit costs ~$30 and frees the $100 collateral, or hold and watch $49 \u2014 if BAC closes below $49 this week the spread is working against you and assignment risk on the short leg rises into expiry."
       }
     ],
     "ideas": [],
-    "market_read": "Risk is off hard in semis/tech this morning \u2014 QQQ ~-2.7%, SMH ~-5.8%, with AMD -23% on the week, INTC -41%, QCOM -16%, PLTR -19%, NVDA -10% and IVs 50-80%. The one thing that matters for this account: BAC is actually up (+2.8% on the week) at $52.52, ~$3.50 above the short 49 strike, so the held Nov-20 49/48 put credit spread is close to fully harvested at a mid value of ~-$0.07 net. With $59.72 of options buying power, nothing new is placeable for a sixth straight session.",
+    "market_read": "Semis are bouncing hard off yesterday's washout (NVDA 193, AMD 452, LRCX 204, MU 710) while DKNG (-19% on the week, new 52w low), GOLD and TEAM get sold. What matters here: BAC has slid to $49.91 from $52.52 yesterday, so the held Nov-20 49/48 put spread is no longer comfortably out of the money \u2014 the short 49 strike is now essentially at the money with 14 days left.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Nothing fits $59.72 of options buying power \u2014 sixth day running. The cheapest defined-risk structure on this board is another $1-wide BAC spread (Dec-4 49/48, ~$0.17 credit at mid) which still needs ~$83 of collateral; every high-IV name worth selling into this selloff (AMD, PLTR, SNOW, QCOM, HOOD) is $5-wide at 50-80% IV, i.e. $400-500 collateral with wide, uncertain fills. Shares don't work either \u2014 the cheapest liquid name here is SNAP at $5.28, and 11 shares is not a position. If the account were funded to ~$1,500-2,000 I'd rank it (1) AMD Dec-4 390/385 put credit spread, ~21-delta short strike 11% below spot, ~$1.08 credit at mid on $500 collateral, earnings already behind it (Nov 3), 2 lots \u2248 $784 risk; (2) HOOD Dec-11 75/70 put credit spread, ~$1.31 at mid, tight quotes, no earnings until Feb, 1-2 lots \u2248 $369-738 risk; (3) 4 more lots of the BAC Dec-4 49/48 at ~$0.17, ~$332 risk. All three need options Level 3 (spreads) \u2014 confirm approval before placing anything. One change from yesterday: I'd now take the AMD short strike down to 390 rather than 450, because AMD has fallen another ~$13 and the prior strike is no longer far enough from spot.",
+    "no_trade_reason": "Nothing new fits $59.72 of options buying power \u2014 seventh session running. The cheapest defined-risk structure on this board is a $1-wide BAC Dec-4 48/47 put spread (~$0.25 credit at mid, $75 collateral) and even that is $15 short; every high-IV name worth selling into this bounce (AMD, INTC, SMCI, MU) is $5-wide at 70-90% IV, i.e. $380-500 collateral with wide quotes. Shares don't work either. Change from yesterday: I'm no longer recommending adding BAC risk at all \u2014 BAC broke below its 20d average and the existing spread went from harvested to at-the-money overnight, so the honest move today is to manage that position, not add. If the account were funded to ~$1,500-2,000 I'd rank it (1) AMD Dec-4 390/385 put credit spread, ~21-delta, ~$1.08 mid credit on $500 collateral, earnings behind it, 2 lots \u2248 $784 risk; (2) NVDA Dec-11 put spread sized small but note Nov-17 earnings falls inside that window, so it's an earnings trade; (3) close the BAC Nov-20 spread for ~$30 and redeploy. All spreads need options Level 3 \u2014 confirm approval first.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "QCOM",
-        "AMD",
-        "INTC",
-        "SNAP",
-        "SOFI",
-        "PLTR",
-        "DASH",
         "NVDA",
-        "HOOD",
-        "F",
-        "SNOW"
+        "AMD",
+        "DKNG",
+        "TEAM",
+        "GOLD",
+        "MU",
+        "INTC",
+        "LRCX",
+        "PFE",
+        "WBD",
+        "SMCI"
       ],
-      "focus_read": "Broad tech/semi selloff dominates today (QQQ -2.7%, SMH -5.8%) with huge single-name moves in AMD, QCOM, ARM, INTC, MU, NVDA, PLTR, DASH, SNAP - lots of elevated IV and potential mean-reversion or momentum continuation setups. Given tiny account size (~$150 buying power), focusing on cheap, liquid, high-IV names where small defined-risk option plays are feasible.",
+      "focus_read": "Huge dispersion today: semis/AI names ripping (NVDA, AMD, LRCX, MU, TSM, KLAC) while DKNG, GOLD, TEAM and consumer staples are getting crushed. Given tiny account size I'll focus on cheap, liquid, high-IV movers for defined-risk option plays plus manage existing BAC position.",
       "universe_scanned": 272
     }
   }
