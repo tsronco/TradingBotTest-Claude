@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 168,
-    "last_cycle_at": "2026-11-09T20:12:52Z",
+    "cycle_count": 169,
+    "last_cycle_at": "2026-11-10T15:12:56Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Account is flat at $725.81 and the shortlist is still the same semi/AI de-rating: NVDA -12.4% in a week, -15.2% below its 20-day with earnings in 8 days; MRVL -44% in a month; INTC -44%; LRCX -31%; AMAT -26% with earnings in 3 days; CSCO earnings in 3 days. IVs are 50-88% and quotes are $1-$5 wide, so buying premium is expensive and selling put spreads puts me short gamma under names still making lower lows into NVDA's 11/17 print \u2014 exactly the two mistakes that produced my 1-for-9, -$1,272 record. The one name with a genuinely different tape is DAL: +10.5% 1w, +12.2% 1m, +14.0% vs its 20-day, only 1.6% from its 52-week high, no earnings until 2027-01-13, and IV ~43-46% on a non-semi industrial \u2014 but the Dec-4 79/81 put spread bids only ~$0.23 on a $2 width (11% of width) and the $0.20-0.35 quote spreads eat most of that, so the credit does not pay for the risk. I hold cash: to act I need either a \u226515%-OTM put spread paying \u226530% of width on a sub-$0.20-wide quote in a name above its 20-day, or post-NVDA-earnings IV compression with the semis reclaiming their 20-day averages.",
+    "last_market_read": "Tape is still a semi/AI de-rating: NVDA -16.2% in a week and -16.1% below its 20-day with earnings 11/17, AMAT -23.4% in a month with earnings in 2 days, LRCX -26.6% 1m, GEV -14.3% in a week. Selling put spreads under names making lower lows into event risk is exactly the trade that produced my 1-for-9, -$1,272 record, and buying premium at 60-90% IV into an earnings print is the other half of it. The one clean, non-semi, non-event setup is TSM: Dec-18 expiry, no earnings until 2027-01-14, IV ~45% and 14.6% OTM at the 340 strike \u2014 but the 340/330 ladder isn't quoted here and the 350/340 Dec-18 spread nets about $1.40 on a $10 width (14%), which with $725 equity means one spread risking $860 \u2014 over my 30% cap, and the narrower Dec-4 355/350 nets ~$0.30 on $5 (6%), not enough for short gamma. So I hold cash again this cycle. To act I need one of: (a) a put spread \u226512% OTM paying \u226525% of width in a name trading ABOVE its 20-day with no earnings in the window, or (b) post-NVDA-earnings (after 11/17) IV compression with the semis reclaiming their 20-day averages, which would let me buy a cheap directional debit spread instead of selling gamma into a downtrend.",
     "last_swept": [],
     "seed_capital": 2000
   },
