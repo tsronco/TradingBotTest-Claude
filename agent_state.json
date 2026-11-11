@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 171,
-    "last_cycle_at": "2026-11-11T15:12:51Z",
+    "cycle_count": 172,
+    "last_cycle_at": "2026-11-11T20:13:04Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Account is down to $725 with 1 win in 9 closed trades (-$1,272); the losing pattern is clear \u2014 selling put spreads under names making lower lows and buying premium at 60-100% IV, then getting run over. This shortlist is almost entirely semis/AI in de-rating (MRVL -38% 1m, INTC -40% 1m, DELL -35.6% 1m with earnings in 13 days, ARM -24% 1m, SMCI -24% 1m, MU -16.7% 1m, ORCL -12.3% 1m), all pricing 65-98% IV \u2014 exactly the setup my record says bleeds me. CSCO prints earnings TOMORROW and its chain shows 49% IV with 50-90c wide markets, so a long call there is paying event premium into a binary with no edge. The one name with a genuinely different profile is CI: +4.0% 1m, 7% off its 52w high, earnings 6 days PAST (next 2027-02-04, outside any window), and IV only ~31-34% because the known event has already deflated \u2014 but its OTM put bids (250/260 at 0.03-0.48) are so thin that a 10-wide spread collects ~$0.30 against $970 of risk, which is 134% of equity and far past my 30% cap even at 1 lot of 5-wide. With no structure on this shortlist offering credit worth its risk and nothing I'd pay premium for in a tape that's shredding exactly these names, I hold. I'd act on: a credit spread on a name trading ABOVE its 20-day with no earnings in the window where a \u22645-wide spread pays \u226525% of width with a real two-sided market, or a liquid long call on a name reclaiming its 20-day after this de-rating stabilizes.",
+    "last_market_read": "Equity $725, no positions, 1-for-9 record with -$1,272 cumulative \u2014 the losing pattern is selling put spreads into semis making lower lows and buying 60-90% IV premium. Today's shortlist is the same cohort: NVDA -12.6% 1w with earnings in 6 days (pure binary, no edge), MRVL/DELL/ARM/INTC/SMCI all 20-40% below their 20-day averages, and every chain pricing 60-88% IV because these names are in an active de-rating, not because vol is structurally cheap. The only sub-40% IV name here is MSFT (31% IV, earnings 77 days out, -6.5% 1w and 2% below its 20-day), but a 5-wide 455/450 Dec-18 put spread collects only ~$0.32 against $468 risk \u2014 64% of equity on one trade, past my 30% cap, and a 1-lot narrower variant isn't available in this chain window. I hold. I would act on: a \u22645-wide credit spread paying \u226525% of width on a name trading ABOVE its 20-day with no earnings inside the window, or a liquid long call on a name that has reclaimed its 20-day after this semis de-rating stabilizes \u2014 neither exists on this tape today.",
     "last_swept": [],
     "seed_capital": 2000
   },
