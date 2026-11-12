@@ -17249,3 +17249,7 @@
 {"timestamp": "2026-11-12T16:53:32.996106+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["BAC"]}}
 {"timestamp": "2026-11-12T16:53:33.737819+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "BAC261120P00048000", "details": {"reason": "managed_by_wheel_spread"}}
 {"timestamp": "2026-11-12T16:53:33.737999+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
+{"timestamp": "2026-11-12T17:03:36.572572+00:00", "script": "strategy.py", "action": "no_positions", "result": "skipped", "details": {"mode": "live"}}
+{"timestamp": "2026-11-12T17:03:37.480461+00:00", "script": "wheel_strategy.py", "action": "cycle_complete", "result": "success", "details": {"symbols": ["BAC"]}}
+{"timestamp": "2026-11-12T17:03:38.322119+00:00", "script": "long_options_strategy.py", "action": "skip_wheel_spread_leg", "result": "success", "symbol": "BAC261120P00048000", "details": {"reason": "managed_by_wheel_spread"}}
+{"timestamp": "2026-11-12T17:03:38.322289+00:00", "script": "long_options_strategy.py", "action": "cycle_complete", "result": "success", "details": {"checked": 1, "closed": 0, "held": 0, "skipped": 1}}
