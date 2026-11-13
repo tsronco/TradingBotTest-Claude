@@ -1,22 +1,23 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 174,
-    "last_cycle_at": "2026-11-12T20:12:54Z",
+    "cycle_count": 175,
+    "last_cycle_at": "2026-11-13T15:12:43Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": -0.6,
-          "legs": "buy 1 CCL261211C00029500, sell 1 CCL261211C00031000",
-          "order_id": "615df8e1-b1f1-4bfa-aac0-fd8c2ea6572c",
-          "status": "submitted \u2014 fill confirmed next cycle"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725, no positions, 1-for-9 record where the losses cluster in two buckets: paying 60%+ IV premium on momentum names, and selling put spreads into names making lower lows. Today's shortlist repeats that cohort \u2014 NVDA (-26% 1m, at its 52w low, earnings in 5 days), BABA (52w low, earnings in 7), SMCI (-24% 1m, 87% IV), DKNG (-19% 1w) are all disqualified outright; AMD/AVGO/GE/MRNA chains only offer 5-10 wide spreads on $230-585 names whose max loss ($350-900 per lot) blows past my $217 per-trade 30% cap. The one structurally clean setup is CCL: $29.42, +13.2% over 1 month, +2.9% above its 20-day average, 13% below its 52w high, with a 40% IV that is low because it sits in a post-earnings lull (44 days since last print) \u2014 and critically its NEXT earnings is 2026-12-18, so the Dec-11 expiry closes BEFORE the print. I'm taking a small defined-risk Dec-11 29.5/31 call debit spread for ~$0.60 ($60 risk, 8% of equity), the cheapest honest expression of a continuing uptrend with no event in the window.",
-    "last_swept": [],
+    "last_market_read": "Equity $725, no positions, and the shortlist this cycle is 100% semiconductors in a synchronized drawdown \u2014 NVDA -26% 1m sitting exactly at its 52-week low with earnings in 4 days, AMAT -16.8% 1m, ARM -23.3%, MRVL -37%, DELL -28.6%, SMH -14.2% and 7.4% below its 20-day average. The 1-week bounces (+7% to +19%) are a dead-cat off a 3-month -20% to -35% leg, not a trend; my record shows my two reliable ways to lose money are paying 60%+ IV premium on momentum names and selling put spreads into names making lower lows, and that is literally the only menu on offer here. The other hard constraint is arithmetic: on $150-$530 underlyings the chains quote 5-point and 10-point wings, so one spread's max loss is $350-$900 against a $217 per-trade cap (30% of $725) \u2014 AMD, AVGO, DELL, SMH, LRCX are all mechanically untradeable at this account size even if I liked them. KLAC 127/130 (3-wide, ~$300 max loss) and ORCL 1-point Dec-11 puts are the only width-feasible credit spreads, and both are exactly the \"sell puts into a name below its 20-day average with NVDA earnings in 4 days as the sector's binary event\" trade that has cost me money twice. I am holding: I would act on a name NOT in this correlated semi complex, with a sub-$100 underlying, 1-2 point strike spacing keeping max loss under ~$150, no earnings inside the expiry window, and price at or above its 20-day average \u2014 or, after NVDA prints on 11/17, on a semi name that has actually reclaimed its 20-day average with IV crushed.",
+    "last_swept": [
+      {
+        "legs": "buy 1 CCL261211C00029500, sell 1 CCL261211C00031000",
+        "note": "never filled; cancelled and dropped \u2014 your limit was not marketable",
+        "order_id": "615df8e1-b1f1-4bfa-aac0-fd8c2ea6572c",
+        "placed_at": "2026-11-12T20:12:54Z",
+        "status": "expired"
+      }
+    ],
     "seed_capital": 2000
   },
   "closed": [
@@ -454,40 +455,5 @@
       }
     }
   ],
-  "positions": {
-    "615df8e1-b1f1-4bfa-aac0-fd8c2ea6572c": {
-      "entry_context": {
-        "underlyings": {
-          "CCL": 29.415
-        }
-      },
-      "intended_net_credit": -0.6,
-      "last_snapshot": null,
-      "legs": [
-        {
-          "asset": "option",
-          "qty": 1,
-          "side": "buy",
-          "symbol": "CCL261211C00029500"
-        },
-        {
-          "asset": "option",
-          "qty": 1,
-          "side": "sell",
-          "symbol": "CCL261211C00031000"
-        }
-      ],
-      "open_order_id": "615df8e1-b1f1-4bfa-aac0-fd8c2ea6572c",
-      "opened_at": "2026-11-12T20:12:54Z",
-      "thesis": {
-        "confidence": 3,
-        "getting_paid": "Pay $0.60 debit ($60). Max value $1.50 ($150) if CCL \u2265 $31.00 at 12/11 expiry; max profit $90. Breakeven $30.10 (+2.3% from spot). Max loss $60 if CCL \u2264 $29.50.",
-        "invalidation": "Wrong if CCL closes below $28.58 (its 20-day average) on any day before 2026-12-11; I exit there rather than ride to zero. Also exit at 75%+ of max value if CCL trades above $31 early.",
-        "key_risk": "CCL stalls or drifts below $29.50 and the spread expires worthless \u2014 theta works against me every day since this is a long-premium structure. A broad consumer/travel selloff would do this quickly.",
-        "rejected": "Rejected NVDA/BABA/SMCI/DKNG entirely \u2014 all below their 20-day averages, two at 52-week lows, three with earnings inside or adjacent to the window; those are exactly the setups that produced my eight losses. Rejected AMD/AVGO/GE/MRNA put credit spreads: the narrowest strikes available in these windows are 5-10 wide on $230-585 names, so one lot risks $350-900, over my $217 per-trade cap at 30% of equity. Rejected the outright CCL 29.5 call (too much premium, worse breakeven) and the CCL Dec-24 expiry (it straddles the 12/18 earnings print).",
-        "thesis": "CCL at $29.42 has risen 13.2% in the past month and sits 2.9% above its 20-day average and 13.4% under its 52-week high, with cruise demand momentum intact and no earnings until 12/18 \u2014 after this 12/11 expiry. I want modest upside continuation of roughly 5% over 29 days, which is well inside the move the stock has already demonstrated this month.",
-        "why_this_structure": "A 1.5-wide call debit spread caps my cost at $60 against a $90 payoff, a 1.5:1 reward/risk needing only a 5.4% move to breakeven+. A plain long 29.5 call costs $1.38 ($138 risk, 19% of equity) and needs CCL above $30.88 just to break even \u2014 strictly worse here. Selling the 31 call cuts my cost 57% and only forfeits gains above $31, which is above the recent range anyway."
-      }
-    }
-  }
+  "positions": {}
 }
