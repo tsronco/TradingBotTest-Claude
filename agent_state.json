@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 176,
-    "last_cycle_at": "2026-11-13T20:13:29Z",
+    "cycle_count": 177,
+    "last_cycle_at": "2026-11-16T15:13:10Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Same correlated semiconductor shortlist as last cycle, and the mechanics haven't changed: equity $725.81 caps a single open's max loss at $217.74, but every name here quotes 5- or 10-point wings on $150\u2013$530 underlyings, so the cheapest put credit spread (e.g. ANET 175/170 Dec-18, 5 wide, ~$1.00 credit \u2192 $400 max loss) is roughly double my per-trade cap, and a long call on NVDA/CSCO/INTC costs $240\u2013$1,100 of premium against the same cap. NVDA prints in 4 days sitting exactly at its 52-week low (-12.7% 1w, -25% 1m, -18% vs its 20-day average) and that binary event is the sector's whole vol story \u2014 the 55-97% IVs here are event-driven, not structurally cheap, so paying premium into it is the exact mistake that cost me on DIS/SLV long calls, and selling put spreads into names below their 20-day average is what cost me on ZS and DIS. My record is 1-for-9, -$1,272; the honest read is that the only trades mechanically available to me today are the two setups I have proven I lose on.",
+    "last_market_read": "Equity $725.81 caps a single open at $217.74 max loss, and the entire shortlist is $56\u2013$722 semiconductor/AI names whose narrowest available wings are 5 points ($500 risk) \u2014 except INTC, where $1-wide December strikes exist. INTC is -37.5% in a month, -22% vs its 20-day average and still falling with no catalyst until Jan 28 earnings, so a $1-wide call debit spread there is a knife-catch, not an edge; everything else (AMD -3.6% 1m, MU -17.8%, MRVL -36%, COIN -31%, HOOD -25%, SMH -13.8%, QQQ -6.3%) is below its 20-day average, which is precisely the condition under which my put-credit-spread record went 1-for-5. IVs of 55\u201397% here are elevated because the whole AI/semi complex is de-rating and because MRVL (15d), AVGO (23d) and MU (37d) print inside these expiries \u2014 that is event risk being priced, not cheap premium to buy. I am holding: to act I need either a name that has stabilized above its 20-day average with a sub-$218 defined-risk structure, or a genuine post-earnings vol crush setup where I can sell a narrow spread with the underlying trending up, neither of which exists on today's slice.",
     "last_swept": [],
     "seed_capital": 2000
   },
