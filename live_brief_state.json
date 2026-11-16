@@ -1,63 +1,63 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-13T14:42:09Z",
-    "runs": 46
+    "last_run_at": "2026-11-16T14:41:55Z",
+    "runs": 47
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 145.72,
+      "equity": 148.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-11-13",
-    "generated_at": "2026-11-13T14:42:09Z",
+    "date": "2026-11-16",
+    "generated_at": "2026-11-16T14:41:55Z",
     "held": [
       {
         "symbol": "BAC261120P00049000",
-        "watch": "Short leg, 1 contract, fully available (no resting orders). Mid $0.175, delta -0.17, 5 sessions left. Watch $50.00 on BAC as the line to exit; above $52 you can let it run to expiry."
+        "watch": "Short leg of the Nov-20 49/48 spread, mid $0.155, +$55 unrealized. BAC $50.65 \u2014 watch the $50.00 line; a close below it is the exit trigger. No resting orders."
       },
       {
         "symbol": "BAC261120P00048000",
-        "watch": "Long protective leg, 1 contract, mid $0.08. Do not sell this alone \u2014 it is the only thing capping loss at $77. Close as a pair with the 49P."
+        "watch": "Long leg (protection), mid $0.09, -$39. Close it only as part of the spread \u2014 never leave the 49P naked short, which the account's buying power cannot support anyway."
       }
     ],
     "ideas": [
       {
-        "capital_required_usd": 10.0,
-        "confidence": 3,
-        "direction": "neutral",
+        "capital_required_usd": 7.0,
+        "confidence": 4,
+        "direction": "bullish",
         "fits_account": true,
-        "getting_paid": "Opened for $0.23 credit; closing at ~$0.10 debit locks ~$0.13/share = +$13 on the pair. Letting it expire worthless captures the last ~$10. Mid-based unrealized is +$13.50 on the pair ( -$40 long leg, +$53.50 short leg ).",
-        "invalidation": "Hold to expiry instead if BAC closes above $52.00 before Nov-20; exit immediately regardless of price if BAC closes below $50.00 before Nov-20.",
-        "key_risk": "A bank/credit headline gaps BAC under $49 and the $1-wide spread goes to -$77 against a $145 account \u2014 that single gap is over half the equity.",
-        "legs": "BUY TO CLOSE 1 BAC261120P00049000 (mid $0.175) / SELL TO CLOSE 1 BAC261120P00048000 (mid $0.08); net debit limit $0.10, work up to $0.12 max",
-        "max_loss_usd": 77.0,
+        "getting_paid": "Opened for +$0.23 ($23). Closing at ~$0.065 debit leaves ~+$16.50 realized per spread; the last ~$6.50 is what you forgo by not holding to expiry.",
+        "invalidation": "Hold to expiry instead if BAC closes above $52.00 before Nov-20; close immediately regardless of debit if BAC closes below $50.00 before Nov-20.",
+        "key_risk": "A sharp BAC drop through $49 in the next four sessions turns a $16 win into a $77 loss (max loss $100 width minus $23 credit); that gap risk is exactly what you're paying $6.50 to retire.",
+        "legs": "BUY TO CLOSE 1x BAC261120P00049000, SELL TO CLOSE 1x BAC261120P00048000, as a single spread order, limit $0.07 debit (mid-to-mid is ~$0.065: short 49P mid $0.155, long 48P mid $0.09); do not pay more than $0.10.",
+        "max_loss_usd": 0.0,
         "structure": "close existing Nov-20 49/48 put credit spread (buy to close short 49P, sell to close long 48P)",
         "symbol": "BAC",
-        "why": "BAC at $50.78 is $1.78 above the short 49 strike with 5 sessions to expiry; the spread is worth ~$0.10 net at the mids versus the $0.23 credit received, so ~57% of the max profit is already banked. Short-leg delta is only -0.17 and theta -$0.037/day, so the remaining $10 of edge is small relative to a gap-down risk into a jittery tape."
+        "why": "The spread was opened for $0.23 credit and is now worth ~$0.065 at mid \u2014 roughly 72% of max profit captured with 4 sessions left. BAC at $50.65 sits $1.65 above the short strike and on its 20d average, so the remaining ~$7 of theta is not worth carrying gamma risk into expiry week on a banking tape that has already dropped 21% in three months."
       }
     ],
-    "market_read": "Semis are selling off again (AMD -4.5%, AVGO -3.4%, CSCO -3%, NVDA at a fresh 52w low of $162.84 with earnings Tue Nov-17) while AAPL sits right on a 52w high at $359.93 \u2014 a wide divergence, and good premium, but none of it is reachable with $59.72 of buying power. BAC is the calm spot at $50.78, +0.5% vs its 20d, which leaves the held Nov-20 49/48 put spread $1.78 OTM with 5 trading days left. The only live decision today is whether to bank that spread or let theta finish it.",
+    "market_read": "Risk-off continues in semis \u2014 MU -17% on the month, INTC -37%, MRVL -35%, SMH -13% vs 20d \u2014 while SPY is only -1.4% below its 20d average, so the damage is concentrated, not broad. BAC is the quiet corner: $50.65, flat on the week, right on its 20d average, which leaves the held Nov-20 49/48 put spread $1.65 OTM with 4 trading days left. With $59.72 of options buying power, the only live decision today is again whether to bank the BAC spread or let theta finish it.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Twelfth straight session nothing new fits $59.72 of options buying power. The cheapest defined-risk structure on today's board is a $1-wide BAC Dec-18 48/47 put credit spread (~$0.18 credit mid, so ~$82 collateral) \u2014 still above buying power \u2014 and every semi/megacap name here is $5-wide or worse ($400-$500 collateral per lot). One share of the cheapest underlying (BAC $50.78) is not a position. If funded to ~$1,500-2,000 I'd want: (1) BAC Dec-18 48/47 put credit spread, 5 lots \u2248 $410 risk for ~$90 credit \u2014 cleanest trend/IV combo on the sheet, no earnings until Jan-15; (2) an AAPL Dec-18 320/315 put credit spread (~$0.30 credit, 20d IV 29%, earnings not until Jan-28), 1 lot \u2248 $470 risk, on a name at a 52w high; (3) nothing in NVDA until Nov-17 earnings clears, and nothing in AVGO/MRVL inside their Dec-9/Dec-1 earnings. All spreads require options Level 3 \u2014 confirm approval before placing; closing the existing BAC spread needs no new approval.",
+    "no_trade_reason": "Thirteenth straight session that no new position fits $59.72 of options buying power. The cheapest defined-risk structure on today's board is a $1-wide BAC Dec-18 48/47 put credit spread (~$0.20 credit mid, ~$80 collateral) \u2014 still above buying power \u2014 and every semi name shown is $5-wide or worse ($400\u2013$500 collateral per lot) with IVs of 55\u201395% that reflect real downside, not free premium. One share of BAC at $50.65 is not a position. If funded to ~$1,500\u20132,000 I'd want: (1) BAC Dec-18 48/47 put credit spread, 5 lots \u2248 $400 risk for ~$100 credit, no earnings until Jan-15; (2) a QQQ Dec-24 600/590 put spread (~$1.10 credit mid, ~$890 risk/lot) only if sized to one lot, as an index-level fade of the semi panic; (3) nothing in MRVL (earnings Dec-1) or AVGO (Dec-9) inside those dates. All credit spreads require options Level 3 \u2014 confirm approval; closing the existing BAC spread needs no new approval.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "AVGO",
-        "AMD",
-        "CSCO",
-        "NVDA",
-        "ORCL",
+        "MU",
+        "INTC",
+        "LRCX",
+        "AMAT",
+        "ANET",
         "MRVL",
-        "META",
-        "GOOGL",
-        "AAPL",
-        "HOOD",
-        "MRNA"
+        "AVGO",
+        "COIN",
+        "SMH",
+        "QQQ",
+        "SPY"
       ],
-      "focus_read": "Semis/tech are under pressure (AVGO -3.4%, AMD -4.5%, CSCO -3%, NVDA, ORCL, MRVL down) while megacap growth like META/GOOGL/AAPL and AI infra names diverge - good vol for defined-risk spreads. Also need to manage existing BAC put spread position.",
+      "focus_read": "Broad risk-off tape led by semis/tech weakness (MU, INTC, LRCX, AMAT, ANET, MRVL, AVGO down big) plus BAC position needs monitoring since I hold a BAC put spread expiring 2026. Focusing on high-IV movers with defined-risk setups and liquid names tied to my existing position.",
       "universe_scanned": 272
     }
   }
