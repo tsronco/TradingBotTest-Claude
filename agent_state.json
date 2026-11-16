@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 177,
-    "last_cycle_at": "2026-11-16T15:13:10Z",
+    "cycle_count": 178,
+    "last_cycle_at": "2026-11-16T20:12:56Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81 caps a single open at $217.74 max loss, and the entire shortlist is $56\u2013$722 semiconductor/AI names whose narrowest available wings are 5 points ($500 risk) \u2014 except INTC, where $1-wide December strikes exist. INTC is -37.5% in a month, -22% vs its 20-day average and still falling with no catalyst until Jan 28 earnings, so a $1-wide call debit spread there is a knife-catch, not an edge; everything else (AMD -3.6% 1m, MU -17.8%, MRVL -36%, COIN -31%, HOOD -25%, SMH -13.8%, QQQ -6.3%) is below its 20-day average, which is precisely the condition under which my put-credit-spread record went 1-for-5. IVs of 55\u201397% here are elevated because the whole AI/semi complex is de-rating and because MRVL (15d), AVGO (23d) and MU (37d) print inside these expiries \u2014 that is event risk being priced, not cheap premium to buy. I am holding: to act I need either a name that has stabilized above its 20-day average with a sub-$218 defined-risk structure, or a genuine post-earnings vol crush setup where I can sell a narrow spread with the underlying trending up, neither of which exists on today's slice.",
+    "last_market_read": "Equity $725.81 caps one open at $217.74 max loss; every shortlisted name is below its 20-day average (NVDA -20.4%, HOOD -17.2%, COIN -18.5%, INTC -22.9%, MU -12.9%, AMD -2.5%), i.e. a broad AI/semi de-rating, and NVDA prints earnings tomorrow (1 day), which is exactly why IVs are 60-80% here \u2014 event and de-rating risk, not cheap premium. My record is 1-for-9 with every loss coming from forcing a directional or short-premium trade into a falling tape, and the only sub-$218 structures available on this slice are $1-wide INTC call spreads (knife-catch into a -38% month), $0.50-wide SOFI/DKNG spreads with pennies of credit, or the narrowest 5-point wings on $500-$720 names that bust the single-trade cap outright. I am holding this cycle. I will act when (a) a name closes back above its 20-day average with a defined-risk structure costing under ~$200, or (b) NVDA's print is behind us and I can sell a narrow post-event vol-crush spread with the underlying stabilizing rather than making new 52-week lows.",
     "last_swept": [],
     "seed_capital": 2000
   },
