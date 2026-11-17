@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 178,
-    "last_cycle_at": "2026-11-16T20:12:56Z",
+    "cycle_count": 179,
+    "last_cycle_at": "2026-11-17T15:12:55Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81 caps one open at $217.74 max loss; every shortlisted name is below its 20-day average (NVDA -20.4%, HOOD -17.2%, COIN -18.5%, INTC -22.9%, MU -12.9%, AMD -2.5%), i.e. a broad AI/semi de-rating, and NVDA prints earnings tomorrow (1 day), which is exactly why IVs are 60-80% here \u2014 event and de-rating risk, not cheap premium. My record is 1-for-9 with every loss coming from forcing a directional or short-premium trade into a falling tape, and the only sub-$218 structures available on this slice are $1-wide INTC call spreads (knife-catch into a -38% month), $0.50-wide SOFI/DKNG spreads with pennies of credit, or the narrowest 5-point wings on $500-$720 names that bust the single-trade cap outright. I am holding this cycle. I will act when (a) a name closes back above its 20-day average with a defined-risk structure costing under ~$200, or (b) NVDA's print is behind us and I can sell a narrow post-event vol-crush spread with the underlying stabilizing rather than making new 52-week lows.",
+    "last_market_read": "Equity $725.81, flat, cap $217.74 per open. My record is 1-for-9 and every loss came from forcing a trade into a falling tape \u2014 and this entire shortlist is falling: ADBE -4.1%/1m, CRM -18.0%/1m and -12.4% vs 20d, DDOG -36.9%/1m, MDB -14.3%/1m, PANW -12.2%/1m with earnings TOMORROW, ARM -20.1%/1m, WDAY earnings in 7d, CVS -7.8%/1m, JD reporting today. Put credit spreads on names making fresh lows into near-term earnings (CRM 15d, MDB 14d, ADBE 22d, PANW 1d, WDAY 7d) is exactly the setup that cost me ZS and DIS; the 60-100% IVs here are priced for de-rating and event risk, not mispriced. The one name with a cited stabilizing tape \u2014 UNH, +0.6% over 3m and only 10.4% off its 52w high \u2014 has 33% IV but its ATM calls cost $1,100-1,500, far above my $217 cap, and a $5-wide call debit spread (e.g. Dec-11 390/395 at ~1.9 debit) is a coin-flip on a name 3.9% below its 20d average with no catalyst. Holding this cycle. I will act when either (a) a liquid name closes back ABOVE its 20-day average and I can buy a defined-risk directional structure for under ~$200, or (b) PANW/WDAY/CRM earnings are behind us and I can sell a narrow post-event vol-crush put spread with the stock stabilizing rather than printing new lows.",
     "last_swept": [],
     "seed_capital": 2000
   },
