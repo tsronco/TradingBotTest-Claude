@@ -1,63 +1,59 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-16T14:41:55Z",
-    "runs": 47
+    "last_run_at": "2026-11-17T14:41:50Z",
+    "runs": 48
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 148.72,
+      "equity": 136.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-11-16",
-    "generated_at": "2026-11-16T14:41:55Z",
+    "date": "2026-11-17",
+    "generated_at": "2026-11-17T14:41:50Z",
     "held": [
       {
-        "symbol": "BAC261120P00049000",
-        "watch": "Short leg of the Nov-20 49/48 spread, mid $0.155, +$55 unrealized. BAC $50.65 \u2014 watch the $50.00 line; a close below it is the exit trigger. No resting orders."
-      },
-      {
-        "symbol": "BAC261120P00048000",
-        "watch": "Long leg (protection), mid $0.09, -$39. Close it only as part of the spread \u2014 never leave the 49P naked short, which the account's buying power cannot support anyway."
+        "symbol": "BAC",
+        "watch": "Spread is Nov-20 49/48 (long 48P, short 49P), both legs free of resting orders. BAC $49.76 \u2014 short strike is now only $0.24 away; spread mid ~$0.19 debit to close. Watch $49.00: a close below it means the spread is in the money with two days left."
       }
     ],
     "ideas": [
       {
-        "capital_required_usd": 7.0,
+        "capital_required_usd": 19.0,
         "confidence": 4,
-        "direction": "bullish",
+        "direction": "neutral",
         "fits_account": true,
-        "getting_paid": "Opened for +$0.23 ($23). Closing at ~$0.065 debit leaves ~+$16.50 realized per spread; the last ~$6.50 is what you forgo by not holding to expiry.",
-        "invalidation": "Hold to expiry instead if BAC closes above $52.00 before Nov-20; close immediately regardless of debit if BAC closes below $50.00 before Nov-20.",
-        "key_risk": "A sharp BAC drop through $49 in the next four sessions turns a $16 win into a $77 loss (max loss $100 width minus $23 credit); that gap risk is exactly what you're paying $6.50 to retire.",
-        "legs": "BUY TO CLOSE 1x BAC261120P00049000, SELL TO CLOSE 1x BAC261120P00048000, as a single spread order, limit $0.07 debit (mid-to-mid is ~$0.065: short 49P mid $0.155, long 48P mid $0.09); do not pay more than $0.10.",
-        "max_loss_usd": 0.0,
+        "getting_paid": "Credit received $0.23 \u00d7100 = $23; cost to close ~$0.19 \u00d7100 = $19. Net \u2248 +$4 realized vs. $77 still at risk if BAC closes under $48 on Nov-20.",
+        "invalidation": "Hold instead of closing only if BAC trades back above $50.50 today; close immediately at any debit if BAC trades below $49.00 before Nov-20.",
+        "key_risk": "A gap down through $48 on Friday turns the remaining $19 of 'savings' into a $77 loss \u2014 the whole reason to pay the debit now.",
+        "legs": "BUY TO CLOSE 1x BAC261120P00049000 @ ~0.36 mid; SELL TO CLOSE 1x BAC261120P00048000 @ ~0.17 mid. Net debit ~0.19, work the combo at 0.20-0.22 limit.",
+        "max_loss_usd": 77.0,
         "structure": "close existing Nov-20 49/48 put credit spread (buy to close short 49P, sell to close long 48P)",
         "symbol": "BAC",
-        "why": "The spread was opened for $0.23 credit and is now worth ~$0.065 at mid \u2014 roughly 72% of max profit captured with 4 sessions left. BAC at $50.65 sits $1.65 above the short strike and on its 20d average, so the remaining ~$7 of theta is not worth carrying gamma risk into expiry week on a banking tape that has already dropped 21% in three months."
+        "why": "Entered for a $0.23 credit; the spread now marks ~$0.19 debit at mid, so closing locks roughly break-even to a few dollars of loss rather than risking the remaining $77 max loss. BAC at $49.76 is below the short strike-plus-credit breakeven area and 1.4% under its 20d average, so the last three days are pure gamma risk for $4 of remaining edge."
       }
     ],
-    "market_read": "Risk-off continues in semis \u2014 MU -17% on the month, INTC -37%, MRVL -35%, SMH -13% vs 20d \u2014 while SPY is only -1.4% below its 20d average, so the damage is concentrated, not broad. BAC is the quiet corner: $50.65, flat on the week, right on its 20d average, which leaves the held Nov-20 49/48 put spread $1.65 OTM with 4 trading days left. With $59.72 of options buying power, the only live decision today is again whether to bank the BAC spread or let theta finish it.",
+    "market_read": "BAC is $49.76, down from $50.65 yesterday and now just $0.24 above the short 49 strike with three sessions to expiry (Nov-20) \u2014 the held 49/48 put spread has gone from comfortably OTM to a coin flip. Elsewhere the board is still defensive: BABA -14% on the week into Thursday earnings, MRVL/NOW deep below their 20d, healthcare (UNH, CVS) sliding. With $59.72 of options buying power, nothing new is placeable; today's only real decision is what to do with the BAC spread.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Thirteenth straight session that no new position fits $59.72 of options buying power. The cheapest defined-risk structure on today's board is a $1-wide BAC Dec-18 48/47 put credit spread (~$0.20 credit mid, ~$80 collateral) \u2014 still above buying power \u2014 and every semi name shown is $5-wide or worse ($400\u2013$500 collateral per lot) with IVs of 55\u201395% that reflect real downside, not free premium. One share of BAC at $50.65 is not a position. If funded to ~$1,500\u20132,000 I'd want: (1) BAC Dec-18 48/47 put credit spread, 5 lots \u2248 $400 risk for ~$100 credit, no earnings until Jan-15; (2) a QQQ Dec-24 600/590 put spread (~$1.10 credit mid, ~$890 risk/lot) only if sized to one lot, as an index-level fade of the semi panic; (3) nothing in MRVL (earnings Dec-1) or AVGO (Dec-9) inside those dates. All credit spreads require options Level 3 \u2014 confirm approval; closing the existing BAC spread needs no new approval.",
+    "no_trade_reason": "Fourteenth straight session that no new position fits $59.72 of options buying power. Cheapest defined-risk thing on today's board is a $1-wide BAC Dec-18 46/45 put credit spread (~$0.12 credit mid, ~$88 collateral) \u2014 still above buying power \u2014 and BABA/INTU both report Nov-19, so any premium there is earnings premium, not free money. If funded to ~$1,500\u20132,000 I'd want: (1) BAC Dec-18 46/45 put credit spread, 5 lots \u2248 $440 risk for ~$60 credit, no earnings until Jan-15; (2) a UNH Dec-18 350/340 put spread (~$1.25 credit mid, ~$875 risk/lot) one lot only, selling the healthcare panic 11% below spot with earnings not until Jan-12; (3) nothing in BABA, INTU (both Nov-19), CRM (Dec-2) or MRVL (Dec-1) until after their prints. All credit spreads need options Level 3 \u2014 confirm approval; closing the existing BAC spread needs no new approval.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "MU",
-        "INTC",
-        "LRCX",
-        "AMAT",
-        "ANET",
+        "HUM",
+        "CVS",
+        "UNH",
+        "CRM",
+        "ADBE",
+        "INTU",
+        "NOW",
+        "NKE",
         "MRVL",
-        "AVGO",
-        "COIN",
-        "SMH",
-        "QQQ",
-        "SPY"
+        "JD",
+        "BABA"
       ],
-      "focus_read": "Broad risk-off tape led by semis/tech weakness (MU, INTC, LRCX, AMAT, ANET, MRVL, AVGO down big) plus BAC position needs monitoring since I hold a BAC put spread expiring 2026. Focusing on high-IV movers with defined-risk setups and liquid names tied to my existing position.",
+      "focus_read": "Small account with a tiny BAC put spread already on, so focusing there plus a few high-IV movers: HUM and CVS show large post-earnings-type drops (healthcare selloff), UNH also down sharply, and several big tech names (CRM, ADBE, INTU, NOW) are down 3-5% on growth-stock weakness while AVGO/ARM/MRVL/NKE are up strongly \u2014 good for defined-risk option plays given cheap buying power.",
       "universe_scanned": 272
     }
   }
