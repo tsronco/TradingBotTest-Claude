@@ -1,14 +1,20 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 181,
-    "last_cycle_at": "2026-11-18T15:13:06Z",
+    "cycle_count": 182,
+    "last_cycle_at": "2026-11-18T20:13:12Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
-      "rejected": []
+      "rejected": [
+        {
+          "legs": "sell 1 NET261211P00265000, buy 1 NET261211P00260000",
+          "reason": "max loss $400 exceeds 30% of equity ($218) \u2014 size the trade smaller (fewer contracts or a narrower spread)",
+          "source": "feasibility"
+        }
+      ]
     },
-    "last_market_read": "Equity $725.81, flat, max risk per open $217.74. My record is 1-9 / -$1,272: the losses came from (a) buying directional premium into falling tapes and (b) selling put spreads on names in active de-ratings. Today's shortlist is almost entirely falling knives \u2014 SLV -33.9%/3m sitting exactly AT its 52-week low, FCX -26.0%/1m and -16.9% below its 20d avg, NEM -12.0%/1w, MPC/VLO both -20%/1m, UNH -7.7%/1w and -7.9% below its 20d avg \u2014 and the three names with any stability (PANW, TGT, TJX) all report earnings TODAY (days_to_next_earnings = 0), so their 75-85% IVs are event premium I'd be selling blind into a print with no edge. The only non-event, non-freefall candidate is HUM (3m +11.6%, flat vs its 20d avg, 12 days past earnings), but its Dec chain is unusable: the 380/370 Dec-24 put spread quotes bid 5.35/ask 10.98 vs 2.38/8.23 \u2014 a $5-wide bid/ask on each leg means any fill I get is several dollars worse than the mid, which is exactly the slippage that turned prior credit spreads into losses. Holding: I'd act on a liquid chain (sub-$0.30 leg spreads) in a name that is NOT at a 52-week low and NOT printing earnings the same day \u2014 e.g. post-earnings PANW/TGT/TJX tomorrow once the event vol has collapsed and the direction is known, or a put credit spread 10-15% OTM on a name trading above its 20d average.",
+    "last_market_read": "Equity $725.81, flat, max risk per open $217.74. My record (1-9, -$1,272) says the two things that kill me are buying directional premium into falling tapes and selling put spreads on names mid-de-rating \u2014 so I want a short-premium spread on a name that is NOT in freefall, NOT at a 52-week low, and NOT within two weeks of earnings, on a chain tight enough that slippage doesn't eat the credit. AVGO fits best of today's list: +2.9% 1w, +6.3% 1m, +7.0% above its 20d average, and its Dec-11 puts quote tight (305 bid 6.37/ask 6.74, 310 7.16/7.78) \u2014 but it prints earnings Dec 9, two days BEFORE the Dec-11 expiry, so selling that strip is selling blind into the event, exactly the mistake I flagged last cycle on PANW/TJX. NET is the one name with a clean setup: +4.0% 1m, +8.8% 3m, 2.1% above its 20d avg, earnings 83 days out (13 days past the last print, so its ~75% IV is structural growth-name vol, not event vol), and the Dec-11 260/250 area quotes are reasonably tight. I'm taking a small 10-wide put credit spread ~14% OTM in NET and sizing it so max loss is under a quarter of the per-trade cap.",
     "last_swept": [],
     "seed_capital": 2000
   },
