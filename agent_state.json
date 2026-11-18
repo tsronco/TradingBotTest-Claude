@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 180,
-    "last_cycle_at": "2026-11-17T20:12:51Z",
+    "cycle_count": 181,
+    "last_cycle_at": "2026-11-18T15:13:06Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81, flat, max risk per open $217.74. Every name on this shortlist is below its 20-day average and most are at or near 52-week lows: BABA -20.1%/1m and sitting exactly AT its 52w low with earnings in 2 days, ORCL -11.7%/1m at its 52w low, HOOD -29.0%/1m, NOW -36.3%/1m, MDB -32.0%/3m, INTU earnings in 2 days, WDAY earnings in 7 days, CRM earnings in 15 days. My record (1-9, -$1,272) says the losses all came from selling put spreads on names making fresh lows or buying directionals into a falling tape \u2014 the 60-108% IVs here are high because the market is actively de-rating these names and/or an event is imminent, not because premium is mispriced. The one relatively stable name, UNH (-0.1% over 3m, 11.1% off its 52w high, IV 31%), offers no cheap structure: ATM calls cost $1,500 and a Dec-18 410/420 debit spread (~$2.40 debit, breakeven $412.4) needs a +6.2% move in a stock that is 4.5% BELOW its 20d average \u2014 that is a coin flip, not an edge.",
+    "last_market_read": "Equity $725.81, flat, max risk per open $217.74. My record is 1-9 / -$1,272: the losses came from (a) buying directional premium into falling tapes and (b) selling put spreads on names in active de-ratings. Today's shortlist is almost entirely falling knives \u2014 SLV -33.9%/3m sitting exactly AT its 52-week low, FCX -26.0%/1m and -16.9% below its 20d avg, NEM -12.0%/1w, MPC/VLO both -20%/1m, UNH -7.7%/1w and -7.9% below its 20d avg \u2014 and the three names with any stability (PANW, TGT, TJX) all report earnings TODAY (days_to_next_earnings = 0), so their 75-85% IVs are event premium I'd be selling blind into a print with no edge. The only non-event, non-freefall candidate is HUM (3m +11.6%, flat vs its 20d avg, 12 days past earnings), but its Dec chain is unusable: the 380/370 Dec-24 put spread quotes bid 5.35/ask 10.98 vs 2.38/8.23 \u2014 a $5-wide bid/ask on each leg means any fill I get is several dollars worse than the mid, which is exactly the slippage that turned prior credit spreads into losses. Holding: I'd act on a liquid chain (sub-$0.30 leg spreads) in a name that is NOT at a 52-week low and NOT printing earnings the same day \u2014 e.g. post-earnings PANW/TGT/TJX tomorrow once the event vol has collapsed and the direction is known, or a put credit spread 10-15% OTM on a name trading above its 20d average.",
     "last_swept": [],
     "seed_capital": 2000
   },
