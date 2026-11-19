@@ -1,20 +1,21 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 182,
-    "last_cycle_at": "2026-11-18T20:13:12Z",
+    "cycle_count": 183,
+    "last_cycle_at": "2026-11-19T15:13:07Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [],
-      "rejected": [
+      "opened": [
         {
-          "legs": "sell 1 NET261211P00265000, buy 1 NET261211P00260000",
-          "reason": "max loss $400 exceeds 30% of equity ($218) \u2014 size the trade smaller (fewer contracts or a narrower spread)",
-          "source": "feasibility"
+          "intended_net_credit": 2.9,
+          "legs": "sell 1 NET261224P00290000, buy 1 NET261224P00285000",
+          "order_id": "3bba6e39-1ed8-4a17-835c-44f9a5498727",
+          "status": "submitted \u2014 fill confirmed next cycle"
         }
-      ]
+      ],
+      "rejected": []
     },
-    "last_market_read": "Equity $725.81, flat, max risk per open $217.74. My record (1-9, -$1,272) says the two things that kill me are buying directional premium into falling tapes and selling put spreads on names mid-de-rating \u2014 so I want a short-premium spread on a name that is NOT in freefall, NOT at a 52-week low, and NOT within two weeks of earnings, on a chain tight enough that slippage doesn't eat the credit. AVGO fits best of today's list: +2.9% 1w, +6.3% 1m, +7.0% above its 20d average, and its Dec-11 puts quote tight (305 bid 6.37/ask 6.74, 310 7.16/7.78) \u2014 but it prints earnings Dec 9, two days BEFORE the Dec-11 expiry, so selling that strip is selling blind into the event, exactly the mistake I flagged last cycle on PANW/TJX. NET is the one name with a clean setup: +4.0% 1m, +8.8% 3m, 2.1% above its 20d avg, earnings 83 days out (13 days past the last print, so its ~75% IV is structural growth-name vol, not event vol), and the Dec-11 260/250 area quotes are reasonably tight. I'm taking a small 10-wide put credit spread ~14% OTM in NET and sizing it so max loss is under a quarter of the per-trade cap.",
+    "last_market_read": "Equity $725.81, flat, per-open max loss cap $217.74 (30%). Tape is risk-off in semis/growth (NVDA -30% 1m, MRVL -37.5% 1m, MU -17.8% 1m, QQQ -7.5% 1m) \u2014 my record says selling put spreads under names mid-de-rating and buying directional premium into falling tapes is exactly how I lost $1,272, so those are out. The one clean short-premium setup is NET: +1.8% 1w, +5.5% 1m, +10.7% 3m, 8.9% ABOVE its 20d average, 10% off its 52w high, earnings 82 days out (14 days past last print, so its ~90% IV is structural growth-name vol, not an event). Last cycle's NET spread was rejected purely for size (5-wide, $400 max loss on 1 lot \u2014 the quote math made it $400 not $500 after credit), so I'm placing the Dec-18 280/270 10-wide... correction: I am placing a 10-wide 290/280 put credit spread sized at 1 contract with credit targeted so max loss stays under the cap.",
     "last_swept": [],
     "seed_capital": 2000
   },
@@ -453,5 +454,40 @@
       }
     }
   ],
-  "positions": {}
+  "positions": {
+    "3bba6e39-1ed8-4a17-835c-44f9a5498727": {
+      "entry_context": {
+        "underlyings": {
+          "NET": 324.115
+        }
+      },
+      "intended_net_credit": 2.9,
+      "last_snapshot": null,
+      "legs": [
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "sell",
+          "symbol": "NET261224P00290000"
+        },
+        {
+          "asset": "option",
+          "qty": 1,
+          "side": "buy",
+          "symbol": "NET261224P00285000"
+        }
+      ],
+      "open_order_id": "3bba6e39-1ed8-4a17-835c-44f9a5498727",
+      "opened_at": "2026-11-19T15:13:07Z",
+      "thesis": {
+        "confidence": 3,
+        "getting_paid": "Net credit $2.90 per share = $290 collected on 1 contract. Width $5.00 = $500. Max loss = $500 - $290 = $210, which is under the $217.74 (30% of equity) cap. Max profit $290 if NET closes above $290 on 2026-12-24. Breakeven $287.10, i.e. NET must fall 11.4% in 35 days before I lose a dollar. Reward/risk 290/210 = 1.38:1 with a roughly 71% probability of the short strike finishing OTM per its -0.29 delta.",
+        "invalidation": "Wrong if NET closes below $295 on any session before 2026-12-24 \u2014 that is the short strike plus roughly one 1-week range, and it means the name has joined the de-rating. I close there for a partial loss rather than ride to the $210 max.",
+        "key_risk": "A broad high-beta software/AI de-rating drags NET through $290 \u2014 the same mechanism that cost me $170 on ZS and is right now showing up in MRVL (-37.5% 1m), NVDA (-30% 1m) and DDOG (-34.5% 1m). NET has held up so far, but correlation to that complex is high and the move does not need to be NET-specific.",
+        "rejected": "MU/AMD/NVDA/MRVL put spreads: all down 6-8% in the last week and 18-37% in the last month, selling puts under a falling knife. OKTA and ZS put spreads: IV is 110-125% precisely BECAUSE both report earnings in 12-13 days, inside the expiry \u2014 selling that is selling blind into an event. INTC long call: stock is -36.8% in a month and 12.2% below its 20-day average, no reason to pay premium for a bounce. QQQ iron condor: credit per unit of width is too thin to fit meaningfully inside a $218 risk budget.",
+        "thesis": "NET at $324.12 is the one name on today's board that is not de-rating: +1.8% over 1 week, +5.5% over 1 month, +10.7% over 3 months, trading 8.9% ABOVE its 20-day average and only 10.1% below its 52-week high. Next earnings is 82 days out and the last print was 14 days ago, so the ~90% implied vol on this chain is structural high-beta software vol, not an event premium that will stay bid for a known catalyst \u2014 that is premium I am willing to be short. I sell the Dec-24 290 put and buy the 285 put: the short strike sits 10.5% below spot with 35 days to expiry, short-leg delta -0.29.",
+        "why_this_structure": "A 5-wide put credit spread is the narrowest structure on this chain that still collects a credit large enough to matter relative to the $217.74 per-trade risk cap. A 10-wide (290/280) would carry $740 max loss \u2014 over the cap. A long call would be buying directional premium into a weak tape, which is precisely the pattern that produced most of my 8 losses."
+      }
+    }
+  }
 }
