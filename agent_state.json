@@ -1,22 +1,23 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 183,
-    "last_cycle_at": "2026-11-19T15:13:07Z",
+    "cycle_count": 184,
+    "last_cycle_at": "2026-11-19T20:12:47Z",
     "last_cycle_outcome": {
       "closed": [],
-      "opened": [
-        {
-          "intended_net_credit": 2.9,
-          "legs": "sell 1 NET261224P00290000, buy 1 NET261224P00285000",
-          "order_id": "3bba6e39-1ed8-4a17-835c-44f9a5498727",
-          "status": "submitted \u2014 fill confirmed next cycle"
-        }
-      ],
+      "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81, flat, per-open max loss cap $217.74 (30%). Tape is risk-off in semis/growth (NVDA -30% 1m, MRVL -37.5% 1m, MU -17.8% 1m, QQQ -7.5% 1m) \u2014 my record says selling put spreads under names mid-de-rating and buying directional premium into falling tapes is exactly how I lost $1,272, so those are out. The one clean short-premium setup is NET: +1.8% 1w, +5.5% 1m, +10.7% 3m, 8.9% ABOVE its 20d average, 10% off its 52w high, earnings 82 days out (14 days past last print, so its ~90% IV is structural growth-name vol, not an event). Last cycle's NET spread was rejected purely for size (5-wide, $400 max loss on 1 lot \u2014 the quote math made it $400 not $500 after credit), so I'm placing the Dec-18 280/270 10-wide... correction: I am placing a 10-wide 290/280 put credit spread sized at 1 contract with credit targeted so max loss stays under the cap.",
-    "last_swept": [],
+    "last_market_read": "Broad tape is in a genuine risk-off de-rating: QQQ -11.1% 1m and -5.7% below its 20d avg, SPY -7.4% 1m, NVDA -33.8% 1m sitting exactly at its 52-week low, MRVL -43% 1m, AMD -18.2% in a week, UNH -18.6% in a week. My record (1 win / 8 losses, -$1,272) says the two things that bled me were (a) selling put spreads under names in the middle of a de-rating \u2014 exactly what every shortlisted put-spread candidate is today \u2014 and (b) buying directional premium into a falling tape. Every put-credit-spread candidate here (AMD, NVDA, MRVL, AVGO, PANW, DASH, UBER) is a name whose IV is high precisely BECAUSE the market is repricing it lower; collecting ~$2 to risk ~$500 under NVDA at a fresh 52w low is the ZS trade that cost me $170 all over again, just with worse underlying momentum. The only non-falling name on the sheet, PANW (+10.3% 1w, +2.4% vs 20d), just printed earnings 1 day ago, so its 62-66% IV is post-event vol that can keep deflating but its chain is wide ($10.12/$11.98 on the Dec-24 320) and a 5-wide spread there risks ~$350-400 of a $726 account for ~$1.30 \u2014 poor reward for half my equity at risk. With $725.81 equity, a $500 floor and only $225.81 options buying power, a single bad defined-risk spread of meaningful size takes me near the floor; the right move is to not force one. I am holding and letting the NET put spread stay cancelled (it never filled \u2014 correctly, my limit was not marketable, and I would not re-price it into a weakening tape anyway). To act I need either (1) a name that has actually stabilized \u2014 a positive 1w return AND price back above its 20d average \u2014 to sell puts under, or (2) a clean oversold bounce signal with IV that is structurally low rather than event-deflated, to buy a small defined-risk debit spread.",
+    "last_swept": [
+      {
+        "legs": "sell 1 NET261224P00290000, buy 1 NET261224P00285000",
+        "note": "never filled; cancelled and dropped \u2014 your limit was not marketable",
+        "order_id": "3bba6e39-1ed8-4a17-835c-44f9a5498727",
+        "placed_at": "2026-11-19T15:13:07Z",
+        "status": "new"
+      }
+    ],
     "seed_capital": 2000
   },
   "closed": [
@@ -454,40 +455,5 @@
       }
     }
   ],
-  "positions": {
-    "3bba6e39-1ed8-4a17-835c-44f9a5498727": {
-      "entry_context": {
-        "underlyings": {
-          "NET": 324.115
-        }
-      },
-      "intended_net_credit": 2.9,
-      "last_snapshot": null,
-      "legs": [
-        {
-          "asset": "option",
-          "qty": 1,
-          "side": "sell",
-          "symbol": "NET261224P00290000"
-        },
-        {
-          "asset": "option",
-          "qty": 1,
-          "side": "buy",
-          "symbol": "NET261224P00285000"
-        }
-      ],
-      "open_order_id": "3bba6e39-1ed8-4a17-835c-44f9a5498727",
-      "opened_at": "2026-11-19T15:13:07Z",
-      "thesis": {
-        "confidence": 3,
-        "getting_paid": "Net credit $2.90 per share = $290 collected on 1 contract. Width $5.00 = $500. Max loss = $500 - $290 = $210, which is under the $217.74 (30% of equity) cap. Max profit $290 if NET closes above $290 on 2026-12-24. Breakeven $287.10, i.e. NET must fall 11.4% in 35 days before I lose a dollar. Reward/risk 290/210 = 1.38:1 with a roughly 71% probability of the short strike finishing OTM per its -0.29 delta.",
-        "invalidation": "Wrong if NET closes below $295 on any session before 2026-12-24 \u2014 that is the short strike plus roughly one 1-week range, and it means the name has joined the de-rating. I close there for a partial loss rather than ride to the $210 max.",
-        "key_risk": "A broad high-beta software/AI de-rating drags NET through $290 \u2014 the same mechanism that cost me $170 on ZS and is right now showing up in MRVL (-37.5% 1m), NVDA (-30% 1m) and DDOG (-34.5% 1m). NET has held up so far, but correlation to that complex is high and the move does not need to be NET-specific.",
-        "rejected": "MU/AMD/NVDA/MRVL put spreads: all down 6-8% in the last week and 18-37% in the last month, selling puts under a falling knife. OKTA and ZS put spreads: IV is 110-125% precisely BECAUSE both report earnings in 12-13 days, inside the expiry \u2014 selling that is selling blind into an event. INTC long call: stock is -36.8% in a month and 12.2% below its 20-day average, no reason to pay premium for a bounce. QQQ iron condor: credit per unit of width is too thin to fit meaningfully inside a $218 risk budget.",
-        "thesis": "NET at $324.12 is the one name on today's board that is not de-rating: +1.8% over 1 week, +5.5% over 1 month, +10.7% over 3 months, trading 8.9% ABOVE its 20-day average and only 10.1% below its 52-week high. Next earnings is 82 days out and the last print was 14 days ago, so the ~90% implied vol on this chain is structural high-beta software vol, not an event premium that will stay bid for a known catalyst \u2014 that is premium I am willing to be short. I sell the Dec-24 290 put and buy the 285 put: the short strike sits 10.5% below spot with 35 days to expiry, short-leg delta -0.29.",
-        "why_this_structure": "A 5-wide put credit spread is the narrowest structure on this chain that still collects a credit large enough to matter relative to the $217.74 per-trade risk cap. A 10-wide (290/280) would carry $740 max loss \u2014 over the cap. A long call would be buying directional premium into a weak tape, which is precisely the pattern that produced most of my 8 losses."
-      }
-    }
-  }
+  "positions": {}
 }
