@@ -1,59 +1,57 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-18T14:41:55Z",
-    "runs": 49
+    "last_run_at": "2026-11-19T14:41:44Z",
+    "runs": 50
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
       "cash": 159.72,
-      "equity": 128.72,
+      "equity": 126.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-11-18",
-    "generated_at": "2026-11-18T14:41:55Z",
+    "date": "2026-11-19",
+    "generated_at": "2026-11-19T14:41:44Z",
     "held": [
       {
         "symbol": "BAC",
-        "watch": "Nov-20 49/48 put spread, BAC $49.41 (short strike 49, two sessions left). No resting orders \u2014 both legs fully available. Net mid to close ~$0.285 debit; $49.00 is the line where this goes from coin flip to near-max loss, and the long 48P is the only thing capping it at -$77."
+        "watch": "Nov-20 49/48 put spread (long 48P, short 49P), both legs free of resting orders. Spot $49.17 \u2014 short strike is in the money; net mid value -$0.25, P/L on mid roughly -$2 vs entry. Expires tomorrow: close today or accept assignment risk on the 49P (you'd be put 100 shares at $49 = $4,900, which this account cannot cover \u2014 the long 48P caps the loss but settlement would still be messy). Key level: $49.00."
       }
     ],
     "ideas": [
       {
-        "capital_required_usd": 29.0,
+        "capital_required_usd": 25.0,
         "confidence": 4,
         "direction": "neutral",
         "fits_account": true,
-        "getting_paid": "Debit ~$0.285 \u00d7 100 = ~$29 cash out; realizes about -$6 vs the $23 opening credit. Avoids a worst case of -$77 (width $1.00 \u00d7 100 minus $23 credit) and the operational risk of a short-put assignment the account cannot cover.",
-        "invalidation": "Skip the close only if BAC trades back above $50.25 today; close immediately at any debit if BAC prints below $49.00 before the Nov-20 close.",
-        "key_risk": "BAC rallies after you close and the spread would have expired worthless \u2014 you'd have spent ~$29 for nothing. The larger risk if you do nothing is a Friday pin at $48\u201349 and an unfunded assignment.",
-        "legs": "Buy to close 1 BAC261120P00049000 (mid $0.445), Sell to close 1 BAC261120P00048000 (mid $0.16). Net debit ~$0.285/share = ~$29. Work it as a spread limit at $0.28\u20130.30 debit, do not pay more than $0.35.",
-        "max_loss_usd": 6.0,
-        "structure": "close existing Nov-20 49/48 put credit spread (buy to close short 49P, sell to close long 48P)",
+        "getting_paid": "Avoiding risk, not collecting: max remaining gain if BAC closes >$49 is ~$25; max remaining loss if it closes <$48 is ~$75 more from here. Paying ~$25 to retire a $75 downside tail.",
+        "invalidation": "Hold instead only if BAC trades and holds above $50.00 today; close immediately at any debit up to $0.40 if BAC prints below $48.90 before Friday's close.",
+        "key_risk": "The quote is wide (0.36/0.40 and 0.12/0.14) so a mid fill isn't guaranteed; if you can't get $0.30 or better, consider closing just the short 49P and letting the long 48P expire.",
+        "legs": "BUY TO CLOSE 1x BAC261120P00049000 (mid 0.38) / SELL TO CLOSE 1x BAC261120P00048000 (mid 0.13) \u2014 net debit ~$0.25, work a limit at $0.25, do not pay more than $0.30",
+        "max_loss_usd": 25.0,
+        "structure": "close existing Nov-20 49/48 put credit spread (debit to close)",
         "symbol": "BAC",
-        "why": "Spread was opened for $0.23 credit and is now ~$0.285 to close with BAC $0.41 above the short strike and two days of gamma left \u2014 the position is effectively a 50/50 on a $100-wide spread for the account's whole risk budget. Taking a ~$6 loss beats carrying assignment/pin risk into Friday on an account with $59.72 of buying power and no room to handle a 100-share BAC assignment."
+        "why": "Entered for $0.23 credit; closing near $0.25 debit is roughly scratch after fees, and the spread is now in the money with one session left \u2014 BAC at $49.17 is below the $49 short strike intraday and 2.1% under its 20d average with a -20.3% 3-month trend. Letting it ride to Friday is a pure coin flip on a $100-wide max loss for a $23 credit, which is bad math regardless of direction."
       }
     ],
-    "market_read": "BAC is $49.41 with two sessions to expiry (Nov-20) \u2014 the held 49/48 put spread is a coin flip sitting right on the short strike, and yesterday's \"close it\" call still stands at a better price than a Friday gamma fight. Rest of the board is a metals/energy washout (FCX -17.8% on the week, SLV -12.6%, GLD at a 52w low, NEM -11%) with IVs in the 45\u201357% range, and TGT/TJX both print this morning. With $59.72 of options buying power nothing new is placeable \u2014 this is management day, not entry day.",
+    "market_read": "Tape is a risk-on semi/tech rally (NVDA, AMD, INTC-adjacent names breaking out) while staples and healthcare get sold \u2014 none of that is reachable with $59.72 of options buying power. The one thing that matters here: BAC is $49.17 with the held Nov-20 49/48 put spread expiring tomorrow, sitting $0.17 below the short strike and now mostly in the money. Today is the last clean day to close it before Friday gamma decides it for you.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Fifteenth straight session with no new position that fits $59.72 of options buying power. Cheapest defined-risk thing on today's board is a BAC Dec-18 44/43 put credit spread (~$0.02 credit mid \u2014 not worth it) or 45/44 (~$0.13 credit, ~$87 collateral), both above buying power; TGT and TJX report this morning so anything there is earnings premium, and FCX/SLV/NEM IVs at 45\u201357% are attractive to sell but every $1-wide spread still needs ~$85\u2013100 of collateral. If funded to ~$1,500\u20132,000 I'd want: (1) FCX Dec-18 45/44 put credit spread, 3\u20134 lots, ~$0.25 credit on ~$75 risk per lot, selling a 56% IV capitulation 12% below spot with no earnings until Jan-21; (2) BAC Dec-18 46/45 put credit spread, 5 lots \u2248 $440 risk for ~$60 credit, clean until Jan-15 earnings; (3) nothing in TGT/TJX until after today's prints settle. All credit spreads need options Level 3 \u2014 confirm approval; closing the existing BAC spread needs no new approval.",
+    "no_trade_reason": "Sixteenth straight session with no new entry that fits $59.72 of options buying power. The cheapest defined-risk sell on today's board is a BAC Dec-18 45/44 put credit spread (~$0.11 credit mid, ~$89 collateral) or SOFI Dec-24 12.50/11.50 (~$0.18 credit mid, ~$82 collateral) \u2014 both above buying power, and anything at 5-delta collects $0.02\u20130.05, which isn't worth the fees. If funded to ~$1,500\u20132,000 I'd want: (1) SOFI Dec-24 12.50/11.50 put credit spread, 4 lots \u2248 $330 risk for ~$70 credit, 58% IV and spot already 10% under the 20d with no earnings until Jan-29; (2) BAC Dec-18 46/45 put credit spread, 5 lots \u2248 $440 risk for ~$55 credit, clean until Jan-15 earnings; (3) PFE Dec-18 26/25 put credit spread, 3 lots \u2248 $280 risk, 6% below spot. All credit spreads need options Level 3 \u2014 confirm approval; closing the existing BAC spread needs no new approval.",
     "refused": false,
     "scan": {
       "focus": [
         "BAC",
-        "FCX",
-        "NEM",
-        "TJX",
-        "CVX",
-        "VLO",
-        "PSX",
-        "SLV",
-        "GLD",
-        "RCL",
-        "TGT",
-        "INTC"
+        "INTC",
+        "SOFI",
+        "F",
+        "NIO",
+        "AAL",
+        "SNAP",
+        "PFE",
+        "KDP",
+        "HBAN"
       ],
-      "focus_read": "Big moves in metals/energy (FCX, NEM, GLD/SLV, CVX, VLO, PSX, XOM) and a notable earnings-driven gap in TJX; BAC is already a position needing a chain check for the spread management. Small account with limited buying power, so focusing on liquid, moderately priced names with clear directional moves for potential cheap defined-risk plays.",
+      "focus_read": "Big risk-on tech/semi rally (NVDA, AMD, AVGO, MU, INTC, PANW, ZS, OKTA, HOOD, PDD) with strong breakouts, while staples/healthcare/consumer names sell off hard\u2014mostly noise given small account size. I'll also keep BAC on watch since I hold a position there.",
       "universe_scanned": 272
     }
   }
