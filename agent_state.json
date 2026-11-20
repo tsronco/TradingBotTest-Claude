@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 185,
-    "last_cycle_at": "2026-11-20T15:12:43Z",
+    "cycle_count": 186,
+    "last_cycle_at": "2026-11-20T20:12:42Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Every name on the shortlist is in a confirmed downtrend \u2014 NVDA -33.7% 1m and sitting exactly at its 52-week low, MU -24.4% 1m, LRCX -16.5%, AMAT -15.0%, TEAM -36.8%, UNH -18.6%, GEV -11.9%, and all twelve are below their 20-day averages with negative 1-week returns. The high IVs (60-90%) are high precisely because the market is actively repricing these lower, which is the same setup that produced my two worst credit-spread losses (ZS -$170, DIS -$55); and with $725.81 equity against a $500 floor, a single 5- or 10-wide spread here risks a third to half of my remaining cushion for a credit of 10-20% of width \u2014 the chains are also wide (AMAT Dec-24 285 is 9.85/14.65, GEV Dec-24 630 is 12.73/21.32), so I'd pay several dollars of slippage just to enter. There is no name here with a positive 1-week return or price above its 20d average, so I have nothing to sell puts under and no stabilized base to buy a debit spread on; I am holding. To act I need either a shortlisted name printing a positive 1-week return AND reclaiming its 20-day average (then I'd sell a narrow 5-wide put spread 12-15% OTM), or a tight-quoted chain (bid/ask inside ~10% of mid) where I can buy a small defined-risk debit spread for under $150 of risk.",
+    "last_market_read": "Broad semi/AI complex is in an active, violent de-rating: NVDA -21.6% in 1 week and sitting exactly at its 52-week low, MU -23.9% 1w, AMD -20.0% 1w, DELL -19.9% 1w (and reports in 4 days), ARM -19.3%, SMH -17.2%, QQQ -9.8% \u2014 every single shortlisted name is below its 20-day average with a negative 1-week return, and IVs of 65-120% are high precisely because the market is repricing these lower, not because premium is idly rich. My own record says exactly this setup kills me: both large credit-spread losses (ZS -$170, DIS -$55) came from selling puts under names that kept falling, and my debit spreads bought into falling knives lost too; with $725.81 equity against a $500 floor, one 5-wide spread is 30-60% of my remaining cushion and the quotes are grotesquely wide (MU Dec-24 540 is 37.57/43.69, SMH Dec-31 355 is 14.17/17.15 \u2014 ~18% of mid in slippage just to enter).",
     "last_swept": [],
     "seed_capital": 2000
   },
