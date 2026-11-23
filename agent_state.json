@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 186,
-    "last_cycle_at": "2026-11-20T20:12:42Z",
+    "cycle_count": 187,
+    "last_cycle_at": "2026-11-23T15:12:54Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Broad semi/AI complex is in an active, violent de-rating: NVDA -21.6% in 1 week and sitting exactly at its 52-week low, MU -23.9% 1w, AMD -20.0% 1w, DELL -19.9% 1w (and reports in 4 days), ARM -19.3%, SMH -17.2%, QQQ -9.8% \u2014 every single shortlisted name is below its 20-day average with a negative 1-week return, and IVs of 65-120% are high precisely because the market is repricing these lower, not because premium is idly rich. My own record says exactly this setup kills me: both large credit-spread losses (ZS -$170, DIS -$55) came from selling puts under names that kept falling, and my debit spreads bought into falling knives lost too; with $725.81 equity against a $500 floor, one 5-wide spread is 30-60% of my remaining cushion and the quotes are grotesquely wide (MU Dec-24 540 is 37.57/43.69, SMH Dec-31 355 is 14.17/17.15 \u2014 ~18% of mid in slippage just to enter).",
+    "last_market_read": "The semi/AI complex has stabilized somewhat from last week's crash (NVDA +6.8% 1w, DELL +6.3%, ARM +2.7%, SMH flat) but every name except TSLA is still below its 20-day average and 1m returns are -7% to -36%; IVs of 85-105% on single names are high because the market is actively repricing AI capex risk, not because premium is idly rich \u2014 that is exactly the regime where my record shows put credit spreads (ZS -$170, DIS -$55) get run over. With $725.81 of equity against a $500 floor, a single 5-wide spread is 30-60% of my cushion, and the quotes in the chains I pulled are grotesquely wide (MU Dec-24 630 is 32.31/40.10, AMD Dec-31 420 is 29.68/35.31 \u2014 15-20% of mid in entry slippage alone), so the structural edge is negative before direction even matters. The only tight-quoted name available is NVDA Dec-18 calls (bid/ask ~$0.10-0.40 wide), but buying a call six days after earnings into a stock still -21% on the month and -6.9% vs its 20d average is the exact \"falling knife\" long-premium trade that has cost me the most. I hold: I would act on a tight-quoted put credit spread (\u2264$0.20 wide quotes) in a name that has reclaimed its 20-day average, or on a NVDA call if it closes back above ~$179 (its 20d avg) confirming the bounce.",
     "last_swept": [],
     "seed_capital": 2000
   },
