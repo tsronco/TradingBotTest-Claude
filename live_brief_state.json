@@ -1,59 +1,39 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-20T14:41:53Z",
-    "runs": 51
+    "last_run_at": "2026-11-23T14:41:53Z",
+    "runs": 52
   },
   "last_brief": {
     "account": {
       "buying_power": 59.72,
-      "cash": 159.72,
-      "equity": 116.72,
+      "cash": 59.72,
+      "equity": 59.72,
       "options_buying_power": 59.72
     },
-    "date": "2026-11-20",
-    "generated_at": "2026-11-20T14:41:53Z",
-    "held": [
-      {
-        "symbol": "BAC",
-        "watch": "Nov-20 49/48 put spread expires TODAY with BAC at $48.71 \u2014 short 49 strike $0.29 ITM, long 48 strike OTM. Both legs fully available, no resting orders. Close it before 3:45pm ET; do not let it go to expiration on a $117 account."
-      }
-    ],
-    "ideas": [
-      {
-        "capital_required_usd": 40.0,
-        "confidence": 4,
-        "direction": "neutral",
-        "fits_account": true,
-        "getting_paid": "Opened for $0.23 credit; closing near $0.40 debit = ~-$17 realized on the pair vs. max loss $77 if it pins ITM at expiry. Current combined mark: long 0.095 \u2212 short 0.495 = -$0.40 (-$40 position value).",
-        "invalidation": "Hold only if BAC trades and holds above $49.00 into the afternoon; close at any debit up to $0.45 if BAC is below $48.95 at 3:30pm ET.",
-        "key_risk": "Assignment risk: if left open and BAC closes between $48 and $49, you are short 100 shares' worth of obligation against a $117 account \u2014 the broker will liquidate. A sub-$48 close is fully hedged but still a $77 loss.",
-        "legs": "BUY_TO_CLOSE 1 BAC261120P00049000 @ mid 0.495; SELL_TO_CLOSE 1 BAC261120P00048000 @ mid 0.095. Net debit ~$0.40; work a 1-lot spread order at $0.40, pay up to $0.45. Expires at today's close.",
-        "max_loss_usd": 77.0,
-        "structure": "close existing Nov-20 49/48 put credit spread (buy to close 1x 49P, sell to close 1x 48P)",
-        "symbol": "BAC",
-        "why": "BAC is $48.71, i.e. the short 49 put is $0.29 ITM on expiration day with the long 48 put still OTM \u2014 hold to the bell and you risk assignment of 100 shares (~$4,900) that this account cannot carry on $159.72 cash. Net on the spread is still a small winner vs the $0.23 opening credit; close it and be flat."
-      }
-    ],
-    "market_read": "Risk-off in semis/AI hardware again \u2014 AMD -14.7% on the week, MU -18%, LRCX -15%, NVDA at a fresh 52-week low ($139.58); staples/healthcare are the only green. For this account the only thing that matters is BAC $48.71: the held Nov-20 49/48 put spread expires TODAY with the short 49 put in the money by $0.29. With $59.72 of options buying power, no new position on the board is placeable.",
+    "date": "2026-11-23",
+    "generated_at": "2026-11-23T14:41:53Z",
+    "held": [],
+    "ideas": [],
+    "market_read": "Big risk-on reversal: semis/AI ripped overnight (NVDA +25% off its low week, SMH +13%, QQQ +5.6%) while the beaten-down consumer names (SOFI -10.4% on the week, AAL -7.1%, RIVN -8.0%) keep bleeding. The BAC Nov-20 put spread from yesterday's brief is off the books \u2014 the account is flat, all cash, $59.72. Nothing on today's shortlist is placeable at that size; the cheapest 1-wide credit spread here (F Dec-18 10.5/10) still needs ~$45-48 of collateral for roughly $0.04 of net credit, which fees eat.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Seventeenth straight session with no new entry that fits $59.72 of options buying power \u2014 today's shortlist is all $100\u2013$640 underlyings where even a 1-wide credit spread needs ~$85\u2013$100 of collateral, and the cheap 5-delta sells collect $0.02\u20130.05, not worth fees. If funded to ~$1,500\u20132,000 I'd want: (1) AVGO Dec-18 290/280 put credit spread with IV 73% and spot 30% off the high \u2014 but note Dec-9 earnings is inside that window, so size it as a defined-risk earnings bet (~$900 risk for ~$100 credit, 1 lot); (2) BAC Dec-18 46/45 put credit spread, 5 lots \u2248 $440 risk for ~$55 credit, clean until Jan-15 earnings; (3) UNH Dec-18 300/290 put credit spread, 1 lot \u2248 $870 risk for ~$130 credit, 12% below spot, no earnings until Jan-12. All credit spreads need options Level 3 \u2014 confirm approval; closing the BAC spread today needs no new approval.",
+    "no_trade_reason": "Eighteenth straight session with no entry that fits $59.72 of buying power: every name on the shortlist is a $4.67-$453 underlying, so even one share of the cheapest (SNAP $4.67) is a rounding error and every defined-risk spread needs $45-$500 of collateral against $2-$15 of credit. Note the one technically-placeable trade \u2014 F Dec-18 10.5/10 put spread, ~$48 collateral \u2014 is a pass because the quotes are $0.01x$0.23 wide and the mid credit (~$0.06) is below round-trip commissions. If funded to ~$2,000 I'd want, in order: (1) NVDA Dec-31 150/145 put credit spread after today's +25% squeeze, ~$450 risk for ~$130 credit, no earnings until Feb-24; (2) HOOD Dec-18 58/56 put credit spread with IV ~90% and spot 50% off the high, ~$165 risk for ~$35 credit, 16% below spot, earnings Feb-10 is outside the window; (3) PLTR Dec-18 135/130 put credit spread, ~$415 risk for ~$85 credit, 14% below spot, clean of earnings. All three need options Level 3 (spreads) \u2014 confirm approval before sizing.",
     "refused": false,
     "scan": {
       "focus": [
-        "BAC",
-        "AMD",
-        "MU",
-        "LRCX",
-        "AVGO",
-        "DELL",
-        "ANET",
         "NVDA",
-        "ORCL",
         "INTC",
-        "UNH",
-        "GIS"
+        "SOFI",
+        "HOOD",
+        "PLTR",
+        "AMD",
+        "RIVN",
+        "BABA",
+        "F",
+        "CSCO",
+        "SNAP",
+        "AAL"
       ],
-      "focus_read": "Heavy semiconductor/tech selloff (AMD, MU, LRCX, AVGO, TSM, ANET, DELL, ARM down 5-8%) amid broader risk-off in megacap tech, while defensives/consumer staples and healthcare rally. Also need to monitor existing BAC put spread position. Focusing on high-IV, big-move names for defined-risk plays plus BAC for position management.",
+      "focus_read": "Huge semiconductor/AI-driven rally (NVDA +25%, DELL +17%, ARM +17%, MU +14%, TSM +14%) with broad tech strength (QQQ +5.6%, SMH +13%); given tiny account size I'll focus on cheaper, high-liquidity names with defined-risk options potential rather than megacaps with huge premiums.",
       "universe_scanned": 272
     }
   }
