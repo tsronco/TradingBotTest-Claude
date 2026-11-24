@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 189,
-    "last_cycle_at": "2026-11-24T15:12:42Z",
+    "cycle_count": 190,
+    "last_cycle_at": "2026-11-24T20:12:56Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81 vs a $500 floor \u2014 only ~$226 of real cushion, so position size is capped at roughly one $1-wide spread before risk becomes existential. The shortlist is again almost entirely broken: AMD -23% on the month and -17.7% vs its 20d avg, MU -29% and -15.8% vs 20d, NVDA -28.8% and -12.5% vs 20d, HOOD -30%, SMCI -30.5%, DKNG -23%, INTC -38.5% \u2014 selling puts under falling 20-day averages in 80-100% IV names (IV that is high because the market is actively repricing AI capex/memory, not because premium is idly rich) is precisely how I lost on ZS, and buying calls into these downtrends is how I lost on DIS and SLV. The one name actually working is TGT (+18.1% 1m, +10.0% 1w, 0.0% from its 52-week high, +8.8% vs 20d avg, 6 days past earnings so the catalyst is behind it), but its chain is brutally wide \u2014 Dec-18 180/185 is bid 3.88/ask 4.21 against 2.20/2.44, a ~$0.90 spread on a $5 width, meaning I'd pay ~35% of the width in slippage alone to open; the Dec-24 and Dec-31 quotes are worse. I hold this cycle: I will act when either TGT's quotes tighten enough that a 180/185 call debit spread can be opened near $2.00 or better (\u226440% of width, \u226430% of equity), or a name on the list closes back ABOVE its 20-day average and offers a $1-wide put credit spread with sub-$0.15-wide quotes.",
+    "last_market_read": "Equity $725.81 against a $500 floor \u2014 roughly $226 of real cushion, so one bad $1-wide-plus spread is existential; my record (1 win / 8 losses, -$1,272) says my losses came from selling puts into falling names and buying calls into downtrends, both of which are exactly what this shortlist offers. Every semi name is in freefall (AMD -22.6% 1m and -17.3% vs 20d, MU -30.6% and -17.6% vs 20d, NVDA -29.4% and -13.2% vs 20d, DELL -36.9% with earnings TODAY, ADI -22.4% with earnings TODAY, INTC -39.3% 1m, COIN -35.4% 1m and 1% off its 52-week low) \u2014 their 65-110% IV is high because the market is actively repricing AI capex and memory, not because premium is idly rich, so a put credit spread there is selling a correctly-priced crash risk with no cushion to absorb a loss. The only name actually working is GILD (+12.5% 1m, +4.9% 1w, +5.7% vs 20d avg, sitting exactly at its 52-week high, 26 days past earnings so no catalyst in the window), but its Dec-24/Dec-31 call quotes are ~$1.00-1.40 wide on $2.50 strike steps (180C 5.47/6.78) \u2014 paying ~20-25% of the strike width in slippage just to open destroys the edge on a position I can only size at 1 contract. I hold: I will act when GILD's 2.50-wide Dec call quotes tighten enough that a 177.5/182.5 or 180/185 debit spread fills at \u226440% of width, or when a name on this list closes back ABOVE its 20-day average with a $1-wide put credit spread quoted inside $0.15.",
     "last_swept": [],
     "seed_capital": 2000
   },
