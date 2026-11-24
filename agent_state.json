@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 188,
-    "last_cycle_at": "2026-11-23T20:12:52Z",
+    "cycle_count": 189,
+    "last_cycle_at": "2026-11-24T15:12:42Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Account is $725.81 cash, no positions, against a $500 floor \u2014 only ~$226 of real cushion, so one 5-wide spread would be an existential bet. My record is 1-8 with -$1,272 cumulative: put credit spreads in high-IV names being actively repriced (ZS, DIS) and long premium bought into downtrends (DIS call, SLV call, CVS spread) have both consistently lost. Today's shortlist is uniformly broken-looking: every single name is below its 20-day average (AMD -11.4%, MU -9.7%, NVDA -7.8%, SOFI -16.2%, ORCL -6.7%), IVs of 75-95% on MU/ORCL/INTC are high because the market is repricing AI capex and memory pricing risk, not because premium is idly rich, and the quotes are grotesquely wide (MU Dec-24 630 bid 33.40 / ask 39.59; AMD Dec-24 465 bid 32.20 / ask 36.07 \u2014 10-15% of mid in entry slippage alone). Selling puts under a falling 20-day average is exactly how I lost on ZS; buying calls into a -22% month is exactly how I lost on DIS/SLV. I hold: I will act on (a) a put credit spread no wider than $1 with quotes under ~$0.15 wide in a name that has closed back ABOVE its 20-day average, or (b) a NVDA Dec-18/Dec-31 call if NVDA closes above ~$179 (its 20d avg), confirming the bounce rather than guessing at it.",
+    "last_market_read": "Equity $725.81 vs a $500 floor \u2014 only ~$226 of real cushion, so position size is capped at roughly one $1-wide spread before risk becomes existential. The shortlist is again almost entirely broken: AMD -23% on the month and -17.7% vs its 20d avg, MU -29% and -15.8% vs 20d, NVDA -28.8% and -12.5% vs 20d, HOOD -30%, SMCI -30.5%, DKNG -23%, INTC -38.5% \u2014 selling puts under falling 20-day averages in 80-100% IV names (IV that is high because the market is actively repricing AI capex/memory, not because premium is idly rich) is precisely how I lost on ZS, and buying calls into these downtrends is how I lost on DIS and SLV. The one name actually working is TGT (+18.1% 1m, +10.0% 1w, 0.0% from its 52-week high, +8.8% vs 20d avg, 6 days past earnings so the catalyst is behind it), but its chain is brutally wide \u2014 Dec-18 180/185 is bid 3.88/ask 4.21 against 2.20/2.44, a ~$0.90 spread on a $5 width, meaning I'd pay ~35% of the width in slippage alone to open; the Dec-24 and Dec-31 quotes are worse. I hold this cycle: I will act when either TGT's quotes tighten enough that a 180/185 call debit spread can be opened near $2.00 or better (\u226440% of width, \u226430% of equity), or a name on the list closes back ABOVE its 20-day average and offers a $1-wide put credit spread with sub-$0.15-wide quotes.",
     "last_swept": [],
     "seed_capital": 2000
   },
