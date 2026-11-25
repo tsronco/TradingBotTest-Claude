@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "last_run_at": "2026-11-24T14:41:54Z",
-    "runs": 53
+    "last_run_at": "2026-11-25T14:41:46Z",
+    "runs": 54
   },
   "last_brief": {
     "account": {
@@ -10,30 +10,30 @@
       "equity": 58.86,
       "options_buying_power": 58.86
     },
-    "date": "2026-11-24",
-    "generated_at": "2026-11-24T14:41:54Z",
+    "date": "2026-11-25",
+    "generated_at": "2026-11-25T14:41:46Z",
     "held": [],
     "ideas": [],
-    "market_read": "Semis are being sold hard again this morning \u2014 ADI -15% into its earnings print today, AMD/MU/NVDA/AVGO/ON all down, SMH -5.9% on the week and -20% on the month; IVs are extreme (AMD ~95%, MU ~95%, DELL ~110%). The only green on the shortlist is PINS (+11% area, IV only ~45%) and GOLD (+7.7% on the week). The account is flat with $58.86 of cash and options buying power, so none of this is placeable \u2014 the brief is a watch list, not a trade list.",
+    "market_read": "The semi/AI complex is still unwinding \u2014 AMD -29% on the week and -42% from its high, MU -20% on the week, INTC -46% on the month, ORCL and SOFI printing fresh 52-week lows. IVs are at crisis levels (AMD ~100%, MU ~105%, INTC ~92%, ORCL ~95%), which is exactly when selling premium pays \u2014 and exactly when it hurts most if you're undercapitalized. The account is flat with $58.86 of cash and options buying power, so today is a watch list again, not a trade list.",
     "model": "claude-opus-5",
-    "no_trade_reason": "Nineteenth straight session with nothing that fits $58.86: the cheapest shortlist underlying is PINS at $18.93 (one share would be 32% of the account and a rounding error in P&L), and every defined-risk spread here needs $100\u2013$500 of collateral against $10\u2013$150 of credit. Even the cheapest single long option on the list \u2014 PINS Dec-18 $21 call, mid ~$0.27 = $27 \u2014 is a 0.22-delta lottery ticket on a wide $0.14x$0.40 quote, i.e. half the account for an uncertain fill; a pass on principle, not on view. If funded to ~$2,000 I'd want, in order: (1) NVDA Dec-31 140/135 put credit spread, ~$500 risk for ~$130 credit, 10% below spot, no earnings until Feb-24; (2) SMH Dec-31 385/375 put credit spread, ~$1,000 risk for ~$180 credit, 11% below spot on an ETF with no earnings event; (3) ARM Dec-18 145/140 put credit spread, ~$500 risk for ~$125 credit with IV ~97%, earnings Feb-3 outside the window. All three need options Level 3 (spreads) \u2014 confirm approval before sizing. Avoid ADI and DELL entirely today: both report 2026-11-24, which is why their IVs are 60% and 110%.",
+    "no_trade_reason": "Twentieth straight session with nothing placeable at $58.86. The cheapest underlying on the shortlist is SNAP at $4.59 (12 shares would be the whole account, and its options are 0.07x0.16 wide \u2014 unfillable); every defined-risk spread here needs $100\u2013$1,000 of collateral, and the one option mid under $59 that isn't a rounding error, F Dec-18 $12 call at ~$0.40 ($40), is a coin-flip on a name with no catalyst \u2014 a pass on principle, not on view. If funded to ~$2,500 I'd want, in order: (1) SOFI Dec-31 11/10.5 put credit spread, ~$50 risk per contract for ~$0.20 credit \u2014 size 5\u20138 contracts, ~$400 risk, 9% below spot, earnings Jan-29 outside the window; (2) PLTR Dec-18 135/130 put credit spread, ~$500 risk for ~$90 credit with IV ~72%, 12% below spot, earnings Feb-1; (3) NVDA Dec-18 130/125 put credit spread, ~$500 risk for ~$130 credit, 8% below spot, no earnings until Feb-24. All three need options Level 3 (spreads) \u2014 confirm approval before sizing. Avoid MU and ORCL premium selling in any December expiry: MU reports Dec-17 and ORCL Dec-14, both inside the window, which is why their IVs are near 100%.",
     "refused": false,
     "scan": {
       "focus": [
         "NVDA",
         "AMD",
         "MU",
-        "ADI",
-        "AVGO",
-        "ON",
-        "ARM",
-        "PINS",
-        "GOLD",
-        "SMH",
-        "DELL",
-        "INTC"
+        "INTC",
+        "ORCL",
+        "SMCI",
+        "SOFI",
+        "PLTR",
+        "F",
+        "WBD",
+        "SNAP",
+        "HPQ"
       ],
-      "focus_read": "Semis are getting hammered broadly (ADI -15%, MU -9%, AMD -9.5%, NVDA -6%, AVGO -4.4%, ON -6%, LRCX/KLAC/MCHP/NXPI/MRVL all down hard) on what looks like a sector-wide risk-off in chips, while small-account friendly cheap-premium movers like PINS (+11.5%), GOLD (+5.3%) and ARM (-6.5%) stand out for defined-risk plays given my tiny $58 account size constraints.",
+      "focus_read": "Broad tech/semi selloff dominates \u2014 NVDA, AMD, MU, LRCX, ORCL, AVGO, INTC, TSM, AMAT all down 7-11% on heavy volume, likely a sector-wide risk-off/de-grossing event. With only ~$59 equity, focusing on cheap, liquid, high-IV names where small defined-risk option spreads make sense.",
       "universe_scanned": 272
     }
   }
