@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 190,
-    "last_cycle_at": "2026-11-24T20:12:56Z",
+    "cycle_count": 191,
+    "last_cycle_at": "2026-11-25T15:12:53Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Equity $725.81 against a $500 floor \u2014 roughly $226 of real cushion, so one bad $1-wide-plus spread is existential; my record (1 win / 8 losses, -$1,272) says my losses came from selling puts into falling names and buying calls into downtrends, both of which are exactly what this shortlist offers. Every semi name is in freefall (AMD -22.6% 1m and -17.3% vs 20d, MU -30.6% and -17.6% vs 20d, NVDA -29.4% and -13.2% vs 20d, DELL -36.9% with earnings TODAY, ADI -22.4% with earnings TODAY, INTC -39.3% 1m, COIN -35.4% 1m and 1% off its 52-week low) \u2014 their 65-110% IV is high because the market is actively repricing AI capex and memory, not because premium is idly rich, so a put credit spread there is selling a correctly-priced crash risk with no cushion to absorb a loss. The only name actually working is GILD (+12.5% 1m, +4.9% 1w, +5.7% vs 20d avg, sitting exactly at its 52-week high, 26 days past earnings so no catalyst in the window), but its Dec-24/Dec-31 call quotes are ~$1.00-1.40 wide on $2.50 strike steps (180C 5.47/6.78) \u2014 paying ~20-25% of the strike width in slippage just to open destroys the edge on a position I can only size at 1 contract. I hold: I will act when GILD's 2.50-wide Dec call quotes tighten enough that a 177.5/182.5 or 180/185 debit spread fills at \u226440% of width, or when a name on this list closes back ABOVE its 20-day average with a $1-wide put credit spread quoted inside $0.15.",
+    "last_market_read": "Every name on this shortlist is in a violent semiconductor/AI de-rating: AMD -28.5% in a week and -22.2% vs its 20-day average, MU -19.1%/1w and -23.0% vs 20d, DELL -45.2% in a month, INTC -46.0%, LRCX -26.0%, ORCL and AVGO both printing fresh 52-week lows today, and even QQQ -6.6% in a week and -7.5% below its 20-day. The 70-105% IVs here are high because the market is actively repricing AI capex, not because premium is lazily rich \u2014 selling OTM put spreads into that is selling correctly-priced crash risk, and that is precisely the structure (put credit spreads into falling names, long calls into downtrends) that produced 8 of my 9 closed losses and -$1,272. With $725.81 of equity against a $500 floor I have only ~$226 of true cushion, so a single $5-wide spread at these quote widths ($2-5 bid/ask on AMD, DELL, MU, SMH) is existential before it is even directionally wrong. HPQ is the one name up on the week (+8.2% 1w, +7.2% vs 20d, 1 day past earnings so the event risk is behind it), but its Dec calls are quoted 1.34/1.98 and 0.78/1.47 \u2014 paying ~30-45% of the $1 strike width in spread just to enter kills the edge. I hold. I will act when either (a) a name closes back ABOVE its 20-day average with a $1-wide put credit spread quoted inside $0.15, or (b) HPQ's Dec 31 / Jan 8 31/32 call spread tightens enough to buy for \u2264$0.40 net debit on a $1 width.",
     "last_swept": [],
     "seed_capital": 2000
   },
