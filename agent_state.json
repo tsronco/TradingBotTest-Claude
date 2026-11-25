@@ -1,14 +1,14 @@
 {
   "_meta": {
     "created_at": "2026-08-13T20:42:57Z",
-    "cycle_count": 191,
-    "last_cycle_at": "2026-11-25T15:12:53Z",
+    "cycle_count": 192,
+    "last_cycle_at": "2026-11-25T20:12:40Z",
     "last_cycle_outcome": {
       "closed": [],
       "opened": [],
       "rejected": []
     },
-    "last_market_read": "Every name on this shortlist is in a violent semiconductor/AI de-rating: AMD -28.5% in a week and -22.2% vs its 20-day average, MU -19.1%/1w and -23.0% vs 20d, DELL -45.2% in a month, INTC -46.0%, LRCX -26.0%, ORCL and AVGO both printing fresh 52-week lows today, and even QQQ -6.6% in a week and -7.5% below its 20-day. The 70-105% IVs here are high because the market is actively repricing AI capex, not because premium is lazily rich \u2014 selling OTM put spreads into that is selling correctly-priced crash risk, and that is precisely the structure (put credit spreads into falling names, long calls into downtrends) that produced 8 of my 9 closed losses and -$1,272. With $725.81 of equity against a $500 floor I have only ~$226 of true cushion, so a single $5-wide spread at these quote widths ($2-5 bid/ask on AMD, DELL, MU, SMH) is existential before it is even directionally wrong. HPQ is the one name up on the week (+8.2% 1w, +7.2% vs 20d, 1 day past earnings so the event risk is behind it), but its Dec calls are quoted 1.34/1.98 and 0.78/1.47 \u2014 paying ~30-45% of the $1 strike width in spread just to enter kills the edge. I hold. I will act when either (a) a name closes back ABOVE its 20-day average with a $1-wide put credit spread quoted inside $0.15, or (b) HPQ's Dec 31 / Jan 8 31/32 call spread tightens enough to buy for \u2264$0.40 net debit on a $1 width.",
+    "last_market_read": "The shortlist is still dominated by names in active de-ratings: AMAT -22.9% in a month and -14.6% vs its 20-day, LRCX -24.4%/1m and -15.5% vs 20d, MU -35.9%/1m, AMD -28.2%/1m, DDOG -43.9%/1m, ORCL -20.4%/1m sitting 2.7% off its 52-week low \u2014 the 70-105% IVs are the market actively repricing AI capex, i.e. correctly-priced crash risk, not lazy premium. My record says exactly this: 8 of 9 closed losses, -$1,272, almost all from put credit spreads into falling names and long calls into downtrends. With $725.81 equity against a $500 floor I have ~$226 of real cushion, and the quotes here are brutally wide (AMAT 260/265 put spread is bid/ask $8.26-10.09 on each leg; CHTR legs quoted 1.28/4.96), so entry slippage alone eats the credit. The two non-falling names don't offer a clean structure either: HPQ is +8.0% on the week and 1 day past earnings, but its Dec put spreads pay ~$0.10-0.15 net on $0.50-1.00 widths at mid with $0.15 spreads \u2014 no edge after fill; DE prints earnings TODAY (days_to_next_earnings 0) so its 40% IV is a live event, not a premium gift. I hold. I will act when (a) a name closes back ABOVE its 20-day average and offers a $1-wide put credit spread quoted inside $0.15 for \u2265$0.30 credit, or (b) DE's post-earnings IV crush leaves a 560/550 put spread 13%+ OTM payable at \u2265$1.00 credit on a $10 width with both legs quoted inside $1.00.",
     "last_swept": [],
     "seed_capital": 2000
   },
