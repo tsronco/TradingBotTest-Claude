@@ -29,6 +29,16 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-26',
+    category: 'config',
+    title: 'Agent account switched off',
+    details:
+      'Final record: 1 win in 9 trades, -$1,272 realized on the $2,000 paper account. The agent\'s trade '
+      + 'and weekly-retrospective workflows now skip every run unless the repository variable '
+      + 'AGENT_ENABLED is set to true, so nothing is traded and no API credits are spent. Its trade '
+      + 'history and the /agent page stay as a record. The live morning brief is unaffected.',
+  },
+  {
     date: '2026-11-05',
     category: 'fix',
     title: 'Agent: a new close order replaces a resting one instead of being refused',

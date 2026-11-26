@@ -523,6 +523,21 @@ End result: 9 embed cards per day across the seven summary channels — one per-
 
 ## Autonomous agent account (Claude-driven, experimental)
 
+> **SWITCHED OFF 2026-11-26** (Tim's call). Final record: **1 win in 9 trades,
+> −$1,272 realized** on the $2k paper seed (last trade: ZS 200/197.5 put spread,
+> −$170, closed 2026-11-06). No open positions. Both `agent-trader.yml` and
+> `agent-retrospective.yml` now carry a job-level
+> `if: ${{ vars.AGENT_ENABLED == 'true' }}`: every dispatch is **skipped** (no
+> model call, no orders, no commit) unless the repository variable
+> `AGENT_ENABLED` is set to `true`. The agent entry was removed from
+> `tools/setup_cronjobs.py`; the existing cron-job.org job must be deleted by
+> hand. Code, `agent_state.json` history, and the dashboard's `/agent` page are
+> kept as a record. `live_brief.py` reuses the agent's gathering helpers and is
+> **not** affected. **To restart:** set `AGENT_ENABLED=true`, restore the
+> setup-script entry from git history, re-run the script, and consider resetting
+> the paper account and state for a clean, time-boxed test.
+
+
 A third account that is **not** a wheel account. On `manual` + `live` the bot only
 *manages* what the user opens by hand; on the **agent** account, **Claude (Opus)
 makes every decision** — what to trade, which structure, how big, when to enter,

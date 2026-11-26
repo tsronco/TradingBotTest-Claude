@@ -45,6 +45,11 @@ concurrency:
 
 jobs:
   trade:
+    # Agent account switched OFF 2026-11-26 (1 win in 9 trades, -$1,272 on a
+    # $2k paper seed). Every dispatch is skipped unless the repository
+    # variable AGENT_ENABLED is set to "true" (Settings > Secrets and
+    # variables > Actions > Variables). No model call, no orders, no commit.
+    if: ${{ vars.AGENT_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -112,30 +112,12 @@ JOBS = [
         "minutes": [6],
         "wdays": [0],
     },
-    {
-        # Autonomous agent paper account — Claude makes every trading decision
-        # on the ~$2k agent paper account. :07 offset. cron-job.org is the ONLY
-        # scheduler for this workflow (agent-trader.yml has no native
-        # `schedule:` block) — adding one back would double-fire it.
-        #
-        # EVERY 2 HOURS (was hourly, 8 fires a day). Halved 2026-08-19 on
-        # cost: hourly cycles were running ~$100/month in Anthropic credits on a
-        # $2k paper account, and the agent spends most cycles holding. A
-        # discretionary trader carrying multi-week structures does not need an
-        # hourly look.
-        #
-        # Hours chosen to sit inside the session (9:30 AM - 4:00 PM ET) rather
-        # than merely to be evenly spaced: a fire outside the session is
-        # skipped by the market-closed guard and wastes the slot.
-        # 10:07 / 12:07 / 2:07 PM ET, plus 3:07 PM ET as a last look ~53 min
-        # before the close, so an exit trigger that appears late in the day is
-        # not left unchecked until tomorrow.
-        "title": "Agent Trader (Autonomous)",
-        "workflow": "agent-trader.yml",
-        "hours": [10, 12, 14, 15],
-        "minutes": [7],
-        "wdays": [1, 2, 3, 4, 5],
-    },
+    # Agent Trader (Autonomous) — REMOVED 2026-11-26: agent account switched
+    # off (1 win in 9 trades, -$1,272 on a $2k paper seed). agent-trader.yml
+    # skips unless the repo variable AGENT_ENABLED is "true". This script never
+    # deletes jobs, so the existing cron-job.org job must be deleted by hand.
+    # To bring the agent back, restore this entry from git history
+    # (10/12/14/15 ET at :07, Mon-Fri) and set AGENT_ENABLED=true.
     {
         # Live-account READ-ONLY morning brief — Claude reads the market and
         # the real-money account and SUGGESTS (nothing is placed). One fire per

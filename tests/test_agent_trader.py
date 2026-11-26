@@ -1625,7 +1625,11 @@ def test_held_leg_inside_seven_days_is_still_priced(monkeypatch):
 
 
 def test_strike_window_truncation_is_flagged(monkeypatch):
-    snaps = {f"ZS261120P{int(k * 1000):08d}": {"latestQuote": {"bp": 1, "ap": 2}}
+    # Expiry relative to today: a hard-coded 261120 fell out of the 0-60 DTE
+    # window once 2026-11-20 passed and the test started failing on its own.
+    import datetime as _dt
+    exp = (_dt.date.today() + _dt.timedelta(days=30)).strftime("%y%m%d")
+    snaps = {f"ZS{exp}P{int(k * 1000):08d}": {"latestQuote": {"bp": 1, "ap": 2}}
              for k in range(150, 260, 1)}
     monkeypatch.setattr(at, "fetch_chains", lambda symbols, mode="agent": {
         "ZS": {"quote": {"p": 256.0}, "spot": 256.0, "snaps": snaps}})
